@@ -15,7 +15,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const file = await getFileById(env.DB, id);
   await deleteFile(env.DB, id);
   if (file?.r2_key) {
-    try { await env.FILES.delete(file.r2_key); } catch { /* ignore */ }
+    try { await env.BLOBS.delete(file.r2_key); } catch { /* ignore */ }
   }
   return flashRedirect(back, { ok: 'File removed.' });
 };

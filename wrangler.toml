@@ -16,31 +16,31 @@
 name = "technical-triveni"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "./dist"
 
 # --- Database (Cloudflare D1) ------------------------------------------------
 [[d1_databases]]
 binding = "DB"
 database_name = "triveni-db"
-database_id = "REPLACE_ME_AFTER_CREATING_D1"   # from: wrangler d1 create triveni-db
+database_id = "8de41999-fd56-4427-8f24-f0f20c91ebef"   # from: wrangler d1 create triveni-db
 migrations_dir = "migrations"
 
-# --- Private file storage: paid combos, code, gerbers, 3D files --------------
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "triveni-files"
+# --- File storage (Cloudflare KV) --------------------------------------------
+# Free on the Workers plan (no payment method): 1 GB storage, 25 MB per file.
+# Stores paid combo files, free downloads, and project images.
+# (If you outgrow it, switch these to R2 buckets — see DEPLOY.md.)
+[[kv_namespaces]]
+binding = "BLOBS"
+id = "e55eca369b0e490c9fd0f56e073d1f11"
 
-# --- Media storage: project images / gallery (served via a worker route) -----
-[[r2_buckets]]
-binding = "MEDIA"
-bucket_name = "triveni-media"
+# Same namespace, second binding — used for login/checkout rate limiting.
+[[kv_namespaces]]
+binding = "KV"
+id = "e55eca369b0e490c9fd0f56e073d1f11"
 
-# --- Lightweight KV for rate limiting (OPTIONAL) -----------------------------
-# The app runs fine without this; if present it enables login/checkout throttling.
-# Create with: wrangler kv namespace create KV   -> paste the id below & uncomment.
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "REPLACE_ME_AFTER_CREATING_KV"
+# Same namespace, satisfies Astro's auto-enabled session store (unused here).
+[[kv_namespaces]]
+binding = "SESSION"
+id = "e55eca369b0e490c9fd0f56e073d1f11"
 
 # --- Non-secret build/runtime variables --------------------------------------
 # SECRETS (Razorpay keys, admin password hash, session secret) are NEVER put

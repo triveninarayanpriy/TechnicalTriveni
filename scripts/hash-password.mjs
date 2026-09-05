@@ -5,7 +5,7 @@
  * Usage:
  *   node scripts/hash-password.mjs "your-strong-password"
  */
-const ITERATIONS = 210_000;
+const ITERATIONS = 100_000; // Cloudflare Workers' PBKDF2 max
 
 function toB64Url(buf) {
   return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

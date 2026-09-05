@@ -68,7 +68,10 @@ export async function hmacSignHex(secret: string, message: string): Promise<stri
 }
 
 /* ------------------------------------------------ password hashing (PBKDF2) */
-const PBKDF2_ITERATIONS = 210_000; // OWASP-recommended floor for PBKDF2-SHA256
+// Cloudflare Workers caps PBKDF2 at 100,000 iterations (hard platform limit).
+// Combined with a strong random admin password + login rate limiting, this is
+// a sound work factor for a single-admin CMS.
+const PBKDF2_ITERATIONS = 100_000;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));

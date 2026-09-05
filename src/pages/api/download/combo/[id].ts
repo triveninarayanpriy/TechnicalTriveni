@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { getFileById, getOrder } from '../../../../lib/db';
-import { serveFromR2 } from '../../../../lib/serve';
+import { serveFromStore } from '../../../../lib/serve';
 import { timingSafeEqual } from '../../../../lib/crypto';
 
 /**
@@ -27,5 +27,5 @@ export const GET: APIRoute = async ({ params, url }) => {
     return new Response('Not found', { status: 404 });
   }
 
-  return serveFromR2(env.FILES, file.r2_key, file.filename || file.label);
+  return serveFromStore(env.BLOBS, file.r2_key, file.filename || file.label);
 };

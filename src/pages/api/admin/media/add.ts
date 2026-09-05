@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { addImage } from '../../../../lib/db';
-import { uploadToBucket } from '../../../../lib/upload';
+import { uploadToStore } from '../../../../lib/upload';
 import { csrfOk, intField, strField, flashRedirect } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     let url = externalUrl;
     if (file instanceof File && file.size > 0) {
-      const up = await uploadToBucket(env.MEDIA, file, `projects/${projectId}/images`);
+      const up = await uploadToStore(env.BLOBS, file, `projects/${projectId}/images`);
       url = `/media/${up.key}`;
     }
     if (!url) return flashRedirect(back, { err: 'Provide an image file or URL.' });

@@ -1,4 +1,4 @@
-/** Store an uploaded File into an R2 bucket under a safe, unique key. */
+/** Store an uploaded File into KV under a safe, unique key. */
 export interface UploadResult {
   key: string;
   filename: string;
@@ -6,7 +6,14 @@ export interface UploadResult {
   contentType: string;
 }
 
-const MAX_BYTES = 200 * 1024 * 1024; // 200 MB safety cap per file
+export interface BlobMeta {
+  contentType: string;
+  filename: string;
+  size: number;
+}
+
+// KV value limit is 25 MB. Keep a hair under it.
+const MAX_BYTES = 25 * 1024 * 1024;
 
 function sanitizeName(name: string): string {
   return (name || 'file')
@@ -15,8 +22,8 @@ function sanitizeName(name: string): string {
     .slice(0, 100);
 }
 
-export async function uploadToBucket(
-  bucket: R2Bucket,
+export async function uploadToStore(
+  kv: KVNamespace,
   file: File,
   prefix: string,
 ): Promise<UploadResult> {
@@ -24,12 +31,14 @@ export async function uploadToBucket(
     throw new Error('No file provided.');
   }
   if (file.size > MAX_BYTES) {
-    throw new Error('File is too large (max 200 MB).');
+    throw new Error('File is too large (max 25 MB). Zip/compress it, or split large 3D files.');
   }
   const clean = sanitizeName(file.name);
   const key = `${prefix}/${crypto.randomUUID()}-${clean}`;
-  await bucket.put(key, file, {
-    httpMetadata: { contentType: file.type || 'application/octet-stream' },
+  const contentType = file.type || 'application/octet-stream';
+  const buf = await file.arrayBuffer();
+  await kv.put(key, buf, {
+    metadata: { contentType, filename: clean, size: file.size } satisfies BlobMeta,
   });
-  return { key, filename: clean, size: file.size, contentType: file.type || 'application/octet-stream' };
+  return { key, filename: clean, size: file.size, contentType };
 }

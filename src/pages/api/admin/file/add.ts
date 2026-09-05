@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { addFile } from '../../../../lib/db';
-import { uploadToBucket } from '../../../../lib/upload';
+import { uploadToStore } from '../../../../lib/upload';
 import { csrfOk, checkbox, intField, strField, flashRedirect } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!(file instanceof File) || file.size === 0) return flashRedirect(back, { err: 'Choose a file to upload.' });
 
   try {
-    const up = await uploadToBucket(env.FILES, file, `projects/${projectId}/files`);
+    const up = await uploadToStore(env.BLOBS, file, `projects/${projectId}/files`);
     await addFile(env.DB, {
       project_id: projectId,
       label,

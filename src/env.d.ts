@@ -13,8 +13,9 @@ declare namespace Cloudflare {
   interface Env {
     // --- Bindings (wrangler.toml) ---
     DB: D1Database;
-    FILES: R2Bucket;
-    MEDIA: R2Bucket;
+    /** File storage (KV): paid combo files, free downloads, project images. */
+    BLOBS: KVNamespace;
+    /** Same namespace, used for rate-limit counters. */
     KV?: KVNamespace;
 
     // --- Public vars ---

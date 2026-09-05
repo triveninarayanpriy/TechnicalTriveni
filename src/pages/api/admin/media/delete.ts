@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   await deleteImage(env.DB, id);
   if (row?.url?.startsWith('/media/')) {
     const key = row.url.slice('/media/'.length);
-    try { await env.MEDIA.delete(key); } catch { /* ignore */ }
+    try { await env.BLOBS.delete(key); } catch { /* ignore */ }
   }
   return flashRedirect(back, { ok: 'Image removed.' });
 };

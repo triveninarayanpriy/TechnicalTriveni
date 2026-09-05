@@ -14,7 +14,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply triveni-db --remote",
     "db:seed:local": "wrangler d1 execute triveni-db --local --file=./db/seed.sql",
     "db:seed:remote": "wrangler d1 execute triveni-db --remote --file=./db/seed.sql",
-    "cf:deploy": "astro build && wrangler pages deploy ./dist --project-name technical-triveni",
+    "cf:deploy": "astro build && wrangler deploy -c dist/server/wrangler.json",
     "gen:assets": "node scripts/gen-assets.mjs && node scripts/gen-covers.mjs",
     "typecheck": "astro check"
   },
