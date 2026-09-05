@@ -35,7 +35,6 @@ const {
 const pageTitle = title ? `${title} · ${SITE.name}` : `${SITE.name} — ${SITE.tagline}`;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString();
 const ogImageAbs = new URL(ogImage, Astro.site ?? Astro.url.origin).toString();
-const nonce = Astro.locals.cspNonce;
 const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---
 
@@ -82,7 +81,7 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <meta name="twitter:image" content={ogImageAbs} />
 
     {jsonLdArray.map((data) => (
-      <script type="application/ld+json" is:inline nonce={nonce} set:html={JSON.stringify(data)} />
+      <script type="application/ld+json" set:html={JSON.stringify(data)} />
     ))}
 
     <slot name="head" />

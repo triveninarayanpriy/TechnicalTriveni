@@ -48,7 +48,5 @@ declare namespace App {
     admin: { email: string } | null;
     /** Per-request CSRF token for admin forms. */
     csrfToken: string;
-    /** Resolved nonce for the Content-Security-Policy. */
-    cspNonce: string;
   }
 }
