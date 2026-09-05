@@ -1,0 +1,39 @@
+{
+  "name": "technical-triveni",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Technical Triveni — a production platform for electronics & tech projects: full build details, resources, and one-click combos.",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler pages dev ./dist",
+    "astro": "astro",
+    "db:migrate:local": "wrangler d1 migrations apply triveni-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply triveni-db --remote",
+    "db:seed:local": "wrangler d1 execute triveni-db --local --file=./db/seed.sql",
+    "db:seed:remote": "wrangler d1 execute triveni-db --remote --file=./db/seed.sql",
+    "cf:deploy": "astro build && wrangler pages deploy ./dist --project-name technical-triveni",
+    "gen:assets": "node scripts/gen-assets.mjs && node scripts/gen-covers.mjs",
+    "typecheck": "astro check"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.2.4",
+    "@astrojs/sitemap": "^3.7.3",
+    "astro": "^7.2.6",
+    "marked": "^18.0.11",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@cloudflare/workers-types": "^5.20260823.1",
+    "puppeteer-core": "^25.10.0",
+    "sharp": "^0.35.3",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.125.0"
+  }
+}

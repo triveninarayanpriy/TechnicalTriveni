@@ -1,0 +1,31 @@
+# ============================================================================
+#  LOCAL SECRETS for `npm run dev`  —  copy this file to `.dev.vars`
+#  `.dev.vars` is git-ignored. NEVER commit real secrets.
+#
+#  In production these same values are set with:
+#     wrangler pages secret put NAME
+#  (see DEPLOY.md). Do not put production secrets in this file.
+# ============================================================================
+
+# Signs session & download tokens. Generate a long random string:
+#   node -e "console.log(crypto.randomBytes(48).toString('base64url'))"
+SESSION_SECRET="dev-only-change-me-to-a-long-random-string-000000000000000000"
+
+# Admin login. Generate the password hash with the helper script:
+#   node scripts/hash-password.mjs "your-strong-password"
+ADMIN_EMAIL="admin@technicaltriveni.com"
+ADMIN_PASSWORD_HASH="paste-the-hash-from-the-script-here"
+
+# --- Razorpay (get from https://dashboard.razorpay.com > Settings > API Keys)
+# Leave blank + RAZORPAY_ENABLED=false to run the site without live payments.
+RAZORPAY_KEY_ID=""
+RAZORPAY_KEY_SECRET=""
+RAZORPAY_WEBHOOK_SECRET=""
+
+# --- Cloudflare Turnstile (free bot protection) https://dash.cloudflare.com
+TURNSTILE_SITE_KEY=""
+TURNSTILE_SECRET_KEY=""
+
+# --- Optional: transactional email for order receipts (https://resend.com free tier)
+RESEND_API_KEY=""
+FROM_EMAIL="Technical Triveni <orders@technicaltriveni.com>"

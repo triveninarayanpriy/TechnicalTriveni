@@ -1,0 +1,14 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ProjectEditor from '../../../components/ProjectEditor.astro';
+const csrf = Astro.locals.csrfToken;
+---
+<Admin title="New project" active="projects">
+  <a href="/admin/projects" class="back-link">← All projects</a>
+  <ProjectEditor project={null} csrf={csrf} />
+</Admin>
+
+<style>
+  .back-link { display: inline-block; margin-bottom: 1.25rem; color: var(--text-muted); font-size: var(--fs-sm); }
+  .back-link:hover { color: var(--brand-red); }
+</style>

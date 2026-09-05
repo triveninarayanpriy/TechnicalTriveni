@@ -1,0 +1,116 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import { SITE } from '../lib/site';
+
+const values = [
+  { icon: 'check-circle', title: 'Nothing hidden', text: 'Full schematics, code and wiring — not just a highlight reel. If we built it, you can build it.' },
+  { icon: 'shield', title: 'Tested & documented', text: 'Every project is built and verified before it goes up. Guides are written to be followed, not decoded.' },
+  { icon: 'users', title: 'Made for makers', text: 'Beginner-friendly where it counts, with depth for those who want to understand the why.' },
+];
+---
+
+<Base title="About" description="Technical Triveni is a maker studio turning electronics, software and AI projects into complete, buildable guides.">
+  <section class="page-hero grid-bg">
+    <div class="container">
+      <span class="eyebrow" data-reveal>Our story</span>
+      <h1 data-reveal>We turn “cool project” into “I built it.”</h1>
+      <p class="page-hero__lead" data-reveal>
+        Technical Triveni started with a simple frustration: brilliant project videos everywhere, but almost never
+        the full details to actually recreate them. So we built the opposite — a place where every project comes
+        with everything you need.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container about-cols">
+      <div class="about-story prose" data-reveal>
+        <h2>Electronics, software & AI — under one roof.</h2>
+        <p>
+          The name <strong>Triveni</strong> refers to the sacred confluence of three rivers. For us, those rivers are
+          the three disciplines behind every modern build: <strong>electronics</strong>, <strong>software</strong>,
+          and <strong>AI</strong>. Great projects live where all three meet.
+        </p>
+        <p>
+          We publish short builds on YouTube and Instagram to spark ideas — then bring you here for the full picture:
+          circuit diagrams, source code, 3D-printable parts, a complete bill of materials, and direct links to buy
+          every component. When you're ready to build, an optional combo hands you all the project files in one click.
+        </p>
+        <p>
+          It's a simple promise: <strong>watch it, understand it, build it.</strong>
+        </p>
+      </div>
+
+      <aside class="about-side" data-reveal>
+        <div class="about-mark panel">
+          <svg viewBox="-4 -4 120 100" aria-hidden="true">
+            <defs><path id="am" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
+            <use href="#am" x="0" fill="var(--brand-red)"/>
+            <use href="#am" x="50" fill="#fff"/>
+          </svg>
+          <p class="mono">{SITE.tagline}</p>
+        </div>
+        <div class="about-streams">
+          {SITE.streams.map((s) => (
+            <div class="about-stream">
+              <Icon name={s.key === 'electronics' ? 'cpu' : s.key === 'software' ? 'code' : 'ai'} size={20} />
+              <div>
+                <strong>{s.label}</strong>
+                <span class="dim">{s.blurb}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container">
+      <div class="section-head center" data-reveal>
+        <h2 class="section-title">What we stand for</h2>
+      </div>
+      <div class="cols-3">
+        {values.map((v) => (
+          <div class="value-card" data-reveal>
+            <div class="value-card__icon"><Icon name={v.icon} size={22} /></div>
+            <h3>{v.title}</h3>
+            <p class="muted">{v.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container center" data-reveal>
+      <h2 class="section-title">Build with us.</h2>
+      <p class="muted" style="max-width:48ch;margin:1rem auto 1.75rem">Explore the library, or follow along for a new build every week.</p>
+      <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap">
+        <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
+        <a href="/contact" class="btn btn-ghost btn-lg">Say hello</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .page-hero { padding-block: clamp(3rem, 7vw, 5rem) clamp(2rem, 4vw, 3rem); }
+  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.9rem 1rem; max-width: 18ch; }
+  .page-hero__lead { color: var(--text-muted); max-width: 62ch; font-size: var(--fs-md); }
+  .about-cols { display: grid; grid-template-columns: 1.4fr 0.85fr; gap: 3rem; align-items: start; }
+  .about-side { display: flex; flex-direction: column; gap: 1.25rem; position: sticky; top: calc(var(--header-h) + 1rem); }
+  .about-mark { padding: 2rem; text-align: center; }
+  .about-mark svg { width: 96px; margin: 0 auto 1.25rem; }
+  .about-mark p { color: var(--text-muted); font-size: var(--fs-sm); }
+  .about-streams { display: flex; flex-direction: column; gap: 0.75rem; }
+  .about-stream { display: flex; align-items: center; gap: 0.85rem; padding: 1rem 1.15rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
+  .about-stream :global(svg) { color: var(--brand-red); flex-shrink: 0; }
+  .about-stream div { display: flex; flex-direction: column; }
+  .about-stream .dim { font-size: var(--fs-sm); }
+  .value-card { padding: 1.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .value-card__icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: var(--r-md); background: rgba(231,36,42,0.12); color: var(--brand-red); margin-bottom: 1rem; }
+  .value-card h3 { font-size: var(--fs-md); margin-bottom: 0.4rem; }
+  @media (max-width: 860px) { .about-cols { grid-template-columns: 1fr; } .about-side { position: static; } }
+</style>

@@ -1,0 +1,71 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { listRecentOrders } from '../../lib/db';
+import { formatINR, formatDateTime } from '../../lib/format';
+
+const all = await listRecentOrders(env.DB, 300);
+const filter = Astro.url.searchParams.get('status') || 'all';
+const orders = filter === 'all' ? all : all.filter((o) => o.status === filter);
+const paidTotal = all.filter((o) => o.status === 'paid').reduce((s, o) => s + o.amount_inr, 0);
+---
+
+<Admin title="Orders" active="orders">
+  <div class="orders-head">
+    <div class="orders-stat">
+      <span class="dim">Gross revenue</span>
+      <strong>{formatINR(paidTotal)}</strong>
+    </div>
+    <div class="filter-tabs">
+      {['all', 'paid', 'created', 'failed'].map((s) => (
+        <a href={`/admin/orders?status=${s}`} class:list={['filter-tab', { 'is-active': filter === s }]}>{s}</a>
+      ))}
+    </div>
+  </div>
+
+  {orders.length > 0 ? (
+    <div class="table-wrap card-table">
+      <table class="admin-table">
+        <thead><tr><th>Order</th><th>Project</th><th>Email</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          {orders.map((o) => (
+            <tr>
+              <td class="mono dim">{o.id.slice(0, 8).toUpperCase()}</td>
+              <td>{o.project_title}</td>
+              <td class="mono dim">{o.email}</td>
+              <td>{formatINR(o.amount_inr)}</td>
+              <td><span class:list={['status', `is-${o.status}`]}>{o.status}</span></td>
+              <td class="dim">{formatDateTime(o.paid_at || o.created_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ) : (
+    <div class="empty-admin">
+      <div class="empty-admin__icon"><Icon name="cart" size={28} /></div>
+      <h3>No orders {filter !== 'all' ? `(${filter})` : 'yet'}</h3>
+      <p class="dim">Paid combos will show up here.</p>
+    </div>
+  )}
+</Admin>
+
+<style>
+  .orders-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .orders-stat { display: flex; flex-direction: column; }
+  .orders-stat strong { font-family: var(--font-display); font-size: 1.6rem; }
+  .filter-tabs { display: flex; gap: 0.35rem; }
+  .filter-tab { padding: 0.4rem 0.85rem; border-radius: var(--r-full); border: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-sm); text-transform: capitalize; }
+  .filter-tab.is-active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
+  .card-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .admin-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
+  .admin-table td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
+  .status { padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); text-transform: capitalize; }
+  .status.is-paid { background: rgba(52,211,153,0.14); color: var(--success); }
+  .status.is-created { background: var(--surface-3); color: var(--text-muted); }
+  .status.is-failed { background: rgba(248,113,113,0.14); color: var(--danger); }
+  .empty-admin { text-align: center; padding: 4rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .empty-admin__icon { width: 60px; height: 60px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface-2); color: var(--text-dim); }
+</style>

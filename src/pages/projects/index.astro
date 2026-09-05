@@ -1,0 +1,111 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import Icon from '../../components/Icon.astro';
+import { listProjects, distinctCategories } from '../../lib/db';
+import { env } from 'cloudflare:workers';
+
+const url = Astro.url;
+const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
+const cat = (url.searchParams.get('cat') || 'All').trim();
+
+let projects: Awaited<ReturnType<typeof listProjects>> = [];
+let categories: string[] = [];
+try {
+  [projects, categories] = await Promise.all([
+    listProjects(env.DB, { publishedOnly: true, category: cat, search: q || undefined }),
+    distinctCategories(env.DB),
+  ]);
+} catch {
+  /* DB not ready */
+}
+const cats = ['All', ...categories];
+---
+
+<Base title="Projects" description="Browse electronics, robotics, AI and software projects — each with full schematics, code, 3D files and a parts list.">
+  <section class="page-hero grid-bg">
+    <div class="container">
+      <span class="eyebrow" data-reveal>Project library</span>
+      <h1 data-reveal>Every build, fully documented.</h1>
+      <p class="page-hero__lead" data-reveal>
+        Filter by category or search. Specs, wiring and parts are always free — grab the combo when you're ready to build.
+      </p>
+
+      <form class="filter-bar" method="get" action="/projects" data-reveal>
+        <div class="search-field">
+          <Icon name="search" size={18} />
+          <input
+            type="search"
+            name="q"
+            value={q}
+            placeholder="Search projects, e.g. ESP32, robot, RFID…"
+            class="search-input"
+            aria-label="Search projects"
+          />
+        </div>
+        {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+
+      <div class="chips-row" data-reveal>
+        {cats.map((c) => {
+          const params = new URLSearchParams();
+          if (c !== 'All') params.set('cat', c);
+          if (q) params.set('q', q);
+          const href = `/projects${params.toString() ? `?${params}` : ''}`;
+          return (
+            <a href={href} class:list={['filter-chip', { 'is-active': c === cat }]}>{c}</a>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+
+  <section class="section-sm">
+    <div class="container">
+      <p class="results-count muted mono">
+        {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+        {q && <> · matching “{q}”</>}
+        {cat !== 'All' && <> · in {cat}</>}
+      </p>
+
+      {projects.length > 0 ? (
+        <div class="cols-auto">
+          {projects.map((p) => <ProjectCard project={p} />)}
+        </div>
+      ) : (
+        <div class="empty">
+          <div class="empty__icon"><Icon name="search" size={28} /></div>
+          <h3>No projects found</h3>
+          <p class="muted">Try a different search or clear the filters.</p>
+          <a href="/projects" class="btn btn-ghost" style="margin-top:1rem">Reset filters</a>
+        </div>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .page-hero { padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 3vw, 2.5rem); }
+  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.9rem 0.75rem; }
+  .page-hero__lead { color: var(--text-muted); max-width: 60ch; font-size: var(--fs-md); }
+
+  .filter-bar { display: flex; gap: 0.65rem; margin-top: 2rem; max-width: 640px; }
+  .search-field { position: relative; flex: 1; display: flex; align-items: center; }
+  .search-field :global(svg) { position: absolute; left: 0.9rem; color: var(--text-dim); pointer-events: none; }
+  .search-input { width: 100%; padding: 0.8rem 1rem 0.8rem 2.7rem; background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--r-full); color: var(--text); }
+  .search-input:focus { outline: none; border-color: var(--brand-red); box-shadow: 0 0 0 3px rgba(231,36,42,0.18); }
+
+  .chips-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.25rem; }
+  .filter-chip { padding: 0.45rem 0.95rem; border-radius: var(--r-full); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 550; transition: all 0.2s; }
+  .filter-chip:hover { color: var(--text); border-color: var(--border-strong); }
+  .filter-chip.is-active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
+
+  .results-count { margin-bottom: 1.5rem; font-size: var(--fs-sm); }
+  .empty { text-align: center; padding: 4rem 1rem; }
+  .empty__icon { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
+
+  @media (max-width: 520px) {
+    .filter-bar { flex-direction: column; }
+  }
+</style>

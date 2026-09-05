@@ -1,0 +1,163 @@
+---
+import Logo from './Logo.astro';
+import Icon from './Icon.astro';
+import { NAV } from '../lib/site';
+
+const path = Astro.url.pathname;
+const isActive = (href: string) =>
+  href === '/' ? path === '/' : path.startsWith(href.split('#')[0]) && href !== '/#how-it-works';
+const isAdmin = !!Astro.locals.admin;
+---
+
+<header class="site-header" id="site-header" data-header>
+  <div class="container site-header__inner">
+    <Logo size={30} />
+
+    <nav class="nav-desktop" aria-label="Primary">
+      {NAV.map((item) => (
+        <a href={item.href} class:list={['nav-link', { 'is-active': isActive(item.href) }]}>
+          {item.label}
+        </a>
+      ))}
+    </nav>
+
+    <div class="site-header__actions">
+      {isAdmin && (
+        <a href="/admin" class="nav-link nav-link--admin">Admin</a>
+      )}
+      <a href="/projects" class="btn btn-primary btn--header">
+        Explore projects <Icon name="arrow-right" size={16} />
+      </a>
+      <button class="nav-toggle" data-nav-toggle aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
+        <Icon name="menu" size={24} />
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div class="mobile-nav" id="mobile-nav" data-mobile-nav hidden>
+    <nav aria-label="Mobile">
+      {NAV.map((item) => (
+        <a href={item.href} class="mobile-nav__link">{item.label}</a>
+      ))}
+      {isAdmin && <a href="/admin" class="mobile-nav__link">Admin</a>}
+      <a href="/projects" class="btn btn-primary btn-block" style="margin-top:1rem">
+        Explore projects <Icon name="arrow-right" size={16} />
+      </a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    transition: background 0.3s var(--ease), border-color 0.3s var(--ease), backdrop-filter 0.3s;
+    border-bottom: 1px solid transparent;
+  }
+  .site-header.is-stuck {
+    background: rgba(10, 10, 12, 0.72);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-bottom-color: var(--border);
+  }
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+  }
+  .nav-desktop {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-inline: auto;
+  }
+  .nav-link {
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--r-full);
+    font-size: var(--fs-sm);
+    font-weight: 550;
+    color: var(--text-muted);
+    transition: color 0.2s, background 0.2s;
+  }
+  .nav-link:hover { color: var(--text); background: var(--surface); }
+  .nav-link.is-active { color: var(--text); }
+  .nav-link.is-active::after {
+    content: '';
+    display: block;
+    height: 2px;
+    width: 18px;
+    margin: 3px auto 0;
+    border-radius: 2px;
+    background: var(--brand-red);
+  }
+  .nav-link--admin { color: var(--brand-red-300); }
+  .site-header__actions { display: flex; align-items: center; gap: 0.6rem; }
+  .btn--header { padding: 0.6rem 1.05rem; }
+  .nav-toggle {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--r-sm);
+    padding: 0.4rem;
+    cursor: pointer;
+  }
+
+  .mobile-nav {
+    position: absolute;
+    top: var(--header-h);
+    left: 0;
+    right: 0;
+    background: rgba(12, 12, 15, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem clamp(1rem, 4vw, 2rem) 1.5rem;
+  }
+  .mobile-nav[hidden] { display: none; }
+  .mobile-nav nav { display: flex; flex-direction: column; gap: 0.25rem; max-width: var(--container); margin-inline: auto; }
+  .mobile-nav__link {
+    padding: 0.85rem 0.5rem;
+    border-bottom: 1px solid var(--hairline);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-weight: 550;
+  }
+
+  @media (max-width: 880px) {
+    .nav-desktop { display: none; }
+    .btn--header { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .nav-link--admin { display: none; }
+  }
+</style>
+
+<script>
+  // Header scroll state + mobile menu toggle. Bundled by Astro → served from
+  // the site origin, so it satisfies a strict `script-src 'self'` CSP.
+  const header = document.querySelector('[data-header]');
+  const onScroll = () => header?.classList.toggle('is-stuck', window.scrollY > 8);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  const toggle = document.querySelector('[data-nav-toggle]');
+  const menu = document.querySelector('[data-mobile-nav]') as HTMLElement | null;
+  toggle?.addEventListener('click', () => {
+    if (!menu) return;
+    const open = menu.hasAttribute('hidden');
+    if (open) menu.removeAttribute('hidden');
+    else menu.setAttribute('hidden', '');
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+  // Close the menu after navigating to an in-page anchor.
+  menu?.querySelectorAll('a').forEach((a) =>
+    a.addEventListener('click', () => menu.setAttribute('hidden', '')),
+  );
+</script>

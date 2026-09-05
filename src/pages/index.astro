@@ -1,0 +1,300 @@
+---
+import Base from '../layouts/Base.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import Icon from '../components/Icon.astro';
+import { SITE } from '../lib/site';
+import { listProjects } from '../lib/db';
+import { env } from 'cloudflare:workers';
+
+let featured = [] as Awaited<ReturnType<typeof listProjects>>;
+try {
+  featured = await listProjects(env.DB, { publishedOnly: true, featuredOnly: true, limit: 3 });
+  if (featured.length === 0) {
+    featured = await listProjects(env.DB, { publishedOnly: true, limit: 3 });
+  }
+} catch (e) {
+  // DB not migrated yet (first run) — render the page without projects.
+}
+
+const included = [
+  { icon: 'schematic', title: 'Schematics & wiring', text: 'Clear circuit diagrams and pin-by-pin connections.' },
+  { icon: 'code', title: 'Source code', text: 'Complete, well-commented firmware & software.' },
+  { icon: 'cube', title: '3D files', text: 'Printable enclosures and mounts (STL), where relevant.' },
+  { icon: 'doc', title: 'Build guide', text: 'A step-by-step PDF so nothing is left to guesswork.' },
+  { icon: 'cart', title: 'Parts list + links', text: 'Every component with a direct buy link.' },
+  { icon: 'play', title: 'Video walkthrough', text: 'See it built end-to-end on YouTube.' },
+];
+
+const steps = [
+  { n: '01', title: 'Watch', text: 'Catch a build on YouTube Shorts or an Instagram reel.', icon: 'play' },
+  { n: '02', title: 'Explore', text: 'Land here for the full breakdown — free specs, parts & wiring.', icon: 'search' },
+  { n: '03', title: 'Build', text: 'Grab the combo for code + schematics + 3D, and order parts.', icon: 'bolt' },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: SITE.name,
+  description: SITE.description,
+  url: Astro.site?.toString(),
+  sameAs: [SITE.socials.youtube, SITE.socials.instagram].filter(Boolean),
+};
+---
+
+<Base jsonLd={jsonLd}>
+  <!-- ============================ HERO ============================ -->
+  <section class="hero grid-bg">
+    <div class="container hero__inner">
+      <div class="hero__copy">
+        <span class="eyebrow" data-reveal>Electronics · Software · AI</span>
+        <h1 data-reveal>
+          Build real projects,<br />
+          the <span class="gradient-text">right way.</span>
+        </h1>
+        <p class="hero__lead" data-reveal data-reveal-delay="60ms">
+          Every Technical Triveni project comes with full schematics, source code, 3D files,
+          a complete parts list and direct buy links — so you can go from a 30-second reel
+          to a finished build with zero guesswork.
+        </p>
+        <div class="hero__actions" data-reveal data-reveal-delay="120ms">
+          <a href="/projects" class="btn btn-primary btn-lg">
+            Explore projects <Icon name="arrow-right" size={18} />
+          </a>
+          <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="btn btn-ghost btn-lg">
+            <Icon name="youtube" size={18} /> Watch on YouTube
+          </a>
+        </div>
+        <div class="hero__trust" data-reveal data-reveal-delay="160ms">
+          <div class="trust-item"><Icon name="check-circle" size={18} /> Tested builds</div>
+          <div class="trust-item"><Icon name="download" size={18} /> Instant downloads</div>
+          <div class="trust-item"><Icon name="shield" size={18} /> Secure checkout</div>
+        </div>
+      </div>
+
+      <!-- Hero visual: a "project resource" panel -->
+      <div class="hero__visual" data-reveal data-reveal-delay="120ms" aria-hidden="true">
+        <div class="resource-card panel">
+          <div class="resource-card__head">
+            <div class="rc-dots"><span></span><span></span><span></span></div>
+            <span class="mono rc-file">iot-weather-station /</span>
+          </div>
+          <div class="resource-card__tabs">
+            <span class="rc-tab is-active"><Icon name="schematic" size={15} /> Schematic</span>
+            <span class="rc-tab"><Icon name="code" size={15} /> Code</span>
+            <span class="rc-tab"><Icon name="cart" size={15} /> BOM</span>
+          </div>
+          <pre class="rc-code mono"><span class="c-key">void</span> <span class="c-fn">loop</span>() {'{'}
+  sensor.<span class="c-fn">read</span>();
+  dashboard.<span class="c-fn">update</span>(temp, humidity);
+  <span class="c-key">delay</span>(2000);
+{'}'}</pre>
+          <div class="rc-files">
+            <span class="rc-chip"><Icon name="code" size={14} /> firmware.zip</span>
+            <span class="rc-chip"><Icon name="schematic" size={14} /> schematic.pdf</span>
+            <span class="rc-chip"><Icon name="cube" size={14} /> enclosure.stl</span>
+          </div>
+        </div>
+        <div class="hero__glow-mark">
+          <svg viewBox="-4 -4 120 100">
+            <defs><path id="hm" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
+            <use href="#hm" x="0" fill="var(--brand-red)"/>
+            <use href="#hm" x="50" fill="#20222a"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TECH MARQUEE ===================== -->
+  <div class="tech-strip">
+    <div class="container tech-strip__inner">
+      {['ESP32', 'Arduino', 'Raspberry Pi', 'STM32', 'ESP8266', 'MQTT', '3D Printing', 'PCB Design'].map((t) => (
+        <span class="tech-pill mono">{t}</span>
+      ))}
+    </div>
+  </div>
+
+  <!-- ===================== WHAT YOU GET ===================== -->
+  <section class="section" id="included">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">Every project includes</span>
+        <h2 class="section-title">Not just a video — the complete kit of knowledge.</h2>
+        <p class="section-lead">Most channels show you the highlight. We hand you everything needed to actually build it.</p>
+      </div>
+      <div class="included-grid">
+        {included.map((f, i) => (
+          <div class="feature" data-reveal data-reveal-delay={`${i * 50}ms`}>
+            <div class="feature__icon"><Icon name={f.icon} size={22} /></div>
+            <h3 class="feature__title">{f.title}</h3>
+            <p class="feature__text">{f.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURED PROJECTS ===================== -->
+  {featured.length > 0 && (
+    <section class="section section--alt">
+      <div class="container">
+        <div class="section-head section-head--row" data-reveal>
+          <div>
+            <span class="eyebrow">Featured builds</span>
+            <h2 class="section-title">Start with a fan favourite.</h2>
+          </div>
+          <a href="/projects" class="btn btn-ghost">All projects <Icon name="arrow-right" size={16} /></a>
+        </div>
+        <div class="cols-auto">
+          {featured.map((p) => <ProjectCard project={p} />)}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="section" id="how-it-works">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">How it works</span>
+        <h2 class="section-title">From a reel to a real build in three steps.</h2>
+      </div>
+      <div class="steps">
+        {steps.map((s, i) => (
+          <div class="step" data-reveal data-reveal-delay={`${i * 80}ms`}>
+            <span class="step__n mono">{s.n}</span>
+            <div class="step__icon"><Icon name={s.icon} size={24} /></div>
+            <h3 class="step__title">{s.title}</h3>
+            <p class="step__text">{s.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== THREE STREAMS ===================== -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="section-head center" data-reveal>
+        <span class="eyebrow" style="justify-content:center">The Triveni</span>
+        <h2 class="section-title">Three streams, one confluence.</h2>
+        <p class="section-lead" style="margin-inline:auto">
+          "Triveni" means the meeting of three rivers. Ours are the disciplines behind every great build.
+        </p>
+      </div>
+      <div class="streams">
+        {SITE.streams.map((s, i) => (
+          <div class="stream" data-reveal data-reveal-delay={`${i * 80}ms`}>
+            <div class="stream__icon"><Icon name={s.key === 'electronics' ? 'cpu' : s.key === 'software' ? 'code' : 'ai'} size={26} /></div>
+            <h3 class="stream__label">{s.label}</h3>
+            <p class="stream__blurb">{s.blurb}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-band" data-reveal>
+        <div class="cta-band__glow" aria-hidden="true"></div>
+        <h2 class="cta-band__title">Ready to build something real?</h2>
+        <p class="cta-band__text">Browse the project library, or follow along on YouTube & Instagram for new builds every week.</p>
+        <div class="cta-band__actions">
+          <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
+          <a href={SITE.socials.instagram} target="_blank" rel="noopener" class="btn btn-ghost btn-lg">
+            <Icon name="instagram" size={18} /> Follow on Instagram
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  /* ---- hero ---- */
+  .hero { position: relative; padding-block: clamp(3rem, 7vw, 6rem) clamp(2.5rem, 5vw, 4rem); overflow: hidden; }
+  .hero::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(60% 60% at 90% 10%, rgba(231,36,42,0.14), transparent 60%);
+    pointer-events: none;
+  }
+  .hero__inner { position: relative; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+  .hero h1 { font-size: var(--fs-3xl); margin-block: 1rem 1.25rem; }
+  .hero__lead { color: var(--text-muted); font-size: var(--fs-md); max-width: 52ch; }
+  .hero__actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.8rem; }
+  .hero__trust { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 2rem; color: var(--text-muted); font-size: var(--fs-sm); }
+  .trust-item { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .trust-item :global(svg) { color: var(--brand-red); }
+
+  /* hero visual */
+  .hero__visual { position: relative; }
+  .resource-card { position: relative; z-index: 2; padding: 0; overflow: hidden; box-shadow: var(--shadow-lg); }
+  .resource-card__head { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .rc-dots { display: flex; gap: 0.4rem; }
+  .rc-dots span { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-3); }
+  .rc-dots span:first-child { background: var(--brand-red); }
+  .rc-file { color: var(--text-dim); font-size: var(--fs-xs); }
+  .resource-card__tabs { display: flex; gap: 0.4rem; padding: 0.75rem 1rem 0; }
+  .rc-tab { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem; font-size: var(--fs-xs); color: var(--text-dim); border: 1px solid transparent; border-radius: var(--r-sm) var(--r-sm) 0 0; }
+  .rc-tab.is-active { color: var(--text); background: var(--bg-2); border-color: var(--border); border-bottom-color: transparent; }
+  .rc-code { margin: 0; padding: 1.1rem 1.2rem; font-size: 0.82rem; line-height: 1.7; color: var(--text-muted); background: var(--bg-2); border-block: 1px solid var(--border); overflow-x: auto; }
+  .c-key { color: var(--brand-red-300); }
+  .c-fn { color: #7db3ff; }
+  .rc-files { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; }
+  .rc-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.7rem; font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-full); }
+  .hero__glow-mark { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; opacity: 0.12; filter: blur(2px); }
+  .hero__glow-mark svg { width: 120%; transform: rotate(-6deg); }
+
+  /* tech strip */
+  .tech-strip { border-block: 1px solid var(--border); background: var(--bg-2); }
+  .tech-strip__inner { display: flex; flex-wrap: wrap; gap: 0.6rem 1.5rem; justify-content: center; padding-block: 1.1rem; }
+  .tech-pill { font-size: var(--fs-sm); color: var(--text-dim); letter-spacing: 0.03em; }
+  .tech-pill::before { content: '▹ '; color: var(--brand-red); }
+
+  /* section heads */
+  .section--alt { background: linear-gradient(180deg, var(--bg-2), var(--bg)); border-block: 1px solid var(--hairline); }
+  .section-head { max-width: 60ch; margin-bottom: 2.5rem; }
+  .section-head .eyebrow { margin-bottom: 0.9rem; }
+  .section-head--row { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; max-width: none; flex-wrap: wrap; }
+
+  /* included grid */
+  .included-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .feature { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); transition: border-color 0.25s, transform 0.25s; }
+  .feature:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+  .feature__icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: var(--r-md); background: rgba(231,36,42,0.12); color: var(--brand-red); margin-bottom: 1rem; }
+  .feature__title { font-size: var(--fs-md); margin-bottom: 0.35rem; }
+  .feature__text { color: var(--text-muted); font-size: var(--fs-sm); }
+
+  /* steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .step { position: relative; padding: 2rem 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+  .step__n { position: absolute; top: 1rem; right: 1.2rem; font-size: 2.4rem; font-weight: 700; color: var(--surface-3); }
+  .step__icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: var(--r-md); background: var(--brand-red); color: #fff; margin-bottom: 1.1rem; }
+  .step__title { font-size: var(--fs-lg); margin-bottom: 0.4rem; }
+  .step__text { color: var(--text-muted); font-size: var(--fs-sm); }
+
+  /* streams */
+  .streams { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .stream { text-align: center; padding: 2.25rem 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .stream__icon { width: 60px; height: 60px; display: grid; place-items: center; margin: 0 auto 1.1rem; border-radius: 50%; background: rgba(231,36,42,0.1); color: var(--brand-red); border: 1px solid color-mix(in srgb, var(--brand-red) 30%, transparent); }
+  .stream__label { font-size: var(--fs-xl); }
+  .stream__blurb { color: var(--text-muted); margin-top: 0.4rem; }
+
+  /* cta band */
+  .cta-band { position: relative; text-align: center; padding: clamp(2.5rem, 6vw, 4.5rem) 1.5rem; border-radius: var(--r-xl); border: 1px solid var(--border-strong); background: linear-gradient(180deg, var(--surface), var(--bg-2)); overflow: hidden; }
+  .cta-band__glow { position: absolute; inset: 0; background: radial-gradient(50% 100% at 50% 0%, rgba(231,36,42,0.22), transparent 60%); }
+  .cta-band__title { position: relative; font-size: var(--fs-2xl); }
+  .cta-band__text { position: relative; color: var(--text-muted); max-width: 52ch; margin: 0.9rem auto 1.6rem; }
+  .cta-band__actions { position: relative; display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; }
+
+  @media (max-width: 900px) {
+    .hero__inner { grid-template-columns: 1fr; }
+    .hero__visual { order: -1; max-width: 460px; }
+    .included-grid, .steps, .streams { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .included-grid, .steps, .streams { grid-template-columns: 1fr; }
+  }
+</style>

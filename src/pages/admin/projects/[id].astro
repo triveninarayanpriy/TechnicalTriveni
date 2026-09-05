@@ -1,0 +1,22 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ProjectEditor from '../../../components/ProjectEditor.astro';
+import { env } from 'cloudflare:workers';
+import { getProjectFullById } from '../../../lib/db';
+
+const id = Number(Astro.params.id);
+if (!id) return Astro.redirect('/admin/projects');
+const project = await getProjectFullById(env.DB, id);
+if (!project) return Astro.redirect('/admin/projects?err=Project%20not%20found');
+
+const csrf = Astro.locals.csrfToken;
+---
+<Admin title={`Edit · ${project.title}`} active="projects">
+  <a href="/admin/projects" class="back-link">← All projects</a>
+  <ProjectEditor project={project} csrf={csrf} />
+</Admin>
+
+<style>
+  .back-link { display: inline-block; margin-bottom: 1.25rem; color: var(--text-muted); font-size: var(--fs-sm); }
+  .back-link:hover { color: var(--brand-red); }
+</style>

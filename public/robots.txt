@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /api/
+
+# Update the host below to your final domain after deploying.
+Sitemap: https://technicaltriveni.com/sitemap-index.xml

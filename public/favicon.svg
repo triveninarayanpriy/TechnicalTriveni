@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Technical Triveni">
+  <defs>
+    <path id="g" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#0e0f12"/>
+  <g transform="translate(15 20) scale(0.86)">
+    <use href="#g" x="0" fill="#e7242a"/>
+    <use href="#g" x="50" fill="#ffffff"/>
+  </g>
+</svg>

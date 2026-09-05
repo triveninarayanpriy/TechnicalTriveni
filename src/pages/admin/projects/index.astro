@@ -1,0 +1,100 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { listProjects } from '../../../lib/db';
+import { formatINR } from '../../../lib/format';
+
+const projects = await listProjects(env.DB, {});
+const csrf = Astro.locals.csrfToken;
+---
+
+<Admin title="Projects" active="projects">
+  <div class="page-actions">
+    <p class="dim">{projects.length} total</p>
+    <a href="/admin/projects/new" class="btn btn-primary"><Icon name="spark" size={16} /> New project</a>
+  </div>
+
+  {projects.length > 0 ? (
+    <div class="table-wrap card-table">
+      <table class="admin-table">
+        <thead>
+          <tr><th>Title</th><th>Category</th><th>Price</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {projects.map((p) => (
+            <tr>
+              <td>
+                <a href={`/admin/projects/${p.id}`} class="proj-title">{p.title}</a>
+                <span class="mono dim proj-slug">/{p.slug}</span>
+              </td>
+              <td class="dim">{p.category}</td>
+              <td>{p.combo_enabled && p.price_inr > 0 ? formatINR(p.price_inr) : 'Free'}</td>
+              <td>
+                <span class:list={['status', p.published ? 'is-live' : 'is-draft']}>
+                  {p.published ? 'Published' : 'Draft'}
+                </span>
+                {p.featured === 1 && <span class="status is-feat">Featured</span>}
+              </td>
+              <td class="row-actions">
+                <a href={`/admin/projects/${p.id}`} class="btn btn-ghost btn-xs">Edit</a>
+                <a href={`/projects/${p.slug}`} target="_blank" class="btn btn-ghost btn-xs" aria-label="Preview"><Icon name="external" size={14} /></a>
+                <form method="post" action="/api/admin/project/action" class="inline-form">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="action" value={p.published ? 'unpublish' : 'publish'} />
+                  <button type="submit" class="btn btn-ghost btn-xs">{p.published ? 'Unpublish' : 'Publish'}</button>
+                </form>
+                <form method="post" action="/api/admin/project/action" class="inline-form" data-confirm={`Delete “${p.title}”? This cannot be undone.`}>
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="action" value="delete" />
+                  <button type="submit" class="btn btn-ghost btn-xs btn-danger"><Icon name="close" size={14} /></button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ) : (
+    <div class="empty-admin">
+      <div class="empty-admin__icon"><Icon name="cpu" size={28} /></div>
+      <h3>No projects yet</h3>
+      <p class="dim">Create your first project to get started.</p>
+      <a href="/admin/projects/new" class="btn btn-primary" style="margin-top:1rem"><Icon name="spark" size={16} /> New project</a>
+    </div>
+  )}
+</Admin>
+
+<style>
+  .page-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .card-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .admin-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
+  .admin-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); vertical-align: middle; }
+  .admin-table tr:last-child td { border-bottom: 0; }
+  .proj-title { font-weight: 600; }
+  .proj-title:hover { color: var(--brand-red); }
+  .proj-slug { display: block; font-size: var(--fs-xs); margin-top: 2px; }
+  .status { display: inline-block; padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); margin-right: 0.3rem; }
+  .status.is-live { background: rgba(52,211,153,0.14); color: var(--success); }
+  .status.is-draft { background: var(--surface-3); color: var(--text-muted); }
+  .status.is-feat { background: rgba(231,36,42,0.14); color: var(--brand-red-300); }
+  .row-actions { display: flex; gap: 0.35rem; align-items: center; justify-content: flex-end; }
+  .inline-form { display: inline; }
+  .btn-xs { padding: 0.35rem 0.6rem; font-size: var(--fs-xs); }
+  .btn-danger { color: var(--danger); }
+  .btn-danger:hover { border-color: var(--danger); }
+  .empty-admin { text-align: center; padding: 4rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .empty-admin__icon { width: 60px; height: 60px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface-2); color: var(--text-dim); }
+</style>
+
+<script>
+  // Confirm destructive actions before submitting.
+  document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((f) => {
+    f.addEventListener('submit', (e) => {
+      if (!confirm(f.dataset.confirm || 'Are you sure?')) e.preventDefault();
+    });
+  });
+</script>

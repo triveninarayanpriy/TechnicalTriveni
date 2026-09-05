@@ -1,0 +1,51 @@
+# ============================================================================
+#  Technical Triveni — Cloudflare configuration
+# ----------------------------------------------------------------------------
+#  This file wires the app to Cloudflare's free services:
+#    • D1     — the database (projects, orders, settings)
+#    • R2     — file storage (FILES = paid/private, MEDIA = images/public)
+#    • KV     — lightweight counters for rate-limiting (optional)
+#
+#  For LOCAL development these bindings are simulated automatically — you do
+#  not need a Cloudflare account to run `npm run dev`.
+#
+#  For DEPLOYMENT, replace the REPLACE_ME ids after creating the resources.
+#  Full step-by-step instructions are in DEPLOY.md.
+# ============================================================================
+
+name = "technical-triveni"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+# --- Database (Cloudflare D1) ------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "triveni-db"
+database_id = "REPLACE_ME_AFTER_CREATING_D1"   # from: wrangler d1 create triveni-db
+migrations_dir = "migrations"
+
+# --- Private file storage: paid combos, code, gerbers, 3D files --------------
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "triveni-files"
+
+# --- Media storage: project images / gallery (served via a worker route) -----
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "triveni-media"
+
+# --- Lightweight KV for rate limiting (OPTIONAL) -----------------------------
+# The app runs fine without this; if present it enables login/checkout throttling.
+# Create with: wrangler kv namespace create KV   -> paste the id below & uncomment.
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "REPLACE_ME_AFTER_CREATING_KV"
+
+# --- Non-secret build/runtime variables --------------------------------------
+# SECRETS (Razorpay keys, admin password hash, session secret) are NEVER put
+# here. Set them with `wrangler pages secret put <NAME>` — see DEPLOY.md.
+[vars]
+SITE_URL = "http://localhost:4321"
+RAZORPAY_ENABLED = "false"          # flip to "true" once keys are configured
+TURNSTILE_ENABLED = "false"         # flip to "true" once Turnstile keys are set

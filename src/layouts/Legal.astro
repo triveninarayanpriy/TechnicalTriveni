@@ -1,0 +1,64 @@
+---
+import Base from './Base.astro';
+import { SITE } from '../lib/site';
+
+interface Props {
+  title: string;
+  updated?: string;
+  description?: string;
+}
+const { title, updated = 'August 2026', description } = Astro.props;
+
+const legalNav = [
+  { label: 'Terms of Service', href: '/legal/terms' },
+  { label: 'Privacy Policy', href: '/legal/privacy' },
+  { label: 'Refund Policy', href: '/legal/refund' },
+  { label: 'Licensing', href: '/legal/license' },
+];
+const path = Astro.url.pathname;
+---
+
+<Base title={title} description={description ?? `${title} — ${SITE.name}`}>
+  <section class="section">
+    <div class="container legal">
+      <aside class="legal__nav">
+        <p class="legal__navtitle mono">Legal</p>
+        <nav>
+          {legalNav.map((l) => (
+            <a href={l.href} class:list={['legal__navlink', { 'is-active': path === l.href }]}>{l.label}</a>
+          ))}
+        </nav>
+      </aside>
+
+      <article class="legal__body">
+        <header class="legal__head">
+          <h1>{title}</h1>
+          <p class="dim mono">Last updated: {updated}</p>
+        </header>
+        <div class="prose legal__prose">
+          <slot />
+        </div>
+      </article>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .legal { display: grid; grid-template-columns: 220px 1fr; gap: 3rem; align-items: start; }
+  .legal__nav { position: sticky; top: calc(var(--header-h) + 1rem); }
+  .legal__navtitle { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 1rem; }
+  .legal__nav nav { display: flex; flex-direction: column; gap: 0.35rem; }
+  .legal__navlink { padding: 0.5rem 0.75rem; border-radius: var(--r-sm); color: var(--text-muted); font-size: var(--fs-sm); border-left: 2px solid transparent; }
+  .legal__navlink:hover { color: var(--text); background: var(--surface); }
+  .legal__navlink.is-active { color: var(--brand-red); border-left-color: var(--brand-red); background: var(--surface); }
+  .legal__head { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+  .legal__head h1 { font-size: var(--fs-xl); }
+  .legal__body { max-width: 68ch; }
+  .legal__prose h2 { font-size: var(--fs-md); }
+  @media (max-width: 820px) {
+    .legal { grid-template-columns: 1fr; gap: 1.5rem; }
+    .legal__nav { position: static; }
+    .legal__nav nav { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; }
+    .legal__navlink { border-left: 0; border: 1px solid var(--border); }
+  }
+</style>

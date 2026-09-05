@@ -1,0 +1,90 @@
+---
+/**
+ * Technical Triveni logo lockup.
+ * The "TT" monogram is inline SVG so it stays crisp at any size and adapts to
+ * the surrounding theme (the second glyph uses --logo-ink, white on dark UI).
+ *
+ * variant:
+ *   'full'  → monogram + "Technical Triveni" wordmark (default, for the header)
+ *   'mark'  → monogram only (for tight spaces / mobile)
+ *   'stacked' → monogram above the wordmark (for the footer / splash)
+ */
+interface Props {
+  variant?: 'full' | 'mark' | 'stacked';
+  size?: number; // mark height in px
+  class?: string;
+  ink?: string; // override for the second glyph (e.g. on a light background)
+}
+const { variant = 'full', size = 30, class: cls = '', ink } = Astro.props;
+const inkStyle = ink ? `--logo-ink:${ink}` : '';
+---
+
+<a
+  href="/"
+  class:list={['logo', `logo--${variant}`, cls]}
+  style={inkStyle}
+  aria-label="Technical Triveni — home"
+>
+  <svg class="logo__mark" viewBox="-4 -4 120 100" style={`height:${size}px`} aria-hidden="true">
+    <defs>
+      <path id="ttg" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z" />
+    </defs>
+    <use href="#ttg" x="0" fill="var(--brand-red)" />
+    <use href="#ttg" x="50" fill="var(--logo-ink, #ffffff)" />
+  </svg>
+  {variant !== 'mark' && (
+    <span class="logo__word">
+      <span class="logo__t1">Technical</span>
+      <span class="logo__t2">Triveni</span>
+    </span>
+  )}
+</a>
+
+<style>
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text);
+    line-height: 1;
+  }
+  .logo--stacked {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  .logo__mark {
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    transition: transform 0.3s var(--ease);
+  }
+  .logo:hover .logo__mark {
+    transform: translateY(-1px) rotate(-1deg);
+  }
+  .logo__word {
+    display: inline-flex;
+    flex-direction: column;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 0.98;
+  }
+  .logo--full .logo__word {
+    flex-direction: row;
+    gap: 0.4ch;
+    font-size: 1.15rem;
+    align-items: baseline;
+  }
+  .logo__t1 {
+    color: var(--text);
+    text-transform: uppercase;
+  }
+  .logo__t2 {
+    color: var(--brand-red);
+    text-transform: uppercase;
+  }
+  .logo--stacked .logo__word {
+    font-size: 1.35rem;
+  }
+</style>

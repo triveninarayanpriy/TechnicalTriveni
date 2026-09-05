@@ -1,0 +1,34 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+Astro.response.status = 404;
+---
+
+<Base title="Page not found" noindex>
+  <section class="section notfound">
+    <div class="container center">
+      <div class="notfound__mark">
+        <svg viewBox="-4 -4 120 100" aria-hidden="true">
+          <defs><path id="nf" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
+          <use href="#nf" x="0" fill="var(--brand-red)"/>
+          <use href="#nf" x="50" fill="#20222a"/>
+        </svg>
+      </div>
+      <p class="eyebrow" style="justify-content:center">Error 404</p>
+      <h1>This build doesn't exist… yet.</h1>
+      <p class="muted" style="max-width:46ch;margin:1rem auto 2rem">
+        The page you're looking for moved or was never here. Let's get you back on track.
+      </p>
+      <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap">
+        <a href="/" class="btn btn-primary">Back home</a>
+        <a href="/projects" class="btn btn-ghost">Browse projects <Icon name="arrow-right" size={16} /></a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .notfound { padding-block: clamp(4rem, 12vw, 9rem); }
+  .notfound__mark { width: 120px; margin: 0 auto 2rem; opacity: 0.9; }
+  .notfound h1 { font-size: var(--fs-2xl); }
+</style>

@@ -1,0 +1,115 @@
+---
+import type { Project } from '../lib/db';
+import Icon from './Icon.astro';
+import { formatINR, parseTags, difficultyClass } from '../lib/format';
+
+interface Props {
+  project: Project;
+  reveal?: boolean;
+}
+const { project, reveal = true } = Astro.props;
+const tags = parseTags(project.tags).slice(0, 3);
+const paid = project.combo_enabled === 1 && project.price_inr > 0;
+---
+
+<article class="pcard" data-reveal={reveal ? '' : undefined}>
+  <a href={`/projects/${project.slug}`} class="pcard__media" aria-label={project.title}>
+    {project.cover_image ? (
+      <img src={project.cover_image} alt={project.title} loading="lazy" decoding="async" width="640" height="400" />
+    ) : (
+      <div class="pcard__placeholder grid-bg" aria-hidden="true">
+        <svg viewBox="-4 -4 120 100" class="pcard__mark">
+          <defs><path id={`m-${project.id}`} d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
+          <use href={`#m-${project.id}`} x="0" fill="var(--brand-red)" opacity="0.9"/>
+          <use href={`#m-${project.id}`} x="50" fill="#2a2c34"/>
+        </svg>
+      </div>
+    )}
+    <div class="pcard__badges">
+      <span class:list={['badge', difficultyClass(project.difficulty)]}>{project.difficulty}</span>
+    </div>
+    {project.video_url && (
+      <span class="pcard__video" title="Has a video"><Icon name="play" size={14} /></span>
+    )}
+  </a>
+
+  <div class="pcard__body">
+    <div class="pcard__meta">
+      <span class="chip chip--cat">{project.category}</span>
+      {paid ? (
+        <span class="pcard__price">{formatINR(project.price_inr)}<span class="pcard__price-sub">combo</span></span>
+      ) : (
+        <span class="pcard__free">Free</span>
+      )}
+    </div>
+    <h3 class="pcard__title"><a href={`/projects/${project.slug}`}>{project.title}</a></h3>
+    <p class="pcard__summary">{project.summary}</p>
+
+    <div class="pcard__foot">
+      <div class="pcard__tags">
+        {tags.map((t) => <span class="tag-dot">{t}</span>)}
+      </div>
+      <span class="pcard__cta">View <Icon name="arrow-right" size={15} /></span>
+    </div>
+  </div>
+</article>
+
+<style>
+  .pcard {
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, var(--surface), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: transform 0.28s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+  }
+  .pcard:hover { transform: translateY(-5px); border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+  .pcard__media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .pcard__media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s var(--ease); }
+  .pcard:hover .pcard__media img { transform: scale(1.05); }
+  .pcard__placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%; height: 100%;
+    background-color: var(--surface-2);
+  }
+  .pcard__mark { width: 42%; opacity: 0.85; }
+  .pcard__badges { position: absolute; top: 0.75rem; left: 0.75rem; display: flex; gap: 0.4rem; }
+  .pcard__badges .badge { background: rgba(10,10,12,0.7); backdrop-filter: blur(6px); }
+  .pcard__video {
+    position: absolute; top: 0.75rem; right: 0.75rem;
+    width: 30px; height: 30px; display: grid; place-items: center;
+    background: var(--brand-red); color: #fff; border-radius: 50%;
+    box-shadow: var(--shadow-md);
+  }
+  .pcard__body { padding: 1.15rem 1.25rem 1.25rem; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; }
+  .pcard__meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .chip--cat { font-size: var(--fs-xs); padding: 0.25rem 0.6rem; }
+  .pcard__price { font-family: var(--font-display); font-weight: 700; color: var(--text); display: inline-flex; align-items: baseline; gap: 0.3rem; }
+  .pcard__price-sub { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
+  .pcard__free {
+    font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.05em;
+    color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+    padding: 0.2rem 0.55rem; border-radius: var(--r-full);
+  }
+  .pcard__title { font-size: var(--fs-lg); line-height: 1.2; }
+  .pcard__title a { transition: color 0.2s; }
+  .pcard:hover .pcard__title a { color: var(--brand-red); }
+  .pcard__summary { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.55; flex: 1; }
+  .pcard__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.35rem; padding-top: 0.85rem; border-top: 1px solid var(--hairline); }
+  .pcard__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tag-dot { font-size: var(--fs-xs); color: var(--text-dim); font-family: var(--font-mono); }
+  .tag-dot::before { content: '#'; opacity: 0.6; }
+  .pcard__cta {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm);
+    color: var(--brand-red); white-space: nowrap;
+  }
+</style>

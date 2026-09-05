@@ -1,0 +1,102 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { SITE } from '../lib/site';
+import { turnstileEnabled } from '../lib/turnstile';
+
+const sent = Astro.url.searchParams.get('sent') === '1';
+const error = Astro.url.searchParams.get('error');
+const csrf = Astro.locals.csrfToken;
+const tsOn = turnstileEnabled(env);
+const tsKey = env.TURNSTILE_SITE_KEY;
+---
+
+<Base title="Contact" description="Questions, project ideas or collaboration — get in touch with Technical Triveni.">
+  <section class="section">
+    <div class="container contact">
+      <div class="contact__intro">
+        <span class="eyebrow">Get in touch</span>
+        <h1>Let's talk builds.</h1>
+        <p class="muted">
+          Have a question about a project, a component, or your download? Want to suggest a build or collaborate?
+          Drop a message — we read every one.
+        </p>
+        <div class="contact__channels">
+          <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="contact-channel">
+            <Icon name="youtube" size={20} /> <span>YouTube</span>
+          </a>
+          <a href={SITE.socials.instagram} target="_blank" rel="noopener" class="contact-channel">
+            <Icon name="instagram" size={20} /> <span>Instagram</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="contact__form-wrap panel">
+        {sent && (
+          <div class="alert alert--success" role="status">
+            <Icon name="check-circle" size={18} /> Thanks! Your message is on its way. We'll reply soon.
+          </div>
+        )}
+        {error && (
+          <div class="alert alert--error" role="alert">
+            <Icon name="close" size={18} /> Something went wrong. Please check the form and try again.
+          </div>
+        )}
+
+        <form method="post" action="/api/contact" class="contact-form">
+          <input type="hidden" name="csrf" value={csrf} />
+          <div class="grid-2">
+            <div class="field">
+              <label class="label" for="name">Name</label>
+              <input class="input" id="name" name="name" required maxlength="80" autocomplete="name" />
+            </div>
+            <div class="field">
+              <label class="label" for="email">Email</label>
+              <input class="input" id="email" name="email" type="email" required maxlength="200" autocomplete="email" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="subject">Subject</label>
+            <input class="input" id="subject" name="subject" maxlength="120" placeholder="What's this about?" />
+          </div>
+          <div class="field">
+            <label class="label" for="message">Message</label>
+            <textarea class="textarea" id="message" name="message" required maxlength="4000" placeholder="Tell us more…"></textarea>
+          </div>
+          <!-- honeypot: bots fill this, humans don't see it -->
+          <input type="text" name="company" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+
+          {tsOn && (
+            <div class="cf-turnstile" data-sitekey={tsKey} data-theme="dark"></div>
+          )}
+
+          <button type="submit" class="btn btn-primary btn-lg"><Icon name="mail" size={18} /> Send message</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  {tsOn && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+</Base>
+
+<style>
+  .contact { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 3rem; align-items: start; }
+  .contact__intro h1 { font-size: var(--fs-2xl); margin-block: 0.8rem 1rem; }
+  .contact__channels { display: flex; gap: 0.75rem; margin-top: 1.75rem; }
+  .contact-channel { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.7rem 1.1rem; border: 1px solid var(--border); border-radius: var(--r-full); background: var(--surface); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 550; transition: all 0.2s; }
+  .contact-channel:hover { color: var(--brand-red); border-color: var(--brand-red); }
+
+  .contact__form-wrap { padding: clamp(1.5rem, 4vw, 2.25rem); }
+  .contact-form { display: flex; flex-direction: column; gap: 1.1rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .alert { display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem; border-radius: var(--r-md); margin-bottom: 1.25rem; font-size: var(--fs-sm); }
+  .alert--success { background: rgba(52,211,153,0.1); border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); color: var(--success); }
+  .alert--error { background: rgba(248,113,113,0.1); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); }
+
+  @media (max-width: 780px) {
+    .contact { grid-template-columns: 1fr; gap: 2rem; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>

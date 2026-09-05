@@ -1,0 +1,110 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { getOrder, getComboFiles, getProjectById } from '../../lib/db';
+import { FILE_KINDS } from '../../lib/site';
+import { formatINR, formatBytes } from '../../lib/format';
+import { timingSafeEqual } from '../../lib/crypto';
+
+const orderId = Astro.url.searchParams.get('order') || '';
+const token = Astro.url.searchParams.get('token') || '';
+
+let ok = false;
+let order = null as Awaited<ReturnType<typeof getOrder>>;
+let files: Awaited<ReturnType<typeof getComboFiles>> = [];
+let projectSlug = '';
+
+if (orderId && token) {
+  order = await getOrder(env.DB, orderId);
+  if (order && order.status === 'paid' && order.download_token && timingSafeEqual(order.download_token, token)) {
+    ok = true;
+    files = await getComboFiles(env.DB, order.project_id);
+    const project = await getProjectById(env.DB, order.project_id);
+    projectSlug = project?.slug || '';
+  }
+}
+
+const kindLabel = (k: string) => FILE_KINDS.find((x) => x.key === k)?.label ?? 'File';
+const kindIcon = (k: string) => FILE_KINDS.find((x) => x.key === k)?.icon ?? 'file';
+const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`;
+---
+
+<Base title="Your downloads" noindex>
+  <section class="section">
+    <div class="container container-narrow">
+      {ok && order ? (
+        <div class="dl">
+          <div class="dl__check"><Icon name="check-circle" size={40} /></div>
+          <h1 class="center">Payment successful — thank you!</h1>
+          <p class="center muted dl__sub">
+            Your combo for <strong>{order.project_title}</strong> is ready. Bookmark this page — you can
+            download the files any time using this link.
+          </p>
+
+          <div class="dl__receipt panel">
+            <div><span class="dim">Order</span><span class="mono">{order.id.slice(0, 8).toUpperCase()}</span></div>
+            <div><span class="dim">Amount</span><span>{formatINR(order.amount_inr)}</span></div>
+            <div><span class="dim">Email</span><span>{order.email}</span></div>
+          </div>
+
+          <h2 class="dl__filestitle">Your files</h2>
+          {files.length > 0 ? (
+            <div class="files">
+              {files.map((f) => (
+                <a href={dl(f.id)} class="file-row">
+                  <span class="file-row__icon"><Icon name={kindIcon(f.kind)} size={18} /></span>
+                  <span class="file-row__meta">
+                    <span class="file-row__label">{f.label}</span>
+                    <span class="file-row__sub mono">{kindLabel(f.kind)}{f.size_bytes ? ` · ${formatBytes(f.size_bytes)}` : ''}</span>
+                  </span>
+                  <span class="btn btn-primary btn-dl"><Icon name="download" size={16} /> Download</span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p class="muted center">Files are being finalised. If they don't appear shortly, contact us with your order id.</p>
+          )}
+
+          <div class="dl__foot">
+            <p class="dim center">Trouble downloading? <a href="/contact">Contact support</a> with your order id.</p>
+            {projectSlug && <a href={`/projects/${projectSlug}`} class="btn btn-ghost">Back to project</a>}
+          </div>
+        </div>
+      ) : (
+        <div class="dl dl--error center">
+          <div class="dl__lock"><Icon name="lock" size={36} /></div>
+          <h1>This download link isn't valid</h1>
+          <p class="muted" style="max-width:44ch;margin:1rem auto 2rem">
+            The link may have expired or is incorrect. If you've completed a payment, please contact us with your
+            order id and we'll sort it out right away.
+          </p>
+          <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap">
+            <a href="/projects" class="btn btn-primary">Browse projects</a>
+            <a href="/contact" class="btn btn-ghost">Contact support</a>
+          </div>
+        </div>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .dl__check { width: 76px; height: 76px; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: rgba(52,211,153,0.12); color: var(--success); }
+  .dl h1 { font-size: var(--fs-xl); }
+  .dl__sub { max-width: 52ch; margin: 0.85rem auto 2rem; }
+  .dl__receipt { display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; padding: 1.1rem 1.5rem; margin-bottom: 2.5rem; }
+  .dl__receipt div { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-sm); }
+  .dl__receipt .dim { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; }
+  .dl__filestitle { font-size: var(--fs-lg); margin-bottom: 1rem; }
+  .files { display: flex; flex-direction: column; gap: 0.6rem; }
+  .file-row { display: flex; align-items: center; gap: 0.9rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); transition: border-color 0.2s; }
+  .file-row:hover { border-color: var(--brand-red); }
+  .file-row__icon { color: var(--brand-red); }
+  .file-row__meta { flex: 1; display: flex; flex-direction: column; }
+  .file-row__label { font-weight: 550; }
+  .file-row__sub { font-size: var(--fs-xs); color: var(--text-dim); }
+  .btn-dl { padding: 0.5rem 0.9rem; font-size: var(--fs-sm); }
+  .dl__foot { margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+  .dl__lock { width: 70px; height: 70px; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
+</style>
