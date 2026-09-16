@@ -2,80 +2,132 @@
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import Icon from '../../components/Icon.astro';
-import { listProjects, distinctCategories } from '../../lib/db';
+import { listProjects, countProjects, distinctCategories } from '../../lib/db';
 import { env } from 'cloudflare:workers';
 
+const PAGE_SIZE = 6;
 const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
+const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
 
 let projects: Awaited<ReturnType<typeof listProjects>> = [];
 let categories: string[] = [];
+let total = 0;
 try {
-  [projects, categories] = await Promise.all([
-    listProjects(env.DB, { publishedOnly: true, category: cat, search: q || undefined }),
-    distinctCategories(env.DB),
-  ]);
+  const opts = { publishedOnly: true, category: cat, search: q || undefined };
+  [total, categories] = await Promise.all([countProjects(env.DB, opts), distinctCategories(env.DB)]);
+  projects = await listProjects(env.DB, {
+    ...opts,
+    orderBy: 'newest',
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+  });
 } catch {
   /* DB not ready */
 }
 const cats = ['All', ...categories];
+const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+// Build a URL preserving q + cat, setting a page.
+const pageUrl = (p: number) => {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (cat !== 'All') params.set('cat', cat);
+  if (p > 1) params.set('page', String(p));
+  const s = params.toString();
+  return `/projects${s ? `?${s}` : ''}`;
+};
+const chipUrl = (c: string) => {
+  const params = new URLSearchParams();
+  if (c !== 'All') params.set('cat', c);
+  if (q) params.set('q', q);
+  const s = params.toString();
+  return `/projects${s ? `?${s}` : ''}`;
+};
+
+// Windowed page numbers with ellipses.
+const pageItems: (number | '…')[] = [];
+if (totalPages <= 7) {
+  for (let i = 1; i <= totalPages; i++) pageItems.push(i);
+} else {
+  const add = (n: number) => pageItems.push(n);
+  add(1);
+  if (page > 3) pageItems.push('…');
+  for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) add(i);
+  if (page < totalPages - 2) pageItems.push('…');
+  add(totalPages);
+}
+
+const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+const to = Math.min(page * PAGE_SIZE, total);
 ---
 
 <Base title="Projects" description="Browse electronics, robotics, AI and software projects — each with full schematics, code, 3D files and a parts list.">
-  <section class="page-hero grid-bg">
+  <section class="page-hero">
     <div class="container">
       <span class="eyebrow" data-reveal>Project library</span>
       <h1 data-reveal>Every build, fully documented.</h1>
       <p class="page-hero__lead" data-reveal>
-        Filter by category or search. Specs, wiring and parts are always free — grab the combo when you're ready to build.
+        Specs, wiring and parts are always free — grab the combo when you're ready to build.
       </p>
 
       <form class="filter-bar" method="get" action="/projects" data-reveal>
         <div class="search-field">
           <Icon name="search" size={18} />
-          <input
-            type="search"
-            name="q"
-            value={q}
-            placeholder="Search projects, e.g. ESP32, robot, RFID…"
-            class="search-input"
-            aria-label="Search projects"
-          />
+          <input type="search" name="q" value={q} placeholder="Search projects, e.g. ESP32, robot, sensor…" class="search-input" aria-label="Search projects" />
         </div>
         {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
         <button type="submit" class="btn btn-primary">Search</button>
       </form>
 
       <div class="chips-row" data-reveal>
-        {cats.map((c) => {
-          const params = new URLSearchParams();
-          if (c !== 'All') params.set('cat', c);
-          if (q) params.set('q', q);
-          const href = `/projects${params.toString() ? `?${params}` : ''}`;
-          return (
-            <a href={href} class:list={['filter-chip', { 'is-active': c === cat }]}>{c}</a>
-          );
-        })}
+        {cats.map((c) => (
+          <a href={chipUrl(c)} class:list={['filter-chip', { 'is-active': c === cat }]}>{c}</a>
+        ))}
       </div>
     </div>
   </section>
 
   <section class="section-sm">
     <div class="container">
-      <p class="results-count muted mono">
-        {projects.length} {projects.length === 1 ? 'project' : 'projects'}
-        {q && <> · matching “{q}”</>}
-        {cat !== 'All' && <> · in {cat}</>}
-      </p>
+      <div class="results-bar">
+        <p class="results-count muted mono">
+          {total > 0 ? <>Showing {from}–{to} of {total}</> : '0 projects'}
+          {q && <> · “{q}”</>}
+          {cat !== 'All' && <> · {cat}</>}
+        </p>
+        <span class="sort-label mono dim"><Icon name="clock" size={13} /> Newest first</span>
+      </div>
 
       {projects.length > 0 ? (
-        <div class="cols-auto">
-          {projects.map((p) => <ProjectCard project={p} />)}
-        </div>
+        <>
+          <div class="proj-grid">
+            {projects.map((p) => <ProjectCard project={p} />)}
+          </div>
+
+          {totalPages > 1 && (
+            <nav class="pagination" aria-label="Pagination">
+              <a class:list={['page-btn', 'page-arrow', { 'is-disabled': page <= 1 }]}
+                 href={page > 1 ? pageUrl(page - 1) : undefined} aria-label="Previous page" aria-disabled={page <= 1}>
+                <Icon name="chevron-right" size={16} /></a>
+              {pageItems.map((it) =>
+                it === '…' ? (
+                  <span class="page-gap">…</span>
+                ) : (
+                  <a href={pageUrl(it)} class:list={['page-btn', { 'is-current': it === page }]}
+                     aria-current={it === page ? 'page' : undefined}>{it}</a>
+                ),
+              )}
+              <a class:list={['page-btn', 'page-arrow', 'page-next', { 'is-disabled': page >= totalPages }]}
+                 href={page < totalPages ? pageUrl(page + 1) : undefined} aria-label="Next page" aria-disabled={page >= totalPages}>
+                <Icon name="chevron-right" size={16} /></a>
+            </nav>
+          )}
+        </>
       ) : (
         <div class="empty">
-          <div class="empty__icon"><Icon name="search" size={28} /></div>
+          <div class="empty__icon"><Icon name="search" size={26} /></div>
           <h3>No projects found</h3>
           <p class="muted">Try a different search or clear the filters.</p>
           <a href="/projects" class="btn btn-ghost" style="margin-top:1rem">Reset filters</a>
@@ -86,26 +138,46 @@ const cats = ['All', ...categories];
 </Base>
 
 <style>
-  .page-hero { padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 3vw, 2.5rem); }
-  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.9rem 0.75rem; }
-  .page-hero__lead { color: var(--text-muted); max-width: 60ch; font-size: var(--fs-md); }
+  .page-hero { padding-block: clamp(2.25rem, 5vw, 3.5rem) clamp(1.25rem, 3vw, 2rem); border-bottom: 1px solid var(--hairline); }
+  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.75rem 0.6rem; }
+  .page-hero__lead { color: var(--text-muted); max-width: 56ch; font-size: var(--fs-md); }
 
-  .filter-bar { display: flex; gap: 0.65rem; margin-top: 2rem; max-width: 640px; }
+  .filter-bar { display: flex; gap: 0.6rem; margin-top: 1.75rem; max-width: 620px; }
   .search-field { position: relative; flex: 1; display: flex; align-items: center; }
   .search-field :global(svg) { position: absolute; left: 0.9rem; color: var(--text-dim); pointer-events: none; }
-  .search-input { width: 100%; padding: 0.8rem 1rem 0.8rem 2.7rem; background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--r-full); color: var(--text); }
-  .search-input:focus { outline: none; border-color: var(--brand-red); box-shadow: 0 0 0 3px rgba(231,36,42,0.18); }
+  .search-input { width: 100%; padding: 0.8rem 1rem 0.8rem 2.7rem; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-full); color: var(--text); box-shadow: var(--shadow-sm); }
+  .search-input:focus { outline: none; border-color: var(--brand-red); box-shadow: 0 0 0 3px rgba(231,36,42,0.15); }
 
-  .chips-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.25rem; }
-  .filter-chip { padding: 0.45rem 0.95rem; border-radius: var(--r-full); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 550; transition: all 0.2s; }
+  .chips-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.1rem; }
+  .filter-chip { padding: 0.4rem 0.9rem; border-radius: var(--r-full); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 550; transition: all 0.2s; box-shadow: var(--shadow-sm); }
   .filter-chip:hover { color: var(--text); border-color: var(--border-strong); }
   .filter-chip.is-active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
 
-  .results-count { margin-bottom: 1.5rem; font-size: var(--fs-sm); }
-  .empty { text-align: center; padding: 4rem 1rem; }
-  .empty__icon { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
+  .results-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .results-count { font-size: var(--fs-sm); }
+  .sort-label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--fs-xs); }
 
-  @media (max-width: 520px) {
+  .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 1.1rem; }
+
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 2.5rem; }
+  .page-btn {
+    min-width: 40px; height: 40px; padding: 0 0.6rem; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); box-shadow: var(--shadow-sm);
+    transition: all 0.18s var(--ease);
+  }
+  .page-btn:hover { border-color: var(--brand-red); color: var(--brand-red); }
+  .page-btn.is-current { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
+  .page-arrow :global(svg) { transform: rotate(180deg); }
+  .page-next :global(svg) { transform: none; }
+  .page-btn.is-disabled { opacity: 0.4; pointer-events: none; }
+  .page-gap { color: var(--text-dim); padding: 0 0.2rem; }
+
+  .empty { text-align: center; padding: 4rem 1rem; }
+  .empty__icon { width: 60px; height: 60px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); box-shadow: var(--shadow-sm); }
+
+  @media (max-width: 600px) {
     .filter-bar { flex-direction: column; }
+    .proj-grid { grid-template-columns: 1fr; gap: 0.85rem; }
   }
 </style>

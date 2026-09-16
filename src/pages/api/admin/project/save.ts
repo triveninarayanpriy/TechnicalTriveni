@@ -28,6 +28,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     difficulty: strField(form, 'difficulty', 20) || 'Beginner',
     cover_image: strField(form, 'cover_image', 500),
     video_url: strField(form, 'video_url', 500),
+    model_url: strField(form, 'model_url', 500),
+    is_new: checkbox(form, 'is_new'),
     tags: strField(form, 'tags', 300),
     build_time: strField(form, 'build_time', 60),
     price_inr: Math.max(0, intField(form, 'price_inr', 0)),

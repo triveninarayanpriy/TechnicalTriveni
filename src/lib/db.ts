@@ -14,6 +14,8 @@ export interface Project {
   difficulty: string;
   cover_image: string;
   video_url: string;
+  model_url: string;
+  is_new: number;
   tags: string;
   build_time: string;
   price_inr: number;
@@ -63,10 +65,17 @@ const now = () => Math.floor(Date.now() / 1000);
 
 /* ------------------------------------------------------------ projects --- */
 
-export async function listProjects(
-  db: D1Database,
-  opts: { publishedOnly?: boolean; featuredOnly?: boolean; category?: string; limit?: number; search?: string } = {},
-): Promise<Project[]> {
+export interface ListOpts {
+  publishedOnly?: boolean;
+  featuredOnly?: boolean;
+  category?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: 'featured' | 'newest';
+}
+
+function buildWhere(opts: ListOpts): { clause: string; binds: unknown[] } {
   const where: string[] = [];
   const binds: unknown[] = [];
   if (opts.publishedOnly) where.push('published = 1');
@@ -77,11 +86,29 @@ export async function listProjects(
     const s = `%${opts.search}%`;
     binds.push(s, s, s);
   }
-  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const limit = opts.limit ? `LIMIT ${Math.max(1, Math.min(100, opts.limit | 0))}` : '';
-  const sql = `SELECT * FROM projects ${clause} ORDER BY featured DESC, sort ASC, created_at DESC ${limit}`;
+  return { clause: where.length ? `WHERE ${where.join(' AND ')}` : '', binds };
+}
+
+export async function listProjects(db: D1Database, opts: ListOpts = {}): Promise<Project[]> {
+  const { clause, binds } = buildWhere(opts);
+  const order =
+    opts.orderBy === 'newest'
+      ? 'ORDER BY created_at DESC, id DESC'
+      : 'ORDER BY featured DESC, sort ASC, created_at DESC';
+  let tail = '';
+  if (opts.limit) {
+    tail = `LIMIT ${Math.max(1, Math.min(100, opts.limit | 0))}`;
+    if (opts.offset && opts.offset > 0) tail += ` OFFSET ${opts.offset | 0}`;
+  }
+  const sql = `SELECT * FROM projects ${clause} ${order} ${tail}`;
   const res = await db.prepare(sql).bind(...binds).all<Project>();
   return res.results ?? [];
+}
+
+export async function countProjects(db: D1Database, opts: ListOpts = {}): Promise<number> {
+  const { clause, binds } = buildWhere(opts);
+  const row = await db.prepare(`SELECT COUNT(*) AS n FROM projects ${clause}`).bind(...binds).first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 export async function getProjectBySlug(
@@ -151,12 +178,13 @@ export async function createProject(db: D1Database, p: Partial<Project> & { slug
   const t = now();
   const res = await db.prepare(
     `INSERT INTO projects
-      (slug,title,summary,description,category,difficulty,cover_image,video_url,tags,build_time,
+      (slug,title,summary,description,category,difficulty,cover_image,video_url,model_url,is_new,tags,build_time,
        price_inr,combo_enabled,combo_title,combo_description,featured,published,sort,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).bind(
     p.slug, p.title, p.summary ?? '', p.description ?? '', p.category ?? 'Electronics',
-    p.difficulty ?? 'Beginner', p.cover_image ?? '', p.video_url ?? '', p.tags ?? '', p.build_time ?? '',
+    p.difficulty ?? 'Beginner', p.cover_image ?? '', p.video_url ?? '', p.model_url ?? '', p.is_new ?? 0,
+    p.tags ?? '', p.build_time ?? '',
     p.price_inr ?? 0, p.combo_enabled ?? 0, p.combo_title ?? 'Complete Project Combo',
     p.combo_description ?? '', p.featured ?? 0, p.published ?? 0, p.sort ?? 0, t, t,
   ).run();
@@ -166,7 +194,7 @@ export async function createProject(db: D1Database, p: Partial<Project> & { slug
 export async function updateProject(db: D1Database, id: number, p: Partial<Project>): Promise<void> {
   const fields = [
     'slug', 'title', 'summary', 'description', 'category', 'difficulty', 'cover_image',
-    'video_url', 'tags', 'build_time', 'price_inr', 'combo_enabled', 'combo_title',
+    'video_url', 'model_url', 'is_new', 'tags', 'build_time', 'price_inr', 'combo_enabled', 'combo_title',
     'combo_description', 'featured', 'published', 'sort',
   ] as const;
   const sets: string[] = [];

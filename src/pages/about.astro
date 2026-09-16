@@ -1,116 +1,185 @@
 ---
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
-import { SITE } from '../lib/site';
+import { SITE, PROFILE } from '../lib/site';
+
+const socials = [
+  { label: 'YouTube', href: SITE.socials.youtube, icon: 'youtube' },
+  { label: 'Instagram', href: SITE.socials.instagram, icon: 'instagram' },
+  { label: 'GitHub', href: SITE.socials.github, icon: 'github' },
+  { label: 'LinkedIn', href: SITE.socials.linkedin, icon: 'linkedin' },
+].filter((s) => s.href);
 
 const values = [
-  { icon: 'check-circle', title: 'Nothing hidden', text: 'Full schematics, code and wiring — not just a highlight reel. If we built it, you can build it.' },
-  { icon: 'shield', title: 'Tested & documented', text: 'Every project is built and verified before it goes up. Guides are written to be followed, not decoded.' },
-  { icon: 'users', title: 'Made for makers', text: 'Beginner-friendly where it counts, with depth for those who want to understand the why.' },
+  { icon: 'check-circle', title: 'Nothing hidden', text: 'Full schematics, code and wiring — not just a highlight reel. If I built it, you can build it.' },
+  { icon: 'shield', title: 'Built & tested', text: 'Every project is made and verified by me before it goes up. Guides are written to be followed.' },
+  { icon: 'users', title: 'Made for students', text: 'Beginner-friendly where it counts, with the depth to actually understand the why.' },
 ];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: PROFILE.name,
+  jobTitle: PROFILE.title,
+  worksFor: { '@type': 'Organization', name: SITE.name },
+  url: Astro.site?.toString(),
+  sameAs: socials.map((s) => s.href),
+};
 ---
 
-<Base title="About" description="Technical Triveni is a maker studio turning electronics, software and AI projects into complete, buildable guides.">
+<Base title="About" description={`About ${PROFILE.name} — the maker behind Technical Triveni. ${PROFILE.lead}`} jsonLd={jsonLd}>
   <section class="page-hero grid-bg">
     <div class="container">
-      <span class="eyebrow" data-reveal>Our story</span>
-      <h1 data-reveal>We turn “cool project” into “I built it.”</h1>
-      <p class="page-hero__lead" data-reveal>
-        Technical Triveni started with a simple frustration: brilliant project videos everywhere, but almost never
-        the full details to actually recreate them. So we built the opposite — a place where every project comes
-        with everything you need.
-      </p>
+      <span class="eyebrow" data-reveal>About</span>
+      <h1 data-reveal>The maker behind the builds.</h1>
+      <p class="page-hero__lead" data-reveal>{PROFILE.lead}</p>
     </div>
   </section>
 
+  <!-- ===================== ABOUT ME ===================== -->
   <section class="section">
-    <div class="container about-cols">
-      <div class="about-story prose" data-reveal>
-        <h2>Electronics, software & AI — under one roof.</h2>
-        <p>
-          The name <strong>Triveni</strong> refers to the sacred confluence of three rivers. For us, those rivers are
-          the three disciplines behind every modern build: <strong>electronics</strong>, <strong>software</strong>,
-          and <strong>AI</strong>. Great projects live where all three meet.
-        </p>
-        <p>
-          We publish short builds on YouTube and Instagram to spark ideas — then bring you here for the full picture:
-          circuit diagrams, source code, 3D-printable parts, a complete bill of materials, and direct links to buy
-          every component. When you're ready to build, an optional combo hands you all the project files in one click.
-        </p>
-        <p>
-          It's a simple promise: <strong>watch it, understand it, build it.</strong>
-        </p>
+    <div class="container about-me">
+      <div class="am-photo" data-reveal>
+        <div class="am-photo__ring">
+          <img src={PROFILE.photo} alt={PROFILE.name} width="360" height="360" />
+        </div>
+        <div class="am-badges">
+          <span class="am-badge mono"><Icon name="cpu" size={14} /> ECE · VLSI</span>
+          <span class="am-badge mono"><Icon name="spark" size={14} /> NIT Patna</span>
+        </div>
       </div>
 
-      <aside class="about-side" data-reveal>
-        <div class="about-mark panel">
-          <svg viewBox="-4 -4 120 100" aria-hidden="true">
-            <defs><path id="am" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
-            <use href="#am" x="0" fill="var(--brand-red)"/>
-            <use href="#am" x="50" fill="#fff"/>
-          </svg>
-          <p class="mono">{SITE.tagline}</p>
+      <div class="am-body" data-reveal data-reveal-delay="80ms">
+        <h2 class="am-name">{PROFILE.name} <span class="am-pron">{PROFILE.pronouns}</span></h2>
+        <p class="am-role">{PROFILE.title}</p>
+        <p class="am-loc"><Icon name="external" size={14} /> {PROFILE.location}</p>
+
+        <div class="am-bio prose">
+          {PROFILE.bio.map((para) => <p>{para}</p>)}
         </div>
-        <div class="about-streams">
-          {SITE.streams.map((s) => (
-            <div class="about-stream">
-              <Icon name={s.key === 'electronics' ? 'cpu' : s.key === 'software' ? 'code' : 'ai'} size={20} />
-              <div>
-                <strong>{s.label}</strong>
-                <span class="dim">{s.blurb}</span>
-              </div>
-            </div>
+
+        <div class="am-skills">
+          {PROFILE.skills.map((s) => <span class="am-skill">{s}</span>)}
+        </div>
+
+        <div class="am-socials">
+          {socials.map((s) => (
+            <a href={s.href} target="_blank" rel="noopener" class="am-social">
+              <Icon name={s.icon} size={18} /> <span>{s.label}</span>
+            </a>
           ))}
+          <a href={`mailto:${SITE.email}`} class="am-social am-social--mail"><Icon name="mail" size={18} /> <span>Email</span></a>
         </div>
-      </aside>
+      </div>
     </div>
   </section>
 
-  <section class="section section--alt">
+  <!-- ===================== HIGHLIGHTS ===================== -->
+  <section class="section-sm section--alt">
     <div class="container">
-      <div class="section-head center" data-reveal>
-        <h2 class="section-title">What we stand for</h2>
-      </div>
-      <div class="cols-3">
-        {values.map((v) => (
-          <div class="value-card" data-reveal>
-            <div class="value-card__icon"><Icon name={v.icon} size={22} /></div>
-            <h3>{v.title}</h3>
-            <p class="muted">{v.text}</p>
+      <div class="hl-grid">
+        {PROFILE.highlights.map((h) => (
+          <div class="hl" data-reveal>
+            <span class="hl__v">{h.value}</span>
+            <span class="hl__l">{h.label}</span>
           </div>
         ))}
       </div>
     </div>
   </section>
 
+  <!-- ===================== ON THE CHANNEL ===================== -->
+  <section class="section">
+    <div class="container about-cols">
+      <div class="about-story" data-reveal>
+        <span class="eyebrow">The Triveni</span>
+        <h2 class="section-title">Three streams, one channel.</h2>
+        <p class="muted" style="margin:0.9rem 0 1.5rem">
+          “Triveni” is the meeting of three rivers. For me, those are the disciplines behind every modern build —
+          <strong> Electronics</strong>, <strong>Software</strong> and <strong>AI</strong>. Here's what that looks like week to week:
+        </p>
+        <ul class="channel-list">
+          {PROFILE.channel.map((c) => (
+            <li><Icon name="check" size={16} /> <span>{c}</span></li>
+          ))}
+        </ul>
+        <p class="muted" style="margin-top:1.25rem">New video every week, with three Shorts. Every project is built and tested by me.</p>
+      </div>
+
+      <aside class="about-values" data-reveal data-reveal-delay="80ms">
+        {values.map((v) => (
+          <div class="value-card">
+            <div class="value-card__icon"><Icon name={v.icon} size={20} /></div>
+            <div><h3>{v.title}</h3><p class="muted">{v.text}</p></div>
+          </div>
+        ))}
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
   <section class="section">
     <div class="container center" data-reveal>
-      <h2 class="section-title">Build with us.</h2>
-      <p class="muted" style="max-width:48ch;margin:1rem auto 1.75rem">Explore the library, or follow along for a new build every week.</p>
+      <h2 class="section-title">Let's build together.</h2>
+      <p class="muted" style="max-width:48ch;margin:1rem auto 1.75rem">Explore the library, follow along, or reach out to collaborate.</p>
       <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap">
         <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
-        <a href="/contact" class="btn btn-ghost btn-lg">Say hello</a>
+        <a href="/contact" class="btn btn-ghost btn-lg">Get in touch</a>
       </div>
     </div>
   </section>
 </Base>
 
 <style>
-  .page-hero { padding-block: clamp(3rem, 7vw, 5rem) clamp(2rem, 4vw, 3rem); }
-  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.9rem 1rem; max-width: 18ch; }
+  .page-hero { padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 3vw, 2.5rem); }
+  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.9rem 0.9rem; }
   .page-hero__lead { color: var(--text-muted); max-width: 62ch; font-size: var(--fs-md); }
-  .about-cols { display: grid; grid-template-columns: 1.4fr 0.85fr; gap: 3rem; align-items: start; }
-  .about-side { display: flex; flex-direction: column; gap: 1.25rem; position: sticky; top: calc(var(--header-h) + 1rem); }
-  .about-mark { padding: 2rem; text-align: center; }
-  .about-mark svg { width: 96px; margin: 0 auto 1.25rem; }
-  .about-mark p { color: var(--text-muted); font-size: var(--fs-sm); }
-  .about-streams { display: flex; flex-direction: column; gap: 0.75rem; }
-  .about-stream { display: flex; align-items: center; gap: 0.85rem; padding: 1rem 1.15rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
-  .about-stream :global(svg) { color: var(--brand-red); flex-shrink: 0; }
-  .about-stream div { display: flex; flex-direction: column; }
-  .about-stream .dim { font-size: var(--fs-sm); }
-  .value-card { padding: 1.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
-  .value-card__icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: var(--r-md); background: rgba(231,36,42,0.12); color: var(--brand-red); margin-bottom: 1rem; }
-  .value-card h3 { font-size: var(--fs-md); margin-bottom: 0.4rem; }
-  @media (max-width: 860px) { .about-cols { grid-template-columns: 1fr; } .about-side { position: static; } }
+  .section--alt { background: linear-gradient(180deg, var(--bg-2), #eef0f4); border-block: 1px solid var(--hairline); }
+  .section-title { font-size: var(--fs-2xl); }
+
+  /* about me */
+  .about-me { display: grid; grid-template-columns: 320px 1fr; gap: clamp(1.75rem, 4vw, 3.5rem); align-items: start; }
+  .am-photo { position: sticky; top: calc(var(--header-h) + 1.5rem); }
+  .am-photo__ring { padding: 6px; border-radius: 50%; background: var(--brand-gradient); box-shadow: 0 24px 50px -20px var(--accent-glow); }
+  .am-photo__ring img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 4px solid var(--surface); display: block; }
+  .am-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1.1rem; }
+  .am-badge { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-xs); padding: 0.35rem 0.7rem; border-radius: var(--r-full); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm); color: var(--text-muted); }
+  .am-badge :global(svg) { color: var(--brand-red); }
+
+  .am-name { font-size: var(--fs-2xl); display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .am-pron { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-dim); font-weight: 500; }
+  .am-role { color: var(--brand-red); font-weight: 600; margin-top: 0.4rem; }
+  .am-loc { color: var(--text-dim); font-size: var(--fs-sm); margin-top: 0.35rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+  .am-bio { margin-top: 1.4rem; }
+  .am-bio p { color: var(--text-muted); }
+  .am-skills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1.5rem; }
+  .am-skill { font-size: var(--fs-xs); font-family: var(--font-mono); padding: 0.35rem 0.7rem; border-radius: var(--r-full); background: var(--brand-red-050); color: var(--brand-red-600); border: 1px solid color-mix(in srgb, var(--brand-red) 20%, transparent); }
+  .am-socials { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.75rem; }
+  .am-social { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: var(--r-full); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: var(--fs-sm); font-weight: 550; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .am-social:hover { color: #fff; background: var(--brand-red); border-color: var(--brand-red); transform: translateY(-2px); }
+
+  /* highlights */
+  .hl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .hl { text-align: center; padding: 1.25rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .hl__v { display: block; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-xl); color: var(--brand-red); }
+  .hl__l { display: block; font-size: var(--fs-xs); color: var(--text-muted); margin-top: 0.25rem; }
+
+  /* channel + values */
+  .about-cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 3rem; align-items: start; }
+  .channel-list { display: flex; flex-direction: column; gap: 0.7rem; }
+  .channel-list li { display: flex; gap: 0.6rem; align-items: flex-start; color: var(--text); font-size: var(--fs-sm); }
+  .channel-list :global(svg) { color: var(--success); flex-shrink: 0; margin-top: 3px; }
+  .about-values { display: flex; flex-direction: column; gap: 0.9rem; }
+  .value-card { display: flex; gap: 0.85rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .value-card__icon { width: 42px; height: 42px; flex-shrink: 0; display: grid; place-items: center; border-radius: var(--r-md); background: var(--brand-red-050); color: var(--brand-red); }
+  .value-card h3 { font-size: var(--fs-md); margin-bottom: 0.25rem; }
+
+  @media (max-width: 820px) {
+    .about-me { grid-template-columns: 1fr; }
+    .am-photo { position: static; max-width: 240px; margin-inline: auto; text-align: center; }
+    .am-name { justify-content: center; }
+    .am-role, .am-loc, .am-name { text-align: center; }
+    .about-cols { grid-template-columns: 1fr; gap: 1.75rem; }
+    .hl-grid { grid-template-columns: 1fr 1fr; }
+  }
 </style>

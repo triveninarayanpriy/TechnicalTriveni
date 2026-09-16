@@ -42,7 +42,7 @@ const csrf = Astro.locals.csrfToken;
           <svg viewBox="-4 -4 120 100" aria-hidden="true">
             <defs><path id="ab" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
             <use href="#ab" x="0" fill="var(--brand-red)"/>
-            <use href="#ab" x="50" fill="#fff"/>
+            <use href="#ab" x="50" fill="#0e0f12"/>
           </svg>
           <span>Triveni <em>Admin</em></span>
         </a>
@@ -92,7 +92,7 @@ const csrf = Astro.locals.csrfToken;
       .admin-logout { color: var(--danger); }
 
       .admin-main { min-width: 0; display: flex; flex-direction: column; }
-      .admin-topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 1rem; padding: 1rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid var(--border); background: rgba(10,10,12,0.8); backdrop-filter: blur(10px); }
+      .admin-topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 1rem; padding: 1rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); }
       .admin-topbar__title { font-size: var(--fs-md); flex: 1; }
       .admin-user { font-size: var(--fs-xs); color: var(--text-dim); }
       .admin-burger { display: none; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: var(--r-sm); padding: 0.35rem; cursor: pointer; }

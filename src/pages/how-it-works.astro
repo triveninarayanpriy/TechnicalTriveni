@@ -1,0 +1,143 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+
+const steps = [
+  { n: '01', icon: 'play', title: 'Watch & get inspired', text: 'You catch one of our builds on a YouTube Short or an Instagram reel. It looks great — and you want to make it yourself.' },
+  { n: '02', icon: 'search', title: 'Explore the full project', text: 'Land on the project page here. The overview, wiring, parts list and specs are always free — read everything before you spend a rupee.' },
+  { n: '03', icon: 'cart', title: 'Grab the combo', text: 'When you\'re ready to build, buy the one-time combo. Pay securely with UPI or card — instant, no account needed.' },
+  { n: '04', icon: 'download', title: 'Download & build', text: 'Your files unlock immediately: source code, schematics, 3D files and the build guide. Order the exact parts from the linked stores. Done.' },
+];
+
+const includes = [
+  { icon: 'schematic', title: 'Schematics & wiring', text: 'Circuit diagrams with pin-by-pin connections.' },
+  { icon: 'code', title: 'Source code', text: 'Complete, well-commented firmware and software.' },
+  { icon: 'cube', title: '3D files (STL)', text: 'Printable enclosures and mounts where relevant.' },
+  { icon: 'doc', title: 'Step-by-step guide', text: 'A clear PDF that walks you through the whole build.' },
+  { icon: 'cart', title: 'Parts list + links', text: 'Every component with a direct buy link.' },
+  { icon: 'play', title: 'Video walkthrough', text: 'See it built end-to-end on our channel.' },
+];
+
+const faqs = [
+  { q: 'How do I receive the files?', a: 'Instantly. The moment your payment is confirmed, a secure download page opens with every file in the combo — and the link is yours to keep.' },
+  { q: 'Do I need the paid combo to follow along?', a: 'No. The project overview, wiring diagram, parts list and specs are free on every project page. The combo is for the ready-to-use files (code, schematics, 3D, guide).' },
+  { q: 'How do the component links work?', a: 'Each part in the list links straight to a store. They\'re affiliate links, so buying through them supports the channel at no extra cost to you.' },
+  { q: 'What payment methods are supported?', a: 'UPI, cards, net-banking and wallets, handled securely by Razorpay. We never see or store your payment details.' },
+];
+---
+
+<Base title="How it works" description="From a 30-second reel to a finished build — here's exactly how you get every schematic, file and part for a Technical Triveni project.">
+  <section class="page-hero grid-bg">
+    <div class="container">
+      <span class="eyebrow" data-reveal>How it works</span>
+      <h1 data-reveal>From a reel to a finished build.</h1>
+      <p class="page-hero__lead" data-reveal>
+        No guesswork, no missing files, no dead ends. Here's exactly how you go from watching a build
+        to holding one in your hands.
+      </p>
+    </div>
+  </section>
+
+  <!-- Steps -->
+  <section class="section">
+    <div class="container">
+      <ol class="hiw-steps">
+        {steps.map((s, i) => (
+          <li class="hiw-step" data-reveal data-reveal-delay={`${i * 60}ms`}>
+            <div class="hiw-step__num"><span class="mono">{s.n}</span></div>
+            <div class="hiw-step__icon"><Icon name={s.icon} size={22} /></div>
+            <div class="hiw-step__body">
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- What's included -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="section-head center" data-reveal>
+        <span class="eyebrow" style="justify-content:center">In every combo</span>
+        <h2 class="section-title">Everything you need in one download.</h2>
+        <p class="section-lead" style="margin-inline:auto">Instant, well-documented access to the complete project — not just a video.</p>
+      </div>
+      <div class="hiw-grid">
+        {includes.map((f, i) => (
+          <div class="hiw-tile" data-reveal data-reveal-delay={`${i * 40}ms`}>
+            <div class="hiw-tile__icon"><Icon name={f.icon} size={20} /></div>
+            <h3>{f.title}</h3>
+            <p>{f.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section">
+    <div class="container container-narrow">
+      <div class="section-head center" data-reveal>
+        <span class="eyebrow" style="justify-content:center">Good to know</span>
+        <h2 class="section-title">Questions, answered.</h2>
+      </div>
+      <div class="faq">
+        {faqs.map((f) => (
+          <details class="faq__item" data-reveal>
+            <summary><span>{f.q}</span><Icon name="chevron-down" size={18} /></summary>
+            <p>{f.a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container center" data-reveal>
+      <h2 class="section-title">Ready to start?</h2>
+      <p class="muted" style="max-width:44ch;margin:0.9rem auto 1.75rem">Browse the library and pick your first build.</p>
+      <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .page-hero { padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 3vw, 2.5rem); }
+  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.9rem 0.75rem; max-width: 20ch; }
+  .page-hero__lead { color: var(--text-muted); max-width: 60ch; font-size: var(--fs-md); }
+  .section--alt { background: linear-gradient(180deg, var(--bg-2), #eef0f4); border-block: 1px solid var(--hairline); }
+  .section-head { max-width: 56ch; margin-bottom: 2rem; }
+  .section-head.center { margin-inline: auto; text-align: center; }
+
+  /* steps as a vertical rail */
+  .hiw-steps { display: flex; flex-direction: column; gap: 1rem; max-width: 780px; margin-inline: auto; }
+  .hiw-step { position: relative; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 1.1rem; padding: 1.35rem 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .hiw-step__num { font-size: 1.5rem; font-weight: 700; color: var(--surface-3); font-family: var(--font-display); }
+  .hiw-step__icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: var(--r-md); background: linear-gradient(180deg, #ff4b52, var(--brand-red)); color: #fff; box-shadow: 0 8px 18px -8px var(--accent-glow); }
+  .hiw-step__body h3 { font-size: var(--fs-md); margin-bottom: 0.25rem; }
+  .hiw-step__body p { color: var(--text-muted); font-size: var(--fs-sm); }
+
+  .hiw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .hiw-tile { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); transition: transform 0.2s, box-shadow 0.2s; }
+  .hiw-tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  .hiw-tile__icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: var(--brand-red-050); color: var(--brand-red); margin-bottom: 0.9rem; }
+  .hiw-tile h3 { font-size: var(--fs-md); margin-bottom: 0.3rem; }
+  .hiw-tile p { color: var(--text-muted); font-size: var(--fs-sm); }
+
+  .faq { display: flex; flex-direction: column; gap: 0.75rem; }
+  .faq__item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .faq__item summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.3rem; cursor: pointer; font-family: var(--font-display); font-weight: 600; list-style: none; }
+  .faq__item summary::-webkit-details-marker { display: none; }
+  .faq__item summary :global(svg) { transition: transform 0.2s; color: var(--brand-red); flex-shrink: 0; }
+  .faq__item[open] summary :global(svg) { transform: rotate(180deg); }
+  .faq__item p { padding: 0 1.3rem 1.2rem; color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.65; }
+
+  @media (max-width: 720px) {
+    .hiw-grid { grid-template-columns: 1fr; }
+    .hiw-step { grid-template-columns: auto 1fr; }
+    .hiw-step__num { grid-row: 1; }
+  }
+</style>

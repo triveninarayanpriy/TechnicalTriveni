@@ -8,6 +8,7 @@ const socials = [
   { key: 'youtube', label: 'YouTube', href: SITE.socials.youtube, icon: 'youtube' },
   { key: 'instagram', label: 'Instagram', href: SITE.socials.instagram, icon: 'instagram' },
   { key: 'github', label: 'GitHub', href: SITE.socials.github, icon: 'github' },
+  { key: 'linkedin', label: 'LinkedIn', href: SITE.socials.linkedin, icon: 'linkedin' },
 ].filter((s) => s.href);
 ---
 
@@ -15,7 +16,7 @@ const socials = [
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <Logo variant="full" size={30} />
+        <Logo variant="full" size={30} ink="#ffffff" />
         <p class="footer-tagline">{SITE.tagline}</p>
         <div class="footer-socials">
           {socials.map((s) => (
@@ -61,11 +62,19 @@ const socials = [
 
 <style>
   .site-footer {
+    /* Scope the color tokens to "ink" so all children read as dark-on-light. */
+    --text: var(--on-ink);
+    --text-muted: var(--on-ink-muted);
+    --text-dim: #7f8798;
+    --surface: var(--ink-2);
+    --surface-2: var(--ink-3);
+    --border: var(--ink-border);
+    --hairline: rgba(255, 255, 255, 0.08);
     margin-top: auto;
-    border-top: 1px solid var(--border);
+    color: var(--on-ink);
     background:
-      radial-gradient(700px 300px at 100% 0%, rgba(231, 36, 42, 0.08), transparent 60%),
-      var(--bg-2);
+      radial-gradient(760px 340px at 100% 0%, rgba(231, 36, 42, 0.14), transparent 62%),
+      var(--ink);
     padding-block: clamp(3rem, 6vw, 4.5rem) 2rem;
   }
   .footer-grid {

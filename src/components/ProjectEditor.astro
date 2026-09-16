@@ -82,6 +82,12 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
     </div>
 
     <div class="field">
+      <label class="label" for="model_url">Interactive 3D model URL (.glb / .gltf) — optional</label>
+      <input class="input mono" id="model_url" name="model_url" placeholder="/media/… or https://…/model.glb" value={val(p?.model_url)} />
+      <span class="field-hint">Upload a .glb in the Gallery below (or host it), then paste the URL. Shown as a rotatable 3D viewer on the project + as the featured showcase.</span>
+    </div>
+
+    <div class="field">
       <label class="label" for="tags">Tags (comma-separated)</label>
       <input class="input" id="tags" name="tags" placeholder="ESP32, IoT, Sensors" value={val(p?.tags)} />
     </div>
@@ -108,6 +114,7 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
     <div class="editor-toggles">
       <label class="switch"><input type="checkbox" name="published" checked={p?.published === 1} /> <span>Published (live on site)</span></label>
       <label class="switch"><input type="checkbox" name="featured" checked={p?.featured === 1} /> <span>Featured on home</span></label>
+      <label class="switch"><input type="checkbox" name="is_new" checked={p?.is_new === 1} /> <span>Show “NEW” badge</span></label>
       <div class="field field--inline">
         <label class="label" for="sort">Sort</label>
         <input class="input input--sm" id="sort" name="sort" type="number" value={val(p?.sort ?? 0)} />

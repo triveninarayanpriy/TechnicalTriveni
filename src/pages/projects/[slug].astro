@@ -74,6 +74,24 @@ const jsonLd = {
     <div class="detail__grid">
       <!-- MAIN COLUMN -->
       <div class="detail__main">
+        <!-- Interactive 3D model -->
+        {project.model_url && (
+          <section class="model3d">
+            <model-viewer
+              src={project.model_url}
+              camera-controls
+              auto-rotate
+              auto-rotate-delay="600"
+              rotation-per-second="16deg"
+              shadow-intensity="0.7"
+              exposure="1.1"
+              ar
+              aria-label={`3D model of ${project.title}`}
+              class="model3d__viewer"
+            ></model-viewer>
+            <span class="model3d__tag mono"><Icon name="cube" size={13} /> Drag to rotate · scroll to zoom</span>
+          </section>
+        )}
         <!-- Gallery -->
         {gallery.length > 0 && (
           <section class="gallery" data-gallery>
@@ -258,10 +276,16 @@ const jsonLd = {
   {paid && paymentsOn && (
     <script is:inline src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
   )}
+  {project.model_url && (
+    <script is:inline type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
+  )}
 </Base>
 
 <style>
   .detail { padding-block: 1.5rem 4rem; }
+  .model3d { position: relative; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--border); background: radial-gradient(120% 120% at 50% 0%, #1b1f2b, #0c0d11); box-shadow: var(--shadow-md); }
+  .model3d__viewer { width: 100%; height: clamp(320px, 42vw, 460px); display: block; --poster-color: transparent; }
+  .model3d__tag { position: absolute; bottom: 0.75rem; right: 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--fs-xs); padding: 0.35rem 0.65rem; border-radius: var(--r-full); background: rgba(12,13,17,0.65); color: #fff; backdrop-filter: blur(6px); }
   .crumbs { display: flex; gap: 0.5rem; font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: 1.75rem; flex-wrap: wrap; }
   .crumbs a:hover { color: var(--brand-red); }
   .crumbs span { color: var(--text-dim); }

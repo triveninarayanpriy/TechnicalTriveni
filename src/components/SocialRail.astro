@@ -1,0 +1,58 @@
+---
+import Icon from './Icon.astro';
+import { SITE } from '../lib/site';
+
+const socials = [
+  { key: 'youtube', href: SITE.socials.youtube, icon: 'youtube', label: 'YouTube' },
+  { key: 'instagram', href: SITE.socials.instagram, icon: 'instagram', label: 'Instagram' },
+  { key: 'github', href: SITE.socials.github, icon: 'github', label: 'GitHub' },
+  { key: 'linkedin', href: SITE.socials.linkedin, icon: 'linkedin', label: 'LinkedIn' },
+].filter((s) => s.href);
+---
+
+{socials.length > 0 && (
+  <aside class="social-rail" aria-label="Social links">
+    {socials.map((s) => (
+      <a href={s.href} class="social-rail__link" target="_blank" rel="noopener noreferrer" aria-label={s.label} title={s.label}>
+        <Icon name={s.icon} size={18} />
+      </a>
+    ))}
+    <span class="social-rail__line" aria-hidden="true"></span>
+  </aside>
+)}
+
+<style>
+  .social-rail {
+    position: fixed;
+    left: clamp(0.5rem, 1.5vw, 1.5rem);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .social-rail__link {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    transition: color 0.2s, border-color 0.2s, transform 0.2s, background 0.2s;
+  }
+  .social-rail__link:hover {
+    color: #fff;
+    background: var(--brand-red);
+    border-color: var(--brand-red);
+    transform: translateY(-2px);
+  }
+  .social-rail__line { width: 1px; height: 56px; background: linear-gradient(var(--border-strong), transparent); margin-top: 0.35rem; }
+
+  /* Desktop-only; the footer carries socials on smaller screens. */
+  @media (max-width: 1180px) { .social-rail { display: none; } }
+</style>

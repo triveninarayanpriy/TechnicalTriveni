@@ -20,6 +20,12 @@ const icons = {
   robot: '<rect x="4" y="8" width="16" height="11" rx="2"/><path d="M12 4v4M8 13h.01M16 13h.01M9 16h6"/><circle cx="12" cy="4" r="1.4"/>',
   ai: '<path d="M12 3v3M12 18v3M4.2 7l2.6 1.5M17.2 15.5 19.8 17M4.2 17l2.6-1.5M17.2 8.5 19.8 7"/><circle cx="12" cy="12" r="3.2"/>',
   lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10c.7.7 1 1.3 1 2h6c0-.7.3-1.3 1-2a6 6 0 0 0-4-10Z"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  camera: '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-2.5h5L16 7"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  plant: '<path d="M12 21v-8M12 13c0-3 2-5 6-5 0 3-2 5-6 5ZM12 13c0-3-2-5-6-5 0 3 2 5 6 5Z"/>',
+  hand: '<path d="M7 11V6a1.5 1.5 0 0 1 3 0v4m0-1V4.5a1.5 1.5 0 0 1 3 0V10m0-1V6a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-2.5-3a1.6 1.6 0 0 1 2.4-2L7 13"/>',
 };
 
 const covers = [
@@ -27,6 +33,12 @@ const covers = [
   { file: 'line-robot.png', title: 'Line-Following Robot', tag: 'Arduino · Robotics', icon: 'robot' },
   { file: 'ai-voice-dashboard.png', title: 'AI Voice Home Hub', tag: 'AI · Software', icon: 'ai' },
   { file: 'rfid-lock.png', title: 'RFID Door Lock', tag: 'Access · Security', icon: 'lock' },
+  { file: 'smart-lamp.png', title: 'Bluetooth Smart Lamp', tag: 'ESP32 · IoT', icon: 'bulb' },
+  { file: 'gesture-robot.png', title: 'Gesture-Controlled Robot', tag: 'Arduino · Robotics', icon: 'hand' },
+  { file: 'energy-monitor.png', title: 'Home Energy Monitor', tag: 'ESP32 · IoT', icon: 'bolt' },
+  { file: 'ai-camera.png', title: 'AI Object Detection Cam', tag: 'Raspberry Pi · AI', icon: 'camera' },
+  { file: 'digital-clock.png', title: 'Digital Clock + Alarm', tag: 'Arduino · Electronics', icon: 'clock' },
+  { file: 'plant-watering.png', title: 'Auto Plant Watering', tag: 'ESP8266 · IoT', icon: 'plant' },
 ];
 
 function svg({ title, tag, icon }) {
