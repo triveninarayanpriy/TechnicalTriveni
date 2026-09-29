@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { updateProject, deleteProject, getProjectById } from '../../../../lib/db';
+import { updateProject, deleteProject, getProjectById, moveImage, syncProjectMedia } from '../../../../lib/db';
 import { csrfOk, intField, strField, flashRedirect } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -27,11 +27,18 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     case 'unfeature':
       await updateProject(env.DB, id, { featured: 0 });
       return flashRedirect('/admin/projects', { ok: 'Unfeatured.' });
-    case 'setcover': {
-      const url = strField(form, 'url', 500);
-      await updateProject(env.DB, id, { cover_image: url });
-      return flashRedirect(`/admin/projects/${id}`, { ok: 'Cover updated.' });
+    case 'moveup':
+    case 'movedown': {
+      const mediaId = intField(form, 'media_id', 0);
+      if (mediaId) {
+        await moveImage(env.DB, mediaId, id, action === 'moveup' ? 'up' : 'down');
+        await syncProjectMedia(env.DB, id);
+      }
+      return flashRedirect(`/admin/projects/${id}`, { ok: 'Order updated.' });
     }
+    case 'makefree':
+      await updateProject(env.DB, id, { price_inr: 0, combo_enabled: 0 });
+      return flashRedirect(`/admin/projects/${id}`, { ok: 'This project is now completely free.' });
     case 'delete':
       await deleteProject(env.DB, id);
       return flashRedirect('/admin/projects', { ok: 'Project deleted.' });

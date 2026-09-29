@@ -1,0 +1,113 @@
+---
+import type { Troubleshoot } from '../lib/db';
+import Icon from './Icon.astro';
+
+interface Props {
+  items: Troubleshoot[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="trouble-table">
+  <div class="trouble-search">
+    <Icon name="search" size={16} />
+    <input type="text" id="trouble-filter" placeholder="Search for an error..." />
+  </div>
+
+  <div class="trouble-list" id="trouble-list">
+    {items.map((item) => (
+      <details class="trouble-row">
+        <summary class="trouble-symptom">
+          <span class="trouble-symptom-text">{item.symptom}</span>
+          <span class="trouble-icon"><Icon name="chevron-down" size={16} /></span>
+        </summary>
+        <div class="trouble-fix">
+          <strong>Fix:</strong> {item.fix}
+        </div>
+      </details>
+    ))}
+  </div>
+</div>
+
+<script>
+  const filter = document.getElementById('trouble-filter') as HTMLInputElement;
+  const list = document.getElementById('trouble-list');
+  
+  if (filter && list) {
+    const rows = list.querySelectorAll('.trouble-row');
+    filter.addEventListener('input', (e) => {
+      const term = (e.target as HTMLInputElement).value.toLowerCase();
+      rows.forEach((row) => {
+        const text = row.querySelector('.trouble-symptom-text')?.textContent?.toLowerCase() || '';
+        const fix = row.querySelector('.trouble-fix')?.textContent?.toLowerCase() || '';
+        if (text.includes(term) || fix.includes(term)) {
+          (row as HTMLElement).style.display = '';
+        } else {
+          (row as HTMLElement).style.display = 'none';
+        }
+      });
+    });
+  }
+</script>
+
+<style>
+  .trouble-table {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .trouble-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+  .trouble-search input {
+    border: none;
+    background: transparent;
+    outline: none;
+    flex: 1;
+    font-size: var(--fs-sm);
+    color: var(--text);
+  }
+  .trouble-row {
+    border-bottom: 1px solid var(--hairline);
+  }
+  .trouble-row:last-child {
+    border-bottom: none;
+  }
+  .trouble-symptom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    list-style: none;
+    user-select: none;
+  }
+  .trouble-symptom::-webkit-details-marker {
+    display: none;
+  }
+  .trouble-icon {
+    color: var(--text-dim);
+    transition: transform 0.2s;
+  }
+  .trouble-row[open] .trouble-icon {
+    transform: rotate(180deg);
+  }
+  .trouble-fix {
+    padding: 0 1rem 1rem 1rem;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .trouble-fix strong {
+    color: var(--text);
+  }
+</style>

@@ -6,6 +6,7 @@ import { adminStats, listRecentOrders } from '../../lib/db';
 import { formatINR, formatDateTime } from '../../lib/format';
 import { razorpayConfigured } from '../../lib/razorpay';
 import { turnstileEnabled } from '../../lib/turnstile';
+import { emailEnabled } from '../../lib/email';
 
 const stats = await adminStats(env.DB);
 const recent = (await listRecentOrders(env.DB, 6)).filter((o) => o.status === 'paid');
@@ -13,7 +14,7 @@ const recent = (await listRecentOrders(env.DB, 6)).filter((o) => o.status === 'p
 const checklist = [
   { ok: razorpayConfigured(env), label: 'Razorpay payments', hint: 'Set RAZORPAY_* secrets and RAZORPAY_ENABLED=true' },
   { ok: turnstileEnabled(env), label: 'Turnstile bot protection', hint: 'Set TURNSTILE_* secrets and TURNSTILE_ENABLED=true' },
-  { ok: !!env.RESEND_API_KEY, label: 'Email receipts (optional)', hint: 'Set RESEND_API_KEY to email download links' },
+  { ok: emailEnabled(env), label: 'Email (receipts + magic links)', hint: 'Set EMAIL_ENABLED=true, BREVO_API_KEY and FROM_EMAIL' },
   { ok: !!env.SESSION_SECRET && env.SESSION_SECRET.length > 20, label: 'Session secret', hint: 'Set a long random SESSION_SECRET' },
 ];
 

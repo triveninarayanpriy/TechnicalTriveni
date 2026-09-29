@@ -1,0 +1,221 @@
+---
+import type { BomItem } from '../lib/db';
+import { formatINR } from '../lib/format';
+import Icon from './Icon.astro';
+
+interface Props {
+  items: BomItem[];
+}
+
+const { items, overrideTotal = 0 } = Astro.props;
+---
+
+<div class="bom-table-wrapper">
+  <table class="bom-table" id="bom-interactive" data-override={overrideTotal}>
+    <thead>
+      <tr>
+        <th class="col-check"></th>
+        <th>Part</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {items.map((b) => {
+        
+        return (
+        <tr class="bom-item-row" data-bom-id={b.id} data-req={b.is_required} data-price={b.unit_price_inr} data-qty={parseInt(b.qty, 10) || 1}>
+          <td class="col-check">
+            <input type="checkbox" class="bom-checkbox" checked={b.is_required !== 0} title="Include in total cost" />
+          </td>
+          <td>
+            <div class="bom-name-wrap">
+              <span class="bom-name">{b.name}</span>
+              {b.notes && <span class="bom-note">{b.notes}</span>}
+            </div>
+          </td>
+          <td class="mono">{b.qty}</td>
+          <td class="mono bom-price-col">
+            {b.unit_price_inr > 0 ? formatINR(b.unit_price_inr) : '—'}
+          </td>
+          <td class="bom-buy-col">
+            {b.affiliate_url ? (
+              <a href={b.affiliate_url} target="_blank" rel="nofollow sponsored noopener" class="btn btn-ghost btn-sm btn-buy">
+                Buy{b.is_affiliate === 1 && <span class="aff-tag">ad</span>} <Icon name="arrow-up-right" size={13} />
+              </a>
+            ) : (
+              <span class="dim mono" style="font-size:var(--fs-xs)">—</span>
+            )}
+          </td>
+        </tr>
+        );
+      })}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" class="bom-total-label">Core build total (required parts):</td>
+        <td class="mono bom-total-val" id="bom-core-total" colspan="2">--</td>
+      </tr>
+      <tr>
+        <td colspan="3" class="bom-total-label" style="font-weight: 500; font-size: 0.85em; padding-top: 0.25rem;">Total of checked items:</td>
+        <td class="mono bom-total-val" id="bom-dynamic-total" colspan="2">--</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<script>
+  const table = document.getElementById('bom-interactive');
+  const totalEl = document.getElementById('bom-dynamic-total');
+  
+  if (table && totalEl) {
+    const rows = table.querySelectorAll('.bom-item-row');
+    
+    function recalc() {
+      const overrideVal = parseInt(table.getAttribute('data-override') || '0', 10);
+      let coreSum = 0;
+      let selSum = 0;
+      rows.forEach((row) => {
+        const price = parseInt(row.getAttribute("data-price") || "0", 10);
+        const qty = parseInt(row.getAttribute("data-qty") || "1", 10);
+        if (price > 0) {
+          if (row.getAttribute("data-req") !== "0") coreSum += price * qty;
+          const cb = row.querySelector(".bom-checkbox");
+          if (cb && cb.checked) selSum += price * qty;
+        }
+      });
+      const coreEl = document.getElementById("bom-core-total");
+      if (coreEl) coreEl.textContent = String.fromCharCode(8377) + (overrideVal > 0 ? overrideVal : coreSum).toLocaleString("en-IN");
+      if (totalEl) totalEl.textContent = String.fromCharCode(8377) + (overrideVal > 0 ? overrideVal : selSum).toLocaleString("en-IN");
+    }
+    
+    function saveState() {
+      const state: Record<string, boolean> = {};
+      rows.forEach((row) => {
+        const id = row.getAttribute('data-bom-id');
+        const cb = row.querySelector('.bom-checkbox') as HTMLInputElement;
+        if (id && cb) {
+          state[id] = cb.checked;
+        }
+      });
+      localStorage.setItem('triveni_bom_v2', JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem('triveni_bom_v2');
+        if (saved) {
+          const state = JSON.parse(saved);
+          rows.forEach((row) => {
+            const id = row.getAttribute('data-bom-id');
+            const cb = row.querySelector('.bom-checkbox') as HTMLInputElement;
+            if (id && cb && state[id] !== undefined) {
+              cb.checked = state[id];
+            }
+          });
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+
+    table.addEventListener('change', (e) => {
+      if ((e.target as HTMLElement).classList.contains('bom-checkbox')) {
+        recalc();
+        saveState();
+      }
+    });
+    
+    loadState();
+    recalc(); // initial calculation
+  }
+</script>
+
+<style>
+  .bom-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+  .bom-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: var(--fs-sm);
+  }
+  .bom-table th, .bom-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .bom-table th {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .col-check {
+    width: 40px;
+    text-align: center;
+  }
+  .bom-name-wrap {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .bom-name-link {
+    font-weight: 550;
+    color: var(--brand-red);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+  .bom-name-link:hover {
+    text-decoration: underline;
+  }
+  .bom-name {
+    font-weight: 500;
+  }
+  .bom-note {
+    color: var(--text-dim);
+    font-size: 0.8em;
+  }
+  .bom-price-col {
+    white-space: nowrap;
+  }
+  .bom-total-label {
+    text-align: right;
+    font-weight: 600;
+    padding: 1rem;
+    background: var(--surface-2);
+  }
+  .bom-total-val {
+    font-weight: 700;
+    color: var(--brand-red);
+    padding: 1rem;
+    background: var(--surface-2);
+  }
+  .bom-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--success);
+    cursor: pointer;
+  }
+  .bom-buy-col {
+    white-space: nowrap;
+    text-align: right;
+  }
+  .btn-buy {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .aff-tag {
+    font-size: 0.7em;
+    background: var(--surface-3);
+    padding: 0.1rem 0.3rem;
+    border-radius: var(--r-sm);
+    margin-left: 0.25rem;
+    color: var(--text-dim);
+  }
+</style>

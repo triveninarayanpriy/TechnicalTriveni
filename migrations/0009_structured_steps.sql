@@ -1,0 +1,7 @@
+ALTER TABLE project_steps ADD COLUMN goal TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_steps ADD COLUMN time_est TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_steps ADD COLUMN parts_needed TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_steps ADD COLUMN file_id INTEGER;
+ALTER TABLE project_steps ADD COLUMN expected_res TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_steps ADD COLUMN if_fails TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_steps ADD COLUMN video_ts TEXT NOT NULL DEFAULT '';

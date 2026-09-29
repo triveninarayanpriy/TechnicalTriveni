@@ -1,184 +1,621 @@
 ---
 import Icon from './Icon.astro';
-import type { ProjectFull } from '../lib/db';
+import type { ProjectFull, Component } from '../lib/db';
 import { DIFFICULTIES, FILE_KINDS } from '../lib/site';
 import { formatBytes } from '../lib/format';
 
 interface Props {
   project: ProjectFull | null;
   csrf: string;
+  components?: Component[];
+  categories?: string[];
+  tags?: string[];
 }
-const { project, csrf } = Astro.props;
+const { project, csrf, components = [], categories = [], tags = [] } = Astro.props;
 const p = project;
 const isNew = !p;
 const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
+
+
+const checklist = [
+  { ok: !!p?.cover_image, text: "Cover image uploaded" },
+  { ok: !!p?.summary, text: "Short summary written" },
+  { ok: !!p?.category, text: "Category selected" },
+  { ok: (p?.bom?.length || 0) > 0, text: "Parts list (BOM) added" },
+  { ok: (p?.steps?.length || 0) > 0, text: "Build steps written" },
+  { ok: !!p?.meta_title || !!p?.title, text: "SEO title set" }
+];
+const canPublish = p ? checklist.every(c => c.ok) : false;
+
+const tabOk = {
+  details: !!(p?.title && p?.summary),
+  content: !!(p?.description && p?.steps?.length),
+  media: !!(p?.images?.length),
+  parts: !!(p?.bom?.length),
+  combo: p?.combo_enabled ? !!(p?.price_inr > 0 && p?.files?.some(f => f.in_combo)) : true,
+  seo: !!(p?.meta_title || p?.title),
+};
+
+const distinctModules = p?.pins ? [...new Set(p.pins.map(pin => pin.module).filter(Boolean))] : [];
 ---
 
 <div class="editor">
-  <!-- ===== Main details ===== -->
-  <form method="post" action="/api/admin/project/save" class="editor-form panel">
+  <form id="main-form" method="post" action="/api/admin/project/save" hidden enctype="multipart/form-data">
     <input type="hidden" name="csrf" value={csrf} />
     {p && <input type="hidden" name="id" value={p.id} />}
-
-    <div class="editor-form__head">
-      <h2>{isNew ? 'New project' : 'Project details'}</h2>
-      <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> {isNew ? 'Create project' : 'Save changes'}</button>
-    </div>
-
-    <div class="grid-2">
-      <div class="field">
-        <label class="label" for="title">Title *</label>
-        <input class="input" id="title" name="title" required maxlength="140" value={val(p?.title)} data-title />
-      </div>
-      <div class="field">
-        <label class="label" for="slug">Slug (URL)</label>
-        <input class="input mono" id="slug" name="slug" maxlength="80" placeholder="auto-from-title" value={val(p?.slug)} data-slug />
-        <span class="field-hint">Leave blank to auto-generate from the title.</span>
-      </div>
-    </div>
-
-    <div class="field">
-      <label class="label" for="summary">Summary *</label>
-      <input class="input" id="summary" name="summary" required maxlength="240" placeholder="One-line hook shown on cards & search" value={val(p?.summary)} />
-    </div>
-
-    <div class="field">
-      <label class="label" for="description">Description (Markdown)</label>
-      <textarea class="textarea editor-desc" id="description" name="description" placeholder="## What you'll build…">{val(p?.description)}</textarea>
-      <span class="field-hint">Supports Markdown: ## headings, **bold**, lists, `code`, links.</span>
-    </div>
-
-    <div class="grid-3">
-      <div class="field">
-        <label class="label" for="category">Category</label>
-        <input class="input" id="category" name="category" list="cat-list" value={val(p?.category) || 'Electronics'} />
-        <datalist id="cat-list">
-          <option value="Electronics"></option><option value="Robotics"></option>
-          <option value="AI"></option><option value="IoT"></option><option value="Software"></option>
-        </datalist>
-      </div>
-      <div class="field">
-        <label class="label" for="difficulty">Difficulty</label>
-        <select class="select" id="difficulty" name="difficulty">
-          {DIFFICULTIES.map((d) => <option value={d} selected={p?.difficulty === d}>{d}</option>)}
-        </select>
-      </div>
-      <div class="field">
-        <label class="label" for="build_time">Build time</label>
-        <input class="input" id="build_time" name="build_time" placeholder="2–3 hours" value={val(p?.build_time)} />
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div class="field">
-        <label class="label" for="cover_image">Cover image URL</label>
-        <input class="input mono" id="cover_image" name="cover_image" placeholder="/media/… or https://…" value={val(p?.cover_image)} />
-        <span class="field-hint">Upload in the Gallery below, then “Make cover”.</span>
-      </div>
-      <div class="field">
-        <label class="label" for="video_url">Video URL (YouTube)</label>
-        <input class="input mono" id="video_url" name="video_url" placeholder="https://youtube.com/…" value={val(p?.video_url)} />
-      </div>
-    </div>
-
-    <div class="field">
-      <label class="label" for="model_url">Interactive 3D model URL (.glb / .gltf) — optional</label>
-      <input class="input mono" id="model_url" name="model_url" placeholder="/media/… or https://…/model.glb" value={val(p?.model_url)} />
-      <span class="field-hint">Upload a .glb in the Gallery below (or host it), then paste the URL. Shown as a rotatable 3D viewer on the project + as the featured showcase.</span>
-    </div>
-
-    <div class="field">
-      <label class="label" for="tags">Tags (comma-separated)</label>
-      <input class="input" id="tags" name="tags" placeholder="ESP32, IoT, Sensors" value={val(p?.tags)} />
-    </div>
-
-    <fieldset class="editor-fieldset">
-      <legend>Paid combo</legend>
-      <div class="grid-2">
-        <div class="field">
-          <label class="label" for="price_inr">Price (₹)</label>
-          <input class="input" id="price_inr" name="price_inr" type="number" min="0" step="1" value={val(p?.price_inr ?? 0)} />
-        </div>
-        <div class="field">
-          <label class="label" for="combo_title">Combo title</label>
-          <input class="input" id="combo_title" name="combo_title" value={val(p?.combo_title) || 'Complete Project Combo'} />
-        </div>
-      </div>
-      <div class="field">
-        <label class="label" for="combo_description">What the buyer gets</label>
-        <textarea class="textarea" id="combo_description" name="combo_description" placeholder="Source code, schematic (PDF), 3D files (STL), build guide…">{val(p?.combo_description)}</textarea>
-      </div>
-      <label class="switch"><input type="checkbox" name="combo_enabled" checked={p?.combo_enabled === 1} /> <span>Combo is purchasable</span></label>
-    </fieldset>
-
-    <div class="editor-toggles">
-      <label class="switch"><input type="checkbox" name="published" checked={p?.published === 1} /> <span>Published (live on site)</span></label>
-      <label class="switch"><input type="checkbox" name="featured" checked={p?.featured === 1} /> <span>Featured on home</span></label>
-      <label class="switch"><input type="checkbox" name="is_new" checked={p?.is_new === 1} /> <span>Show “NEW” badge</span></label>
-      <div class="field field--inline">
-        <label class="label" for="sort">Sort</label>
-        <input class="input input--sm" id="sort" name="sort" type="number" value={val(p?.sort ?? 0)} />
-      </div>
-    </div>
-
-    <div class="editor-form__foot">
-      <button type="submit" class="btn btn-primary btn-lg"><Icon name="check" size={16} /> {isNew ? 'Create project' : 'Save changes'}</button>
-      {p && <a href={`/projects/${p.slug}`} target="_blank" class="btn btn-ghost">Preview <Icon name="external" size={14} /></a>}
-    </div>
   </form>
 
-  {isNew && (
-    <p class="editor-note dim"><Icon name="spark" size={14} /> Save the project first — then you can add gallery images, resource files, the parts list and links.</p>
+  {p && (
+    <form id={`free-${p.id}`} method="post" action="/api/admin/project/action" hidden>
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="id" value={p.id} />
+      <input type="hidden" name="action" value="makefree" />
+    </form>
   )}
 
-  {p && (
-    <div class="editor-children">
-      <!-- ===== Gallery ===== -->
+  <datalist id="module-list">
+    {distinctModules.map(m => <option value={m}></option>)}
+  </datalist>
+
+  <nav class="tab-bar" role="tablist">
+    <button class="tab-btn is-active" type="button" data-tab="details" role="tab">
+      <span class:list={['tab-dot', tabOk.details ? 'tab-dot--ok' : 'tab-dot--miss']}></span> <Icon name="layers" size={14} /> Details
+    </button>
+    <button class="tab-btn" type="button" data-tab="content" role="tab">
+      <span class:list={['tab-dot', tabOk.content ? 'tab-dot--ok' : 'tab-dot--miss']}></span> <Icon name="check-circle" size={14} /> Content
+    </button>
+    <button class="tab-btn" type="button" data-tab="media" role="tab">
+      <span class:list={['tab-dot', tabOk.media ? 'tab-dot--ok' : 'tab-dot--miss']}></span> <Icon name="download" size={14} /> Media &amp; Diagrams
+    </button>
+    <button class="tab-btn" type="button" data-tab="parts" role="tab">
+      <span class:list={['tab-dot', tabOk.parts ? 'tab-dot--ok' : 'tab-dot--miss']}></span> <Icon name="cart" size={14} /> Parts &amp; Pricing
+    </button>
+    <button class="tab-btn" type="button" data-tab="combo" role="tab">
+      <span class:list={['tab-dot', tabOk.combo ? 'tab-dot--ok' : 'tab-dot--miss']}></span> <Icon name="lock" size={14} /> Combo &amp; Files
+    </button>
+    <button class="tab-btn" type="button" data-tab="seo" role="tab">
+      <span class:list={['tab-dot', tabOk.seo ? 'tab-dot--ok' : 'tab-dot--miss']}></span> <Icon name="external" size={14} /> SEO &amp; Publishing
+    </button>
+  </nav>
+
+  <div class="editor-save-bar">
+    <div class="editor-save-bar__title">{isNew ? 'New project' : p.title || 'Project details'}</div>
+    <button type="submit" form="main-form" class="btn btn-primary"><Icon name="check" size={16} /> {isNew ? 'Create project' : 'Save changes'}</button>
+    {p && <a href={`/projects/${p.slug}`} target="_blank" class="btn btn-ghost">Preview <Icon name="external" size={14} /></a>}
+  </div>
+
+  <div class="tab-panel" data-panel="details">
+    <div class="panel">
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="title">Title *</label>
+          <input form="main-form" class="input" id="title" name="title" required maxlength="140" value={val(p?.title)} data-title />
+        </div>
+        <div class="field">
+          <label class="label" for="slug">Slug (URL)</label>
+          <input form="main-form" class="input mono" id="slug" name="slug" maxlength="80" placeholder="auto-from-title" value={val(p?.slug)} data-slug />
+          <span class="field-hint">Leave blank to auto-generate from the title.</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="summary">Summary *</label>
+        <input form="main-form" class="input" id="summary" name="summary" required maxlength="500" placeholder="One-line hook shown on cards & search" value={val(p?.summary)} />
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label class="label" for="category">Category</label>
+          <input form="main-form" class="input" id="category" name="category" list="cat-list" value={val(p?.category) || 'Electronics'} />
+          <datalist id="cat-list">
+            <option value="Electronics"></option><option value="Robotics"></option>
+            <option value="AI"></option><option value="IoT"></option><option value="Software"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label class="label" for="difficulty">Difficulty</label>
+          <select form="main-form" class="select" id="difficulty" name="difficulty">
+            {DIFFICULTIES.map((d) => <option value={d} selected={p?.difficulty === d}>{d}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="build_time">Build time</label>
+          <input form="main-form" class="input" id="build_time" name="build_time" placeholder="2–3 hours" value={val(p?.build_time)} />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="outcome_line">Outcome line</label>
+        <input form="main-form" class="input" id="outcome_line" name="outcome_line" maxlength="240" placeholder="₹800 me phone se chalne wala home automation system" value={val(p?.outcome_line)} />
+        <span class="field-hint">One concrete result shown under the title.</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="tags">Tags (comma-separated)</label>
+        <input form="main-form" class="input" id="tags" name="tags" placeholder="ESP32, IoT, Sensors" value={val(p?.tags)} />
+      </div>
+
+      <div class="editor-toggles">
+        <label class="switch"><input form="main-form" type="checkbox" name="published" checked={p?.published === 1} /> <span>Published (live on site)</span></label>
+        <label class="switch"><input form="main-form" type="checkbox" name="featured" checked={p?.featured === 1} /> <span>Featured on home</span></label>
+        <label class="switch"><input form="main-form" type="checkbox" name="is_new" checked={p?.is_new === 1} /> <span>Show “NEW” badge</span></label>
+        <div class="field field--inline">
+          <label class="label" for="sort">Sort</label>
+          <input form="main-form" class="input input--sm" id="sort" name="sort" type="number" value={val(p?.sort ?? 0)} />
+        </div>
+      </div>
+
+      <div class="field-hint field-hint--block">
+        <Icon name="layers" size={14} /> The cover thumbnail and the 3D showcase are set automatically from the <strong>Media</strong> section below — whatever you drag to the front becomes the lead. Add images and <span class="mono">.glb</span> 3D files there.
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-panel="content" hidden>
+    <div class="panel">
+      <div class="field">
+        <label class="label" for="description">Description (Markdown)</label>
+        <textarea form="main-form" class="textarea editor-desc" id="description" name="description" placeholder="## What you'll build…">{val(p?.description)}</textarea>
+        <span class="field-hint">Supports Markdown: ## headings, **bold**, lists, `code`, links.</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="safety_note">Safety note (Markdown) — required for mains / battery / motor builds</label>
+        <textarea form="main-form" class="textarea" id="safety_note" name="safety_note" placeholder="This project uses 230V AC mains. Work with power off…">{val(p?.safety_note)}</textarea>
+        <span class="field-hint">Shown as a red safety callout at the top of the build.</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="credits">Credits &amp; attributions (Markdown)</label>
+        <textarea form="main-form" class="textarea" id="credits" name="credits" placeholder="Library X by … (MIT). Wiring based on …">{val(p?.credits)}</textarea>
+      </div>
+    </div>
+
+    {p && (
       <section class="child-panel panel">
-        <h3><Icon name="layers" size={18} /> Gallery</h3>
-        <div class="thumbs-admin">
-          {p.images.map((img) => (
-            <div class="thumb-admin">
-              <img src={img.url} alt={img.caption} />
-              <div class="thumb-admin__actions">
+        <h3><Icon name="check-circle" size={18} /> Build steps</h3>
+        <p class="dim child-lead">Numbered instructions with an optional “why”. Use the arrows to reorder.</p>
+        <div class="rows">
+          {p.steps.map((s, i) => (
+            <div class="data-row">
+              <span class="data-row__icon step-badge">{i + 1}</span>
+              <div class="data-row__main" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <strong>{s.title || s.body.slice(0, 60) || "Step"}</strong>
+                <div class="dim" style="display:flex; gap:0.5rem; flex-wrap:wrap; font-size:0.85em;">
+                  {s.goal && <span><Icon name="check" size={11} /> Goal: {s.goal}</span>}
+                  {s.time_est && <span><Icon name="clock" size={11} /> {s.time_est}</span>}
+                  {s.video_ts && <span><Icon name="play" size={11} /> {s.video_ts}</span>}
+                  {s.parts_needed && <span><Icon name="cart" size={11} /> Parts: {s.parts_needed}</span>}
+                </div>
+                {s.why && <span class="dim">Why: {s.why}</span>}
+                {(s.expected_res || s.if_fails) && (
+                  <div class="dim" style="font-size:0.85em; border-left: 2px solid var(--border); padding-left: 0.5rem; margin-top: 0.25rem;">
+                    {s.expected_res && <div style="color:var(--success)">Expected: {s.expected_res.slice(0,60)}</div>}
+                    {s.if_fails && <div style="color:var(--danger)">If fails: {s.if_fails.slice(0,60)}</div>}
+                  </div>
+                )}
+              </div>
+              <div class="row-ctrl">
+                {['up', 'down'].map((dir) => (
+                  <form method="post" action="/api/admin/step/move" class="inline-form">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={s.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <input type="hidden" name="dir" value={dir} />
+                    <button class="btn btn-ghost btn-xs" type="submit" disabled={dir === 'up' ? i === 0 : i === p.steps.length - 1}><Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} /></button>
+                  </form>
+                ))}
+                <form method="post" action="/api/admin/step/delete" class="inline-form">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={s.id} />
+                  <input type="hidden" name="project_id" value={p.id} />
+                  <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
+                </form>
+              </div>
+            </div>
+          ))}
+          {p.steps.length === 0 && <p class="dim">No steps yet.</p>}
+        </div>
+        <form method="post" action="/api/admin/step/add" class="stack-add">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          
+          <div class="grid-2">
+            <input class="input" name="title" placeholder="Step title (optional)" />
+            <input class="input" name="goal" placeholder="Goal (What are we achieving?)" />
+          </div>
+
+          <div class="grid-3">
+            <input class="input" name="time_est" placeholder="Time estimate (e.g., 15 mins)" />
+            <input class="input" name="video_ts" placeholder="Video timestamp (e.g., 04:15)" />
+            <select class="select" name="file_id">
+              <option value="">— Sketch/file to flash —</option>
+              {p.files?.map(f => <option value={f.id}>{f.label || f.filename}</option>)}
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">Parts needed (Ctrl+Click to select multiple)</label>
+            <select class="select" name="parts_needed" multiple size="3">
+              {p.bom?.map(b => <option value={b.name}>{b.name}</option>)}
+            </select>
+          </div>
+
+          <div class="md-editor">
+    <div class="md-tabs">
+      <button type="button" class="md-tab is-active" data-md-tab="edit" data-md-target="body">Edit</button>
+      <button type="button" class="md-tab" data-md-tab="preview" data-md-target="body">Preview</button>
+    </div>
+    <div class="md-pane is-active" data-md-pane="edit" data-md-for="body">
+      <textarea class="textarea" data-md-input="body" name="body" placeholder="Instruction (Markdown)…" required></textarea>
+    </div>
+    <div class="md-pane prose" data-md-pane="preview" data-md-for="body" style="padding: 1rem; border: 1px solid var(--border); border-radius: 0 0 var(--r-sm) var(--r-sm); background: var(--bg-2); min-height: 100px;">
+      <span class="dim">Loading preview...</span>
+    </div>
+  </div>
+          
+          <div class="grid-2">
+            <input class="input" name="why" placeholder="Why / gotcha (optional)" />
+            <input class="input mono" name="image_url" placeholder="Photo /media URL (optional)" />
+          </div>
+
+          <div class="grid-2">
+            <textarea class="textarea" name="expected_res" placeholder="Expected result (Markdown)" rows="2"></textarea>
+            <textarea class="textarea" name="if_fails" placeholder="If it fails (Markdown)" rows="2"></textarea>
+          </div>
+
+          <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add step</button>
+        </form>
+      </section>
+    )}
+
+    {p && (
+      <section class="child-panel panel">
+        <h3><Icon name="spark" size={18} /> Troubleshooting</h3>
+        <p class="dim child-lead">Symptom → fix. These rank well in search when people paste error messages.</p>
+        <div class="rows">
+          {p.troubleshooting.map((t) => (
+            <div class="data-row">
+              <div class="data-row__main"><strong>{t.symptom}</strong><span class="dim">{t.fix}</span></div>
+              <form method="post" action="/api/admin/trouble/delete" class="inline-form">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={t.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
+              </form>
+            </div>
+          ))}
+          {p.troubleshooting.length === 0 && <p class="dim">No tips yet.</p>}
+        </div>
+        <form method="post" action="/api/admin/trouble/add" class="stack-add">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          <input class="input" name="symptom" placeholder="Symptom e.g. LED not lighting up" required />
+          <textarea class="textarea" name="fix" placeholder="The fix (Markdown)…" required></textarea>
+          <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add tip</button>
+        </form>
+      </section>
+    )}
+  </div>
+
+  <div class="tab-panel" data-panel="media" hidden>
+    {isNew && <p class="editor-note dim"><Icon name="spark" size={14} /> Save the project first — then you can add media, parts, and files.</p>}
+    {p && (
+      <section class="child-panel panel">
+        <h3><Icon name="layers" size={18} /> Architecture Diagram</h3>
+        <div class="field">
+          <label class="label" for="arch_svg">Inline SVG Markup</label>
+          <textarea form="main-form" class="textarea" id="arch_svg" name="arch_svg" placeholder="<svg>...</svg>">{val(p?.arch_svg)}</textarea>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="label" for="arch_file">Fallback Image File</label>
+            <input form="main-form" class="input" type="file" id="arch_file" name="arch_file" accept="image/*" />
+          </div>
+          <div class="field">
+            <label class="label" for="arch_image_url">Fallback Image URL</label>
+            <input form="main-form" class="input mono" id="arch_image_url" name="arch_image_url" placeholder="https://..." value={val(p?.arch_image_url)} />
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="arch_alt">Description / Alt-text *</label>
+          <input form="main-form" class="input" id="arch_alt" name="arch_alt" required placeholder="A diagram showing..." value={val(p?.arch_alt)} />
+        </div>
+      </section>
+    )}
+
+    {p && (
+      <section class="child-panel panel">
+        <h3><Icon name="layers" size={18} /> Wiring Diagrams</h3>
+        <div class="rows">
+          {p.wiring_diagrams?.map((w) => (
+            <div class="data-row">
+              <div class="data-row__main">
+                <strong>{w.label}</strong>
+                <span class="dim mono">{w.module || 'General'}{w.url ? ` · ${w.url.split('/').pop()}` : ''}</span>
+              </div>
+              {["up", "down"].map((dir) => (
+  <form method="post" action="/api/admin/wiring/move" class="inline-form">
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="id" value={w.id} />
+    <input type="hidden" name="project_id" value={p.id} />
+    <input type="hidden" name="dir" value={dir} />
+    <button class="btn btn-ghost btn-xs" type="submit"><Icon name={dir === "up" ? "chevron-up" : "chevron-down"} size={13} /></button>
+  </form>
+))}
+<form method="post" action="/api/admin/wiring/delete" class="inline-form">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={w.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
+              </form>
+            </div>
+          ))}
+          {(!p.wiring_diagrams || p.wiring_diagrams.length === 0) && <p class="dim">No wiring diagrams yet.</p>}
+        </div>
+        <form method="post" action="/api/admin/wiring/add" enctype="multipart/form-data" class="stack-add">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          <div class="grid-2">
+            <input class="input" name="label" placeholder="Diagram Label (e.g. Power Supply)" required />
+            <input class="input" name="module" placeholder="Module" list="module-list" required />
+          </div>
+          <div class="grid-2">
+            <input class="input" type="file" name="file" accept="image/*" />
+            <input class="input mono" name="url" placeholder="Image URL (optional)" />
+          </div>
+          <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add diagram</button>
+        </form>
+      </section>
+    )}
+
+    {p && (
+      <section class="child-panel panel">
+        <h3><Icon name="layers" size={18} /> Media — photos & 3D</h3>
+        <p class="dim child-lead">Upload photos and <span class="mono">.glb / .gltf</span> 3D files together. Reorder with the arrows — the <strong>first item is the cover thumbnail</strong>, and if it’s a 3D file it shows as the rotatable showcase.</p>
+
+        <div class="media-list">
+          {p.images.map((img, i) => (
+            <div class:list={['media-item', { 'media-item--lead': i === 0 }]}>
+              <div class="media-item__preview">
+                {img.kind === 'model' ? (
+                  <div class="media-item__model"><Icon name="layers" size={20} /><span>3D</span></div>
+                ) : (
+                  <img src={img.url} alt={img.caption} loading="lazy" />
+                )}
+                {i === 0 && <span class="media-item__lead-tag">{img.kind === 'model' ? '3D showcase' : 'Thumbnail'}</span>}
+              </div>
+              <div class="media-item__body">
+                <form method="post" action="/api/admin/media/update" class="inline-form">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={img.id} />
+                  <input type="hidden" name="project_id" value={p.id} />
+                  <select name="kind" onchange="this.form.submit()" class="select select--sm">
+                    <option value="image" selected={img.kind === 'image'}>Photo</option>
+                    <option value="model" selected={img.kind === 'model'}>3D Model</option>
+                    <option value="cover" selected={img.kind === 'cover'}>Cover</option>
+                    <option value="wiring" selected={img.kind === 'wiring'}>Wiring Diagram</option>
+                    <option value="schematic" selected={img.kind === 'schematic'}>Schematic</option>
+                    <option value="architecture" selected={img.kind === 'architecture'}>Architecture Diagram</option>
+                  </select>
+                </form>
+                <span class="dim mono media-item__name">{img.url.split('/').pop()}</span>
+                {img.caption && <span class="dim media-item__cap">{img.caption}</span>}
+              </div>
+              <div class="media-item__ctrl">
                 <form method="post" action="/api/admin/project/action" class="inline-form">
                   <input type="hidden" name="csrf" value={csrf} />
                   <input type="hidden" name="id" value={p.id} />
-                  <input type="hidden" name="action" value="setcover" />
-                  <input type="hidden" name="url" value={img.url} />
-                  <button class="thumb-btn" type="submit" title="Make cover"><Icon name="check" size={14} /></button>
+                  <input type="hidden" name="media_id" value={img.id} />
+                  <input type="hidden" name="action" value="moveup" />
+                  <button class="ctrl-btn" type="submit" title="Move earlier" disabled={i === 0}><Icon name="chevron-up" size={15} /></button>
+                </form>
+                <form method="post" action="/api/admin/project/action" class="inline-form">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="media_id" value={img.id} />
+                  <input type="hidden" name="action" value="movedown" />
+                  <button class="ctrl-btn" type="submit" title="Move later" disabled={i === p.images.length - 1}><Icon name="chevron-down" size={15} /></button>
                 </form>
                 <form method="post" action="/api/admin/media/delete" class="inline-form">
                   <input type="hidden" name="csrf" value={csrf} />
                   <input type="hidden" name="id" value={img.id} />
                   <input type="hidden" name="project_id" value={p.id} />
-                  <button class="thumb-btn thumb-btn--del" type="submit" title="Delete"><Icon name="close" size={14} /></button>
+                  <button class="ctrl-btn ctrl-btn--del" type="submit" title="Delete"><Icon name="close" size={14} /></button>
                 </form>
               </div>
             </div>
           ))}
-          {p.images.length === 0 && <p class="dim">No images yet.</p>}
+          {p.images.length === 0 && <p class="dim">No media yet — add photos or 3D files below.</p>}
         </div>
-        <form method="post" action="/api/admin/media/add" enctype="multipart/form-data" class="add-row">
+
+        <form method="post" action="/api/admin/media/add" enctype="multipart/form-data" class="media-add" data-media-form>
           <input type="hidden" name="csrf" value={csrf} />
           <input type="hidden" name="project_id" value={p.id} />
-          <input class="input" type="file" name="file" accept="image/*" />
-          <input class="input" name="caption" placeholder="Caption (optional)" />
-          <button class="btn btn-ghost" type="submit"><Icon name="download" size={15} /> Upload</button>
+          <label class="media-drop">
+            <input class="media-drop__input" type="file" name="files" accept="image/*,.glb,.gltf,model/gltf-binary,model/gltf+json" multiple data-media-input />
+            <span class="media-drop__text" data-media-label><Icon name="download" size={16} /> Choose photos &amp; 3D files — you can select several at once</span>
+          </label>
+          <div class="add-row">
+            <input class="input" name="caption" placeholder="Caption for the first item (optional)" />
+            <button class="btn btn-primary" type="submit" data-media-submit><Icon name="download" size={15} /> Upload media</button>
+          </div>
+          <div class="upload-progress" data-progress hidden>
+            <div class="upload-progress__bar"><span data-progress-fill></span></div>
+            <span class="upload-progress__pct mono" data-progress-pct>0%</span>
+          </div>
         </form>
         <details class="url-add">
-          <summary class="dim">…or add by image URL</summary>
+          <summary class="dim">…or add by URL</summary>
           <form method="post" action="/api/admin/media/add" class="add-row" style="margin-top:0.75rem">
             <input type="hidden" name="csrf" value={csrf} />
             <input type="hidden" name="project_id" value={p.id} />
-            <input class="input mono" name="url" placeholder="https://…" />
+            <input class="input mono" name="url" placeholder="https://… (image or .glb)" />
             <input class="input" name="caption" placeholder="Caption" />
             <button class="btn btn-ghost" type="submit">Add</button>
           </form>
         </details>
       </section>
+    )}
+  </div>
 
-      <!-- ===== Resource files ===== -->
+  <div class="tab-panel" data-panel="parts" hidden>
+    {isNew && <p class="editor-note dim"><Icon name="spark" size={14} /> Save the project first — then you can add media, parts, and files.</p>}
+    <div class="panel">
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="cost_override">Override display price (?)</label>
+          <input form="main-form" class="input" id="cost_override" name="cost_override" type="number" placeholder="₹800" value={val(p?.cost_override)} />
+        </div>
+        <div class="field">
+          <label class="label" for="cost_checked">Cost checked on</label>
+          <input form="main-form" class="input" id="cost_checked" name="cost_checked" placeholder="Sep 2026" value={val(p?.cost_checked)} />
+        </div>
+      </div>
+    </div>
+    
+    {p && (
+      <section class="child-panel panel">
+        <h3><Icon name="cart" size={18} /> Parts list (BOM)</h3>
+        <div class="rows">
+          {p.bom.map((b) => (
+            <div class="data-row">
+              <div class="data-row__main">
+                <strong>{b.name} <span class="dim mono">×{b.qty}</span>{b.unit_price_inr > 0 && <span class="dim mono"> · ₹{b.unit_price_inr}</span>}</strong>
+                <span class="dim">{b.store || '—'}{b.affiliate_url ? ' · link set' : ' · no link'}{b.is_affiliate === 1 ? ' · affiliate' : ''}</span>
+              </div>
+              {["up", "down"].map((dir) => (
+  <form method="post" action="/api/admin/bom/move" class="inline-form">
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="id" value={b.id} />
+    <input type="hidden" name="project_id" value={p.id} />
+    <input type="hidden" name="dir" value={dir} />
+    <button class="btn btn-ghost btn-xs" type="submit"><Icon name={dir === "up" ? "chevron-up" : "chevron-down"} size={13} /></button>
+  </form>
+))}
+<form method="post" action="/api/admin/bom/delete" class="inline-form">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={b.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
+              </form>
+            </div>
+          ))}
+          {p.bom.length === 0 && <p class="dim">No components yet.</p>}
+        </div>
+        <form method="post" action="/api/admin/bom/add" class="bom-add">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          {components.length > 0 && (
+            <div class="field">
+              <label class="label">From library <span class="dim">(optional — keeps price live)</span></label>
+              <select class="select" name="component_id" data-comp-pick>
+                <option value="0">— Custom component (fill fields below) —</option>
+                {components.map((c) => (
+                  <option value={c.id}>{c.name}{c.unit_price_inr > 0 ? ` · ₹${c.unit_price_inr}` : ''}{c.store ? ` · ${c.store}` : ''}</option>
+                ))}
+              </select>
+              <span class="field-hint">Pick a saved part and the fields below are ignored — its live price/link are used everywhere.</span>
+            </div>
+          )}
+          <div class="grid-bom" data-comp-fields>
+            <input class="input" name="name" placeholder="Component" />
+            <input class="input" name="qty" placeholder="Qty" value="1" />
+            <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
+          </div>
+          <div class="grid-3">
+            <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
+            <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
+            <input class="input mono" name="affiliate_url" placeholder="Buy / affiliate URL" />
+          </div>
+          <div class="grid-2">
+            <input class="input" name="notes" placeholder="Notes / substitutes (optional)" />
+            <div class="bom-add__foot">
+              <label class="switch"><input type="checkbox" name="is_required" checked /> <span>Required part</span></label>
+              <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
+              <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    )}
+
+    {p && (
+      <section class="child-panel panel">
+        <h3><Icon name="layers" size={18} /> Wiring &amp; connections</h3>
+        <p class="dim child-lead">A text pin-map (from → to). Searchable and accessible — always add this alongside the diagram image.</p>
+        <div class="rows">
+          {p.pins.map((pin) => (
+            <div class="data-row">
+              <div class="data-row__main">
+                <strong class="mono">{pin.from_pin} → {pin.to_pin}</strong>
+                <span class="dim">
+                  {pin.module && <span class="mini-tag">{pin.module}</span>} {pin.note}
+                </span>
+              </div>
+              {["up", "down"].map((dir) => (
+  <form method="post" action="/api/admin/pin/move" class="inline-form">
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="id" value={pin.id} />
+    <input type="hidden" name="project_id" value={p.id} />
+    <input type="hidden" name="dir" value={dir} />
+    <button class="btn btn-ghost btn-xs" type="submit"><Icon name={dir === "up" ? "chevron-up" : "chevron-down"} size={13} /></button>
+  </form>
+))}
+<form method="post" action="/api/admin/pin/delete" class="inline-form">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={pin.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
+              </form>
+            </div>
+          ))}
+          {p.pins.length === 0 && <p class="dim">No connections yet.</p>}
+        </div>
+        <form method="post" action="/api/admin/pin/add" class="add-row">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          <input class="input" name="module" placeholder="Module" list="module-list" />
+          <input class="input mono" name="from_pin" placeholder="From (ESP32 D5)" required />
+          <input class="input mono" name="to_pin" placeholder="To (Relay IN1)" required />
+          <input class="input" name="note" placeholder="Note (optional)" />
+          <button class="btn btn-ghost" type="submit">Add</button>
+        </form>
+      </section>
+    )}
+  </div>
+
+  <div class="tab-panel" data-panel="combo" hidden>
+    {isNew && <p class="editor-note dim"><Icon name="spark" size={14} /> Save the project first — then you can add media, parts, and files.</p>}
+    <div class="panel">
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="price_inr">Price (₹)</label>
+          <input form="main-form" class="input" id="price_inr" name="price_inr" type="number" min="0" step="1" value={val(p?.price_inr ?? 0)} />
+        </div>
+        <div class="field">
+          <label class="label" for="combo_title">Combo title</label>
+          <input form="main-form" class="input" id="combo_title" name="combo_title" value={val(p?.combo_title) || 'Complete Project Combo'} />
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="combo_description">What the buyer gets</label>
+        <textarea form="main-form" class="textarea" id="combo_description" name="combo_description" placeholder="Source code, schematic (PDF), 3D files (STL), build guide…">{val(p?.combo_description)}</textarea>
+      </div>
+      <div class="combo-foot">
+        <label class="switch"><input form="main-form" type="checkbox" name="combo_enabled" checked={p?.combo_enabled === 1} /> <span>Combo is purchasable</span></label>
+        {p && (
+          <button
+            type="submit"
+            form={`free-${p.id}`}
+            class="btn btn-free"
+            title="Set price to ₹0 and turn off the paid combo"
+          ><Icon name="spark" size={15} /> Make it completely free</button>
+        )}
+      </div>
+    </div>
+
+    {p && (
       <section class="child-panel panel">
         <h3><Icon name="download" size={18} /> Resource files</h3>
         <p class="dim child-lead">Files in the combo are delivered after purchase. Mark a file “free” to offer it as a public download.</p>
@@ -221,44 +658,9 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
           </div>
         </form>
       </section>
+    )}
 
-      <!-- ===== BOM ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="cart" size={18} /> Parts list (BOM)</h3>
-        <div class="rows">
-          {p.bom.map((b) => (
-            <div class="data-row">
-              <div class="data-row__main">
-                <strong>{b.name} <span class="dim mono">×{b.qty}</span></strong>
-                <span class="dim">{b.store}{b.affiliate_url ? ' · link set' : ' · no link'}</span>
-              </div>
-              <form method="post" action="/api/admin/bom/delete" class="inline-form">
-                <input type="hidden" name="csrf" value={csrf} />
-                <input type="hidden" name="id" value={b.id} />
-                <input type="hidden" name="project_id" value={p.id} />
-                <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
-              </form>
-            </div>
-          ))}
-          {p.bom.length === 0 && <p class="dim">No components yet.</p>}
-        </div>
-        <form method="post" action="/api/admin/bom/add" class="bom-add">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          <div class="grid-bom">
-            <input class="input" name="name" placeholder="Component" required />
-            <input class="input" name="qty" placeholder="Qty" value="1" />
-            <input class="input" name="store" placeholder="Store" />
-          </div>
-          <input class="input mono" name="affiliate_url" placeholder="Affiliate URL (https://…)" />
-          <div class="grid-2">
-            <input class="input" name="notes" placeholder="Notes (optional)" />
-            <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add component</button>
-          </div>
-        </form>
-      </section>
-
-      <!-- ===== Links ===== -->
+    {p && (
       <section class="child-panel panel">
         <h3><Icon name="external" size={18} /> Resource links</h3>
         <div class="rows">
@@ -287,11 +689,57 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
           <button class="btn btn-ghost" type="submit">Add</button>
         </form>
       </section>
+    )}
+  </div>
+
+  <div class="tab-panel" data-panel="seo" hidden>
+    <div class="panel">
+      <div class="field">
+        <label class="label" for="meta_title">Meta title</label>
+        <input form="main-form" class="input" id="meta_title" name="meta_title" maxlength="70" placeholder={val(p?.title) || 'Defaults to the project title'} value={val(p?.meta_title)} />
+        <span class="field-hint">~60 characters shows best in Google.</span>
+      </div>
+      <div class="field">
+        <label class="label" for="meta_description">Meta description</label>
+        <textarea form="main-form" class="textarea" id="meta_description" name="meta_description" maxlength="180" placeholder="Defaults to the summary">{val(p?.meta_description)}</textarea>
+        <span class="field-hint">~155 characters. This is the snippet under your link in search results.</span>
+      </div>
+      <div class="field">
+        <label class="label" for="og_image">Social share image URL</label>
+        <input form="main-form" class="input mono" id="og_image" name="og_image" placeholder="/media/… (defaults to the cover)" value={val(p?.og_image)} />
+      </div>
+      <div class="field">
+        <label class="label" for="video_url">Video URL (YouTube)</label>
+        <input form="main-form" class="input mono" id="video_url" name="video_url" placeholder="https://youtube.com/…" value={val(p?.video_url)} />
+      </div>
+      <div class="field">
+        <label class="label" for="code_repo_url">GitHub repo URL</label>
+        <input form="main-form" class="input mono" id="code_repo_url" name="code_repo_url" placeholder="https://github.com/…" value={val(p?.code_repo_url)} />
+      </div>
+      <div class="field">
+        <label class="label" for="license">Code license</label>
+        <input form="main-form" class="input" id="license" name="license" placeholder="MIT" value={val(p?.license) || 'MIT'} />
+      </div>
     </div>
-  )}
+  </div>
 </div>
 
 <style>
+  /* ===== Tab system ===== */
+  .tab-bar { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 2px solid var(--border); padding-bottom: 0; margin-bottom: 0; }
+  .tab-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem; font-size: var(--fs-sm); font-weight: 550; color: var(--text-muted); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; transition: color 0.15s, border-color 0.15s; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.is-active { color: var(--brand-red); border-bottom-color: var(--brand-red); }
+  .tab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .tab-dot--ok { background: var(--success); }
+  .tab-dot--miss { background: var(--border); }
+  .editor-save-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); position: sticky; top: calc(var(--header-h, 56px) + 0.5rem); z-index: 20; }
+  .editor-save-bar .btn { flex-shrink: 0; }
+  .editor-save-bar__title { font-size: var(--fs-sm); font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+  .tab-panel[hidden] { display: none; }
+  .tab-panel > .panel { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
+
   .editor { display: flex; flex-direction: column; gap: 1.25rem; max-width: 900px; }
   .editor-form { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
   .editor-form__head { display: flex; align-items: center; justify-content: space-between; }
@@ -327,24 +775,111 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
   .mini-tag--free { background: rgba(52,211,153,0.15); color: var(--success); }
   .add-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
   .add-row .input { flex: 1; min-width: 140px; }
-  .file-add, .bom-add { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--hairline); }
+  .file-add, .bom-add, .stack-add { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--hairline); }
+  .stack-add .textarea { min-height: 90px; }
+  .bom-add__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .step-badge { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--brand-red); color: #fff; font-size: var(--fs-xs); font-weight: 700; flex-shrink: 0; }
+  .row-ctrl { display: flex; gap: 3px; flex-shrink: 0; }
   .file-add__opts { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
   .url-add { margin-top: 1rem; }
   .url-add summary { cursor: pointer; font-size: var(--fs-sm); }
-  .thumbs-admin { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; }
-  .thumb-admin { position: relative; width: 120px; height: 84px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); }
-  .thumb-admin img { width: 100%; height: 100%; object-fit: cover; }
-  .thumb-admin__actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; }
-  .thumb-btn { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; border: none; background: rgba(10,10,12,0.8); color: #fff; cursor: pointer; }
-  .thumb-btn--del { background: rgba(231,36,42,0.85); }
+
+  /* ----- unified media list ----- */
+  .field-hint--block { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.7rem 0.85rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); line-height: 1.5; }
+  .field-hint--block :global(svg) { color: var(--brand-red); flex-shrink: 0; margin-top: 2px; }
+  .media-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+  .media-item { display: flex; align-items: center; gap: 0.85rem; padding: 0.6rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); }
+  .media-item--lead { border-color: var(--brand-red); box-shadow: 0 0 0 1px var(--brand-red) inset; }
+  .media-item__preview { position: relative; width: 92px; height: 66px; flex-shrink: 0; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); background: var(--surface-3); }
+  .media-item__preview img { width: 100%; height: 100%; object-fit: cover; }
+  .media-item__model { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--brand-red); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; }
+  .media-item__lead-tag { position: absolute; left: 0; bottom: 0; right: 0; text-align: center; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px; background: var(--brand-red); color: #fff; }
+  .media-item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+  .media-item__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); }
+  .media-item__cap { font-size: var(--fs-xs); }
+  .kind-badge { align-self: flex-start; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.45rem; border-radius: var(--r-full); }
+  .kind-badge--img { background: var(--surface-3); color: var(--text-muted); }
+  .kind-badge--3d { background: rgba(231,36,42,0.14); color: var(--brand-red); }
+  .media-item__ctrl { display: flex; gap: 4px; flex-shrink: 0; }
+  .ctrl-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+  .ctrl-btn:hover:not(:disabled) { border-color: var(--brand-red); color: var(--brand-red); }
+  .ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .ctrl-btn--del:hover { border-color: var(--danger); color: var(--danger); }
+  .media-add { display: flex; flex-direction: column; gap: 0.75rem; }
+  .media-drop { display: block; cursor: pointer; }
+  .media-drop__input { display: block; width: 100%; font-size: var(--fs-sm); padding: 0.6rem; border: 1.5px dashed var(--border); border-radius: var(--r-sm); background: var(--bg-2); cursor: pointer; }
+  .media-drop__input:hover { border-color: var(--brand-red); }
+  .media-drop__text { display: flex; align-items: center; gap: 0.4rem; font-size: var(--fs-xs); color: var(--text-muted); margin-top: 0.35rem; }
+  .media-drop__text :global(svg) { color: var(--brand-red); }
+  .upload-progress { display: flex; align-items: center; gap: 0.75rem; }
+  .upload-progress[hidden] { display: none; }
+  .upload-progress__bar { flex: 1; height: 8px; border-radius: var(--r-full); background: var(--surface-3); overflow: hidden; }
+  .upload-progress__bar span { display: block; height: 100%; width: 0%; background: var(--brand-red); transition: width 0.15s ease; }
+  .upload-progress__pct { font-size: var(--fs-xs); color: var(--text-muted); min-width: 3.5ch; text-align: right; }
+
+  .combo-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .btn-free { background: rgba(52,211,153,0.12); color: var(--success); border: 1px solid rgba(52,211,153,0.4); }
+  .btn-free:hover { background: rgba(52,211,153,0.2); }
   .btn-xs { padding: 0.3rem 0.5rem; font-size: var(--fs-xs); }
   .btn-danger { color: var(--danger); }
   .inline-form { display: inline; }
 
   @media (max-width: 640px) { .grid-2, .grid-3, .grid-bom { grid-template-columns: 1fr; } }
-</style>
+.md-editor { display: flex; flex-direction: column; }
+  .md-tabs { display: flex; gap: 2px; }
+  .md-tab { padding: 0.4rem 1rem; font-size: var(--fs-xs); background: var(--surface-2); border: 1px solid var(--border); border-bottom: none; border-radius: var(--r-sm) var(--r-sm) 0 0; cursor: pointer; color: var(--text-muted); }
+  .md-tab.is-active { background: var(--bg); color: var(--text); font-weight: 500; position: relative; top: 1px; border-bottom: 1px solid var(--bg); }
+  .md-pane { display: none; }
+  .md-pane.is-active { display: block; }
+  .md-pane[data-md-pane="edit"] .textarea { border-top-left-radius: 0; }
+  </style>
 
 <script>
+  import { marked } from 'marked';
+
+  document.querySelectorAll('.md-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-md-target');
+      const tabType = btn.getAttribute('data-md-tab');
+      const container = btn.closest('.md-editor');
+      
+      // Update tabs
+      container.querySelectorAll('.md-tab').forEach(b => b.classList.toggle('is-active', b === btn));
+      
+      // Update panes
+      container.querySelectorAll('.md-pane').forEach(p => {
+        p.classList.toggle('is-active', p.getAttribute('data-md-pane') === tabType);
+      });
+      
+      // Render markdown if preview
+      if (tabType === 'preview') {
+        const input = container.querySelector('[data-md-input]');
+        const preview = container.querySelector('[data-md-pane="preview"]');
+        if (input && preview) {
+          preview.innerHTML = marked.parse(input.value || '*No content*');
+        }
+      }
+    });
+  });
+  // --- Tab switching ---
+  const TAB_KEY = 'tt-editor-tab';
+  const tabBtns = document.querySelectorAll<HTMLButtonElement>('[data-tab]');
+  const tabPanels = document.querySelectorAll<HTMLElement>('[data-panel]');
+
+  function activateTab(name: string) {
+    tabBtns.forEach(b => b.classList.toggle('is-active', b.dataset.tab === name));
+    tabPanels.forEach(p => { p.hidden = p.dataset.panel !== name; });
+    try { sessionStorage.setItem(TAB_KEY, name); } catch {}
+  }
+
+  tabBtns.forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab!)));
+
+  // Restore last active tab
+  try {
+    const saved = sessionStorage.getItem(TAB_KEY);
+    if (saved && document.querySelector(`[data-panel="${saved}"]`)) activateTab(saved);
+  } catch {}
+
   // Auto-suggest slug from title for new projects (only if slug is empty).
   const title = document.querySelector('[data-title]') as HTMLInputElement | null;
   const slug = document.querySelector('[data-slug]') as HTMLInputElement | null;
@@ -354,4 +889,87 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
         .replace(/[^a-z0-9\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
     });
   }
+
+  // --- Keep the scroll position across editor POSTs (reorder / delete / upload)
+  //     so the page never jumps back to the top after an action. ---
+  const SCROLL_KEY = 'tt-editor-scroll';
+  try {
+    const y = sessionStorage.getItem(SCROLL_KEY);
+    if (y !== null) { sessionStorage.removeItem(SCROLL_KEY); window.scrollTo(0, parseInt(y, 10) || 0); }
+  } catch { /* ignore */ }
+  const saveScroll = () => { try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY)); } catch { /* ignore */ } };
+  document.querySelectorAll('.editor form').forEach((f) => f.addEventListener('submit', saveScroll));
+
+  // --- Media upload: real progress bar + no full-page redirect ---
+  const mediaForm = document.querySelector('[data-media-form]') as HTMLFormElement | null;
+  const toast = (window as any).toast as ((m: string, t?: string) => void) | undefined;
+  if (mediaForm) {
+    const input = mediaForm.querySelector('[data-media-input]') as HTMLInputElement | null;
+    const label = mediaForm.querySelector('[data-media-label]') as HTMLElement | null;
+    const submit = mediaForm.querySelector('[data-media-submit]') as HTMLButtonElement | null;
+    const progress = mediaForm.querySelector('[data-progress]') as HTMLElement | null;
+    const fill = mediaForm.querySelector('[data-progress-fill]') as HTMLElement | null;
+    const pct = mediaForm.querySelector('[data-progress-pct]') as HTMLElement | null;
+    const labelDefault = label?.innerHTML || '';
+
+    // Show how many files were picked.
+    input?.addEventListener('change', () => {
+      if (!label) return;
+      const n = input.files?.length || 0;
+      label.textContent = n ? `${n} file${n > 1 ? 's' : ''} ready to upload` : '';
+      if (!n) label.innerHTML = labelDefault;
+    });
+
+    mediaForm.addEventListener('submit', (e) => {
+      const hasFiles = (input?.files?.length || 0) > 0;
+      if (!hasFiles) return; // URL-only / empty → let it post normally
+      e.preventDefault();
+      const xhr = new XMLHttpRequest();
+      const fd = new FormData(mediaForm);
+      xhr.open('POST', mediaForm.action);
+      xhr.setRequestHeader('X-Requested-With', 'fetch');
+      if (submit) submit.disabled = true;
+      if (progress) progress.hidden = false;
+
+      xhr.upload.addEventListener('progress', (ev) => {
+        if (!ev.lengthComputable) return;
+        const p = Math.round((ev.loaded / ev.total) * 100);
+        if (fill) fill.style.width = p + '%';
+        if (pct) pct.textContent = p + '%';
+      });
+      xhr.addEventListener('load', () => {
+        let body: any = {};
+        try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (pct) pct.textContent = 'Done';
+          saveScroll();
+          window.location.reload();
+        } else {
+          if (submit) submit.disabled = false;
+          if (progress) progress.hidden = true;
+          if (fill) fill.style.width = '0%';
+          toast?.(body.err || 'Upload failed. Please try again.', 'error');
+        }
+      });
+      xhr.addEventListener('error', () => {
+        if (submit) submit.disabled = false;
+        if (progress) progress.hidden = true;
+        toast?.('Network error during upload.', 'error');
+      });
+      xhr.send(fd);
+    });
+  }
+
+  // --- BOM: dim custom fields when a library component is picked ---
+  const compPick = document.querySelector('[data-comp-pick]') as HTMLSelectElement | null;
+  const compFields = document.querySelector('[data-comp-fields]') as HTMLElement | null;
+  const syncComp = () => {
+    if (!compFields) return;
+    const usingLib = compPick && compPick.value !== '0';
+    compFields.style.opacity = usingLib ? '0.4' : '1';
+    compFields.querySelectorAll('input').forEach((el) => { (el as HTMLInputElement).disabled = !!usingLib; });
+  };
+  compPick?.addEventListener('change', syncComp);
 </script>
+
+

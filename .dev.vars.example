@@ -27,5 +27,8 @@ TURNSTILE_SITE_KEY=""
 TURNSTILE_SECRET_KEY=""
 
 # --- Optional: transactional email for order receipts (https://resend.com free tier)
-RESEND_API_KEY=""
+EMAIL_ENABLED="false"
+BREVO_API_KEY=""
+FROM_EMAIL="technicaltriveniyt@gmail.com"
+FROM_NAME="Technical Triveni"
 FROM_EMAIL="Technical Triveni <orders@technicaltriveni.com>"

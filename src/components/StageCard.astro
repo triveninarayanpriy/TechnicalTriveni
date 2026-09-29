@@ -1,0 +1,153 @@
+---
+import { renderMarkdown } from '../lib/format';
+import type { ProjectStep } from '../lib/db';
+import Icon from './Icon.astro';
+
+interface Props {
+  step: ProjectStep;
+  index: number;
+}
+
+const { step, index } = Astro.props;
+const html = renderMarkdown(step.body);
+---
+
+<div class="stage-card">
+  <div class="stage-card__header">
+    <div class="stage-card__num">{index + 1}</div>
+    <div style="flex:1; min-width:0;">
+      <h3 class="stage-card__title">{step.title.replace(/^Stage \d+ — /, "")}</h3>
+      {step.goal && <div class="stage-card__goal">{step.goal}</div>}
+      {step.time_est && <span class="stage-badge"><Icon name="clock" size={12} /> {step.time_est}</span>}
+      {step.video_ts && <span class="stage-badge"><Icon name="play" size={12} /> {step.video_ts}</span>}
+    </div>
+  </div>
+    <h3 class="stage-card__title">{step.title.replace(/^Stage \d+ — /, '')}</h3>
+  </div>
+  
+  <div class="stage-card__body prose">
+    {step.file_id && (
+      <div class="stage-card__file" style="margin-bottom:0.75rem;">
+        <a href={"/api/download/free/" + step.file_id} class="btn btn-ghost btn-sm" style="display:inline-flex; border: 1px solid var(--border)">
+          <Icon name="download" size={14} /> Download Sketch/File
+        </a>
+      </div>
+    )}
+    
+    {step.parts_needed && (
+      <div class="stage-card__parts">
+        <strong><Icon name="cart" size={14} style="vertical-align:-2px;margin-right:4px;" /> Parts needed:</strong> {step.parts_needed.split(",").join(", ")}
+      </div>
+    )}
+    
+    {step.why && (
+      <div class="stage-card__why">
+        <strong>Why?</strong> {step.why}
+      </div>
+    )}
+    
+    <div class="stage-card__content" set:html={html} />
+    
+    {step.image_url && (
+      <div class="stage-card__media">
+        <img src={step.image_url} alt={step.title} loading="lazy" />
+      </div>
+    )}
+
+    {(step.expected_res || step.if_fails) && (
+      <div class="stage-card__outcomes">
+        {step.expected_res && (
+          <div class="outcome outcome--success">
+            <strong><Icon name="check-circle" size={15} style="vertical-align:-2px;margin-right:4px;"/> Expected result:</strong>
+            <div set:html={renderMarkdown(step.expected_res)} />
+          </div>
+        )}
+        {step.if_fails && (
+          <div class="outcome outcome--warning">
+            <strong><Icon name="alert-triangle" size={15} style="vertical-align:-2px;margin-right:4px;"/> If it fails:</strong>
+            <div set:html={renderMarkdown(step.if_fails)} />
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</div>
+
+<style>
+  .stage-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .stage-card__header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .stage-card__num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--brand-red);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .stage-card__title {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .stage-card__body {
+    padding: 1.25rem;
+  }
+  .stage-card__why {
+    background: var(--surface-3);
+    padding: 0.75rem 1rem;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  .stage-card__why strong {
+    color: var(--text);
+  }
+  .stage-card__media {
+    margin-top: 1.5rem;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    border: 1px solid var(--hairline);
+  }
+  .stage-card__content :global(ul) {
+    margin-top: 0.5rem;
+  }
+  .stage-card__content :global(li) {
+    margin-bottom: 0.5rem;
+  }
+  .stage-card__content :global(p:last-child),
+  .stage-card__content :global(ul:last-child) {
+    margin-bottom: 0;
+  }
+.stage-card__goal { font-size: 0.9em; color: var(--text-muted); margin-top: 0.25rem; }
+  .stage-card__meta { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+  .stage-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; background: var(--bg); padding: 0.2rem 0.5rem; border-radius: var(--r-sm); border: 1px solid var(--border); color: var(--text-muted); font-weight: 500; }
+  .stage-card__parts { margin-bottom: 1rem; font-size: var(--fs-sm); color: var(--text-dim); }
+  .stage-card__parts strong { color: var(--text); }
+  .stage-card__outcomes { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .outcome { padding: 1rem; border-radius: var(--r-sm); font-size: 0.95em; }
+  .outcome strong { display: block; margin-bottom: 0.5rem; }
+  .outcome > div > :global(p:last-child) { margin-bottom: 0; }
+  .outcome--success { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); }
+  .outcome--success strong { color: var(--success); }
+  .outcome--warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+  .outcome--warning strong { color: #d97706; }
+</style>

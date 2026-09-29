@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { getOrder, markOrderPaid } from '../../../lib/db';
 import { verifyPaymentSignature } from '../../../lib/razorpay';
 import { randomToken } from '../../../lib/crypto';
+import { sendEmail, buildOrderEmail } from '../../../lib/email';
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -46,5 +47,17 @@ export const POST: APIRoute = async ({ request }) => {
   const token = randomToken(32);
   await markOrderPaid(env.DB, order.id, razorpay_payment_id, razorpay_signature, token);
 
-  return json({ redirect: `/account/download?order=${order.id}&token=${token}` });
+  const relative = `/account/download?order=${order.id}&token=${token}`;
+
+  // Best-effort receipt email — a mail failure must never affect the payment result.
+  try {
+    if (order.email) {
+      const base = env.SITE_URL || new URL(request.url).origin;
+      const paidOrder = { ...order, status: 'paid', download_token: token, amount_inr: order.amount_inr };
+      const { subject, html } = buildOrderEmail(paidOrder, new URL(relative, base).toString());
+      await sendEmail(env, { to: order.email, subject, html });
+    }
+  } catch { /* ignore email errors */ }
+
+  return json({ redirect: relative });
 };

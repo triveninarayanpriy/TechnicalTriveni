@@ -5,9 +5,8 @@ const INR = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 
 /** ₹1,499 — whole rupees (no paise). */
 export function formatINR(rupees: number): string {
-  return `₹${INR.format(Math.round(rupees || 0))}`;
+  return String.fromCharCode(8377) + INR.format(Math.round(rupees || 0));
 }
-
 export function formatDate(unixSeconds: number | null | undefined): string {
   if (!unixSeconds) return '—';
   return new Date(unixSeconds * 1000).toLocaleDateString('en-IN', {

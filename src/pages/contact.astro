@@ -3,6 +3,8 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE } from '../lib/site';
+import { getPage } from '../lib/db';
+import { renderMarkdown } from '../lib/format';
 import { turnstileEnabled } from '../lib/turnstile';
 
 const sent = Astro.url.searchParams.get('sent') === '1';
@@ -10,18 +12,27 @@ const error = Astro.url.searchParams.get('error');
 const csrf = Astro.locals.csrfToken;
 const tsOn = turnstileEnabled(env);
 const tsKey = env.TURNSTILE_SITE_KEY;
+
+const pageData = await getPage(env.DB, 'contact');
+const customHtml = pageData?.content_md ? renderMarkdown(pageData.content_md) : null;
 ---
 
-<Base title="Contact" description="Questions, project ideas or collaboration — get in touch with Technical Triveni.">
+<Base title={pageData?.title || "Contact"} description="Questions, project ideas or collaboration — get in touch with Technical Triveni.">
   <section class="section">
     <div class="container contact">
       <div class="contact__intro">
         <span class="eyebrow">Get in touch</span>
-        <h1>Let's talk builds.</h1>
-        <p class="muted">
-          Have a question about a project, a component, or your download? Want to suggest a build or collaborate?
-          Drop a message — we read every one.
-        </p>
+        <h1>{pageData?.title || "Let's talk builds."}</h1>
+        {customHtml ? (
+          <div class="prose muted">
+            <Fragment set:html={customHtml} />
+          </div>
+        ) : (
+          <p class="muted">
+            Have a question about a project, a component, or your download? Want to suggest a build or collaborate?
+            Drop a message — we read every one.
+          </p>
+        )}
         <div class="contact__channels">
           <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="contact-channel">
             <Icon name="youtube" size={20} /> <span>YouTube</span>

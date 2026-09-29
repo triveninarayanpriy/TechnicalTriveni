@@ -1,0 +1,100 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { listComponents } from '../../lib/db';
+
+const components = await listComponents(env.DB);
+const csrf = Astro.locals.csrfToken;
+---
+
+<Admin title="Component library" active="components">
+  <div class="comp">
+    <section class="panel comp-intro">
+      <h2><Icon name="cart" size={18} /> Reusable components</h2>
+      <p class="dim">Maintain each part once — name, price, store and buy link. Add it to any project's parts list from the “From library” picker. Update a price here and it updates on <strong>every</strong> project that uses it.</p>
+    </section>
+
+    <section class="panel">
+      <h3 class="comp-h3">Add a component</h3>
+      <form method="post" action="/api/admin/component/add" class="comp-form">
+        <input type="hidden" name="csrf" value={csrf} />
+        <div class="grid-3">
+          <input class="input" name="name" placeholder="Name e.g. ESP32 DevKit v1" required />
+          <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
+          <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
+        </div>
+        <div class="grid-3">
+          <input class="input mono" name="buy_url" placeholder="Buy / affiliate URL" />
+          <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
+          <input class="input" name="notes" placeholder="Notes (optional)" />
+        </div>
+        <div class="comp-form__foot">
+          <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
+          <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add to library</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h3 class="comp-h3">{components.length} component{components.length === 1 ? '' : 's'}</h3>
+      {components.length === 0 && <p class="dim">No components yet — add your first above.</p>}
+      <div class="comp-list">
+        {components.map((c) => (
+          <details class="comp-item">
+            <summary>
+              <span class="comp-item__name">{c.name}</span>
+              <span class="comp-item__meta dim mono">
+                {c.unit_price_inr > 0 ? `₹${c.unit_price_inr}` : '—'}{c.store ? ` · ${c.store}` : ''}{c.is_affiliate ? ' · ad' : ''}
+              </span>
+            </summary>
+            <form method="post" action="/api/admin/component/update" class="comp-form comp-edit">
+              <input type="hidden" name="csrf" value={csrf} />
+              <input type="hidden" name="id" value={c.id} />
+              <div class="grid-3">
+                <input class="input" name="name" value={c.name} required />
+                <input class="input" name="store" value={c.store} placeholder="Store" />
+                <input class="input" name="unit_price_inr" type="number" min="0" value={c.unit_price_inr} />
+              </div>
+              <div class="grid-3">
+                <input class="input mono" name="buy_url" value={c.buy_url} placeholder="Buy URL" />
+                <input class="input" name="price_checked" value={c.price_checked} placeholder="Checked" />
+                <input class="input" name="notes" value={c.notes} placeholder="Notes" />
+              </div>
+              <div class="comp-form__foot">
+                <label class="switch"><input type="checkbox" name="is_affiliate" checked={c.is_affiliate === 1} /> <span>Affiliate link</span></label>
+                <div class="comp-edit__btns">
+                  <button class="btn btn-primary btn-xs" type="submit"><Icon name="check" size={13} /> Save</button>
+                  <button class="btn btn-ghost btn-xs btn-danger" type="submit" formaction="/api/admin/component/delete"><Icon name="close" size={13} /> Delete</button>
+                </div>
+              </div>
+            </form>
+          </details>
+        ))}
+      </div>
+    </section>
+  </div>
+</Admin>
+
+<style>
+  .comp { display: flex; flex-direction: column; gap: 1.25rem; max-width: 900px; }
+  .panel { padding: 1.5rem; }
+  .comp-intro h2 { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-md); margin-bottom: 0.5rem; }
+  .comp-intro h2 :global(svg) { color: var(--brand-red); }
+  .comp-h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 1rem; }
+  .comp-form { display: flex; flex-direction: column; gap: 0.75rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; }
+  .comp-form__foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .switch { display: inline-flex; align-items: center; gap: 0.5rem; font-size: var(--fs-sm); cursor: pointer; }
+  .switch input { width: 18px; height: 18px; accent-color: var(--brand-red); }
+  .comp-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .comp-item { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-2); overflow: hidden; }
+  .comp-item summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; cursor: pointer; }
+  .comp-item__name { font-weight: 600; font-size: var(--fs-sm); }
+  .comp-item__meta { font-size: var(--fs-xs); }
+  .comp-edit { padding: 0 1rem 1rem; }
+  .comp-edit__btns { display: flex; gap: 0.5rem; }
+  .btn-xs { padding: 0.35rem 0.7rem; font-size: var(--fs-xs); }
+  .btn-danger { color: var(--danger); }
+  @media (max-width: 640px) { .grid-3 { grid-template-columns: 1fr; } }
+</style>

@@ -68,12 +68,22 @@ export const PROFILE = {
     'AI tools & agents that are genuinely useful for students and engineers',
     'Engineering guidance — VLSI, projects, placements & NIT student life',
   ],
+  mission:
+    "YouTube shows the highlight reel. Technical Triveni is the permanent, searchable home for the full build — every schematic, wiring table, parts list and line of code — so that a student who pauses a video can actually finish the project. Free to learn from, honest about cost and risk, and built to last.",
+  experience: [
+    { role: 'Manager, Innovation Hub', org: 'NIT Patna', note: 'Student-led hardware & prototyping space' },
+    { role: 'Co-founder', org: 'Samvad Debate Club', note: 'NIT Patna' },
+    { role: 'Volunteer', org: 'Sankalp (NSS)', note: 'Community & outreach' },
+    { role: 'Subject-matter expert (freelance)', org: 'Physics Wallah', note: 'Keeps the fundamentals sharp' },
+    { role: 'Selected — Internal Round', org: 'Smart India Hackathon 2025', note: '' },
+  ],
 } as const;
 
 /** Primary navigation shown in the header. */
 export const NAV: { label: string; href: string }[] = [
   { label: 'Projects', href: '/projects' },
   { label: 'How it works', href: '/how-it-works' },
+  { label: 'My purchases', href: '/account/downloads' },
   { label: 'About', href: '/about' },
   { label: 'Contact', href: '/contact' },
 ];
@@ -85,6 +95,7 @@ export const FOOTER_LINKS: { title: string; links: { label: string; href: string
     links: [
       { label: 'All projects', href: '/projects' },
       { label: 'How it works', href: '/how-it-works' },
+      { label: 'My downloads', href: '/account/downloads' },
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },
     ],
@@ -94,8 +105,10 @@ export const FOOTER_LINKS: { title: string; links: { label: string; href: string
     links: [
       { label: 'Terms of Service', href: '/legal/terms' },
       { label: 'Privacy Policy', href: '/legal/privacy' },
+      { label: 'Disclaimer', href: '/legal/disclaimer' },
+      { label: 'Affiliate Disclosure', href: '/legal/affiliate' },
+      { label: 'Cookie Policy', href: '/legal/cookies' },
       { label: 'Refund Policy', href: '/legal/refund' },
-      { label: 'Licensing', href: '/legal/license' },
     ],
   },
 ];

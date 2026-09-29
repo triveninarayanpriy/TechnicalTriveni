@@ -22,6 +22,17 @@ function sanitizeName(name: string): string {
     .slice(0, 100);
 }
 
+const EXT_TYPES: Record<string, string> = {
+  glb: 'model/gltf-binary', gltf: 'model/gltf+json',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+  gif: 'image/gif', svg: 'image/svg+xml', avif: 'image/avif',
+};
+
+export function inferContentType(name: string, fallbackType = ''): string {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return fallbackType || EXT_TYPES[ext] || 'application/octet-stream';
+}
+
 export async function uploadToStore(
   kv: KVNamespace,
   file: File,
@@ -31,11 +42,11 @@ export async function uploadToStore(
     throw new Error('No file provided.');
   }
   if (file.size > MAX_BYTES) {
-    throw new Error('File is too large (max 25 MB). Zip/compress it, or split large 3D files.');
+    throw new Error('File is too large (max 25 MB). Compress it, or split large 3D files.');
   }
   const clean = sanitizeName(file.name);
   const key = `${prefix}/${crypto.randomUUID()}-${clean}`;
-  const contentType = file.type || 'application/octet-stream';
+  const contentType = inferContentType(file.name, file.type);
   const buf = await file.arrayBuffer();
   await kv.put(key, buf, {
     metadata: { contentType, filename: clean, size: file.size } satisfies BlobMeta,

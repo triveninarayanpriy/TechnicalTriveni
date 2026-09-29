@@ -1,0 +1,41 @@
+---
+// Privacy-first cookie notice. The site uses essential cookies only, so this is
+// an informational notice the visitor acknowledges once (stored locally). If
+// non-essential cookies are ever added, this becomes a real accept/decline gate.
+---
+<div class="cookie" id="cookie-banner" hidden>
+  <p class="cookie__text">
+    We use only <strong>essential cookies</strong> to keep the site secure and working — no ads, no cross-site tracking.
+    <a href="/legal/cookies">Learn more</a>.
+  </p>
+  <button class="btn btn-primary btn-sm" id="cookie-ok" type="button">Got it</button>
+</div>
+
+<style>
+  .cookie {
+    position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 200;
+    max-width: 640px; margin-inline: auto;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    padding: 0.85rem 1.1rem; border-radius: var(--r-lg);
+    background: var(--surface); border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+  }
+  .cookie[hidden] { display: none; }
+  .cookie__text { flex: 1; min-width: 220px; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
+  .cookie__text a { color: var(--brand-red); text-decoration: underline; }
+  .cookie .btn-sm { padding: 0.5rem 1rem; font-size: var(--fs-sm); white-space: nowrap; }
+  @media (max-width: 420px) { .cookie .btn-sm { width: 100%; } }
+</style>
+
+<script>
+  const KEY = 'tt-cookie-ack';
+  const banner = document.getElementById('cookie-banner');
+  const ok = document.getElementById('cookie-ok');
+  try {
+    if (banner && localStorage.getItem(KEY) !== '1') banner.hidden = false;
+  } catch { /* storage blocked → keep it hidden, nothing non-essential is loaded anyway */ }
+  ok?.addEventListener('click', () => {
+    if (banner) banner.hidden = true;
+    try { localStorage.setItem(KEY, '1'); } catch { /* ignore */ }
+  });
+</script>

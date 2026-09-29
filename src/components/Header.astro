@@ -22,9 +22,6 @@ const isAdmin = !!Astro.locals.admin;
     </nav>
 
     <div class="site-header__actions">
-      {isAdmin && (
-        <a href="/admin" class="nav-link nav-link--admin">Admin</a>
-      )}
       <a href="/projects" class="btn btn-primary btn--header">
         Explore projects <Icon name="arrow-right" size={16} />
       </a>
@@ -40,7 +37,6 @@ const isAdmin = !!Astro.locals.admin;
       {NAV.map((item) => (
         <a href={item.href} class="mobile-nav__link">{item.label}</a>
       ))}
-      {isAdmin && <a href="/admin" class="mobile-nav__link">Admin</a>}
       <a href="/projects" class="btn btn-primary btn-block" style="margin-top:1rem">
         Explore projects <Icon name="arrow-right" size={16} />
       </a>
@@ -52,17 +48,15 @@ const isAdmin = !!Astro.locals.admin;
   .site-header {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1000;
     height: var(--header-h);
     display: flex;
     align-items: center;
-    transition: background 0.3s var(--ease), border-color 0.3s var(--ease), backdrop-filter 0.3s;
+    background-color: var(--surface);
+    transition: border-color 0.3s var(--ease);
     border-bottom: 1px solid transparent;
   }
   .site-header.is-stuck {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(16px) saturate(160%);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
     border-bottom-color: var(--border);
     box-shadow: 0 6px 24px -18px rgba(16, 24, 40, 0.4);
   }

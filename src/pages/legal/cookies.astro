@@ -1,0 +1,22 @@
+---
+import Legal from '../../layouts/Legal.astro';
+import { SITE } from '../../lib/site';
+---
+<Legal title="Cookie Policy" updated="September 2026">
+  <p><em>How {SITE.name} uses cookies and similar storage.</em></p>
+
+  <h2>1. What we use</h2>
+  <p>We keep cookies to a minimum. Today the site uses only <strong>essential cookies and local storage</strong> — for security (CSRF protection), your admin/session integrity where relevant, and remembering small preferences such as whether you've dismissed this notice. These are required for the site to work and do not track you across other websites.</p>
+
+  <h2>2. What we don't use (by default)</h2>
+  <p>We do not currently run third-party advertising or cross-site tracking cookies. Payments are handled by Razorpay and video by YouTube on their own pages, each with their own cookie policies.</p>
+
+  <h2>3. Analytics &amp; non-essential cookies</h2>
+  <p>If we later add privacy-friendly analytics or any non-essential cookies, we will ask for your consent first through the cookie banner, and only load them after you accept. You can decline non-essential cookies without losing access to the site.</p>
+
+  <h2>4. Managing cookies</h2>
+  <p>You can clear or block cookies in your browser settings at any time. Blocking essential cookies may break sign-in or checkout. You can also re-open the cookie choice from the banner when non-essential cookies are in use.</p>
+
+  <h2>5. Contact</h2>
+  <p>Questions about cookies? Reach us via the <a href="/contact">contact page</a> or at {SITE.email}.</p>
+</Legal>

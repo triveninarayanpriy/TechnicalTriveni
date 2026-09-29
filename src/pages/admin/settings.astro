@@ -5,6 +5,7 @@ import { env } from 'cloudflare:workers';
 import { getSettings } from '../../lib/db';
 import { razorpayConfigured } from '../../lib/razorpay';
 import { turnstileEnabled } from '../../lib/turnstile';
+import { emailEnabled } from '../../lib/email';
 
 const settings = await getSettings(env.DB);
 const csrf = Astro.locals.csrfToken;
@@ -12,7 +13,7 @@ const csrf = Astro.locals.csrfToken;
 const integrations = [
   { name: 'Razorpay payments', on: razorpayConfigured(env), env: 'RAZORPAY_ENABLED / RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET' },
   { name: 'Turnstile (bot protection)', on: turnstileEnabled(env), env: 'TURNSTILE_ENABLED / TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY' },
-  { name: 'Email receipts', on: !!env.RESEND_API_KEY, env: 'RESEND_API_KEY / FROM_EMAIL' },
+  { name: 'Email (receipts + magic links)', on: emailEnabled(env), env: 'EMAIL_ENABLED / BREVO_API_KEY / FROM_EMAIL' },
 ];
 ---
 

@@ -22,6 +22,9 @@ declare namespace Cloudflare {
     SITE_URL: string;
     RAZORPAY_ENABLED: string;
     TURNSTILE_ENABLED: string;
+    EMAIL_ENABLED: string;
+    FROM_EMAIL?: string;
+    FROM_NAME?: string;
 
     // --- Secrets ---
     SESSION_SECRET: string;
@@ -33,9 +36,8 @@ declare namespace Cloudflare {
     TURNSTILE_SITE_KEY: string;
     TURNSTILE_SECRET_KEY: string;
 
-    // --- Optional: transactional email (order receipts) ---
-    RESEND_API_KEY?: string;
-    FROM_EMAIL?: string;
+    // --- Optional: transactional email via Brevo (order receipts + magic links) ---
+    BREVO_API_KEY?: string;
   }
 }
 

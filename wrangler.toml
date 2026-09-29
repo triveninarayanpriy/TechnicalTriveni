@@ -16,6 +16,7 @@
 name = "technical-triveni"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
+account_id = "9dbfac30e9cf8bc024520f15b58b2c62"
 
 # --- Database (Cloudflare D1) ------------------------------------------------
 [[d1_databases]]
@@ -46,6 +47,9 @@ id = "e55eca369b0e490c9fd0f56e073d1f11"
 # SECRETS (Razorpay keys, admin password hash, session secret) are NEVER put
 # here. Set them with `wrangler pages secret put <NAME>` — see DEPLOY.md.
 [vars]
-SITE_URL = "http://localhost:4321"
-RAZORPAY_ENABLED = "false"          # flip to "true" once keys are configured
+SITE_URL = "https://technical-triveni.innovationhubnitp.workers.dev"
+RAZORPAY_ENABLED = "true"           # keys are set as secrets (wrangler secret put)
 TURNSTILE_ENABLED = "false"         # flip to "true" once Turnstile keys are set
+EMAIL_ENABLED = "true"              # BREVO_API_KEY secret is set
+FROM_EMAIL = "technicaltriveniyt@gmail.com"   # must be a verified sender in Brevo
+FROM_NAME = "Technical Triveni"

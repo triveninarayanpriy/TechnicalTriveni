@@ -5,7 +5,7 @@ import Icon from '../../components/Icon.astro';
 import { listProjects, countProjects, distinctCategories } from '../../lib/db';
 import { env } from 'cloudflare:workers';
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 10;
 const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
@@ -65,14 +65,7 @@ const to = Math.min(page * PAGE_SIZE, total);
 
 <Base title="Projects" description="Browse electronics, robotics, AI and software projects — each with full schematics, code, 3D files and a parts list.">
   <section class="page-hero">
-    <div class="container">
-      <span class="eyebrow" data-reveal>Project library</span>
-      <h1 data-reveal>Every build, fully documented.</h1>
-      <p class="page-hero__lead" data-reveal>
-        Specs, wiring and parts are always free — grab the combo when you're ready to build.
-      </p>
-
-      <form class="filter-bar" method="get" action="/projects" data-reveal>
+    <div class="container">      <form class="filter-bar" method="get" action="/projects" data-reveal>
         <div class="search-field">
           <Icon name="search" size={18} />
           <input type="search" name="q" value={q} placeholder="Search projects, e.g. ESP32, robot, sensor…" class="search-input" aria-label="Search projects" />
@@ -138,11 +131,11 @@ const to = Math.min(page * PAGE_SIZE, total);
 </Base>
 
 <style>
-  .page-hero { padding-block: clamp(2.25rem, 5vw, 3.5rem) clamp(1.25rem, 3vw, 2rem); border-bottom: 1px solid var(--hairline); }
+  .page-hero { padding-block: 1.5rem 1rem; border-bottom: 1px solid var(--hairline); }
   .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.75rem 0.6rem; }
   .page-hero__lead { color: var(--text-muted); max-width: 56ch; font-size: var(--fs-md); }
 
-  .filter-bar { display: flex; gap: 0.6rem; margin-top: 1.75rem; max-width: 620px; }
+  .filter-bar { display: flex; gap: 0.6rem; max-width: 620px; }
   .search-field { position: relative; flex: 1; display: flex; align-items: center; }
   .search-field :global(svg) { position: absolute; left: 0.9rem; color: var(--text-dim); pointer-events: none; }
   .search-input { width: 100%; padding: 0.8rem 1rem 0.8rem 2.7rem; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-full); color: var(--text); box-shadow: var(--shadow-sm); }
@@ -178,6 +171,6 @@ const to = Math.min(page * PAGE_SIZE, total);
 
   @media (max-width: 600px) {
     .filter-bar { flex-direction: column; }
-    .proj-grid { grid-template-columns: 1fr; gap: 0.85rem; }
+    .proj-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
   }
 </style>

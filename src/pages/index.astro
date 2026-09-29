@@ -9,14 +9,14 @@ import { env } from 'cloudflare:workers';
 let featured = [] as Awaited<ReturnType<typeof listProjects>>;
 let recent = [] as Awaited<ReturnType<typeof listProjects>>;
 try {
-  featured = await listProjects(env.DB, { publishedOnly: true, featuredOnly: true, limit: 6 });
-  if (featured.length === 0) featured = await listProjects(env.DB, { publishedOnly: true, limit: 6 });
-  recent = await listProjects(env.DB, { publishedOnly: true, orderBy: 'newest', limit: 14 });
+  featured = await listProjects(env.DB, { publishedOnly: true, featuredOnly: true, limit: 100 });
+  if (featured.length === 0) featured = await listProjects(env.DB, { publishedOnly: true, limit: 100 });
+  recent = await listProjects(env.DB, { publishedOnly: true, orderBy: 'newest', limit: 100 });
 } catch {
   /* DB not ready */
 }
 const hero = featured[0];
-const featuredCards = featured.slice(0, 3);
+const featuredCards = featured;
 const marqueeNames = recent.length ? recent.map((p) => p.title) : ['Weather Station', 'Line Robot', 'AI Voice Hub', 'RFID Lock', 'Smart Lamp', 'Energy Monitor'];
 
 const included = [
@@ -43,113 +43,64 @@ const jsonLd = {
   <section class="hero">
     <div class="container hero__inner">
       <div class="hero__copy">
-        <span class="eyebrow" data-reveal>Electronics · Software · AI</span>
         <h1 data-reveal>Build real projects,<br />the <span class="gradient-text">right way.</span></h1>
         <p class="hero__lead" data-reveal data-reveal-delay="60ms">
-          Every Technical Triveni project ships with full schematics, source code, 3D files,
-          a complete parts list and direct buy links — so you go from a 30-second reel to a
-          finished build with zero guesswork.
+          Full schematics, source code, 3D files, parts list & buy links
+          — everything you need to go from watching to building.
         </p>
         <div class="hero__actions" data-reveal data-reveal-delay="120ms">
           <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
           <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="btn btn-ghost btn-lg"><Icon name="youtube" size={18} /> Watch on YouTube</a>
         </div>
-        <div class="hero__stats" data-reveal data-reveal-delay="160ms">
-          <div class="hstat"><span class="hstat__n">{recent.length ? recent.length + '+' : '—'}</span><span class="hstat__l">Documented builds</span></div>
-          <div class="hstat"><span class="hstat__n">100%</span><span class="hstat__l">Files included</span></div>
-          <div class="hstat"><span class="hstat__n">₹0</span><span class="hstat__l">To browse specs</span></div>
-        </div>
       </div>
 
-      <!-- Hero showcase: a real featured project (with optional interactive 3D) -->
-      {hero ? (
-        <div class="showcase" data-reveal data-reveal-delay="120ms">
-          <span class="showcase__flag"><Icon name="spark" size={13} /> Featured build</span>
-          <div class="showcase__media">
-            {hero.model_url ? (
-              <model-viewer
-                src={hero.model_url}
-                camera-controls
-                auto-rotate
-                auto-rotate-delay="0"
-                rotation-per-second="18deg"
-                interaction-prompt="none"
-                shadow-intensity="0.6"
-                exposure="1.1"
-                ar
-                aria-label={`3D model of ${hero.title}`}
-                class="showcase__3d"
-              ></model-viewer>
-            ) : hero.cover_image ? (
-              <img src={hero.cover_image} alt={hero.title} width="720" height="450" />
-            ) : (
-              <div class="showcase__ph grid-bg"></div>
-            )}
-            {hero.model_url && <span class="showcase__3dtag mono"><Icon name="cube" size={13} /> Drag to rotate</span>}
-            <div class="showcase__badges">
-              <span class="chip chip--onimg">{hero.category}</span>
-              <span class:list={['badge', difficultyClass(hero.difficulty)]}>{hero.difficulty}</span>
+      <!-- Hero 3D Model Showcase (Desktop Only) -->
+      {hero && (
+        <div class="hero__model-wrapper" data-reveal data-reveal-delay="120ms">
+          <a href={`/projects/${hero.slug}`} class="showcase-card">
+            <div class="showcase-card__media">
+              {hero.model_url ? (
+                <model-viewer
+                  src={hero.model_url}
+                  camera-controls
+                  auto-rotate
+                  auto-rotate-delay="0"
+                  rotation-per-second="18deg"
+                  interaction-prompt="none"
+                  shadow-intensity="0.6"
+                  exposure="1.1"
+                  ar
+                  aria-label={`3D model of ${hero.title}`}
+                  class="showcase-card__3d"
+                ></model-viewer>
+              ) : hero.cover_image ? (
+                <img src={hero.cover_image} alt={hero.title} width="720" height="450" />
+              ) : (
+                <div class="showcase-card__ph grid-bg"></div>
+              )}
+              {hero.model_url && <span class="showcase-card__3dtag mono"><Icon name="cube" size={12} /> Drag to rotate</span>}
+              <span class="showcase-card__badge"><Icon name="spark" size={12} /> Featured</span>
             </div>
-          </div>
-          <a href={`/projects/${hero.slug}`} class="showcase__body">
-            <h3 class="showcase__title">{hero.title}</h3>
-            <p class="showcase__summary">{hero.summary}</p>
-            <div class="showcase__chips">
-              <span class="rchip"><Icon name="code" size={13} /> Code</span>
-              <span class="rchip"><Icon name="schematic" size={13} /> Schematic</span>
-              <span class="rchip"><Icon name="cube" size={13} /> 3D files</span>
-              <span class="rchip"><Icon name="cart" size={13} /> BOM</span>
-            </div>
-            <div class="showcase__foot">
-              <span class="showcase__price">{hero.combo_enabled && hero.price_inr > 0 ? formatINR(hero.price_inr) : 'Free'}<small>{hero.combo_enabled && hero.price_inr > 0 ? 'combo' : 'resources'}</small></span>
-              <span class="showcase__cta">View project <Icon name="arrow-right" size={16} /></span>
+            <div class="showcase-card__body">
+              <h3 class="showcase-card__title">{hero.title}</h3>
+              <p class="showcase-card__summary">{hero.summary}</p>
+              <div class="showcase-card__foot">
+                <span class="showcase-card__price">{hero.combo_enabled && hero.price_inr > 0 ? formatINR(hero.price_inr) : 'Free'}<small>{hero.combo_enabled && hero.price_inr > 0 ? ' combo' : ''}</small></span>
+                <span class="showcase-card__cta">View project <Icon name="arrow-right" size={14} /></span>
+              </div>
             </div>
           </a>
         </div>
-      ) : (
-        <div class="showcase showcase--empty" data-reveal><p class="muted">Featured projects appear here.</p></div>
       )}
-    </div>
-
-    <!-- Project-name marquee -->
-    <div class="marquee" aria-hidden="true">
-      <div class="marquee__track">
-        {[...marqueeNames, ...marqueeNames].map((t) => <span class="marquee__item mono">{t}</span>)}
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== WHAT YOU GET ===================== -->
-  <section class="section">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <span class="eyebrow">What you get</span>
-        <h2 class="section-title">Everything you need — instantly.</h2>
-        <p class="section-lead">Well-documented digital access to every project's schematics, 3D files, source code and parts list. Nothing left to guesswork.</p>
-      </div>
-      <div class="included-grid">
-        {included.map((f, i) => (
-          <div class="feature" data-reveal data-reveal-delay={`${i * 40}ms`}>
-            <div class="feature__icon"><Icon name={f.icon} size={20} /></div>
-            <div class="feature__txt"><h3 class="feature__title">{f.title}</h3><p class="feature__text">{f.text}</p></div>
-            <Icon name="check" size={16} class="feature__tick" />
-          </div>
-        ))}
-      </div>
     </div>
   </section>
 
   <!-- ===================== FEATURED / LIBRARY ===================== -->
   {featuredCards.length > 0 && (
-    <section class="section section--alt">
+    <section class="section section--alt" style="padding-top:2.5rem;">
       <div class="container">
-        <div class="section-head section-head--row" data-reveal>
-          <div>
-            <span class="eyebrow">The library</span>
-            <h2 class="lib-title">Real projects.<br />Every file included.</h2>
-            <p class="section-lead">Instant digital access to complete builds — schematics, code, 3D files and parts, ready the moment you are.</p>
-          </div>
-          <a href="/projects" class="btn btn-ghost btn-see">See all projects <Icon name="arrow-right" size={16} /></a>
+        <div class="section-head" data-reveal style="text-align:center;max-width:none;margin-bottom:2.5rem;">
+          <h2 class="lib-title">Our Projects</h2>
         </div>
 
         <div class="prod-grid">
@@ -162,20 +113,26 @@ const jsonLd = {
                 <span class:list={['badge', 'prod__diff', difficultyClass(p.difficulty)]}>{p.difficulty}</span>
               </div>
               <div class="prod__body">
-                <span class="prod__cat mono">{p.category}</span>
                 <h3 class="prod__title">{p.title}</h3>
+                <span class="prod__cat mono">{p.category}</span>
                 <p class="prod__summary">{p.summary}</p>
+                <div class="prod__includes">
+                  <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>
+                  <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>
+                  {p.model_url && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
+                  {p.combo_enabled === 1 && p.price_inr > 0 && <span class="inc-chip inc-chip--combo" title="Combo parts available"><Icon name="cart" size={11} /> Combo</span>}
+                </div>
                 <div class="prod__foot">
-                  <span class="prod__price">{p.combo_enabled && p.price_inr > 0 ? formatINR(p.price_inr) : 'Free'}<small>{p.combo_enabled && p.price_inr > 0 ? 'combo' : ''}</small></span>
-                  <span class="prod__btn">View project <Icon name="arrow-right" size={15} /></span>
+                  <span class="prod__price">{p.combo_enabled && p.price_inr > 0 ? formatINR(p.price_inr) : 'Free'}<small>{p.combo_enabled && p.price_inr > 0 ? ' combo' : ''}</small></span>
+                  <a href={`/projects/${p.slug}`} class="prod__btn">View project <Icon name="arrow-right" size={15} /></a>
                 </div>
               </div>
             </article>
           ))}
         </div>
 
-        <div class="lib-cta" data-reveal>
-          <a href="/projects" class="btn btn-primary btn-lg"><Icon name="layers" size={17} /> See all projects</a>
+        <div class="lib-cta-center" data-reveal>
+          <a href="/projects" class="btn btn-primary btn-lg"><Icon name="layers" size={17} /> View All Projects <Icon name="arrow-right" size={16} /></a>
         </div>
       </div>
     </section>
@@ -184,19 +141,14 @@ const jsonLd = {
   <!-- ===================== CTA ===================== -->
   <section class="section">
     <div class="container">
-      <div class="cta grid-bg" data-reveal>
-        <svg class="cta__mark" viewBox="-4 -4 120 100" aria-hidden="true">
-          <defs><path id="cm" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
-          <use href="#cm" x="0" fill="var(--brand-red)"/><use href="#cm" x="50" fill="#2a2e3a"/>
-        </svg>
-        <div class="cta__content">
-          <span class="eyebrow">Get building</span>
-          <h2 class="cta__title">Ready to build something real?</h2>
-          <p class="cta__text">Browse the library, or follow along on YouTube &amp; Instagram for a new build every week.</p>
-          <div class="cta__actions">
-            <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
-            <a href="/how-it-works" class="btn btn-ghost btn-lg">How it works</a>
-          </div>
+      <div class="cta-compact" data-reveal>
+        <div class="cta-compact__info">
+          <h2 class="cta-compact__title">Ready to build something real?</h2>
+          <p class="cta-compact__text">Get instant access to complete schematics, code, and 3D files.</p>
+        </div>
+        <div class="cta-compact__actions">
+          <a href="/projects" class="btn btn-primary">Explore projects <Icon name="arrow-right" size={16} /></a>
+          <a href="/how-it-works" class="btn btn-ghost">How it works</a>
         </div>
       </div>
     </div>
@@ -208,47 +160,31 @@ const jsonLd = {
 </Base>
 
 <style>
-  /* ---------------- hero ---------------- */
-  .hero { position: relative; padding-top: clamp(2.5rem, 5vw, 4.5rem); overflow: hidden; }
-  .hero__inner { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(2rem, 4vw, 3.5rem); align-items: center; padding-bottom: clamp(2.5rem, 5vw, 4rem); }
-  .hero h1 { font-size: var(--fs-3xl); margin-block: 1rem 1.2rem; }
-  .hero__lead { color: var(--text-muted); font-size: var(--fs-md); max-width: 54ch; }
-  .hero__actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.75rem; }
-  .hero__stats { display: flex; gap: clamp(1.25rem, 3vw, 2.5rem); margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline); }
-  .hstat { display: flex; flex-direction: column; }
-  .hstat__n { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-lg); color: var(--text); }
-  .hstat__l { font-size: var(--fs-xs); color: var(--text-dim); }
+  /* ---------------- hero (desktop 2-column, mobile centered) ---------------- */
+  .hero { position: relative; padding-top: clamp(2rem, 5vw, 4rem); overflow: hidden; }
+  .hero__inner { display: grid; grid-template-columns: 1.4fr 0.6fr; gap: clamp(2rem, 4vw, 3rem); align-items: center; text-align: left; max-width: 1200px; margin: 0 auto; padding-bottom: clamp(2.5rem, 5vw, 4.5rem); }
+  .hero__copy { max-width: none; }
+  .hero h1 { font-size: clamp(3rem, 5vw, 4.2rem); margin-block: 0 1.25rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
+  .hero__lead { color: var(--text-muted); font-size: var(--fs-lg); max-width: 90%; line-height: 1.6; margin: 0; }
+  .hero__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; justify-content: flex-start; }
+  
+  .hero__model-wrapper { display: flex; justify-content: flex-end; }
+  .showcase-card { display: flex; flex-direction: column; width: 100%; max-width: 320px; background: var(--surface); border-radius: var(--r-xl); border: 1px solid var(--border); box-shadow: var(--shadow-xl); overflow: hidden; transition: transform 0.28s var(--ease), border-color 0.2s; color: inherit; }
+  .showcase-card:hover { transform: translateY(-4px); border-color: var(--border-strong); }
+  .showcase-card__media { position: relative; background: var(--surface-2); border-bottom: 1px solid var(--hairline); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .showcase-card__3d { width: 100%; height: auto; aspect-ratio: 1/1; background: radial-gradient(120% 120% at 50% 0%, #1b1f2b, #0c0d11); --poster-color: transparent; }
+  .showcase-card__media img, .showcase-card__ph { width: 100%; height: auto; display: block; }
+  .showcase-card__3dtag { position: absolute; bottom: 0.75rem; right: 0.75rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; padding: 0.25rem 0.6rem; border-radius: var(--r-full); background: rgba(12,13,17,0.75); color: #fff; backdrop-filter: blur(8px); box-shadow: var(--shadow-sm); }
+  .showcase-card__badge { position: absolute; top: 0.75rem; left: 0.75rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; font-family: var(--font-mono); font-weight: 600; padding: 0.25rem 0.5rem; border-radius: var(--r-full); background: var(--brand-red); color: #fff; box-shadow: var(--shadow-md); text-transform: uppercase; letter-spacing: 0.05em; }
+  .showcase-card__body { padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .showcase-card__title { font-size: var(--fs-base); font-weight: 700; transition: color 0.2s; line-height: 1.25; }
+  .showcase-card:hover .showcase-card__title { color: var(--brand-red); }
+  .showcase-card__summary { color: var(--text-muted); font-size: var(--fs-xs); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; margin-bottom: 0.2rem; }
+  .showcase-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding-top: 0.65rem; border-top: 1px solid var(--hairline); }
+  .showcase-card__price { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); display: inline-flex; align-items: baseline; gap: 0.2rem; }
+  .showcase-card__price small { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
+  .showcase-card__cta { display: inline-flex; align-items: center; gap: 0.25rem; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); color: var(--brand-red); }
 
-  .showcase { display: flex; flex-direction: column; position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-lg); }
-  .showcase__flag { position: absolute; top: 0.9rem; left: 0.9rem; z-index: 3; display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-mono); font-size: var(--fs-xs); padding: 0.3rem 0.6rem; border-radius: var(--r-full); background: var(--brand-red); color: #fff; box-shadow: var(--shadow-md); }
-  .showcase__media { position: relative; aspect-ratio: 16/10; background: var(--surface-2); overflow: hidden; }
-  .showcase__media img, .showcase__ph { width: 100%; height: 100%; object-fit: cover; }
-  .showcase__3d { width: 100%; height: 100%; background: radial-gradient(120% 120% at 50% 0%, #1b1f2b, #0c0d11); --poster-color: transparent; }
-  .showcase__3dtag { position: absolute; bottom: 0.75rem; right: 0.75rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--fs-xs); padding: 0.3rem 0.6rem; border-radius: var(--r-full); background: rgba(12,13,17,0.7); color: #fff; backdrop-filter: blur(6px); }
-  .showcase__badges { position: absolute; bottom: 0.75rem; left: 0.75rem; z-index: 2; display: flex; gap: 0.4rem; }
-  .chip--onimg { background: rgba(255,255,255,0.94); color: var(--text); font-size: var(--fs-xs); padding: 0.25rem 0.6rem; }
-  .showcase__badges .badge { background: rgba(255,255,255,0.94); box-shadow: var(--shadow-sm); }
-  .showcase__body { padding: 1.15rem 1.25rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; color: inherit; }
-  .showcase__title { font-size: var(--fs-lg); transition: color 0.2s; }
-  .showcase__body:hover .showcase__title { color: var(--brand-red); }
-  .showcase__summary { color: var(--text-muted); font-size: var(--fs-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .showcase__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .rchip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-full); padding: 0.3rem 0.6rem; }
-  .rchip :global(svg) { color: var(--brand-red); }
-  .showcase__foot { display: flex; align-items: center; justify-content: space-between; margin-top: 0.3rem; padding-top: 0.9rem; border-top: 1px solid var(--hairline); }
-  .showcase__price { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-lg); display: inline-flex; align-items: baseline; gap: 0.35rem; }
-  .showcase__price small { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
-  .showcase__cta { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); color: var(--brand-red); }
-
-  /* ---------------- marquee ---------------- */
-  .marquee { overflow: hidden; border-block: 1px solid var(--border); background: var(--bg-2);
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
-  .marquee__track { display: flex; width: max-content; gap: 2.5rem; padding-block: 0.9rem; animation: marquee 40s linear infinite; }
-  .marquee:hover .marquee__track { animation-play-state: paused; }
-  .marquee__item { font-size: var(--fs-sm); color: var(--text-muted); letter-spacing: 0.02em; white-space: nowrap; font-family: var(--font-display); font-weight: 600; }
-  .marquee__item::before { content: '●'; color: var(--brand-red); margin-right: 0.7rem; font-size: 0.5em; vertical-align: middle; }
-  @keyframes marquee { to { transform: translateX(-50%); } }
 
   /* ---------------- section heads ---------------- */
   .section--alt { background: linear-gradient(180deg, var(--bg-2), #eef0f4); border-block: 1px solid var(--hairline); }
@@ -256,79 +192,86 @@ const jsonLd = {
   .section-head .eyebrow { margin-bottom: 0.8rem; }
   .section-head--row { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; max-width: none; flex-wrap: wrap; margin-bottom: 2.25rem; }
   .lib-title { font-size: var(--fs-2xl); line-height: 1.05; margin-bottom: 0.75rem; }
-
-  /* ---------------- included tiles (richer) ---------------- */
-  .included-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; }
-  .feature { position: relative; display: flex; gap: 0.9rem; align-items: flex-start; padding: 1.25rem 1.3rem; background: linear-gradient(180deg, var(--surface), var(--bg-2)); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-sm); transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s; }
-  .feature::before { content: ''; position: absolute; left: 0; top: 1.1rem; bottom: 1.1rem; width: 3px; border-radius: 3px; background: var(--brand-red); opacity: 0; transition: opacity 0.2s; }
-  .feature:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--brand-red) 25%, var(--border)); box-shadow: var(--shadow-md); }
-  .feature:hover::before { opacity: 1; }
-  .feature__icon { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; border-radius: 12px; background: linear-gradient(180deg, #ff4b52, var(--brand-red)); color: #fff; box-shadow: 0 6px 16px -6px var(--accent-glow); }
-  .feature__txt { flex: 1; }
-  .feature__title { font-size: var(--fs-sm); font-weight: 650; margin-bottom: 0.2rem; }
-  .feature__text { color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; }
-  .feature__tick { color: var(--success); flex-shrink: 0; margin-top: 0.15rem; }
-
-  /* ---------------- product cards ---------------- */
   .prod-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
   .prod { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); transition: transform 0.28s var(--ease), box-shadow 0.28s var(--ease), border-color 0.28s var(--ease); }
   .prod:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
   .prod__stretch { position: absolute; inset: 0; z-index: 2; }
-  .prod__media { position: relative; aspect-ratio: 16/10; background: var(--surface-2); overflow: hidden; }
-  .prod__media img, .prod__ph { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s var(--ease); }
+  .prod__media { position: relative; background: var(--surface-2); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .prod__media img, .prod__ph { width: 100%; height: auto; display: block; transition: transform 0.5s var(--ease); }
   .prod:hover .prod__media img { transform: scale(1.05); }
-  .prod__new { position: absolute; top: 0.75rem; left: 0.75rem; font-family: var(--font-mono); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.25rem 0.55rem; border-radius: var(--r-full); background: var(--brand-red); color: #fff; box-shadow: var(--shadow-md); }
-  .prod__diff { position: absolute; bottom: 0.75rem; left: 0.75rem; background: rgba(255,255,255,0.94); box-shadow: var(--shadow-sm); }
-  .prod__body { padding: 1.1rem 1.2rem 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
-  .prod__cat { font-size: var(--fs-xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
-  .prod__title { font-size: var(--fs-md); line-height: 1.25; transition: color 0.2s; }
+  .prod__new { position: absolute; top: 0.65rem; left: 0.65rem; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.2rem 0.5rem; border-radius: var(--r-full); background: var(--brand-red); color: #fff; box-shadow: var(--shadow-md); }
+  .prod__diff { position: absolute; bottom: 0.65rem; left: 0.65rem; background: rgba(255,255,255,0.94); box-shadow: var(--shadow-sm); }
+  .prod__body { padding: 0.75rem 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
+  .prod__title { font-size: var(--fs-sm); font-weight: 650; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color 0.2s; }
   .prod:hover .prod__title { color: var(--brand-red); }
-  .prod__summary { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .prod__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.3rem; padding-top: 0.85rem; border-top: 1px solid var(--hairline); }
-  .prod__price { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); display: inline-flex; align-items: baseline; gap: 0.3rem; }
-  .prod__price small { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
-  .prod__btn { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); color: #fff; background: var(--brand-red); padding: 0.5rem 0.85rem; border-radius: var(--r-full); position: relative; z-index: 3; box-shadow: var(--shadow-glow); }
-  .lib-cta { display: none; margin-top: 1.75rem; }
-  .btn-see { align-self: flex-end; }
+  .prod__cat { font-size: var(--fs-xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  .prod__summary { color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  
+  .prod__includes { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
+  .inc-chip { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.6rem; font-family: var(--font-mono); font-weight: 550; padding: 0.2rem 0.4rem; border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); transition: all 0.2s; }
+  .inc-chip :global(svg) { color: var(--text-dim); }
+  .prod:hover .inc-chip { border-color: var(--border-strong); color: var(--text); }
+  .inc-chip--combo { background: rgba(231,36,42,0.05); color: var(--brand-red); border-color: rgba(231,36,42,0.15); }
+  .inc-chip--combo :global(svg) { color: var(--brand-red); }
 
-  /* ---------------- CTA ---------------- */
-  .cta { position: relative; overflow: hidden; border-radius: var(--r-xl); padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3.5rem);
-    --text: var(--on-ink); --text-muted: #c9cfdb; --surface: var(--ink-2); --border-strong: rgba(255,255,255,0.22); --hairline: rgba(255,255,255,0.09);
-    color: var(--on-ink); background: linear-gradient(120deg, var(--ink-2), var(--ink)); border: 1px solid var(--ink-border); box-shadow: 0 34px 70px -30px rgba(16,24,40,0.45); }
-  .cta .eyebrow { color: var(--brand-red-300); }
-  .cta__mark { position: absolute; right: -3%; top: 50%; transform: translateY(-50%) rotate(-8deg); width: 340px; opacity: 0.08; }
-  .cta__content { position: relative; max-width: 42rem; }
-  .cta__title { font-size: var(--fs-2xl); margin-block: 0.6rem 0.8rem; color: #fff; }
-  .cta__text { color: #c9cfdb; font-size: var(--fs-md); max-width: 46ch; }
-  .cta__actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.75rem; }
+  .prod__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.3rem; padding-top: 0.65rem; border-top: 1px solid var(--hairline); }
+  .prod__price { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); display: inline-flex; align-items: baseline; gap: 0.2rem; }
+  .prod__price small { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
+  .prod__btn { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); color: #fff; background: var(--brand-red); padding: 0.45rem 0.8rem; border-radius: var(--r-full); position: relative; z-index: 3; box-shadow: var(--shadow-glow); transition: background 0.2s; }
+  .prod__btn:hover { background: var(--brand-red-600); }
+
+  .lib-cta-center { text-align: center; margin-top: 2rem; }
+
+  /* ---------------- CTA COMPACT ---------------- */
+  .cta-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    background: linear-gradient(135deg, var(--surface), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 2.25rem 3rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .cta-compact__info { flex: 1; }
+  .cta-compact__title { font-size: var(--fs-xl); font-weight: 700; margin-bottom: 0.4rem; color: var(--text); line-height: 1.1; }
+  .cta-compact__text { color: var(--text-muted); font-size: var(--fs-base); margin: 0; }
+  .cta-compact__actions { display: flex; gap: 0.75rem; flex-shrink: 0; }
 
   /* ============================ responsive ============================ */
   @media (max-width: 940px) {
-    .hero__inner { grid-template-columns: 1fr; }
-    .showcase { max-width: 520px; }
-    .included-grid, .prod-grid { grid-template-columns: 1fr 1fr; }
-    .section-head--row { align-items: flex-start; }
-    .btn-see { align-self: flex-start; }
+    .hero__inner { grid-template-columns: 1fr; text-align: center; gap: 2rem; }
+    .hero__model-wrapper { display: none; }
+    .hero__lead { margin: 0 auto; }
+    .hero__actions { justify-content: center; }
+    .prod-grid { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 640px) {
-    .hero { padding-top: 1.25rem; }
-    .hero h1 { margin-block: 0.75rem 0.9rem; }
+    .hero { padding-top: 1rem; }
+    .hero h1 { font-size: 2.25rem; margin-block: 0.5rem 0.65rem; }
+    .hero__lead { font-size: var(--fs-base); }
+    .hero__actions { gap: 0.5rem; margin-top: 1.5rem; }
     .hero__actions .btn { flex: 1 1 auto; justify-content: center; }
-    .hero__stats { gap: 1.25rem; }
-    .hstat__n { font-size: var(--fs-md); }
-    .showcase { max-width: none; }
-    .showcase__media { aspect-ratio: 16/11; }
 
-    .included-grid { grid-template-columns: 1fr; gap: 0.6rem; }
-    .feature { padding: 1rem 1.1rem; }
-    .feature__tick { display: none; }
-
-    .prod-grid { grid-template-columns: 1fr; gap: 0.85rem; }
-    .btn-see { display: none; }
-    .lib-cta { display: block; }
-    .lib-cta .btn { width: 100%; justify-content: center; }
-    .cta { padding: 2.25rem 1.4rem; }
-    .cta__mark { display: none; }
-    .cta__actions .btn { flex: 1 1 auto; justify-content: center; }
+    .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .prod__header { padding: 0.6rem 0.6rem 0.35rem; }
+    .prod__title { font-size: 0.75rem; }
+    .prod__body { padding: 0.5rem 0.6rem 0.6rem; gap: 0.25rem; }
+    .prod__cat { font-size: 0.55rem; }
+    .prod__summary { display: none; }
+    .prod__price { font-size: 0.8rem; }
+    .prod__price small { font-size: 0.55rem; }
+    .prod__btn { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
+    .prod__btn :global(svg) { width: 12px; height: 12px; }
+    .prod__new { padding: 0.15rem 0.35rem; font-size: 0.5rem; top: 0.4rem; left: 0.4rem; }
+    .prod__diff { font-size: 0.55rem; padding: 0.15rem 0.35rem; bottom: 0.4rem; left: 0.4rem; }
+    
+    .lib-cta-center .btn { width: 100%; justify-content: center; }
+    
+    .cta-compact { flex-direction: column; text-align: center; padding: 2rem 1.5rem; gap: 1.5rem; }
+    .cta-compact__title { font-size: var(--fs-lg); }
+    .cta-compact__actions { width: 100%; flex-direction: column; }
+    .cta-compact__actions .btn { width: 100%; justify-content: center; }
   }
 </style>

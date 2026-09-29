@@ -12,8 +12,10 @@ const admin = Astro.locals.admin;
 const nav = [
   { key: 'dashboard', label: 'Dashboard', href: '/admin', icon: 'layers' },
   { key: 'projects', label: 'Projects', href: '/admin/projects', icon: 'cpu' },
+  { key: 'components', label: 'Components', href: '/admin/components', icon: 'cart' },
   { key: 'orders', label: 'Orders', href: '/admin/orders', icon: 'cart' },
   { key: 'messages', label: 'Messages', href: '/admin/messages', icon: 'mail' },
+  { key: 'pages', label: 'Pages', href: '/admin/pages', icon: 'file' },
   { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'spark' },
 ];
 const csrf = Astro.locals.csrfToken;

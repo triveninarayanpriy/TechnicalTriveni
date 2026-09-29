@@ -1,0 +1,52 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { getAllPages } from '../../../lib/db';
+import { formatDate } from '../../../lib/format';
+
+const pages = await getAllPages(env.DB);
+const defaultPages = ['about', 'contact', 'how-it-works'];
+
+// Ensure standard pages exist in the array (even if not in DB yet) to give a quick access link
+const displayPages = [...pages];
+for (const slug of defaultPages) {
+  if (!displayPages.some(p => p.slug === slug)) {
+    displayPages.push({ slug, title: `Set up ${slug}`, content_md: '', image_url: '', updated_at: 0 });
+  }
+}
+displayPages.sort((a, b) => a.slug.localeCompare(b.slug));
+
+---
+
+<Admin title="Pages" active="pages">
+  <div class="page-actions">
+    <p class="dim">Manage your static pages like About, Contact, and How it works.</p>
+  </div>
+
+  <div class="table-wrap card-table">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Page</th><th>Status</th><th>Last Updated</th><th></th></tr>
+      </thead>
+      <tbody>
+        {displayPages.map((p) => (
+          <tr>
+            <td>
+              <a href={`/admin/pages/${p.slug}`} class="proj-title">{p.title}</a>
+              <span class="mono dim proj-slug">/{p.slug}</span>
+            </td>
+            <td>
+              {p.updated_at === 0 ? <span class="status is-draft">Not configured</span> : <span class="status is-live">Active</span>}
+            </td>
+            <td class="dim">{p.updated_at > 0 ? formatDate(p.updated_at) : '—'}</td>
+            <td class="row-actions">
+              <a href={`/admin/pages/${p.slug}`} class="btn btn-ghost btn-xs">Edit</a>
+              <a href={`/${p.slug}`} target="_blank" class="btn btn-ghost btn-xs" aria-label="Preview"><Icon name="external" size={14} /></a>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Admin>

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { deleteImage } from '../../../../lib/db';
+import { deleteImage, syncProjectMedia } from '../../../../lib/db';
 import { csrfOk, intField, flashRedirect } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -19,5 +19,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const key = row.url.slice('/media/'.length);
     try { await env.BLOBS.delete(key); } catch { /* ignore */ }
   }
-  return flashRedirect(back, { ok: 'Image removed.' });
+  if (projectId) await syncProjectMedia(env.DB, projectId);
+  return flashRedirect(back, { ok: 'Item removed.' });
 };
