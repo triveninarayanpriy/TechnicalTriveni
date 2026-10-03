@@ -9,17 +9,20 @@
   color-scheme: light;
 
   /* Brand — Technical Triveni: Red · Black · White */
-  --brand-red: #e7242a;
+  --brand-red: #E92424;
   --brand-red-600: #c81c22;
   --brand-red-700: #a5121a;
   --brand-red-300: #ff5b5f;         /* used on dark "ink" accents */
   --brand-red-050: #fff2f2;         /* faint red tint on light bg */
-  --brand-ink: #0e0f12;             /* the "black" from the logo */
+  --brand-ink: #151314;             /* the "black" from the logo */
   --brand-paper: #ffffff;
   --brand-gradient: linear-gradient(100deg, #ff4b52, var(--brand-red) 52%, #a5121a);
 
   /* Accent (primary interactive color) = brand red */
-  --accent: #e7242a;
+  --accent: var(--brand-red);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #991b1b;
   --accent-600: #c81c22;
   --accent-glow: rgba(231, 36, 42, 0.30);
 

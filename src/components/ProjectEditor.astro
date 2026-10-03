@@ -44,7 +44,36 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
     </div>
 
     <div class="field">
-      <label class="label" for="description">Description (Markdown)</label>
+      
+      <div class="field">
+        <label class="label" for="layout_version">Layout Version</label>
+        <select class="select" id="layout_version" name="layout_version">
+          <option value="1" selected={(!p?.layout_version || p.layout_version === 1)}>Legacy Layout (v1)</option>
+          <option value="2" selected={p?.layout_version === 2}>Structured Layout (v2)</option>
+        </select>
+      </div>
+      
+      <div class="field">
+        <label class="label" for="prereqs_json">Prerequisites (JSON Array)</label>
+        <textarea class="textarea" id="prereqs_json" name="prereqs_json">{val(p?.prereqs_json) || '[]'}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="not_included_json">Not Included (JSON Array)</label>
+        <textarea class="textarea" id="not_included_json" name="not_included_json">{val(p?.not_included_json) || '[]'}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="outcomes_json">What you will learn / Outcomes (JSON Array)</label>
+        <textarea class="textarea" id="outcomes_json" name="outcomes_json">{val(p?.outcomes_json) || '[]'}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="faq_json">FAQ (JSON Array of &#123;q, a&#125; objects)</label>
+        <textarea class="textarea" id="faq_json" name="faq_json">{val(p?.faq_json) || '[]'}</textarea>
+      </div>
+
+      <label class="label" for="description">Description (Markdown) - Used for v1 or as intro for v2</label>
       <textarea class="textarea editor-desc" id="description" name="description" placeholder="## What you'll build…">{val(p?.description)}</textarea>
       <span class="field-hint">Supports Markdown: ## headings, **bold**, lists, `code`, links.</span>
     </div>

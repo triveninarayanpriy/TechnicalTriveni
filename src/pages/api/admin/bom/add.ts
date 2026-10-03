@@ -43,6 +43,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     component_id: componentId,
     sort: 0,
     is_required: checkbox(form, 'is_required'),
+    group_name: strField(form, 'group_name', 60),
+    stage_tag: strField(form, 'stage_tag', 60),
   });
   return flashRedirect(back, { ok: 'Component added.' });
 };

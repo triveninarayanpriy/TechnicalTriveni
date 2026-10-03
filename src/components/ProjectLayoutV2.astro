@@ -1,0 +1,386 @@
+﻿---
+import Icon from '../components/Icon.astro';
+import type { ProjectFull } from '../lib/db';
+import { parseTags, formatINR, difficultyClass } from '../lib/format';
+import TroubleTable from './TroubleTable.astro';
+
+interface Props {
+  project: ProjectFull;
+  estCost: number;
+  paid: boolean;
+  descHtml: string;
+  safetyHtml: string;
+}
+
+const { project, estCost, paid, descHtml, safetyHtml } = Astro.props;
+
+const tags = parseTags(project.tags);
+const media = project.images.length > 0 ? project.images : [{ kind: 'image', url: project.cover_image, caption: project.title }];
+const first = media[0];
+
+const prereqs = JSON.parse(project.prereqs_json || '[]');
+const outcomes = JSON.parse(project.outcomes_json || '[]');
+const notIncluded = JSON.parse(project.not_included_json || '[]');
+const faqs = JSON.parse(project.faq_json || '[]');
+
+// Group BOM
+const groupedBom = project.bom.reduce((acc, item) => {
+  const g = item.group_name || 'General';
+  if (!acc[g]) acc[g] = [];
+  acc[g].push(item);
+  return acc;
+}, {} as Record<string, typeof project.bom>);
+
+// Group Pins by Module
+const groupedPins = project.pins.reduce((acc, pin) => {
+  const m = pin.module || 'General';
+  if (!acc[m]) acc[m] = [];
+  acc[m].push(pin);
+  return acc;
+}, {} as Record<string, typeof project.pins>);
+
+---
+
+<div class="proj-layout-v2">
+  <!-- 1. Header Area -->
+  <header class="v2-header">
+    <nav class="crumbs">
+      <a href="/">Home</a> <span>/</span> <a href="/projects">Projects</a> <span>/</span> <span class="dim">{project.title}</span>
+    </nav>
+    <div class="hero-meta" style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center;">
+      <span class="chip chip--cat">{project.category}</span>
+      <span class:list={['badge', difficultyClass(project.difficulty)]}>{project.difficulty}</span>
+      {project.build_time && <span class="chip"><Icon name="clock" size={13} /> {project.build_time}</span>}
+      {estCost > 0 && <span class="chip"><Icon name="cart" size={13} /> Estimated build cost &#8377;{Number(estCost).toLocaleString('en-IN')}</span>}
+    </div>
+    <h1 class="hero-title" style="font-size: 2.5rem; margin: 1rem 0 0.5rem 0;">{project.title}</h1>
+    {project.outcome_line && <p class="hero-outcome" style="color: var(--brand-red); font-weight: 500; font-size: 1.1rem; margin-bottom: 1rem;">{project.outcome_line}</p>}
+    <p class="hero-summary" style="font-size: 1.1rem; color: var(--text-muted); max-width: 800px;">{project.summary}</p>
+  </header>
+
+  <!-- 2. Grid (Main + Sticky Sidebar) -->
+  <div class="v2-grid" style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem; margin-top: 2rem; align-items: start;">
+    
+    <!-- MAIN COLUMN -->
+    <main class="v2-main">
+      
+      <!-- Media Gallery -->
+      <section class="v2-sec media-gallery" style="margin-bottom: 2rem;">
+        <img src={first.url} alt={project.title} style="width: 100%; border-radius: var(--r-md); object-fit: cover; aspect-ratio: 16/9; background: var(--bg-2);" />
+      </section>
+
+      <!-- Safety Amber Box -->
+      {safetyHtml && (
+        <div class="safety panel v2-safety" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--r-md); margin-bottom: 2rem; padding: 1rem 1.25rem;">
+          <div class="safety__head" style="color: #d97706; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.5rem;">
+            <Icon name="shield-alert" size={18} /><span>Safety first &mdash; read before you build</span>
+          </div>
+          <details class="safety__body prose prose--tight">
+            <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Read all safety rules</summary>
+            <div style="margin-top: 0.75rem; padding-left: 1rem; border-left: 2px solid rgba(245, 158, 11, 0.3);">
+              <Fragment set:html={safetyHtml} />
+            </div>
+          </details>
+        </div>
+      )}
+
+      <!-- What you'll learn -->
+      <section class="v2-sec" id="learning">
+        <h2 class="sec__title"><Icon name="graduation-cap" size={20} /> What you'll learn</h2>
+        <div class="prose">
+          <Fragment set:html={descHtml} />
+        </div>
+        
+        {outcomes.length > 0 && (
+          <ul class="v2-list outcomes-list" style="margin-top: 1rem;">
+            {outcomes.map((o: string) => <li style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;"><Icon name="check-circle" size={18} style="color: var(--success);" /> {o}</li>)}
+          </ul>
+        )}
+      </section>
+
+      <!-- Prerequisites & Not Included -->
+      <section class="v2-sec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 2rem 0;">
+        {prereqs.length > 0 && (
+          <div class="panel">
+            <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;"><Icon name="book-open" size={16} /> Prerequisites</h3>
+            <ul style="padding-left: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
+              {prereqs.map((p: string) => <li>{p}</li>)}
+            </ul>
+          </div>
+        )}
+        {notIncluded.length > 0 && (
+          <div class="panel">
+            <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;"><Icon name="x-circle" size={16} style="color: var(--warning);" /> Not included</h3>
+            <ul style="padding-left: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
+              {notIncluded.map((n: string) => <li>{n}</li>)}
+            </ul>
+          </div>
+        )}
+      </section>
+
+      <!-- Parts and Tools -->
+      <section class="v2-sec" id="parts">
+        <h2 class="sec__title"><Icon name="cpu" size={20} /> Parts and tools</h2>
+        <div class="grouped-bom">
+          {Object.entries(groupedBom).map(([group, items]) => (
+            <div class="bom-group" style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">{group}</h3>
+              <table class="bom v2-bom" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                <thead>
+                  <tr style="text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--border);">
+                    <th style="padding: 0.5rem; width: 40px;">Got</th>
+                    <th style="padding: 0.5rem;">Item</th>
+                    <th style="padding: 0.5rem; width: 80px;">Qty</th>
+                    <th style="padding: 0.5rem; width: 100px;">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map(b => (
+                    <tr style="border-bottom: 1px solid var(--hairline);">
+                      <td style="padding: 0.5rem; text-align: center;"><input type="checkbox" class="bom-check" data-price={b.unit_price_inr} /></td>
+                      <td style="padding: 0.5rem;">
+                        <span class="bom-name" style="font-weight: 500;">{b.name}</span>
+                        {b.notes && <div style="font-size: 0.8rem; color: var(--text-dim);">{b.notes}</div>}
+                      </td>
+                      <td style="padding: 0.5rem;">{b.qty}</td>
+                      <td style="padding: 0.5rem;">{b.unit_price_inr > 0 ? "&#8377;" + b.unit_price_inr : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          <div class="bom-total" style="background: var(--surface); padding: 1rem; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
+            <span>Estimated Remaining Cost:</span>
+            <span id="bom-calc-total" style="color: var(--brand-red); font-size: 1.2rem;">&#8377;{Number(estCost).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Wiring Tabs -->
+      {project.pins.length > 0 && (
+        <section class="v2-sec" id="wiring" style="margin-top: 3rem;">
+          <h2 class="sec__title"><Icon name="git-merge" size={20} /> Wiring & Connections</h2>
+          <div class="v2-wiring-tabs" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; border-bottom: 2px solid var(--border);">
+            {Object.keys(groupedPins).map((m, i) => (
+              <button class:list={['v2-tab-btn', { 'is-active': i === 0 }]} data-tab-target={m} style="padding: 0.5rem 1rem; cursor: pointer; background: none; border: none; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -2px;">{m}</button>
+            ))}
+          </div>
+          <div class="v2-wiring-panels">
+            {Object.entries(groupedPins).map(([m, pins], i) => (
+              <div class="v2-tab-panel" data-tab-name={m} style={i === 0 ? '' : 'display: none;'}>
+                <table class="pins v2-pins">
+                  <thead><tr><th>From</th><th>To</th><th>Note</th></tr></thead>
+                  <tbody>
+                    {pins.map(p => (
+                      <tr>
+                        <td>{p.from_pin}</td>
+                        <td>{p.to_pin}</td>
+                        <td class="dim">{p.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Build Stages -->
+      {project.steps.length > 0 && (
+        <section class="v2-sec" id="stages" style="margin-top: 3rem;">
+          <h2 class="sec__title"><Icon name="tool" size={20} /> Build Stages</h2>
+          <div class="v2-stages-accordion">
+            {project.steps.map((s, i) => (
+              <div class="v2-stage-card" style="border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 1rem; background: var(--surface); overflow: hidden;">
+                <div class="v2-stage-head" style="padding: 1rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2);">
+                  <div style="background: var(--brand-red); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">{i + 1}</div>
+                  <div style="flex: 1;">
+                    <h3 style="font-size: 1.1rem; margin: 0;">{s.title}</h3>
+                    {s.goal && <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Goal: {s.goal}</p>}
+                  </div>
+                  {s.time_est && <span class="chip"><Icon name="clock" size={13} /> {s.time_est}</span>}
+                </div>
+                <div class="v2-stage-body" style="padding: 1.25rem;">
+                  <div class="prose prose--tight">
+                    <Fragment set:html={s.body} />
+                  </div>
+                  
+                  {s.parts_needed && (
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg); border-radius: var(--r-sm);">
+                      <strong>Parts:</strong> {s.parts_needed}
+                    </div>
+                  )}
+
+                  {s.expected_res && (
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--success); border-radius: 0 var(--r-sm) var(--r-sm) 0;">
+                      <strong style="color: var(--success);"><Icon name="check-circle" size={16} /> Expected Result:</strong><br/>
+                      <span style="font-size: 0.9rem;">{s.expected_res}</span>
+                    </div>
+                  )}
+
+                  {s.if_fails && (
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning); border-radius: 0 var(--r-sm) var(--r-sm) 0;">
+                      <strong style="color: var(--warning);"><Icon name="alert-triangle" size={16} /> If it fails:</strong><br/>
+                      <span style="font-size: 0.9rem;">{s.if_fails}</span>
+                    </div>
+                  )}
+
+                  <div style="margin-top: 1.5rem; text-align: right;">
+                    <label style="display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 600; color: var(--text-muted); padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg);">
+                      <input type="checkbox" class="v2-stage-pass" data-stage={i} /> Stage Passed
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      
+      <!-- Code & Downloads -->
+      {project.files && project.files.length > 0 && (
+        <section class="v2-sec" id="code" style="margin-top: 3rem;">
+          <h2 class="sec__title"><Icon name="folder" size={20} /> Code & Downloads</h2>
+          <div class="files" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            {project.files.map((f: any) => (
+              <div class="file-row" style="display: flex; align-items: center; gap: 0.75rem; border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--r-md);">
+                <Icon name="file-text" size={24} style="color: var(--brand-red);" />
+                <div style="flex: 1;">
+                  <div style="font-weight: 500;">{f.label}</div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Stage: {f.stage_tag || 'General'}</div>
+                </div>
+                <button class="btn btn-sm">Download</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Troubleshooting -->
+      {project.trouble && project.trouble.length > 0 && (
+        <section class="v2-sec" id="troubleshooting" style="margin-top: 3rem;">
+          <h2 class="sec__title"><Icon name="alert-triangle" size={20} /> Troubleshooting</h2>
+          <TroubleTable items={project.trouble} />
+        </section>
+      )}
+
+<!-- FAQ -->
+      {faqs.length > 0 && (
+        <section class="v2-sec" id="faq" style="margin-top: 3rem;">
+          <h2 class="sec__title"><Icon name="help-circle" size={20} /> FAQ</h2>
+          <div class="trouble">
+            {faqs.map((f: {q: string, a: string}) => (
+              <details class="trouble__item">
+                <summary>{f.q}</summary>
+                <div class="prose prose--tight">
+                  <p>{f.a}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
+    </main>
+    
+    <!-- SIDEBAR -->
+    <aside class="v2-sidebar" style="position: sticky; top: calc(var(--header-h, 60px) + 1.5rem); display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="cta-card" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+        <div class="cta-card__row" style="margin-bottom: 1rem;">
+          <div>
+            <span class="cta-card__kicker mono" style="font-size: 0.8rem; color: var(--brand-red); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">{project.combo_title || 'Full Combo Pack'}</span>
+            <div class="cta-card__price" style="font-size: 2rem; font-weight: 700; font-family: var(--font-display); line-height: 1;">
+              {paid ? Pack  : 'Free'}
+              <span style="display: block; font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-top: 0.25rem;">{paid ? 'one-time • digital pack' : 'open resource'}</span>
+            </div>
+          </div>
+        </div>
+        
+        {paid && (
+          <details class="cta-card__details" style="margin-bottom: 1.25rem; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); padding: 0.5rem 0;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">What's included? <Icon name="chevron-down" size={16} /></summary>
+            <div style="padding-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted);">
+              {project.combo_description && <p style="margin-bottom: 0.75rem;">{project.combo_description}</p>}
+              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                {project.files.filter(f => f.in_combo === 1).map(f => (
+                  <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><Icon name="file-text" size={16} style="color: var(--brand-red); flex-shrink: 0;" /> <span>{f.label}</span></li>
+                ))}
+              </ul>
+            </div>
+          </details>
+        )}
+        
+        <button class="btn btn-primary btn-block" style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 1rem; font-weight: 600;"><Icon name="lock" size={16} /> Buy &amp; download</button>
+      </div>
+
+      <div class="toc" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.5rem;">
+        <span class="toc-title" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-muted); margin-bottom: 1rem; display: block;">On this page</span>
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;">
+          <li><a href="#learning" class="toc-link" style="color: var(--text-muted); text-decoration: none;">What you'll learn</a></li>
+          <li><a href="#parts" class="toc-link" style="color: var(--text-muted); text-decoration: none;">Parts and tools</a></li>
+          {project.pins.length > 0 && <li><a href="#wiring" class="toc-link" style="color: var(--text-muted); text-decoration: none;">Wiring</a></li>}
+          {project.steps.length > 0 && <li><a href="#stages" class="toc-link" style="color: var(--text-muted); text-decoration: none;">Build Stages</a></li>}
+          {faqs.length > 0 && <li><a href="#faq" class="toc-link" style="color: var(--text-muted); text-decoration: none;">FAQ</a></li>}
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  // BOM Checkboxes logic
+  const checkBoxes = document.querySelectorAll('.bom-check');
+  const totalDisplay = document.getElementById('bom-calc-total');
+  let baseTotal = parseFloat(totalDisplay?.textContent?.replace(/[^0-9.]/g, '') || '0');
+
+  checkBoxes.forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const price = parseFloat((e.target as HTMLInputElement).dataset.price || '0');
+      if ((e.target as HTMLInputElement).checked) {
+        baseTotal -= price;
+      } else {
+        baseTotal += price;
+      }
+      if (totalDisplay) {
+        totalDisplay.innerHTML = '&#8377;' + Math.max(0, baseTotal).toLocaleString('en-IN');
+      }
+    });
+  });
+
+  // Wiring Tabs logic
+  const tabBtns = document.querySelectorAll('.v2-tab-btn');
+  const tabPanels = document.querySelectorAll('.v2-tab-panel');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('is-active'));
+      tabPanels.forEach(p => (p as HTMLElement).style.display = 'none');
+      btn.classList.add('is-active');
+      const target = (btn as HTMLElement).dataset.tabTarget;
+      const panel = document.querySelector(".v2-tab-panel[data-tab-name=\"" + target + "\"]");
+      if (panel) (panel as HTMLElement).style.display = 'block';
+    });
+  });
+
+  // Stage Checklist
+  const stageChecks = document.querySelectorAll('.v2-stage-pass');
+  stageChecks.forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const el = e.target as HTMLInputElement;
+      const card = el.closest('.v2-stage-card') as HTMLElement;
+      if (el.checked) {
+        card.style.opacity = '0.7';
+        card.style.borderColor = 'var(--success)';
+      } else {
+        card.style.opacity = '1';
+        card.style.borderColor = 'var(--border)';
+      }
+    });
+  });
+</script>
+
+<style>
+  .v2-tab-btn.is-active { color: var(--brand-red); border-bottom-color: var(--brand-red) !important; }
+</style>

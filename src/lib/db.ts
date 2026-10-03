@@ -38,6 +38,12 @@ export interface Project {
   arch_svg: string;
   arch_image_url: string;
   arch_alt: string;
+  layout_version: number;
+  prereqs_json: string;
+  not_included_json: string;
+  outcomes_json: string;
+  faq_json: string;
+  changelog: string;
   created_at: number;
   updated_at: number;
 }
@@ -61,7 +67,7 @@ export interface ProjectFile {
 export interface BomItem {
   id: number; project_id: number; name: string; qty: string; notes: string;
   store: string; affiliate_url: string; unit_price_inr: number; sort: number;
-  price_checked: string; is_affiliate: number; component_id: number; is_required: number;
+  price_checked: string; is_affiliate: number; component_id: number; is_required: number; group_name: string; stage_tag: string;
 }
 export interface ProjectStep {
   id: number; project_id: number; title: string; body: string; why: string; image_url: string; sort: number;
@@ -238,8 +244,8 @@ export async function createProject(db: D1Database, p: Partial<Project> & { slug
       (slug,title,summary,description,category,difficulty,cover_image,video_url,model_url,is_new,tags,build_time,
        outcome_line,cost_override,cost_checked,safety_note,license,credits,code_repo_url,
        price_inr,combo_enabled,combo_title,combo_description,featured,published,sort,
-       meta_title,meta_description,og_image,arch_svg,arch_image_url,arch_alt,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       meta_title,meta_description,og_image,arch_svg,arch_image_url,arch_alt,layout_version,prereqs_json,not_included_json,outcomes_json,faq_json,changelog,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).bind(
     p.slug, p.title, p.summary ?? '', p.description ?? '', p.category ?? 'Electronics',
     p.difficulty ?? 'Beginner', p.cover_image ?? '', p.video_url ?? '', p.model_url ?? '', p.is_new ?? 0,
@@ -248,7 +254,7 @@ export async function createProject(db: D1Database, p: Partial<Project> & { slug
     p.license ?? 'MIT', p.credits ?? '', p.code_repo_url ?? '',
     p.price_inr ?? 0, p.combo_enabled ?? 0, p.combo_title ?? 'Complete Project Combo',
     p.combo_description ?? '', p.featured ?? 0, p.published ?? 0, p.sort ?? 0,
-    p.meta_title ?? '', p.meta_description ?? '', p.og_image ?? '', p.arch_svg ?? '', p.arch_image_url ?? '', p.arch_alt ?? '', t, t,
+    p.meta_title ?? '', p.meta_description ?? '', p.og_image ?? '', p.arch_svg ?? '', p.arch_image_url ?? '', p.arch_alt ?? '', p.layout_version ?? 1, p.prereqs_json ?? '[]', p.not_included_json ?? '[]', p.outcomes_json ?? '[]', p.faq_json ?? '[]', p.changelog ?? '', t, t,
   ).run();
   return res.meta.last_row_id as number;
 }
@@ -260,7 +266,7 @@ export async function updateProject(db: D1Database, id: number, p: Partial<Proje
     'outcome_line', 'cost_override', 'cost_checked', 'safety_note', 'license', 'credits', 'code_repo_url',
     'price_inr', 'combo_enabled', 'combo_title',
     'combo_description', 'featured', 'published', 'sort',
-    'meta_title', 'meta_description', 'og_image', 'arch_svg', 'arch_image_url', 'arch_alt',
+    'meta_title', 'meta_description', 'og_image', 'arch_svg', 'arch_image_url', 'arch_alt', 'layout_version', 'prereqs_json', 'not_included_json', 'outcomes_json', 'faq_json', 'changelog',
   ] as const;
   const sets: string[] = [];
   const binds: unknown[] = [];
@@ -360,8 +366,8 @@ export async function getComboFiles(db: D1Database, projectId: number): Promise<
 
 export async function addBom(db: D1Database, b: Omit<BomItem, 'id'>) {
   await db.prepare(
-    'INSERT INTO bom_items (project_id,name,qty,notes,store,affiliate_url,unit_price_inr,price_checked,is_affiliate,component_id,sort) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-  ).bind(b.project_id, b.name, b.qty, b.notes, b.store, b.affiliate_url, b.unit_price_inr, b.price_checked ?? '', b.is_affiliate ?? 0, b.component_id ?? 0, b.is_required ?? 1, b.sort).run();
+    'INSERT INTO bom_items (project_id,name,qty,notes,store,affiliate_url,unit_price_inr,price_checked,is_affiliate,component_id,is_required,group_name,stage_tag,sort) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+  ).bind(b.project_id, b.name, b.qty, b.notes, b.store, b.affiliate_url, b.unit_price_inr, b.price_checked ?? '', b.is_affiliate ?? 0, b.component_id ?? 0, b.is_required ?? 1, b.group_name ?? '', b.stage_tag ?? '', b.sort).run();
 }
 
 /* -------------------------------------------------- component library ---- */
