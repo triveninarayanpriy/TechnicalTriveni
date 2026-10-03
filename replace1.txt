@@ -1,0 +1,103 @@
+      <!-- 3. Sidebar (Buy Card + ToC) -->
+      <aside class="proj-sidebar" style="grid-area: sidebar;">
+        <div class="proj-sidebar-inner">
+          <!-- Inline Buy / Free card -->
+          <div class="cta-card panel" id="buy" data-buy
+            data-project-id={project.id}
+            data-slug={project.slug}
+            data-payments={paymentsOn ? '1' : '0'}
+          >
+            {paid ? (
+              <>
+                <div class="cta-card__row">
+                  <div>
+                    <span class="cta-card__kicker mono">{project.combo_title || 'Full Combo Pack'}</span>
+                    <div class="cta-card__price">{formatINR(project.price_inr)}<span>one-time · digital pack</span></div>
+                  </div>
+                </div>
+                
+                <details class="cta-card__details">
+                  <summary><span>What's included?</span> <Icon name="chevron-down" size={14} /></summary>
+                  <div class="cta-card__details-body">
+                    {project.combo_description && <p class="cta-card__desc">{project.combo_description}</p>}
+                    <ul class="cta-card__list">
+                      {comboFiles.length > 0
+                        ? comboFiles.map((f) => (
+                            <li><Icon name="check" size={15} /> {f.label}</li>
+                          ))
+                        : (
+                          <>
+                            <li><Icon name="check" size={15} /> Full source code</li>
+                            <li><Icon name="check" size={15} /> Schematic & wiring</li>
+                            <li><Icon name="check" size={15} /> 3D files & build guide</li>
+                          </>
+                        )}
+                    </ul>
+                  </div>
+                </details>
+
+                <div id="buy-step-1">
+                  <button type="button" class="btn btn-primary btn-block" id="init-buy-btn" style="margin-top:0.75rem;">
+                    <Icon name="lock" size={15} /> Buy &amp; download
+                  </button>
+                </div>
+
+                <div id="buy-step-2" style="display: none; margin-top: 1rem; animation: slideDown 0.3s ease;">
+                  <div class="field cta-card__email">
+                    <label for="buy-email" style="font-size:0.75rem; font-weight:600; margin-bottom:0.3rem; display:block; color:var(--text);">Enter email to receive files:</label>
+                    <input class="input" type="email" id="buy-email" placeholder="you@email.com" autocomplete="email" required />
+                    <span class="cta-card__hint"><Icon name="mail" size={11} /> You'll receive permanent access to these files</span>
+                  </div>
+                  <button class="btn btn-primary btn-block" data-buy-btn>
+                    Proceed to payment <Icon name="arrow-right" size={15} />
+                  </button>
+                </div>
+
+                <p class="cta-card__secure dim"><Icon name="shield" size={12} /> Secure payment · UPI, cards &amp; more</p>
+                <a href="/account/downloads" class="cta-card__retrieve"><Icon name="download" size={12} /> Already purchased? Retrieve your files</a>
+                {!paymentsOn && (
+                  <p class="cta-card__note">Payments being set up. <a href="/contact">Contact us</a> to purchase now.</p>
+                )}
+              </>
+            ) : (
+              <>
+                <div class="cta-card__row">
+                  <div>
+                    <span class="cta-card__kicker mono">Open resource</span>
+                    <div class="cta-card__free">Free</div>
+                  </div>
+                </div>
+                <p class="cta-card__desc">All resources for this project are free to download.</p>
+                <a href="#downloads" class="btn btn-primary btn-block"><Icon name="download" size={15} /> Get the files</a>
+              </>
+            )}
+          </div>
+
+          <!-- Quick action buttons -->
+          <div class="hero-actions">
+            {yt && (
+              <a href={project.video_url} target="_blank" rel="noopener" class="btn btn-ghost">
+                <Icon name="play" size={15} /> Watch video
+              </a>
+            )}
+            {project.code_repo_url && (
+              <a href={project.code_repo_url} target="_blank" rel="noopener" class="btn btn-ghost">
+                <Icon name="github" size={15} /> Source code
+              </a>
+            )}
+          </div>
+
+          <nav class="toc hide-sm" aria-label="Table of contents">
+            <span class="toc-title">On this page</span>
+            <ul class="toc-list" id="toc-list">
+              {descHtml && <li><a href="#overview" class="toc-link">Overview</a></li>}
+              {project.bom.length > 0 && <li><a href="#parts" class="toc-link">Components &amp; parts</a></li>}
+              {project.pins.length > 0 && <li><a href="#wiring" class="toc-link">Wiring &amp; connections</a></li>}
+              {project.steps.length > 0 && <li><a href="#build" class="toc-link">Step-by-step build</a></li>}
+              {(project.code_repo_url || codeFiles.length > 0) && <li><a href="#code" class="toc-link">Code</a></li>}
+              {project.troubleshooting.length > 0 && <li><a href="#troubleshooting" class="toc-link">Troubleshooting</a></li>}
+              {freeFiles.length > 0 && <li><a href="#downloads" class="toc-link">Downloads</a></li>}
+            </ul>
+          </nav>
+        </div>
+      </aside>

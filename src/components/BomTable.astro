@@ -7,11 +7,11 @@ interface Props {
   items: BomItem[];
 }
 
-const { items, overrideTotal = 0 } = Astro.props;
+const { items } = Astro.props;
 ---
 
 <div class="bom-table-wrapper">
-  <table class="bom-table" id="bom-interactive" data-override={overrideTotal}>
+  <table class="bom-table" id="bom-interactive">
     <thead>
       <tr>
         <th class="col-check"></th>
@@ -23,11 +23,11 @@ const { items, overrideTotal = 0 } = Astro.props;
     </thead>
     <tbody>
       {items.map((b) => {
-        
+        const isTool = ["Charger", "Bag", "Soldering", "Multimeter", "Alarm", "Strap", "Spare"].some(t => b.name.includes(t));
         return (
-        <tr class="bom-item-row" data-bom-id={b.id} data-req={b.is_required} data-price={b.unit_price_inr} data-qty={parseInt(b.qty, 10) || 1}>
+        <tr class="bom-item-row" data-bom-id={b.id} data-price={b.unit_price_inr} data-qty={parseInt(b.qty, 10) || 1}>
           <td class="col-check">
-            <input type="checkbox" class="bom-checkbox" checked={b.is_required !== 0} title="Include in total cost" />
+            <input type="checkbox" class="bom-checkbox" checked={!isTool} title="Include in total cost" />
           </td>
           <td>
             <div class="bom-name-wrap">
@@ -54,12 +54,9 @@ const { items, overrideTotal = 0 } = Astro.props;
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="3" class="bom-total-label">Core build total (required parts):</td>
-        <td class="mono bom-total-val" id="bom-core-total" colspan="2">--</td>
-      </tr>
-      <tr>
-        <td colspan="3" class="bom-total-label" style="font-weight: 500; font-size: 0.85em; padding-top: 0.25rem;">Total of checked items:</td>
-        <td class="mono bom-total-val" id="bom-dynamic-total" colspan="2">--</td>
+        <td colspan="3" class="bom-total-label">Estimated Build Cost:</td>
+        <td class="mono bom-total-val" id="bom-dynamic-total">--</td>
+        <td></td>
       </tr>
     </tfoot>
   </table>
@@ -73,21 +70,16 @@ const { items, overrideTotal = 0 } = Astro.props;
     const rows = table.querySelectorAll('.bom-item-row');
     
     function recalc() {
-      const overrideVal = parseInt(table.getAttribute('data-override') || '0', 10);
-      let coreSum = 0;
       let selSum = 0;
       rows.forEach((row) => {
         const price = parseInt(row.getAttribute("data-price") || "0", 10);
         const qty = parseInt(row.getAttribute("data-qty") || "1", 10);
         if (price > 0) {
-          if (row.getAttribute("data-req") !== "0") coreSum += price * qty;
-          const cb = row.querySelector(".bom-checkbox");
+          const cb = row.querySelector(".bom-checkbox") as HTMLInputElement;
           if (cb && cb.checked) selSum += price * qty;
         }
       });
-      const coreEl = document.getElementById("bom-core-total");
-      if (coreEl) coreEl.textContent = String.fromCharCode(8377) + (overrideVal > 0 ? overrideVal : coreSum).toLocaleString("en-IN");
-      if (totalEl) totalEl.textContent = String.fromCharCode(8377) + (overrideVal > 0 ? overrideVal : selSum).toLocaleString("en-IN");
+      if (totalEl) totalEl.textContent = String.fromCharCode(8377) + selSum.toLocaleString("en-IN");
     }
     
     function saveState() {

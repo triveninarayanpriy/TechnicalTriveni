@@ -47,7 +47,7 @@ id = "e55eca369b0e490c9fd0f56e073d1f11"
 # SECRETS (Razorpay keys, admin password hash, session secret) are NEVER put
 # here. Set them with `wrangler pages secret put <NAME>` — see DEPLOY.md.
 [vars]
-SITE_URL = "https://technical-triveni.innovationhubnitp.workers.dev"
+SITE_URL = "https://www.technicaltriveni.me"
 RAZORPAY_ENABLED = "true"           # keys are set as secrets (wrangler secret put)
 TURNSTILE_ENABLED = "false"         # flip to "true" once Turnstile keys are set
 EMAIL_ENABLED = "true"              # BREVO_API_KEY secret is set

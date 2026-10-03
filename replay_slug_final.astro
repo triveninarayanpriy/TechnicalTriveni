@@ -1,0 +1,81 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { getPage } from '../../../lib/db';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/admin/pages');
+
+const page = (await getPage(env.DB, slug)) || {
+  slug,
+  title: slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+  content_md: '',
+  image_url: '',
+};
+const csrf = Astro.locals.csrfToken;
+---
+
+<Admin title={`Edit ${page.title}`} active="pages">
+  <div class="page-actions" style="margin-bottom: 1.5rem;">
+    <a href="/admin/pages" class="btn btn-ghost" style="padding: 0; display: inline-flex; gap: 0.25rem;"><Icon name="arrow-left" size={16} /> Back to pages</a>
+  </div>
+
+  <div class="editor">
+    <form method="post" action="/api/admin/page/save" enctype="multipart/form-data" class="editor-form panel" style="margin-bottom: 2rem;">
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="slug" value={page.slug} />
+      <input type="hidden" name="image_url" value={page.image_url || ''} />
+
+      <div class="editor-form__head" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600;">{page.slug === 'about' ? 'Edit About Page' : page.slug === 'contact' ? 'Edit Contact Page' : 'Edit How It Works'}</h2>
+        <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> Save Changes</button>
+      </div>
+
+      <div class="field">
+        <label class="label" for="title">Page Title *</label>
+        <input class="input" id="title" name="title" value={page.title} required />
+        <span class="field-hint">The main heading shown at the top of the live page.</span>
+      </div>
+
+      <div class="field" style="margin-top: 1.5rem;">
+        <label class="label" for="content_md">Page Content (Markdown) *</label>
+        {page.slug === 'about' && <span class="field-hint" style="display:block; margin-top:-0.2rem; margin-bottom:0.5rem; color:var(--text-dim);">This text replaces the main biography section on the About page.</span>}
+        {page.slug === 'contact' && <span class="field-hint" style="display:block; margin-top:-0.2rem; margin-bottom:0.5rem; color:var(--text-dim);">This text appears as the intro paragraph above the contact form.</span>}
+        {page.slug === 'how-it-works' && <span class="field-hint" style="display:block; margin-top:-0.2rem; margin-bottom:0.5rem; color:var(--text-dim);">This text appears below the hero section on the How It Works page.</span>}
+        <textarea class="textarea" id="content_md" name="content_md" rows="20" style="font-family:var(--font-mono); font-size:13px; line-height:1.6; min-height: 400px;" required>{page.content_md}</textarea>
+        <span class="field-hint">Supports full Markdown formatting (headers, bold, links, lists).</span>
+      </div>
+    </form>
+
+    {page.slug === 'about' && (
+      <form method="post" action="/api/admin/page/save" enctype="multipart/form-data" class="editor-form panel">
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="slug" value={page.slug} />
+        <input type="hidden" name="title" value={page.title} />
+        <input type="hidden" name="content_md" value={page.content_md} />
+        
+        <div class="editor-form__head" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 600;">Profile Photo</h2>
+        </div>
+
+        <div class="field">
+          <label class="label" for="image">Upload New Photo</label>
+          <input type="file" id="image" name="image" accept="image/*" class="input" style="padding:0.4rem; font-size:0.85rem;" />
+          <span class="field-hint">Upload a high-res square photo (e.g. JPG/PNG). It replaces the current image. Save to apply.</span>
+        </div>
+
+        {page.image_url && (
+          <div style="margin-top: 1rem;">
+            <p class="label">Current Photo:</p>
+            <img src={page.image_url} alt="Profile preview" style="width: 120px; height: 120px; border-radius: var(--r-md); object-fit: cover; border: 1px solid var(--border);" />
+          </div>
+        )}
+        
+        <div style="margin-top: 1.5rem;">
+           <button type="submit" class="btn btn-primary btn-sm"><Icon name="upload" size={16} /> Upload & Save</button>
+        </div>
+      </form>
+    )}
+  </div>
+</Admin>

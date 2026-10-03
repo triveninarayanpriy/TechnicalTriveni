@@ -1,0 +1,10 @@
+  .proj-sidebar {
+    height: 100%;
+  }
+  .proj-sidebar-inner {
+    position: sticky;
+    top: calc(var(--header-h) + 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
