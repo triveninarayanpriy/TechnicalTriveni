@@ -516,18 +516,18 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
     const res = await fetch('/api/razorpay/create-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: parseInt(projectId!), email: emailInput.value })
+      body: JSON.stringify({ projectId: parseInt(projectId!), email: emailInput.value })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to start payment');
     
     const rzp = new (window as any).Razorpay({
-      key: data.key,
+      key: data.keyId,
       amount: data.amount,
       currency: "INR",
       name: "Technical Triveni",
       description: "Project Files",
-      order_id: data.id,
+      order_id: data.razorpayOrderId,
       handler: async function (response: any) {
         window.location.href = `/account/downloads?payment_id=${response.razorpay_payment_id}`;
       },
