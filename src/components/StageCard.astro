@@ -22,8 +22,6 @@ const html = renderMarkdown(step.body);
       {step.video_ts && <span class="stage-badge"><Icon name="play" size={12} /> {step.video_ts}</span>}
     </div>
   </div>
-    <h3 class="stage-card__title">{step.title.replace(/^Stage \d+ — /, '')}</h3>
-  </div>
   
   <div class="stage-card__body prose">
     {step.file_id && (
