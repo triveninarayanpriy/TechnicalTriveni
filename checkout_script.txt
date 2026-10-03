@@ -1,0 +1,376 @@
+}
+
+  <div id="read-progress" class="read-progress"></div>
+  {project.layout_version === 2 ? (
+    <ProjectLayoutV2 project={project} estCost={estCost} paid={paid} descHtml={descHtml} safetyHtml={safetyHtml} />
+  ) : (
+
+
+  <div class="container dp">
+    <!-- Breadcrumbs -->
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/">Home</a> <span>/</span>
+      <a href="/projects">Projects</a> <span>/</span>
+      <span class="muted">{project.title}</span>
+    </nav>
+
+    <!-- ========== MAIN LAYOUT ========== -->
+    <div class="proj-layout">
+      
+      <!-- 1. Title & Meta -->
+      <div class="proj-header" style="grid-area: title;">
+        <div class="hero-meta">
+          <span class="chip chip--cat">{project.category}</span>
+          <span class:list={['badge', difficultyClass(project.difficulty)]}>{project.difficulty}</span>
+          {project.build_time && <span class="chip"><Icon name="clock" size={13} /> {project.build_time}</span>}
+          {estCost > 0 && <span class="chip"><Icon name="cart" size={13} /> Estimated build cost &#8377;{Number(estCost).toLocaleString('en-IN')}</span>}
+        </div>
+        
+        <h1 class="hero-title">{project.title}</h1>
+        {project.outcome_line && <p class="hero-outcome">{project.outcome_line}</p>}
+        <p class="hero-summary">{project.summary}</p>
+
+        {lastUpdated && <p class="hero-updated dim" style="margin-top:0.5rem;"><Icon name="check" size={12} /> Updated {lastUpdated}</p>}
+      </div>
+
+      <!-- 2. Media Viewer -->
+      <div class="hero-media" style="grid-area: media;">
+        {media.length > 0 && (
+          <section class="viewer" data-viewer>
+            <div class:list={['viewer__stage', { 'has-model': first.kind === 'model' }]} data-stage>
+              {first.kind === 'model' ? (
+                <model-viewer
+                  src={first.url}
+                  camera-controls
+                  auto-rotate
+                  auto-rotate-delay="400"
+                  rotation-per-second="20deg"
+                  shadow-intensity="1"
+                  shadow-softness="0.8"
+                  exposure="1.3"
+                  environment-image="neutral"
+                  interaction-prompt="auto"
+                  camera-orbit="45deg 65deg auto"
+                  min-camera-orbit="auto auto auto"
+                  max-camera-orbit="auto auto auto"
+                  ar
+                  aria-label={`3D model of ${project.title}`}
+                  class="viewer__model"
+                ></model-viewer>
+              ) : (
+                <img src={first.url} alt={first.caption || project.title} class="viewer__img" width="960" height="600" />
+              )}
+              {first.kind === 'model' && (
+                <span class="viewer__hint mono"><Icon name="cube" size={13} /> Drag to rotate &bull; scroll to zoom</span>
+              )}
+            </div>
+
+            {media.length > 1 && (
+              <div class="viewer__thumbs" role="tablist">
+                {media.map((m, i) => (
+                  <button 
+                    class:list={['viewer__thumb', { 'is-active': i === 0 }]}
+                    data-index={i}
+                    data-url={m.url}
+                    data-kind={m.kind}
+                    data-caption={m.caption || ''}
+                    aria-label={m.kind === 'model' ? '3D model' : `Photo ${i + 1}`}
+                  >
+                    {m.kind === 'model' 
+                      ? <span class="viewer__thumb-3d"><Icon name="cube" size={16} /> <span>3D</span></span>
+                      : <img src={m.url} alt={m.caption || ''} loading="lazy" />
+                    }
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      <!-- 3. Sidebar (Buy Card + ToC) -->
+      <aside class="proj-sidebar" style="grid-area: sidebar;">
+        <div class="proj-sidebar-inner">
+          
+          <!-- Inline Buy / Free card -->
+          <div class="cta-card panel" id="buy" data-buy data-project-id={project.id} data-slug={project.slug} data-payments={paymentsOn ? '1' : '0'}>
+            {paid ? (
+              <>
+                <div class="cta-card__row">
+                  <div>
+                    <span class="cta-card__kicker mono">{project.combo_title || 'Full Combo Pack'}</span>
+                    <div class="cta-card__price">Pack {formatINR(project.price_inr)} <span>one-time &bull; digital pack</span></div>
+                  </div>
+                </div>
+                
+                <details class="cta-card__details">
+                  <summary><span>What's included?</span> <Icon name="chevron-down" size={14} /></summary>
+                  <div class="cta-card__details-body">
+                    {project.combo_description && <p class="cta-card__desc">{project.combo_description}</p>}
+                    <ul class="cta-card__list">
+                      {comboFiles.map(f => (
+                        <li><Icon name={kindIcon(f.kind)} size={14} /> <span>{f.label || kindLabel(f.kind)}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                </details>
+
+                <div class="cta-card__action">
+                  <div class="input-wrap">
+                    <input type="email" id="buy-email" class="input input--sm" placeholder="Your email address..." required />
+                  </div>
+                  <button type="button" class="btn btn-primary btn-block btn-buy" data-buy-btn><Icon name="lock" size={14} /> Buy &amp; download</button>
+                </div>
+                
+                <div class="cta-card__trust">
+                  <div class="trust-row"><Icon name="check-circle" size={12} /> Secure payment &bull; UPI, cards &amp; more</div>
+                  <a href="/account/downloads" class="trust-row"><Icon name="download" size={12} /> Already purchased? Retrieve your files</a>
+                  {!paymentsOn && <p class="cta-card__note">Payments being set up. <a href="/contact">Contact us</a> to purchase now.</p>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div class="cta-card__row">
+                  <div>
+                    <span class="cta-card__kicker mono">Open resource</span>
+                    <div class="cta-card__free">Free</div>
+                  </div>
+                </div>
+                <p class="cta-card__desc">All resources for this project are free to download.</p>
+                <a href="#downloads" class="btn btn-primary btn-block"><Icon name="download" size={15} /> Get files</a>
+                {(project.code_repo_url || codeFiles.length > 0) && (
+                  <a href="#code" class="btn btn-ghost btn-block"><Icon name="github" size={15} /> Source code</a>
+                )}
+              </>
+            )}
+          </div>
+
+          <nav class="toc hide-sm" aria-label="Table of contents">
+            <span class="toc-title">On this page</span>
+            <ul class="toc-list" id="toc-list">
+              {descHtml && <li><a href="#overview" class="toc-link">Overview</a></li>}
+              {project.bom.length > 0 && <li><a href="#parts" class="toc-link">Components &amp; parts</a></li>}
+              {project.pins.length > 0 && <li><a href="#wiring" class="toc-link">Wiring &amp; connections</a></li>}
+              {project.steps.length > 0 && <li><a href="#build" class="toc-link">Step-by-step build</a></li>}
+              {(project.code_repo_url || codeFiles.length > 0) && <li><a href="#code" class="toc-link">Code</a></li>}
+              {project.troubleshooting.length > 0 && <li><a href="#troubleshooting" class="toc-link">Troubleshooting</a></li>}
+              {freeFiles.length > 0 && <li><a href="#downloads" class="toc-link">Downloads</a></li>}
+            </ul>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- 4. Quick facts strip -->
+      <div class="facts-strip" style="grid-area: facts;">
+        <div class="fact">
+          <Icon name="layers" size={16} /> <span><strong>Category</strong>{project.category}</span>
+        </div>
+        <div class="fact">
+          <Icon name="zap" size={16} /> <span><strong>Difficulty</strong>{project.difficulty}</span>
+        </div>
+        {project.build_time && (
+          <div class="fact">
+            <Icon name="clock" size={16} /> <span><strong>Build time</strong>{project.build_time}</span>
+          </div>
+        )}
+        <div class="fact">
+          <Icon name="cart" size={16} /> <span><strong>Parts</strong>{project.bom.length} items</span>
+        </div>
+        <div class="fact">
+          <Icon name="download" size={16} /> <span><strong>Files</strong>{project.files.length} resources</span>
+        </div>
+        {tags.length > 0 && (
+          <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem;">
+            {tags.map((t: string) => <span class="chip" style="font-size:0.7rem; color:var(--text-muted); background:var(--surface); border: 1px solid var(--border); border-radius:100px; padding: 0.15rem 0.5rem;">{t}</span>)}
+          </div>
+        )}
+      </div>
+
+      <!-- 5. Content -->
+      <div class="content" style="grid-area: content;">
+        {safetyHtml && (
+          <div class="safety panel" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--r-md); margin-bottom: 2rem; padding: 1rem 1.25rem;">
+            <div class="safety__head" style="color: #d97706; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.5rem;">
+              <Icon name="shield-alert" size={18} /><span>Safety first &mdash; read before you build</span>
+            </div>
+            <details class="safety__body prose prose--tight">
+              <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Read all safety rules</summary>
+              <div style="margin-top: 0.75rem; padding-left: 1rem; border-left: 2px solid rgba(245, 158, 11, 0.3);">
+                <Fragment set:html={safetyHtml} />
+              </div>
+            </details>
+          </div>
+        )}
+
+        {descHtml && (
+          <section id="overview" class="sec">
+            <h2 class="sec__title"><Icon name="loader" size={20} style="color:var(--brand-red)" /> Overview</h2>
+            <div class="prose">
+              <Fragment set:html={descHtml} />
+            </div>
+          </section>
+        )}
+
+        {yt && (
+          <section class="sec">
+            <h2 class="sec__title"><Icon name="play" size={20} /> Watch the build</h2>
+            <div class="video-embed">
+              <iframe 
+                src={`https://www.youtube-nocookie.com/embed/${yt}`} 
+                title="YouTube video player" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen>
+              </iframe>
+            </div>
+          </section>
+        )}
+
+        {project.bom.length > 0 && (
+          <section id="parts" class="sec">
+            <h2 class="sec__title"><Icon name="cpu" size={20} /> Components &amp; parts</h2>
+            
+            <div class="bom-tools">
+              <button class="btn btn-ghost btn-sm" id="bom-check-all"><Icon name="check-square" size={14} /> Check all</button>
+              <button class="btn btn-ghost btn-sm" id="bom-uncheck-all"><Icon name="square" size={14} /> Clear</button>
+            </div>
+            
+            <BomTable items={project.bom} />
+          </section>
+        )}
+
+        {project.pins.length > 0 && (
+          <section id="wiring" class="sec">
+            <h2 class="sec__title"><Icon name="git-merge" size={20} /> Wiring &amp; connections</h2>
+            
+            {project.wiring_diagrams?.length > 0 && (
+              <div class="wiring-diagrams" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+                {project.wiring_diagrams.map(wd => (
+                  <div class="wiring-diagram-card panel" style="padding:1rem;">
+                    <h3 style="font-size:1rem; margin-bottom:0.75rem;">{wd.label} {wd.module && <span class="chip chip--cat" style="font-size:0.7rem; margin-left:0.5rem;">{wd.module}</span>}</h3>
+                    <img src={wd.url} alt={wd.label} style="max-width:100%; border-radius:var(--r-md); border:1px solid var(--border);" loading="lazy" />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div class="table-wrap">
+              <table class="pins">
+                <thead>
+                  <tr>
+                    <th>From (Pin/Pad)</th>
+                    <th>Connects to</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {project.pins.map(p => (
+                    <tr>
+                      <td><span class="mono">{p.from_pin}</span> {p.module && <span class="chip chip--cat" style="font-size:0.65rem; margin-left:0.4rem;">{p.module}</span>}</td>
+                      <td>{p.to_pin}</td>
+                      <td class="muted">{p.note || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {project.steps.length > 0 && (
+          <section id="build" class="sec">
+            <h2 class="sec__title"><Icon name="tool" size={20} /> Step-by-step build</h2>
+            
+            <div class="steps">
+              {project.steps.map((s, i) => (
+                <StageCard step={s} index={i} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {(project.code_repo_url || codeFiles.length > 0) && (
+          <section id="code" class="sec">
+            <h2 class="sec__title"><Icon name="code" size={20} /> Code &amp; firmware</h2>
+            
+            {project.code_repo_url && (
+              <div style="margin-bottom: 1.5rem;">
+                <a href={project.code_repo_url} target="_blank" rel="noopener noreferrer" class="repo-link">
+                  <Icon name="github" size={18} /> View repository on GitHub
+                </a>
+              </div>
+            )}
+
+            {codeFiles.length > 0 && (
+              <div class="files">
+                {codeFiles.map(f => (
+                  <a href={f.url} class="file-row" target="_blank" rel="noopener">
+                    <div class="file-row__icon"><Icon name={kindIcon(f.kind)} size={20} /></div>
+                    <div class="file-row__meta">
+                      <span class="file-row__label">{f.label || kindLabel(f.kind)}</span>
+                      <span class="file-row__sub">{formatBytes(f.size_bytes)}</span>
+                    </div>
+                    <Icon name="download" size={16} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {project.troubleshooting.length > 0 && (
+          <section id="troubleshooting" class="sec">
+            <h2 class="sec__title"><Icon name="life-buoy" size={20} /> Troubleshooting</h2>
+            <TroubleTable items={project.troubleshooting} />
+          </section>
+        )}
+
+        {freeFiles.length > 0 && (
+          <section id="downloads" class="sec">
+            <h2 class="sec__title"><Icon name="download" size={20} /> Downloads</h2>
+            <div class="files">
+              {freeFiles.map(f => (
+                <a href={f.url} class="file-row" target="_blank" rel="noopener">
+                  <div class="file-row__icon"><Icon name={kindIcon(f.kind)} size={20} /></div>
+                  <div class="file-row__meta">
+                    <span class="file-row__label">{f.label || kindLabel(f.kind)}</span>
+                    <span class="file-row__sub">{formatBytes(f.size_bytes)}</span>
+                  </div>
+                  <Icon name="download" size={16} />
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {project.links.length > 0 && (
+          <section class="sec" style="margin-top: 2rem;">
+            <h3 class="sec__title" style="font-size:1.1rem;"><Icon name="external-link" size={18} /> External resources</h3>
+            <div class="ext-links">
+              {project.links.map(l => (
+                <a href={l.url} target="_blank" rel="noopener noreferrer" class="ext-link">
+                  <Icon name="link" size={14} /> {l.label}
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+      </div>
+    </div>
+
+    <!-- Mobile Sticky CTA -->
+    <div class="mobile-cta">
+      <div class="mobile-cta__info">
+        <span class="mobile-cta__price">{paid ? formatINR(project.price_inr) : 'Free'}</span>
+        <span class="mobile-cta__sub">{paid ? 'digital pack' : 'open resource'}</span>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="document.getElementById('buy')?.scrollIntoView({behavior:'smooth'})">
+        {paid ? 'Get combo pack' : 'Get files'}
+      </button>
+    </div>
+
+  </div>
+  )}
+</Base>
+
