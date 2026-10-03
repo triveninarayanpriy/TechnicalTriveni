@@ -69,6 +69,16 @@ const html = renderMarkdown(step.body);
       </div>
     )}
   </div>
+  
+  <div class="stage-card__footer">
+    <label class="stage-done-label">
+      <input type="checkbox" class="stage-done-cb" data-stage-id={step.id} />
+      <span class="stage-done-text">Mark stage complete</span>
+    </label>
+    <a href="#troubleshooting" class="btn btn-ghost btn-sm stage-stuck-btn">
+      <Icon name="life-buoy" size={14} /> Stuck?
+    </a>
+  </div>
 </div>
 
 <style>
@@ -148,4 +158,23 @@ const html = renderMarkdown(step.body);
   .outcome--success strong { color: var(--success); }
   .outcome--warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
   .outcome--warning strong { color: #d97706; }
+  
+  .stage-card__footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.75rem 1.25rem; background: var(--surface-2); border-top: 1px solid var(--hairline);
+  }
+  .stage-done-label {
+    display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;
+    font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); transition: color 0.2s;
+  }
+  .stage-done-label:hover { color: var(--text); }
+  .stage-done-cb { width: 1.1rem; height: 1.1rem; accent-color: var(--success); cursor: pointer; }
+  
+  /* When completed, dim the body a bit */
+  :global(.stage-card.is-done .stage-card__header) { opacity: 0.8; }
+  :global(.stage-card.is-done .stage-card__body) { opacity: 0.7; }
+  :global(.stage-card.is-done .stage-done-text) { color: var(--success); }
+  
+  .stage-stuck-btn { color: var(--brand-red); display: flex; align-items: center; gap: 0.35rem; }
+  .stage-stuck-btn:hover { background: rgba(231,36,42,0.1); border-color: rgba(231,36,42,0.2); }
 </style>

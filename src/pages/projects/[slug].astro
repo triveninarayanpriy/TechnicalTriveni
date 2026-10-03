@@ -548,6 +548,44 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
     alert(err.message);
   }
 });
+
+// Build Progress Tracking (Phase 3)
+const ctaEl = document.getElementById('buy');
+if (ctaEl && ctaEl.dataset.projectId) {
+  const projId = ctaEl.dataset.projectId;
+  const storageKey = `tt-progress-${projId}`;
+  
+  // Load saved progress
+  let completed = [];
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) completed = JSON.parse(saved);
+  } catch (e) {}
+
+  const checkboxes = document.querySelectorAll('.stage-done-cb');
+  checkboxes.forEach((el) => {
+    const cb = el as HTMLInputElement;
+    const sid = cb.dataset.stageId;
+    if (completed.includes(sid)) {
+      cb.checked = true;
+      cb.closest('.stage-card')?.classList.add('is-done');
+    }
+    
+    cb.addEventListener('change', (e) => {
+      const isChecked = (e.target as HTMLInputElement).checked;
+      if (isChecked) {
+        if (!completed.includes(sid)) completed.push(sid);
+        cb.closest('.stage-card')?.classList.add('is-done');
+      } else {
+        completed = completed.filter(id => id !== sid);
+        cb.closest('.stage-card')?.classList.remove('is-done');
+      }
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(completed));
+      } catch (err) {}
+    });
+  });
+}
 </script>
 
 <style is:global>
