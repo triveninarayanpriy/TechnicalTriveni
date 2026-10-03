@@ -70,6 +70,7 @@ const jsonLd = {
 
 <Base title={project.title} description={project.summary} ogImage={project.cover_image || '/og-default.png'} jsonLd={jsonLd}>
   {hasModel && <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>}
+  {paid && <script src="https://checkout.razorpay.com/v1/checkout.js"></script>}
 
   <div id="read-progress" class="read-progress"></div>
   {project.layout_version === 2 ? (
