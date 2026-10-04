@@ -522,6 +522,12 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to start payment');
     
+    if (data.alreadyPaid) {
+      alert(data.message);
+      window.location.href = '/account/downloads';
+      return;
+    }
+
     const rzp = new (window as any).Razorpay({
       key: data.keyId,
       amount: data.amount,

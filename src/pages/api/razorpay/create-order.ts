@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { getProjectById, createOrder, setOrderRazorpayId } from '../../../lib/db';
+import { getProjectById, createOrder, setOrderRazorpayId, getOrdersByEmail } from '../../../lib/db';
 import { razorpayConfigured, createRazorpayOrder } from '../../../lib/razorpay';
 import { rateLimit, clientIp } from '../../../lib/auth';
+import { sendEmail, buildOrderEmail } from '../../../lib/email';
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -34,6 +35,24 @@ export const POST: APIRoute = async ({ request }) => {
   const project = await getProjectById(env.DB, projectId);
   if (!project || project.published !== 1 || project.combo_enabled !== 1 || project.price_inr <= 0) {
     return json({ error: 'This project is not available for purchase.' }, 404);
+  }
+
+  // Check if they already own it
+  const pastOrders = await getOrdersByEmail(env.DB, email);
+  const existing = pastOrders.find(o => o.project_id === project.id);
+  if (existing && existing.download_token) {
+    const base = env.SITE_URL || new URL(request.url).origin;
+    const url = new URL(`/account/download?order=${existing.id}&token=${existing.download_token}`, base).toString();
+    
+    try {
+      const { subject, html } = buildOrderEmail(existing, url);
+      await sendEmail(env, { to: email, subject, html });
+    } catch { /* ignore */ }
+    
+    return json({ 
+      alreadyPaid: true, 
+      message: 'You already own this project! We just sent the download link to your email again.' 
+    });
   }
 
   // Amount is ALWAYS derived server-side from the database.
