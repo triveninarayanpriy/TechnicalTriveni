@@ -28,8 +28,8 @@ const media = project.images.length > 0
     : [];
 const first = media[0] || {};
 const hasModel = media.some(m => m.kind === 'model');
-const codeFiles = project.files.filter((f) => f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch');
-const freeFiles = project.files.filter((f) => f.is_free === 1);
+const codeFiles = project.files.filter((f) => (f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch') && f.is_free === 1);
+const freeFiles = project.files.filter((f) => f.is_free === 1 && f.kind !== 'code' && f.kind !== 'hex' && f.kind !== 'sketch');
 const comboFiles = project.files.filter((f) => f.in_combo === 1);
 const kindLabel = (k: string) => FILE_KINDS.find((x) => x.key === k)?.label ?? 'File';
 const kindIcon = (k: string) => FILE_KINDS.find((x) => x.key === k)?.icon ?? 'file';
@@ -387,7 +387,7 @@ const jsonLd = {
             {codeFiles.length > 0 && (
               <div class="files">
                 {codeFiles.map(f => (
-                  <a href={f.url} class="file-row" target="_blank" rel="noopener">
+                  <a href={`/api/download/free/${f.id}`} class="file-row" target="_blank" rel="noopener">
                     <div class="file-row__icon"><Icon name={kindIcon(f.kind)} size={20} /></div>
                     <div class="file-row__meta">
                       <span class="file-row__label">{f.label || kindLabel(f.kind)}</span>
@@ -413,7 +413,7 @@ const jsonLd = {
             <h2 class="sec__title"><Icon name="download" size={20} /> Downloads</h2>
             <div class="files">
               {freeFiles.map(f => (
-                <a href={f.url} class="file-row" target="_blank" rel="noopener">
+                <a href={`/api/download/free/${f.id}`} class="file-row" target="_blank" rel="noopener">
                   <div class="file-row__icon"><Icon name={kindIcon(f.kind)} size={20} /></div>
                   <div class="file-row__meta">
                     <span class="file-row__label">{f.label || kindLabel(f.kind)}</span>
