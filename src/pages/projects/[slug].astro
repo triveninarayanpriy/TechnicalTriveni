@@ -523,8 +523,14 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
     if (!res.ok) throw new Error(data.error || 'Failed to start payment');
     
     if (data.alreadyPaid) {
-      alert(data.message);
-      window.location.href = '/account/downloads';
+      cta.innerHTML = `
+        <div style="padding: 2.5rem 1.5rem; text-align: center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 1rem;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem;">You already own this!</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">We just emailed the download link to <strong>${emailInput.value}</strong> again.</p>
+          <a href="/account/downloads" class="btn btn-primary" style="display: inline-flex; text-decoration: none;">View all my downloads</a>
+        </div>
+      `;
       return;
     }
 
@@ -717,3 +723,9 @@ if (ctaEl && ctaEl.dataset.projectId) {
   .dp .ext-link { min-height: 40px; }
 }
 </style>
+<style is:inline>
+  .dp .proj-layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-areas: "title" "media" "facts" "content" !important; gap: 1.25rem !important; }
+  @media (min-width: 901px) { .dp .proj-layout { grid-template-columns: minmax(0, 1fr) 340px !important; grid-template-areas: "title title" "media sidebar" "facts sidebar" "content sidebar" !important; gap: 2rem !important; } }
+</style>
+
+

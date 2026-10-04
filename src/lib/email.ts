@@ -1,6 +1,6 @@
 /**
- * Transactional email via Brevo (free tier: 300/day, single verified sender —
- * works with a plain Gmail address, no custom domain required).
+ * Transactional email via Brevo (free tier: 300/day, single verified sender).
+ * Works with a plain Gmail address, no custom domain required.
  *
  * Everything is best-effort: a failed send never breaks a payment or a page.
  * Sending is inert until EMAIL_ENABLED === 'true' and a BREVO_API_KEY + FROM_EMAIL
@@ -54,7 +54,7 @@ function shell(title: string, bodyHtml: string): string {
       ${bodyHtml}
     </td></tr>
     <tr><td style="padding:16px 24px;border-top:1px solid #eef0f4;color:#8a90a2;font-size:12px">
-      Electronics · Software · AI — <a href="https://technicaltriveni.me" style="color:#8a90a2;text-decoration:underline">technicaltriveni.me</a>
+      Electronics &#x2022; Software &#x2022; AI &mdash; <a href="https://www.technicaltriveni.me" style="color:#8a90a2;text-decoration:underline">technicaltriveni.me</a>
     </td></tr>
   </table></body></html>`;
 }
@@ -65,15 +65,18 @@ function button(href: string, label: string): string {
 
 /** Receipt + secure download link sent right after a successful purchase. */
 export function buildOrderEmail(order: Order, downloadUrl: string): { subject: string; html: string } {
-  const rupees = `₹${order.amount_inr}`;
+  // Fix URL domain just in case it was generated with .com locally or by a worker
+  const safeUrl = downloadUrl.replace('technicaltriveni.com', 'technicaltriveni.me');
+  
+  const rupees = `&#8377;${order.amount_inr}`;
   return {
-    subject: `Your download — ${order.project_title}`,
-    html: shell('Thank you for your purchase! 🎉', `
+    subject: `Your download - ${order.project_title}`,
+    html: shell('Thank you for your purchase!', `
       <p style="margin:0 0 16px;line-height:1.6">Your payment of <strong>${rupees}</strong> for
-      <strong>${order.project_title}</strong> was successful. Here's your secure download:</p>
-      <p style="margin:0 0 22px">${button(downloadUrl, 'Download your files')}</p>
-      <p style="margin:0 0 8px;color:#5a6072;font-size:13px;line-height:1.6">This link is private to you — keep it safe.
-      You can re-access all your downloads any time from <a href="https://technicaltriveni.me/account/downloads" style="color:${BRAND}">My downloads</a> using this email.</p>
+      <strong>${order.project_title}</strong> was successful. Here is your secure download:</p>
+      <p style="margin:0 0 22px">${button(safeUrl, 'Download your files')}</p>
+      <p style="margin:0 0 8px;color:#5a6072;font-size:13px;line-height:1.6">This link is private to you &mdash; keep it safe.
+      You can re-access all your downloads any time from <a href="https://www.technicaltriveni.me/account/downloads" style="color:${BRAND}">My downloads</a> using this email.</p>
       <p style="margin:18px 0 0;color:#8a90a2;font-size:12px">Order ${order.id}</p>
     `),
   };
@@ -81,13 +84,14 @@ export function buildOrderEmail(order: Order, downloadUrl: string): { subject: s
 
 /** Passwordless "My downloads" access link. */
 export function buildMagicLinkEmail(magicUrl: string): { subject: string; html: string } {
+  const safeUrl = magicUrl.replace('technicaltriveni.com', 'technicaltriveni.me');
   return {
     subject: 'Your Technical Triveni downloads',
     html: shell('Access your downloads', `
       <p style="margin:0 0 16px;line-height:1.6">Click below to see every project you've purchased and re-download the files.
       This link works for 30 minutes.</p>
-      <p style="margin:0 0 22px">${button(magicUrl, 'View my downloads')}</p>
-      <p style="margin:0;color:#8a90a2;font-size:12px;line-height:1.6">If you didn't request this, you can safely ignore it — no one else can see your purchases.</p>
+      <p style="margin:0 0 22px">${button(safeUrl, 'View my downloads')}</p>
+      <p style="margin:0;color:#8a90a2;font-size:12px;line-height:1.6">If you didn't request this, you can safely ignore it &mdash; no one else can see your purchases.</p>
     `),
   };
 }
