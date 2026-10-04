@@ -10,10 +10,11 @@ interface Props {
 const { project, reveal = true } = Astro.props;
 const tags = parseTags(project.tags).slice(0, 3);
 const paid = project.combo_enabled === 1 && project.price_inr > 0;
+const cardUrl = project.category === 'Resource' ? `/resources/${project.slug}` : `/projects/${project.slug}`;
 ---
 
 <article class="pcard" data-reveal={reveal ? '' : undefined}>
-  <a href={`/projects/${project.slug}`} class="pcard__stretch" aria-label={project.title}></a>
+  <a href={cardUrl} class="pcard__stretch" aria-label={project.title}></a>
   <div class="pcard__media">
     {project.cover_image ? (
       <img src={project.cover_image} alt={project.title} loading="lazy" decoding="async" width="640" height="400" />

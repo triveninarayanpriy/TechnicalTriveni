@@ -1,0 +1,198 @@
+---
+/**
+ * Mobile-only chrome for the project detail page (<= 900px).
+ *
+ * - Bottom bar: price + one primary action.
+ * - Bottom sheet: the EXISTING #buy card is moved into it with JS on mobile
+ *   (and moved back on desktop). The node is moved, never cloned, so the
+ *   Razorpay checkout script keeps working with the same IDs / data-attrs.
+ * - Section chips: horizontal, sticky, with scroll-spy (rendered by the page
+ *   via the `MobileSecNav` slot-free markup below).
+ *
+ * No inline event handlers (the site CSP blocks them).
+ */
+interface Props {
+  paid: boolean;
+  priceLabel: string;
+  comboTitle?: string | null;
+  includedCount: number;
+}
+const { paid, priceLabel, comboTitle, includedCount } = Astro.props;
+const sub = paid
+  ? `${comboTitle || 'Build pack'}${includedCount > 0 ? ` · ${includedCount} file${includedCount === 1 ? '' : 's'}` : ''}`
+  : 'Free resources';
+---
+
+<div class="m-bar" data-m-bar>
+  <div class="m-bar__info">
+    <span class="m-bar__price">{priceLabel}</span>
+    <span class="m-bar__sub">{sub}</span>
+  </div>
+  <button type="button" class="btn btn-primary m-bar__btn" data-m-open aria-haspopup="dialog">
+    {paid ? 'Buy pack' : 'Get files'}
+  </button>
+</div>
+
+<div class="m-sheet" data-m-sheet hidden>
+  <div class="m-sheet__backdrop" data-m-close></div>
+  <div class="m-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="m-sheet-title">
+    <div class="m-sheet__grip" aria-hidden="true"></div>
+    <div class="m-sheet__head">
+      <h2 id="m-sheet-title" class="m-sheet__title">{paid ? 'Get the build pack' : 'Download files'}</h2>
+      <button type="button" class="m-sheet__close" data-m-close aria-label="Close">&times;</button>
+    </div>
+    <div class="m-sheet__body" data-m-sheet-body></div>
+  </div>
+</div>
+
+<script>
+  const mq = window.matchMedia('(max-width: 900px)');
+  const root = document.documentElement;
+  const buy = document.getElementById('buy');
+  const sheet = document.querySelector<HTMLElement>('[data-m-sheet]');
+  const sheetBody = document.querySelector<HTMLElement>('[data-m-sheet-body]');
+  const openBtn = document.querySelector<HTMLButtonElement>('[data-m-open]');
+
+  // Remember where #buy lives on desktop so it can be put back.
+  const marker = document.createComment('buy-home');
+  if (buy && buy.parentNode) buy.parentNode.insertBefore(marker, buy);
+
+  let closeTimer: number | undefined;
+
+  function openSheet() {
+    if (!sheet) return;
+    window.clearTimeout(closeTimer);
+    sheet.hidden = false;
+    requestAnimationFrame(() => sheet.classList.add('is-open'));
+    root.classList.add('m-sheet-open');
+    sheet.querySelector<HTMLElement>('.m-sheet__close')?.focus();
+  }
+
+  function closeSheet() {
+    if (!sheet || sheet.hidden) return;
+    sheet.classList.remove('is-open');
+    root.classList.remove('m-sheet-open');
+    closeTimer = window.setTimeout(() => { sheet.hidden = true; }, 260);
+    openBtn?.focus();
+  }
+
+  function place() {
+    if (!buy || !sheetBody) return;
+    if (mq.matches) {
+      if (buy.parentElement !== sheetBody) sheetBody.appendChild(buy);
+      root.classList.add('m-proj');
+    } else {
+      closeSheet();
+      if (marker.parentNode && buy.previousSibling !== marker) {
+        marker.parentNode.insertBefore(buy, marker.nextSibling);
+      }
+      root.classList.remove('m-proj');
+    }
+  }
+
+  if (mq.addEventListener) mq.addEventListener('change', place);
+  else mq.addListener(place);
+  place();
+
+  openBtn?.addEventListener('click', openSheet);
+  sheet?.querySelectorAll('[data-m-close]').forEach((el) => el.addEventListener('click', closeSheet));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+  // In-page links inside the sheet (e.g. "Get files" -> #downloads) should close it.
+  sheetBody?.addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest('a[href^="#"]');
+    if (a) closeSheet();
+  });
+
+  // ---- Section chips: scroll-spy ----
+  const track = document.querySelector<HTMLElement>('[data-m-secnav-track]');
+  const chips = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-m-chip]'));
+  const targets = chips
+    .map((c) => document.getElementById(c.dataset.mChip || ''))
+    .filter((el): el is HTMLElement => !!el);
+
+  function setActive(id: string) {
+    chips.forEach((c) => {
+      const on = c.dataset.mChip === id;
+      c.classList.toggle('is-active', on);
+      if (on) c.setAttribute('aria-current', 'true'); else c.removeAttribute('aria-current');
+      if (on && track) {
+        const left = c.offsetLeft - (track.clientWidth - c.offsetWidth) / 2;
+        track.scrollTo({ left, behavior: 'smooth' });
+      }
+    });
+  }
+
+  if (targets.length && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      const visible = entries.filter((e) => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]) setActive(visible[0].target.id);
+    }, { rootMargin: '-140px 0px -55% 0px', threshold: 0 });
+    targets.forEach((t) => io.observe(t));
+  }
+</script>
+
+<style is:global>
+  /* Hidden on desktop */
+  .m-bar, .m-sheet, .m-secnav { display: none; }
+
+  @media (max-width: 900px) {
+    /* ---------- Bottom bar ---------- */
+    .m-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+      padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+      background: var(--surface); border-top: 1px solid var(--border);
+      box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.08);
+    }
+    .m-bar__info { display: flex; flex-direction: column; min-width: 0; }
+    .m-bar__price { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; line-height: 1.1; color: var(--text); }
+    .m-bar__sub { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m-bar__btn { flex-shrink: 0; min-height: 44px; padding-inline: 1.25rem; }
+    html.m-sheet-open .m-bar { visibility: hidden; }
+    /* Leave room so the bar never covers content/footer */
+    html.m-proj body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+
+    /* ---------- Bottom sheet ---------- */
+    .m-sheet { display: block; position: fixed; inset: 0; z-index: 1100; }
+    .m-sheet[hidden] { display: none; }
+    .m-sheet__backdrop { position: absolute; inset: 0; background: rgba(12, 13, 17, 0.55); opacity: 0; transition: opacity 0.25s; }
+    .m-sheet__panel {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
+      background: var(--surface); border-radius: 18px 18px 0 0;
+      padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+      transform: translateY(100%); transition: transform 0.26s cubic-bezier(.2,.8,.2,1);
+    }
+    .m-sheet.is-open .m-sheet__backdrop { opacity: 1; }
+    .m-sheet.is-open .m-sheet__panel { transform: translateY(0); }
+    .m-sheet__grip { width: 40px; height: 4px; border-radius: 4px; background: var(--border); margin: 0.25rem auto 0.5rem; }
+    .m-sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .m-sheet__title { font-size: 1.05rem; margin: 0; }
+    .m-sheet__close { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+    .m-sheet__body .cta-card { border: 0; box-shadow: none; background: none; padding: 0; }
+    .m-sheet__body .cta-card__details { margin-bottom: 1rem; }
+    .m-sheet__body #buy-email { min-height: 44px; font-size: 16px; } /* 16px stops iOS zoom */
+    .m-sheet__body .btn-buy { min-height: 48px; font-size: 1rem; }
+    html.m-sheet-open { overflow: hidden; }
+
+    /* Sidebar is empty on mobile once #buy moves into the sheet */
+    html.m-proj .proj-sidebar { display: none; }
+
+    /* ---------- Sticky section chips ---------- */
+    .m-secnav {
+      display: block; position: sticky; top: var(--header-h, 70px); z-index: 50;
+      margin: 0 0 1.25rem;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .m-secnav__track { display: flex; gap: 0.4rem; overflow-x: auto; scrollbar-width: none; padding: 0.55rem 0; }
+    .m-secnav__track::-webkit-scrollbar { display: none; }
+    .m-secnav__chip {
+      flex-shrink: 0; padding: 0.4rem 0.8rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+      color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); white-space: nowrap;
+    }
+    .m-secnav__chip.is-active { color: #fff; background: var(--ink, #151314); border-color: var(--ink, #151314); }
+  }
+</style>
