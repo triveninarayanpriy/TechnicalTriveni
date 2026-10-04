@@ -69,6 +69,13 @@ const jsonLd = {
 ---
 
 <Base title={project.title} description={project.summary} ogImage={project.cover_image || '/og-default.png'} jsonLd={jsonLd}>
+  <Fragment slot="head">
+    <style is:inline>
+      /* Critical mobile layout injected into head to prevent FOUC */
+      .dp .proj-layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-areas: "title" "media" "facts" "content" !important; gap: 1.25rem !important; }
+      @media (min-width: 901px) { .dp .proj-layout { grid-template-columns: minmax(0, 1fr) 340px !important; grid-template-areas: "title title" "media sidebar" "facts sidebar" "content sidebar" !important; gap: 2rem !important; } }
+    </style>
+  </Fragment>
   {hasModel && <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>}
   {paid && <script src="https://checkout.razorpay.com/v1/checkout.js"></script>}
 
@@ -723,9 +730,8 @@ if (ctaEl && ctaEl.dataset.projectId) {
   .dp .ext-link { min-height: 40px; }
 }
 </style>
-<style is:inline>
-  .dp .proj-layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-areas: "title" "media" "facts" "content" !important; gap: 1.25rem !important; }
-  @media (min-width: 901px) { .dp .proj-layout { grid-template-columns: minmax(0, 1fr) 340px !important; grid-template-areas: "title title" "media sidebar" "facts sidebar" "content sidebar" !important; gap: 2rem !important; } }
-</style>
+
+
+
 
 
