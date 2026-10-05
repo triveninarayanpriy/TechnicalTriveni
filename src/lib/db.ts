@@ -400,6 +400,82 @@ export async function deleteComponent(db: D1Database, id: number): Promise<void>
     db.prepare('DELETE FROM components WHERE id = ?').bind(id),
   ]);
 }
+
+export async function updateBom(db: D1Database, id: number, b: Partial<BomItem>) {
+  const fields = ['name', 'qty', 'notes', 'store', 'affiliate_url', 'unit_price_inr', 'price_checked', 'is_affiliate', 'component_id', 'is_required', 'group_name', 'stage_tag', 'sort'];
+  const sets = [];
+  const binds = [];
+  for (const f of fields) {
+    if (b[f] !== undefined) {
+      sets.push(f + ' = ?');
+      binds.push(b[f]);
+    }
+  }
+  if (sets.length === 0) return;
+  binds.push(id);
+  await db.prepare('UPDATE bom_items SET ' + sets.join(', ') + ' WHERE id = ?').bind(...binds).run();
+}
+
+export async function updateStep(db: D1Database, id: number, b: Partial<ProjectStep>) {
+  const fields = ['title', 'body', 'why', 'image_url', 'goal', 'time_est', 'parts_needed', 'file_id', 'expected_res', 'if_fails', 'video_ts', 'sort'];
+  const sets = [];
+  const binds = [];
+  for (const f of fields) {
+    if (b[f] !== undefined) {
+      sets.push(f + ' = ?');
+      binds.push(b[f]);
+    }
+  }
+  if (sets.length === 0) return;
+  binds.push(id);
+  await db.prepare('UPDATE project_steps SET ' + sets.join(', ') + ' WHERE id = ?').bind(...binds).run();
+}
+
+export async function updateTrouble(db: D1Database, id: number, b: any) {
+  const fields = ['symptom', 'fix', 'sort'];
+  const sets = [];
+  const binds = [];
+  for (const f of fields) {
+    if (b[f] !== undefined) {
+      sets.push(f + ' = ?');
+      binds.push(b[f]);
+    }
+  }
+  if (sets.length === 0) return;
+  binds.push(id);
+  await db.prepare('UPDATE project_troubleshooting SET ' + sets.join(', ') + ' WHERE id = ?').bind(...binds).run();
+}
+
+export async function updatePin(db: D1Database, id: number, b: Partial<ProjectPin>) {
+  const fields = ['from_pin', 'to_pin', 'note', 'module', 'sort'];
+  const sets = [];
+  const binds = [];
+  for (const f of fields) {
+    if (b[f] !== undefined) {
+      sets.push(f + ' = ?');
+      binds.push(b[f]);
+    }
+  }
+  if (sets.length === 0) return;
+  binds.push(id);
+  await db.prepare('UPDATE project_pins SET ' + sets.join(', ') + ' WHERE id = ?').bind(...binds).run();
+}
+
+export async function updateFile(db: D1Database, id: number, b: Partial<ProjectFile>) {
+  const fields = ['label', 'kind', 'is_free', 'in_combo', 'sort'];
+  const sets = [];
+  const binds = [];
+  for (const f of fields) {
+    if (b[f] !== undefined) {
+      sets.push(f + ' = ?');
+      binds.push(b[f]);
+    }
+  }
+  if (sets.length === 0) return;
+  binds.push(id);
+  await db.prepare('UPDATE project_files SET ' + sets.join(', ') + ' WHERE id = ?').bind(...binds).run();
+}
+
 export async function deleteBom(db: D1Database, id: number) {
   await db.prepare('DELETE FROM bom_items WHERE id = ?').bind(id).run();
 }
