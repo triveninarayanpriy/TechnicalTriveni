@@ -50,5 +50,7 @@ declare namespace App {
     admin: { email: string } | null;
     /** Per-request CSRF token for admin forms. */
     csrfToken: string;
+    /** Enforces X-Robots-Tag noindex */
+    noindex?: boolean;
   }
 }

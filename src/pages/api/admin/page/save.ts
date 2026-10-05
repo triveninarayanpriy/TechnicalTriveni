@@ -27,11 +27,18 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
   }
 
+  const published = form.get('published') === '1' ? 1 : 0;
+  const meta_title = strField(form, 'meta_title', 200) || '';
+  const meta_description = strField(form, 'meta_description', 500) || '';
+
   const data = {
     slug,
     title,
     content_md: strField(form, 'content_md', 60000),
     image_url: imageUrl,
+    published,
+    meta_title,
+    meta_description,
   };
 
   try {

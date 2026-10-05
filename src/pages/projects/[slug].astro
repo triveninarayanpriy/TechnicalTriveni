@@ -37,6 +37,24 @@ const kindLabel = (k: string) => FILE_KINDS.find((x) => x.key === k)?.label ?? '
 const kindIcon = (k: string) => FILE_KINDS.find((x) => x.key === k)?.icon ?? 'file';
 const yt = youtubeId(project.video_url);
 
+
+
+
+
+const jsonLd = {
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": project.title,
+  "description": project.meta_description || project.summary,
+  "image": project.og_image || project.cover_image || SITE.ogImage,
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "INR",
+    "price": project.combo_enabled ? project.price_inr : 0,
+    "availability": "https://schema.org/InStock"
+  }
+};
+
 const descHtml = renderMarkdown(project.description).replace(/^<h2[^>]*>\s*Overview\s*<\/h2>\s*/i, '');
 const safetyHtml = project.safety_note ? renderMarkdown(project.safety_note) : '';
 const creditsHtml = project.credits ? renderMarkdown(project.credits) : '';
@@ -50,24 +68,7 @@ const estCost = project.bom.reduce((sum, b) => {
 
 const hasAffiliate = project.bom.some(b => b.is_affiliate === 1 && b.affiliate_url);
 
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  name: project.title,
-  description: project.summary,
-  image: project.cover_image ? new URL(project.cover_image, Astro.site ?? Astro.url.origin).toString() : undefined,
-  brand: {
-    '@type': 'Brand',
-    name: SITE.name
-  },
-  ...(paid ? { offers: {
-    '@type': 'Offer',
-    price: project.price_inr,
-    priceCurrency: 'INR',
-    availability: 'https://schema.org/InStock',
-    url: new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString()
-  }} : {})
-};
+
 ---
 
 <Base title={project.title} description={project.summary} ogImage={project.cover_image || '/og-default.png'} jsonLd={jsonLd}>
@@ -76,7 +77,7 @@ const jsonLd = {
 
   <div id="read-progress" class="read-progress"></div>
   {project.layout_version === 2 ? (
-    <ProjectLayoutV2 project={project} estCost={estCost} paid={paid} descHtml={descHtml} safetyHtml={safetyHtml} />
+    <ProjectLayoutV2 project={project} estCost={estCost} paid={paid} descHtml={descHtml} safetyHtml={safetyHtml} yt={yt} />
   ) : (
 
 
@@ -509,6 +510,7 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
   const btn = e.currentTarget as HTMLButtonElement;
   
   if (!cta || !emailInput) return;
+  const couponInput = document.getElementById('coupon_code') as HTMLInputElement;
   const { projectId, slug, payments } = cta.dataset;
   
   if (!emailInput.value || !emailInput.checkValidity()) {
@@ -528,7 +530,7 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
     const res = await fetch('/api/razorpay/create-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId: parseInt(projectId!), email: emailInput.value })
+      body: JSON.stringify({ projectId: parseInt(projectId!), email: emailInput.value, couponCode: couponInput ? couponInput.value : '' })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to start payment');
@@ -540,6 +542,19 @@ document.querySelector('[data-buy-btn]')?.addEventListener('click', async (e) =>
           <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem;">You already own this!</h3>
           <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">We just emailed the download link to <strong>${emailInput.value}</strong> again.</p>
           <a href="/account/downloads" class="btn btn-primary" style="display: inline-flex; text-decoration: none;">View all my downloads</a>
+        </div>
+      `;
+      return;
+    }
+
+    
+    if (data.free) {
+      cta.innerHTML = `
+        <div style="padding: 2.5rem 1.5rem; text-align: center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 1rem;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem;">Success!</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">We just emailed the download link to <strong>${emailInput.value}</strong>.</p>
+          <a href="/account/downloads" class="btn btn-primary" style="display: inline-flex; text-decoration: none;">View my downloads</a>
         </div>
       `;
       return;

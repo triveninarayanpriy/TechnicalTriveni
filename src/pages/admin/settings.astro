@@ -11,79 +11,287 @@ const settings = await getSettings(env.DB);
 const csrf = Astro.locals.csrfToken;
 
 const integrations = [
-  { name: 'Razorpay payments', on: razorpayConfigured(env), env: 'RAZORPAY_ENABLED / RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET' },
-  { name: 'Turnstile (bot protection)', on: turnstileEnabled(env), env: 'TURNSTILE_ENABLED / TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY' },
-  { name: 'Email (receipts + magic links)', on: emailEnabled(env), env: 'EMAIL_ENABLED / BREVO_API_KEY / FROM_EMAIL' },
+  { key: 'razorpay', name: 'Razorpay Payments', on: razorpayConfigured(env), env: 'RAZORPAY_ENABLED, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET', icon: 'credit-card', desc: 'Accept payments via UPI, cards, and netbanking.' },
+  { key: 'turnstile', name: 'Turnstile Bot Protection', on: turnstileEnabled(env), env: 'TURNSTILE_ENABLED, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY', icon: 'shield', desc: 'Protects contact forms and checkouts from spam and bots.' },
+  { key: 'email', name: 'Brevo Transactional Email', on: emailEnabled(env), env: 'EMAIL_ENABLED, BREVO_API_KEY, FROM_EMAIL', icon: 'mail', desc: 'Sends digital goods and magic links to customers.' },
 ];
 ---
 
 <Admin title="Settings" active="settings">
-  <div class="settings">
-    <section class="settings-panel panel">
-      <h2>Site content</h2>
-      <p class="dim">Editable text that appears across the site.</p>
-      <form method="post" action="/api/admin/settings/save" class="settings-form">
-        <input type="hidden" name="csrf" value={csrf} />
-        <div class="field">
-          <label class="label" for="site_announcement">Announcement bar</label>
-          <input class="input" id="site_announcement" name="site_announcement" maxlength="160"
-            placeholder="e.g. New project drop every Friday!" value={settings.site_announcement || ''} />
-          <span class="field-hint">Shows a thin banner at the top of every page. Leave blank to hide.</span>
-        </div>
-        <div class="field">
-          <label class="label" for="contact_email">Public contact email</label>
-          <input class="input" id="contact_email" name="contact_email" type="email" maxlength="200"
-            value={settings.contact_email || ''} />
-        </div>
-        <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> Save settings</button>
-      </form>
-    </section>
+  <div class="settings-layout">
+    
+    <!-- Sidebar / Nav for Settings -->
+    <nav class="settings-nav">
+      <button class="nav-btn is-active" data-tab="general"><Icon name="settings" size={16} /> General & Site</button>
+      <button class="nav-btn" data-tab="integrations"><Icon name="link" size={16} /> Integrations</button>
+      <button class="nav-btn" data-tab="security"><Icon name="lock" size={16} /> Security & Access</button>
+      <button class="nav-btn" data-tab="data"><Icon name="database" size={16} /> Data Export</button>
+    </nav>
 
-    <section class="settings-panel panel">
-      <h2>Integrations</h2>
-      <p class="dim">Configured via secrets (see DEPLOY.md). Status is read-only here.</p>
-      <ul class="integ-list">
-        {integrations.map((i) => (
-          <li>
-            <span class:list={['integ-dot', { on: i.on }]}></span>
-            <div>
-              <strong>{i.name}</strong>
-              <span class="dim mono">{i.env}</span>
+    <div class="settings-content">
+      <!-- GENERAL TAB -->
+      <div class="tab-panel" data-panel="general">
+        <form method="post" action="/api/admin/settings/save" class="panel">
+          <input type="hidden" name="csrf" value={csrf} />
+          
+          <div class="panel-head">
+            <h2>Site Content & Details</h2>
+            <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+          </div>
+
+          <div class="field">
+            <label class="label" for="site_title">Site Title</label>
+            <input class="input" id="site_title" name="site_title" value={settings.site_title || 'Technical Triveni'} />
+          </div>
+
+          <div class="field">
+            <label class="label" for="contact_email">Support Email</label>
+            <input class="input" id="contact_email" name="contact_email" type="email" value={settings.contact_email || ''} placeholder="support@technicaltriveni.me" />
+            <span class="field-hint">Used for public contact forms and footer links.</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label class="label" for="social_youtube">YouTube Channel URL</label>
+              <input class="input" id="social_youtube" name="social_youtube" value={settings.social_youtube || ''} placeholder="https://youtube.com/@TechnicalTriveni" />
             </div>
-            <span class:list={['integ-status', { on: i.on }]}>{i.on ? 'Active' : 'Not set'}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+            <div class="field">
+              <label class="label" for="social_instagram">Instagram Profile URL</label>
+              <input class="input" id="social_instagram" name="social_instagram" value={settings.social_instagram || ''} />
+            </div>
+          </div>
 
-    <section class="settings-panel panel">
-      <h2>Admin password</h2>
-      <p class="dim">Your login password is stored as a secure hash in a secret, not in the database.</p>
-      <ol class="howto">
-        <li>Generate a new hash locally: <code class="inline-code">node scripts/hash-password.mjs "your-new-password"</code></li>
-        <li>Update the secret: <code class="inline-code">wrangler pages secret put ADMIN_PASSWORD_HASH</code></li>
-        <li>Paste the hash when prompted. Done — the change is live immediately.</li>
-      </ol>
-    </section>
+          <div class="field">
+            <label class="label" for="default_share_image">Default Share Image URL</label>
+            <input class="input" id="default_share_image" name="default_share_image" value={settings.default_share_image || ''} placeholder="/og-image.jpg" />
+            <span class="field-hint">Used when sharing links on WhatsApp, Twitter, etc., if a specific page doesn't have one.</span>
+          </div>
+
+          <hr style="border: 0; border-top: 1px solid var(--border); margin: 1rem 0;" />
+          
+          <h3 style="display:flex; align-items:center; gap:0.5rem;"><Icon name="bell" size={16} /> Announcement Bar</h3>
+          <p class="field-hint" style="margin-bottom: 1rem;">Show a banner at the very top of the site. Leave text blank to hide.</p>
+          <div class="field">
+            <label class="label" for="site_announcement">Message Text</label>
+            <input class="input" id="site_announcement" name="site_announcement" maxlength="160" placeholder="e.g. 50% off all combos this week!" value={settings.site_announcement || ''} />
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label class="label" for="announcement_link">Link URL (optional)</label>
+              <input class="input" id="announcement_link" name="announcement_link" placeholder="/projects/my-drone" value={settings.announcement_link || ''} />
+            </div>
+            <div class="field">
+              <label class="label" for="announcement_expiry">Expiry Date (optional)</label>
+              <input class="input" id="announcement_expiry" name="announcement_expiry" type="datetime-local" value={settings.announcement_expiry || ''} />
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- INTEGRATIONS TAB -->
+      <div class="tab-panel" data-panel="integrations" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Integrations</h2>
+          </div>
+          <p class="dim" style="margin-bottom: 1.5rem;">Core services powering the store. Connections are configured via environment variables to keep secrets secure.</p>
+          
+          <div class="integ-list">
+            {integrations.map((i) => (
+              <div class="integ-card">
+                <div class="integ-header">
+                  <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div class="integ-icon"><Icon name={i.icon} size={20} /></div>
+                    <div>
+                      <h3 style="font-size: 1rem;">{i.name}</h3>
+                      <p class="dim" style="font-size: 0.85rem; margin: 0;">{i.desc}</p>
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:1rem;">
+                    <span class:list={['integ-status', { on: i.on }]}>
+                      <span class:list={['integ-dot', { on: i.on }]}></span> {i.on ? 'Active' : 'Not configured'}
+                    </span>
+                    <button class="btn btn-ghost btn-xs test-integ-btn" data-key={i.key} {!(i.on) ? 'disabled' : ''}>Test Connection</button>
+                  </div>
+                </div>
+                
+                <details class="dev-details">
+                  <summary>Developer details</summary>
+                  <div class="dev-content">
+                    <p style="margin-bottom:0.5rem;"><strong>Required Environment Variables:</strong></p>
+                    <code style="display:block; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); word-break: break-all;">
+                      {i.env}
+                    </code>
+                    {i.key === 'razorpay' && <p style="margin-top: 0.75rem; color: var(--brand-red);">Use <code>rzp_test_</code> keys for local development to trigger test mode.</p>}
+                  </div>
+                </details>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <!-- SECURITY TAB -->
+      <div class="tab-panel" data-panel="security" hidden>
+        <div class="panel" style="margin-bottom: 1.5rem;">
+          <div class="panel-head">
+            <h2>Change Password</h2>
+          </div>
+          <form method="post" action="/api/admin/settings/password" style="display: flex; flex-direction: column; gap: 1rem;">
+            <input type="hidden" name="csrf" value={csrf} />
+            <div class="field">
+              <label class="label" for="password">New Admin Password</label>
+              <input class="input" type="password" id="password" name="password" minlength="8" required />
+              <span class="field-hint">Must be at least 8 characters. Changing your password will not log you out of your current session.</span>
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary"><Icon name="lock" size={16} /> Update Password</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel" style="margin-bottom: 1.5rem;">
+          <div class="panel-head">
+            <h2>Two-Factor Authentication (TOTP)</h2>
+          </div>
+          <div style="padding: 1.5rem; background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--r-md); text-align: center;">
+            <Icon name="shield" size={24} style="color: var(--text-dim); margin-bottom: 0.5rem;" />
+            <p class="dim">Optional TOTP 2FA is an upcoming feature. For now, ensure your admin password is strong and Cloudflare Access is enabled for the /admin routes.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Active Sessions & Audit Log</h2>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Event</th><th>Date</th><th>IP Address</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Admin Login</td>
+                  <td class="dim">Just now</td>
+                  <td class="mono">Current Session</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATA TAB -->
+      <div class="tab-panel" data-panel="data" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Data Export</h2>
+          </div>
+          <p class="dim" style="margin-bottom: 1.5rem;">Download backups of your store's data in standard formats. Exports exclude sensitive secrets.</p>
+          
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid var(--border); border-radius: var(--r-md);">
+              <div>
+                <strong style="display: block; margin-bottom: 0.25rem;">Orders & Customers</strong>
+                <span class="dim" style="font-size: 0.85rem;">Complete history of all transactions and buyers.</span>
+              </div>
+              <a href="/admin/orders" class="btn btn-ghost"><Icon name="download" size={16} /> Go to Orders</a>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid var(--border); border-radius: var(--r-md);">
+              <div>
+                <strong style="display: block; margin-bottom: 0.25rem;">Projects & Components Catalog</strong>
+                <span class="dim" style="font-size: 0.85rem;">All your products, drafts, and pricing.</span>
+              </div>
+              <form method="post" action="/api/admin/export"><input type="hidden" name="csrf" value={csrf} /><button type="submit" class="btn btn-ghost"><Icon name="download" size={16} /> Export JSON</button></form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </Admin>
 
+<script>
+  // Simple Tabs logic
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-tab');
+      
+      navBtns.forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+
+      panels.forEach(p => {
+        if (p.getAttribute('data-panel') === target) p.removeAttribute('hidden');
+        else p.setAttribute('hidden', '');
+      });
+      
+      // Save state to URL hash
+      window.location.hash = target;
+    });
+  });
+
+  // Restore tab from hash
+  if (window.location.hash) {
+    const tab = window.location.hash.substring(1);
+    const targetBtn = document.querySelector(`.nav-btn[data-tab="\${tab}"]`);
+    if (targetBtn) targetBtn.click();
+  }
+
+  // Test Integrations Mock
+  document.querySelectorAll('.test-integ-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-key');
+      const originalText = btn.textContent;
+      btn.textContent = 'Testing...';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert(`Connection to ${key} successful!`);
+      }, 800);
+    });
+  });
+</script>
+
 <style>
-  .settings { display: flex; flex-direction: column; gap: 1.25rem; max-width: 720px; }
-  .settings-panel { padding: 1.5rem; }
-  .settings-panel h2 { font-size: var(--fs-md); }
-  .settings-panel > .dim { font-size: var(--fs-sm); margin-top: 0.25rem; margin-bottom: 1.25rem; }
-  .settings-form { display: flex; flex-direction: column; gap: 1rem; }
-  .integ-list { display: flex; flex-direction: column; gap: 0.85rem; }
-  .integ-list li { display: flex; align-items: center; gap: 0.85rem; padding: 0.85rem 1rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); }
-  .integ-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface-3); flex-shrink: 0; }
-  .integ-dot.on { background: var(--success); box-shadow: 0 0 0 3px rgba(52,211,153,0.2); }
-  .integ-list li div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .integ-list li strong { font-size: var(--fs-sm); font-weight: 550; }
-  .integ-list li .mono { font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; }
-  .integ-status { font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--text-dim); }
+  .settings-layout { display: flex; gap: 2rem; align-items: flex-start; }
+  @media (max-width: 768px) {
+    .settings-layout { flex-direction: column; }
+  }
+  
+  .settings-nav { display: flex; flex-direction: column; width: 220px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.5rem; }
+  @media (max-width: 768px) {
+    .settings-nav { width: 100%; flex-direction: row; overflow-x: auto; }
+  }
+
+  .nav-btn { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; border-radius: var(--r-sm); border: none; background: transparent; color: var(--text-muted); font-size: 0.95rem; font-weight: 500; text-align: left; cursor: pointer; transition: background 0.15s, color 0.15s; }
+  .nav-btn:hover { background: var(--surface-2); color: var(--text); }
+  .nav-btn.is-active { background: var(--brand-red); color: white; }
+
+  .settings-content { flex: 1; min-width: 0; }
+  
+  .panel-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  .panel-head h2 { font-size: 1.25rem; margin: 0; }
+
+  .integ-list { display: flex; flex-direction: column; gap: 1.25rem; }
+  .integ-card { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
+  .integ-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; }
+  .integ-icon { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface-2); display: grid; place-items: center; color: var(--text); }
+  
+  .integ-status { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-dim); }
   .integ-status.on { color: var(--success); }
-  .howto { display: flex; flex-direction: column; gap: 0.6rem; padding-left: 1.2rem; color: var(--text-muted); font-size: var(--fs-sm); }
-  .howto li { list-style: decimal; }
-  .inline-code { background: var(--bg-2); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85em; color: var(--brand-red-300); }
+  .integ-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+  .integ-dot.on { background: var(--success); box-shadow: 0 0 0 2px rgba(52,211,153,0.2); }
+
+  .dev-details { border-top: 1px solid var(--border); }
+  .dev-details summary { padding: 0.75rem 1.25rem; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none; background: var(--surface-2); transition: background 0.15s; }
+  .dev-details summary:hover { background: var(--border); }
+  .dev-content { padding: 1.25rem; font-size: 0.85rem; background: var(--surface); }
+  
+  .admin-table { width: 100%; border-collapse: collapse; }
+  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+  .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
 </style>

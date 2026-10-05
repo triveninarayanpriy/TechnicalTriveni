@@ -39,13 +39,16 @@ const socials = [
         </nav>
       ))}
 
+      
       <div class="footer-col footer-cta">
-        <h3 class="footer-col__title">Have a project idea?</h3>
-        <p class="muted" style="font-size:var(--fs-sm)">Suggest a build, ask a question, or collaborate.</p>
-        <a href="/contact" class="btn btn-ghost" style="margin-top:0.5rem">
-          <Icon name="mail" size={16} /> Get in touch
-        </a>
+        <h3 class="footer-col__title">Stay in the loop</h3>
+        <p class="muted" style="font-size:var(--fs-sm); margin-bottom: 0.75rem;">Get updates on new robotics and IoT project packs.</p>
+        <form method="post" action="/api/subscribe" style="display:flex; gap:0.4rem; max-width: 100%;">
+          <input type="email" name="email" required placeholder="Enter your email" style="flex:1; min-width:0; padding: 0.6rem 0.8rem; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: var(--fs-sm);" />
+          <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1rem;">Subscribe</button>
+        </form>
       </div>
+
     </div>
 
     <div class="footer-bottom">

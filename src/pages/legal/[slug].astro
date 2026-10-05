@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { marked } from 'marked';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+// We have getPage in db.ts? Let's check or just inline it:
+const res = await env.DB.prepare('SELECT * FROM pages WHERE slug = ?').bind(slug).first();
+if (!res || res.published !== 1) return Astro.redirect('/404');
+
+const title = res.meta_title || res.title;
+const description = res.meta_description || `Read our ${res.title}.`;
+const html = marked.parse(res.content_md || '');
+---
+
+<Base title={`${title} | Technical Triveni`} description={description}>
+  <div class="container py-xl">
+    <div class="legal-wrap">
+      <h1>{res.title}</h1>
+      <div class="prose" set:html={html} />
+    </div>
+  </div>
+</Base>
+
+<style>
+  .py-xl { padding-top: 4rem; padding-bottom: 6rem; }
+  .legal-wrap { max-width: 800px; margin: 0 auto; background: var(--surface); padding: 3rem; border-radius: var(--r-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  h1 { font-family: var(--font-display); font-size: 2.5rem; margin-bottom: 2rem; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 1rem; }
+  .prose { font-family: var(--font-body); line-height: 1.7; color: var(--text-muted); font-size: 1.05rem; }
+  .prose :global(h2), .prose :global(h3) { color: var(--text); margin-top: 2rem; margin-bottom: 1rem; font-family: var(--font-display); }
+  .prose :global(p) { margin-bottom: 1.2rem; }
+  .prose :global(ul) { margin-bottom: 1.2rem; padding-left: 1.5rem; }
+  .prose :global(li) { margin-bottom: 0.5rem; }
+  .prose :global(a) { color: var(--brand-red); text-decoration: underline; }
+  
+  @media (max-width: 768px) {
+    .legal-wrap { padding: 1.5rem; }
+    h1 { font-size: 2rem; }
+  }
+</style>

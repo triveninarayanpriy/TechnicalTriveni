@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { getProjectById, createOrder, setOrderRazorpayId, getOrdersByEmail } from '../../../lib/db';
+import { getProjectById, createOrder, setOrderRazorpayId, getOrdersByEmail, getSetting } from '../../../lib/db';
 import { razorpayConfigured, createRazorpayOrder } from '../../../lib/razorpay';
 import { rateLimit, clientIp } from '../../../lib/auth';
 import { sendEmail, buildOrderEmail } from '../../../lib/email';
@@ -28,6 +28,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const projectId = Number(body.projectId);
   const email = (body.email || '').trim().toLowerCase();
+  const couponCode = (body.couponCode || '').trim().toUpperCase();
   if (!projectId || !EMAIL_RE.test(email) || email.length > 200) {
     return json({ error: 'A valid email and project are required.' }, 400);
   }
@@ -59,12 +60,22 @@ export const POST: APIRoute = async ({ request }) => {
   const amountInr = project.price_inr;
   const orderId = crypto.randomUUID();
 
+  // Auto-detect test mode
+  let is_test = 0;
+  if (env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_ID.startsWith('rzp_test_')) {
+    is_test = 1;
+  } else {
+    const testEmails = (await getSetting(env.DB, 'test_emails') || '').toLowerCase().split(',').map((e: string) => e.trim());
+    if (testEmails.includes(email)) is_test = 1;
+  }
+
   await createOrder(env.DB, {
     id: orderId,
     project_id: project.id,
     project_title: project.title,
     email,
     amount_inr: amountInr,
+    is_test,
   });
 
   try {

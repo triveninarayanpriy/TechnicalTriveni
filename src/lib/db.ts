@@ -55,6 +55,7 @@ export interface Component {
 
 export interface Page {
   slug: string; title: string; content_md: string; image_url: string; updated_at: number;
+  published: number; meta_title: string; meta_description: string;
 }
 
 export interface ProjectImage {
@@ -88,13 +89,15 @@ export interface ProjectLink {
 }
 export interface Order {
   id: string; project_id: number; project_title: string; email: string;
-  amount_inr: number; currency: string; status: string;
+  amount_inr: number; currency: string; status: string; is_test: number;
+  notes: string;
   razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string;
   download_token: string; created_at: number; paid_at: number | null;
 }
 export interface ContactMessage {
   id: number; name: string; email: string; subject: string; message: string;
   handled: number; created_at: number;
+  status: string; reply_body: string | null;
 }
 
 export interface ProjectFull extends Project {
@@ -562,10 +565,67 @@ export async function markOrderPaid(
      WHERE id = ?`,
   ).bind(paymentId, signature, downloadToken, now(), id).run();
 }
-export async function listRecentOrders(db: D1Database, limit = 100): Promise<Order[]> {
-  const res = await db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT ?')
-    .bind(Math.min(500, limit)).all<Order>();
+export interface OrderFilter {
+  status?: string;
+  search?: string;
+  projectId?: number;
+  dateStart?: number;
+  dateEnd?: number;
+  limit?: number;
+}
+
+export async function listOrders(db: D1Database, f: OrderFilter = {}): Promise<Order[]> {
+  let q = 'SELECT * FROM orders WHERE 1=1';
+  const binds: any[] = [];
+  
+  if (f.status) {
+    if (f.status === 'abandoned') {
+      q += ' AND status = "created" AND created_at < ?';
+      binds.push(Math.floor(Date.now() / 1000) - 86400);
+    } else if (f.status === 'pending') {
+      q += ' AND status = "created" AND created_at >= ?';
+      binds.push(Math.floor(Date.now() / 1000) - 86400);
+    } else if (f.status !== 'all') {
+      q += ' AND status = ?';
+      binds.push(f.status);
+    }
+  }
+  
+  if (f.search) {
+    q += ' AND (email LIKE ? OR id LIKE ? OR razorpay_order_id LIKE ? OR razorpay_payment_id LIKE ?)';
+    const s = `%${f.search}%`;
+    binds.push(s, s, s, s);
+  }
+  
+  if (f.projectId) {
+    q += ' AND project_id = ?';
+    binds.push(f.projectId);
+  }
+  
+  if (f.dateStart) {
+    q += ' AND created_at >= ?';
+    binds.push(f.dateStart);
+  }
+  if (f.dateEnd) {
+    q += ' AND created_at <= ?';
+    binds.push(f.dateEnd);
+  }
+  
+  q += ' ORDER BY created_at DESC LIMIT ?';
+  binds.push(Math.min(500, f.limit || 100));
+  
+  const res = await db.prepare(q).bind(...binds).all<Order>();
   return res.results ?? [];
+}
+
+
+
+export async function updateOrderNotes(db: D1Database, id: string, notes: string): Promise<void> {
+  await db.prepare('UPDATE orders SET notes = ? WHERE id = ?').bind(notes, id).run();
+}
+
+export async function refundOrder(db: D1Database, id: string): Promise<void> {
+  await db.prepare('UPDATE orders SET status = "refunded" WHERE id = ?').bind(id).run();
 }
 export async function getOrdersByEmail(db: D1Database, email: string): Promise<Order[]> {
   const res = await db.prepare("SELECT * FROM orders WHERE email = ? AND status='paid' ORDER BY created_at DESC")
@@ -598,10 +658,34 @@ export async function addContactMessage(db: D1Database, m: {
   await db.prepare('INSERT INTO contact_messages (name,email,subject,message,created_at) VALUES (?,?,?,?,?)')
     .bind(m.name, m.email, m.subject, m.message, now()).run();
 }
-export async function listContactMessages(db: D1Database, limit = 100): Promise<ContactMessage[]> {
-  const res = await db.prepare('SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT ?')
-    .bind(Math.min(500, limit)).all<ContactMessage>();
+export async function listContactMessages(db: D1Database, status?: string, search?: string, limit = 100): Promise<ContactMessage[]> {
+  let q = 'SELECT * FROM contact_messages';
+  const binds: unknown[] = [];
+  const where: string[] = [];
+  if (status && status !== 'all') {
+    where.push('status = ?');
+    binds.push(status);
+  }
+  if (search) {
+    where.push('(name LIKE ? OR email LIKE ? OR subject LIKE ?)');
+    binds.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (where.length) q += ' WHERE ' + where.join(' AND ');
+  q += ' ORDER BY created_at DESC LIMIT ?';
+  binds.push(Math.min(500, limit));
+  const res = await db.prepare(q).bind(...binds).all<ContactMessage>();
   return res.results ?? [];
+}
+export async function updateContactMessage(db: D1Database, id: number, updates: Partial<ContactMessage>): Promise<void> {
+  const sets: string[] = [];
+  const binds: unknown[] = [];
+  for (const [k, v] of Object.entries(updates)) {
+    sets.push(`${k} = ?`);
+    binds.push(v);
+  }
+  if (!sets.length) return;
+  binds.push(id);
+  await db.prepare(`UPDATE contact_messages SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run();
 }
 export async function setMessageHandled(db: D1Database, id: number, handled: number): Promise<void> {
   await db.prepare('UPDATE contact_messages SET handled = ? WHERE id = ?').bind(handled, id).run();
@@ -612,22 +696,58 @@ export async function deleteMessage(db: D1Database, id: number): Promise<void> {
 
 /* --------------------------------------------------------------- stats --- */
 
-export async function adminStats(db: D1Database) {
-  const [projects, published, orders, revenue, messages] = await Promise.all([
-    db.prepare('SELECT COUNT(*) AS n FROM projects').first<{ n: number }>(),
-    db.prepare('SELECT COUNT(*) AS n FROM projects WHERE published = 1').first<{ n: number }>(),
-    db.prepare("SELECT COUNT(*) AS n FROM orders WHERE status='paid'").first<{ n: number }>(),
-    db.prepare("SELECT COALESCE(SUM(amount_inr),0) AS n FROM orders WHERE status='paid'").first<{ n: number }>(),
-    db.prepare('SELECT COUNT(*) AS n FROM contact_messages WHERE handled = 0').first<{ n: number }>(),
+
+export interface DashboardStats {
+  revenue: number;
+  orders: number;
+  conversion: number;
+  topProjects: { title: string; revenue: number; sales: number }[];
+  attention: { type: string; title: string; id: string | number; link: string }[];
+  health: { webhook: string; email: string; };
+}
+
+export async function getDashboardStats(db: D1Database, days: number): Promise<DashboardStats> {
+  const since = days ? Math.floor(Date.now() / 1000) - (days * 86400) : 0;
+  
+  // Base order queries
+  const oBase = `FROM orders WHERE is_test = 0 AND created_at >= ${since}`;
+  
+  const [revRow, ordersRow, pendingRow, topRows, unreadMsgs, failedPayments, stalePrices, noCovers] = await Promise.all([
+    db.prepare(`SELECT COALESCE(SUM(amount_inr),0) AS n ${oBase} AND status = 'paid'`).first<{ n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n ${oBase} AND status = 'paid'`).first<{ n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n ${oBase} AND status = 'created'`).first<{ n: number }>(),
+    db.prepare(`SELECT project_title as title, COUNT(*) as sales, COALESCE(SUM(amount_inr),0) as revenue ${oBase} AND status = 'paid' GROUP BY project_title ORDER BY revenue DESC LIMIT 5`).all<{ title: string; sales: number; revenue: number }>(),
+    db.prepare('SELECT id, name FROM contact_messages WHERE handled = 0 ORDER BY created_at DESC LIMIT 5').all<{ id: number; name: string }>(),
+    db.prepare(`SELECT id, email ${oBase} AND status = 'failed' ORDER BY created_at DESC LIMIT 5`).all<{ id: string; email: string }>(),
+    db.prepare('SELECT id, title FROM projects WHERE cost_checked < ? OR cost_checked IS NULL LIMIT 5').bind(new Date(Date.now() - 60 * 86400 * 1000).toISOString().split('T')[0]).all<{ id: number; title: string }>(),
+    db.prepare("SELECT p.id, p.title FROM projects p WHERE p.published = 0 AND NOT EXISTS (SELECT 1 FROM project_images i WHERE i.project_id = p.id AND i.kind = 'cover') LIMIT 5").all<{ id: number; title: string }>()
   ]);
+
+  const paid = ordersRow?.n || 0;
+  const pending = pendingRow?.n || 0;
+  const conversion = (paid + pending) > 0 ? (paid / (paid + pending)) * 100 : 0;
+
+  const attention: any[] = [];
+  
+  for (const m of unreadMsgs.results || []) attention.push({ type: 'Message', title: 'Unread from ' + m.name, id: m.id, link: `/admin/messages?id=${m.id}` });
+  for (const o of failedPayments.results || []) attention.push({ type: 'Payment', title: 'Failed payment from ' + o.email, id: o.id, link: `/admin/orders?search=${o.id}` });
+  for (const p of stalePrices.results || []) attention.push({ type: 'Stale Price', title: p.title, id: p.id, link: `/admin/projects/${p.id}` });
+  for (const p of noCovers.results || []) attention.push({ type: 'Draft', title: 'Missing cover: ' + p.title, id: p.id, link: `/admin/projects/${p.id}` });
+
+  // System health dates from settings
+  const lastWebhook = await getSetting(db, 'last_webhook') || 'Never';
+  const lastEmail = await getSetting(db, 'last_email') || 'Never';
+
   return {
-    projects: projects?.n ?? 0,
-    published: published?.n ?? 0,
-    orders: orders?.n ?? 0,
-    revenue: revenue?.n ?? 0,
-    unreadMessages: messages?.n ?? 0,
+    revenue: revRow?.n || 0,
+    orders: paid,
+    conversion,
+    topProjects: topRows.results || [],
+    attention,
+    health: { webhook: lastWebhook, email: lastEmail }
   };
 }
+
 
 /* --------------------------------------------------------------- Pages --- */
 export async function getPage(db: D1Database, slug: string): Promise<Page | null> {
@@ -640,29 +760,28 @@ export async function getAllPages(db: D1Database): Promise<Page[]> {
 }
 
 export async function upsertPage(db: D1Database, page: Partial<Page> & { slug: string }): Promise<void> {
-  const existing = await getPage(db, page.slug);
   const now = Math.floor(Date.now() / 1000);
-  if (existing) {
-    await db.prepare(
-      'UPDATE pages SET title = ?, content_md = ?, image_url = ?, updated_at = ? WHERE slug = ?'
-    ).bind(
-      page.title ?? existing.title,
-      page.content_md ?? existing.content_md,
-      page.image_url ?? existing.image_url,
-      now,
-      page.slug
-    ).run();
-  } else {
-    await db.prepare(
-      'INSERT INTO pages (slug, title, content_md, image_url, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind(
-      page.slug,
-      page.title ?? '',
-      page.content_md ?? '',
-      page.image_url ?? '',
-      now
-    ).run();
-  }
+  await db.prepare(
+    `INSERT INTO pages (slug, title, content_md, image_url, published, meta_title, meta_description, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(slug) DO UPDATE SET
+       title = excluded.title,
+       content_md = excluded.content_md,
+       image_url = excluded.image_url,
+       published = excluded.published,
+       meta_title = excluded.meta_title,
+       meta_description = excluded.meta_description,
+       updated_at = excluded.updated_at`
+  ).bind(
+    page.slug,
+    page.title ?? '',
+    page.content_md ?? '',
+    page.image_url ?? '',
+    page.published ?? 0,
+    page.meta_title ?? '',
+    page.meta_description ?? '',
+    now
+  ).run();
 }
 
 

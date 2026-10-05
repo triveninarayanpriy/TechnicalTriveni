@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { setMessageHandled, deleteMessage } from '../../../../lib/db';
+import { updateContactMessage, deleteMessage } from '../../../../lib/db';
 import { csrfOk, intField, strField, flashRedirect } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -11,9 +11,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const action = strField(form, 'action', 20);
   if (!id) return flashRedirect('/admin/messages', { err: 'Missing message.' });
 
-  if (action === 'handle') await setMessageHandled(env.DB, id, 1);
-  else if (action === 'unhandle') await setMessageHandled(env.DB, id, 0);
-  else if (action === 'delete') await deleteMessage(env.DB, id);
+  if (action === 'delete') {
+    await deleteMessage(env.DB, id);
+  } else if (['new', 'replied', 'spam', 'archived', 'archive'].includes(action)) {
+    const status = action === 'archive' ? 'archived' : action;
+    await updateContactMessage(env.DB, id, { status });
+  }
 
-  return flashRedirect('/admin/messages', { ok: 'Done.' });
+  return flashRedirect('/admin/messages', { ok: 'Message updated.' });
 };

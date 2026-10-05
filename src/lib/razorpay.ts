@@ -75,3 +75,28 @@ export async function verifyWebhookSignature(
   const expected = await hmacSignHex(env.RAZORPAY_WEBHOOK_SECRET, rawBody);
   return timingSafeEqual(expected, signature || '');
 }
+
+/** Refund a Razorpay payment. */
+export async function refundRazorpayPayment(
+  env: Env,
+  paymentId: string,
+  amountInr?: number,
+): Promise<any> {
+  const auth = btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
+  const body: any = {};
+  if (amountInr) body.amount = Math.round(amountInr * 100);
+  
+  const res = await fetch(`${API}/payments/${paymentId}/refund`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Refund failed (${res.status}): ${text}`);
+  }
+  return await res.json();
+}

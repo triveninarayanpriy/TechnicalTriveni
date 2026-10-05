@@ -9,6 +9,7 @@
  */
 import type { AstroCookies } from 'astro';
 import { signPayload, verifyPayload, verifyPassword, randomToken, timingSafeEqual } from './crypto';
+import { getSetting } from './db';
 
 export const SESSION_COOKIE = 'tt_session';
 export const CSRF_COOKIE = 'tt_csrf';
@@ -30,7 +31,14 @@ const secureCookie = {
 /** Verify an email/password pair against the configured admin secrets. */
 export async function checkAdminCredentials(env: Env, email: string, password: string): Promise<boolean> {
   const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase();
-  const hash = env.ADMIN_PASSWORD_HASH?.trim();
+  
+  // Check DB for password hash first, fallback to env var
+  let hash = env.ADMIN_PASSWORD_HASH?.trim();
+  if (env.DB) {
+    const dbHash = await getSetting(env.DB, 'admin_password_hash');
+    if (dbHash) hash = dbHash;
+  }
+  
   if (!adminEmail || !hash) return false;
   const emailOk = timingSafeEqual(email.trim().toLowerCase(), adminEmail);
   const passOk = await verifyPassword(password, hash);

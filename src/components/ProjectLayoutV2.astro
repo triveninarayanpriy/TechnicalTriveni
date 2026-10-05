@@ -12,7 +12,7 @@ interface Props {
   safetyHtml: string;
 }
 
-const { project, estCost, paid, descHtml, safetyHtml } = Astro.props;
+const { project, estCost, paid, descHtml, safetyHtml, yt } = Astro.props;
 
 const tags = parseTags(project.tags);
 const media = project.images.length > 0 ? project.images : [{ kind: 'image', url: project.cover_image, caption: project.title }];

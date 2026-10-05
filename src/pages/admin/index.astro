@@ -2,31 +2,32 @@
 import Admin from '../../layouts/Admin.astro';
 import Icon from '../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
-import { adminStats, listRecentOrders } from '../../lib/db';
+import { getDashboardStats } from '../../lib/db';
 import { formatINR, formatDateTime } from '../../lib/format';
-import { razorpayConfigured } from '../../lib/razorpay';
 import { turnstileEnabled } from '../../lib/turnstile';
-import { emailEnabled } from '../../lib/email';
 
-const stats = await adminStats(env.DB);
-const recent = (await listRecentOrders(env.DB, 6)).filter((o) => o.status === 'paid');
-
-const checklist = [
-  { ok: razorpayConfigured(env), label: 'Razorpay payments', hint: 'Set RAZORPAY_* secrets and RAZORPAY_ENABLED=true' },
-  { ok: turnstileEnabled(env), label: 'Turnstile bot protection', hint: 'Set TURNSTILE_* secrets and TURNSTILE_ENABLED=true' },
-  { ok: emailEnabled(env), label: 'Email (receipts + magic links)', hint: 'Set EMAIL_ENABLED=true, BREVO_API_KEY and FROM_EMAIL' },
-  { ok: !!env.SESSION_SECRET && env.SESSION_SECRET.length > 20, label: 'Session secret', hint: 'Set a long random SESSION_SECRET' },
-];
+const days = parseInt(Astro.url.searchParams.get('days') || '30', 10);
+const stats = await getDashboardStats(env.DB, days);
 
 const cards = [
-  { label: 'Projects', value: stats.projects, sub: `${stats.published} published`, icon: 'cpu', href: '/admin/projects' },
-  { label: 'Paid orders', value: stats.orders, sub: 'all time', icon: 'cart', href: '/admin/orders' },
-  { label: 'Revenue', value: formatINR(stats.revenue), sub: 'gross', icon: 'bolt', href: '/admin/orders' },
-  { label: 'Messages', value: stats.unreadMessages, sub: 'unread', icon: 'mail', href: '/admin/messages' },
+  { label: 'Net Revenue', value: formatINR(stats.revenue), sub: 'excl test/refunds', icon: 'bolt', href: '/admin/orders' },
+  { label: 'Paid Orders', value: stats.orders, sub: 'completed', icon: 'cart', href: '/admin/orders?status=paid' },
+  { label: 'Conversion', value: stats.conversion.toFixed(1) + '%', sub: 'pending to paid', icon: 'bar-chart-2', href: '/admin/orders' },
 ];
 ---
 
 <Admin title="Dashboard" active="dashboard">
+  <div class="orders-head" style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+    <h2>Dashboard</h2>
+    <div class="filter-tabs">
+      {[7, 30, 0].map((d) => (
+        <a href={`/admin?days=${d}`} class:list={['filter-tab', { 'is-active': days === d }]}>
+          {d === 0 ? 'All-Time' : `${d}D`}
+        </a>
+      ))}
+    </div>
+  </div>
+
   <div class="stat-grid">
     {cards.map((c) => (
       <a href={c.href} class="stat-card">
@@ -38,78 +39,77 @@ const cards = [
     ))}
   </div>
 
-  <div class="dash-grid">
-    <section class="dash-panel">
-      <div class="dash-panel__head">
-        <h2>Recent orders</h2>
-        <a href="/admin/orders" class="link-more">View all <Icon name="arrow-right" size={14} /></a>
-      </div>
-      {recent.length > 0 ? (
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>Project</th><th>Email</th><th>Amount</th><th>When</th></tr></thead>
-            <tbody>
-              {recent.map((o) => (
-                <tr>
-                  <td>{o.project_title}</td>
-                  <td class="mono dim">{o.email}</td>
-                  <td>{formatINR(o.amount_inr)}</td>
-                  <td class="dim">{formatDateTime(o.paid_at || o.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  <div class="dash-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+    
+    <!-- Left Column -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <section class="dash-panel card-table">
+        <div class="dash-panel__head" style="padding: 1rem; border-bottom: 1px solid var(--border);">
+          <h3 style="font-size: 1.1rem;"><Icon name="star" size={16} /> Top Projects</h3>
         </div>
-      ) : (
-        <p class="dim">No paid orders yet. They'll appear here as customers buy combos.</p>
-      )}
-    </section>
+        <table class="admin-table">
+          <thead><tr><th>Project</th><th>Sales</th><th>Revenue</th></tr></thead>
+          <tbody>
+            {stats.topProjects.map((p) => (
+              <tr>
+                <td style="font-weight: 500;">{p.title}</td>
+                <td>{p.sales}</td>
+                <td style="color: var(--success);">{formatINR(p.revenue)}</td>
+              </tr>
+            ))}
+            {stats.topProjects.length === 0 && <tr><td colspan="3" class="dim" style="text-align: center;">No data for this period.</td></tr>}
+          </tbody>
+        </table>
+      </section>
 
-    <section class="dash-panel">
-      <div class="dash-panel__head"><h2>Setup checklist</h2></div>
-      <ul class="checklist">
-        {checklist.map((c) => (
-          <li class:list={['checklist__item', { 'is-ok': c.ok }]}>
-            <Icon name={c.ok ? 'check-circle' : 'lock'} size={18} />
-            <div>
-              <strong>{c.label}</strong>
-              {!c.ok && <span class="dim">{c.hint}</span>}
-            </div>
-          </li>
-        ))}
-      </ul>
-      <a href="/admin/projects/new" class="btn btn-primary btn-block" style="margin-top:1.25rem">
-        <Icon name="spark" size={16} /> Create a project
-      </a>
-    </section>
+      <section class="dash-panel card-table" style="background: var(--surface-2); padding: 1.5rem; border-radius: var(--r-md); border: 1px solid var(--border);">
+        <h3 style="font-size: 1.1rem; margin-bottom: 1rem;"><Icon name="activity" size={16} /> System Health</h3>
+        <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+          <li><strong>Turnstile:</strong> {turnstileEnabled(env) ? <span style="color: var(--success);">Active</span> : <span class="dim">Disabled</span>}</li>
+          <li><strong>Last Webhook:</strong> {stats.health.webhook}</li>
+          <li><strong>Last Email:</strong> {stats.health.email}</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Right Column -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <section class="dash-panel card-table">
+        <div class="dash-panel__head" style="padding: 1rem; border-bottom: 1px solid var(--border); background: rgba(245, 158, 11, 0.05);">
+          <h3 style="font-size: 1.1rem; color: #d97706;"><Icon name="alert-circle" size={16} /> Needs Attention</h3>
+        </div>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {stats.attention.map((a) => (
+            <li style="border-bottom: 1px solid var(--hairline); padding: 0.75rem 1rem;">
+              <a href={a.link} style="display: flex; justify-content: space-between; align-items: center; color: var(--text); text-decoration: none;">
+                <div>
+                  <span class="status" style="margin-right: 0.5rem; background: var(--surface-3);">{a.type}</span>
+                  <span>{a.title}</span>
+                </div>
+                <Icon name="chevron-right" size={16} class="dim" />
+              </a>
+            </li>
+          ))}
+          {stats.attention.length === 0 && <li style="padding: 1rem; text-align: center;" class="dim">All good! Nothing needs attention.</li>}
+        </ul>
+      </section>
+    </div>
   </div>
 </Admin>
 
 <style>
-  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-  .stat-card { padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); transition: border-color 0.2s, transform 0.2s; }
-  .stat-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
-  .stat-card__icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-sm); background: rgba(231,36,42,0.12); color: var(--brand-red); margin-bottom: 0.85rem; }
-  .stat-card__value { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; line-height: 1; }
-  .stat-card__label { margin-top: 0.35rem; font-weight: 550; }
-  .stat-card__sub { font-size: var(--fs-xs); }
-
-  .dash-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.25rem; }
-  .dash-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.5rem; }
-  .dash-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
-  .dash-panel__head h2 { font-size: var(--fs-md); }
-  .link-more { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--fs-sm); color: var(--brand-red); }
-
-  .admin-table { width: 100%; border-collapse: collapse; min-width: 460px; }
-  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
-  .admin-table td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
-
-  .checklist { display: flex; flex-direction: column; gap: 0.75rem; }
-  .checklist__item { display: flex; gap: 0.7rem; align-items: flex-start; color: var(--warning); }
-  .checklist__item.is-ok { color: var(--success); }
-  .checklist__item div { display: flex; flex-direction: column; }
-  .checklist__item strong { color: var(--text); font-weight: 550; font-size: var(--fs-sm); }
-  .checklist__item .dim { font-size: var(--fs-xs); }
-
-  @media (max-width: 1000px) { .stat-grid { grid-template-columns: 1fr 1fr; } .dash-grid { grid-template-columns: 1fr; } }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+  .stat-card { display: flex; flex-direction: column; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s; }
+  .stat-card:hover { border-color: var(--brand-red); transform: translateY(-2px); }
+  .stat-card__icon { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; color: var(--text-muted); margin-bottom: 1rem; }
+  .stat-card__value { font-family: var(--font-display); font-size: 1.8rem; font-weight: 600; line-height: 1; margin-bottom: 0.25rem; }
+  .stat-card__label { font-weight: 500; font-size: var(--fs-sm); }
+  .filter-tabs { display: flex; gap: 0.35rem; }
+  .filter-tab { padding: 0.4rem 0.85rem; border-radius: var(--r-full); border: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-sm); text-transform: capitalize; text-decoration: none; }
+  .filter-tab.is-active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
+  .card-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; }
+  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+  .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
+  .status { padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); text-transform: uppercase; }
 </style>

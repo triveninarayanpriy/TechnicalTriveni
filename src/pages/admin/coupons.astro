@@ -1,0 +1,107 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { formatDateTime } from '../../lib/format';
+
+interface Coupon {
+  id: number;
+  code: string;
+  discount_pct: number;
+  discount_inr: number;
+  max_uses: number;
+  used: number;
+  expires_at: number;
+  created_at: number;
+}
+
+const coupons = await env.DB.prepare('SELECT * FROM coupons ORDER BY created_at DESC').all<Coupon>();
+const csrf = Astro.locals.csrfToken;
+---
+
+<Admin title="Coupons" active="coupons">
+  <div class="dash-grid">
+    
+    <!-- Left: List of coupons -->
+    <section class="dash-panel card-table">
+      <div class="dash-panel__head" style="padding: 1.25rem; border-bottom: 1px solid var(--border);">
+        <h2 style="font-size: 1.2rem;">Active Coupons</h2>
+      </div>
+      <table class="admin-table">
+        <thead>
+          <tr><th>Code</th><th>Discount</th><th>Uses</th><th>Expires</th><th></th></tr>
+        </thead>
+        <tbody>
+          {coupons.results?.map(c => (
+            <tr>
+              <td><span class="status" style="background: var(--surface-3); font-size: 0.9rem;">{c.code}</span></td>
+              <td>
+                {c.discount_pct > 0 ? `${c.discount_pct}% OFF` : `A${c.discount_inr} OFF`}
+              </td>
+              <td>{c.used} {c.max_uses > 0 ? `/ ${c.max_uses}` : '(Unlimited)'}</td>
+              <td class="dim">{c.expires_at ? formatDateTime(c.expires_at) : 'Never'}</td>
+              <td class="row-actions">
+                <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={c.id} />
+                  <button type="submit" class="btn btn-ghost btn-xs" style="color: var(--brand-red);"><Icon name="x" size={14} /></button>
+                </form>
+              </td>
+            </tr>
+          ))}
+          {!coupons.results?.length && <tr><td colspan="5" class="dim" style="text-align:center; padding: 2rem;">No coupons found. Create one.</td></tr>}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Right: Create form -->
+    <section class="dash-panel card-table" style="align-self: start;">
+      <div class="dash-panel__head" style="padding: 1.25rem; border-bottom: 1px solid var(--border);">
+        <h2 style="font-size: 1.2rem;">Create Coupon</h2>
+      </div>
+      <form method="post" action="/api/admin/coupon/save" class="panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+        <input type="hidden" name="csrf" value={csrf} />
+        
+        <div class="field">
+          <label class="label">Coupon Code *</label>
+          <input class="input" type="text" name="code" required placeholder="e.g. DIWALI50" style="text-transform: uppercase;" />
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label class="label">Discount (%)</label>
+            <input class="input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
+          </div>
+          <div class="field">
+            <label class="label">Discount (INR)</label>
+            <input class="input" type="number" name="discount_inr" min="0" placeholder="0" />
+          </div>
+        </div>
+        <span class="field-hint">Specify EITHER a percentage OR a fixed amount.</span>
+
+        <div class="field" style="margin-top: 0.5rem;">
+          <label class="label">Max Uses</label>
+          <input class="input" type="number" name="max_uses" min="0" placeholder="0 (Unlimited)" />
+        </div>
+
+        <div class="field">
+          <label class="label">Expiry Date (Optional)</label>
+          <input class="input" type="datetime-local" name="expires_at" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">Create Coupon</button>
+      </form>
+    </section>
+
+  </div>
+</Admin>
+
+<style>
+  .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+  @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+  .card-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+  .admin-table { width: 100%; border-collapse: collapse; }
+  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+  .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
+  .status { padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.05em; }
+</style>

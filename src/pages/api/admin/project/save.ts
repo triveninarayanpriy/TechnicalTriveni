@@ -77,6 +77,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (data.published === 1) {
     const missing: string[] = [];
     if (!data.summary) missing.push('a summary');
+    if (data.combo_enabled === 1 && data.price_inr <= 0) missing.push('a valid price (combo pack is enabled)');
     const riskText = `${data.title} ${data.summary} ${data.tags} ${data.category} ${data.description}`;
     if (RISK_RE.test(riskText) && !data.safety_note) missing.push('a safety note (this looks like a mains/battery/motor build)');
     if (missing.length) {
@@ -91,6 +92,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   if (id > 0) {
+    const oldProject = await getProjectById(env.DB, id);
+    if (oldProject && oldProject.published === 1 && oldProject.slug !== data.slug) {
+      await env.DB.prepare('INSERT OR REPLACE INTO redirects (old_path, new_path) VALUES (?, ?)').bind(`/projects/${oldProject.slug}`, `/projects/${data.slug}`).run();
+    }
     await updateProject(env.DB, id, data);
     return flashRedirect(`/admin/projects/${id}`, { ok: 'Project saved.' });
   }

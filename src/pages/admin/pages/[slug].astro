@@ -12,6 +12,9 @@ const page = (await getPage(env.DB, slug)) || {
   title: slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
   content_md: '',
   image_url: '',
+  published: 0,
+  meta_title: '',
+  meta_description: ''
 };
 const csrf = Astro.locals.csrfToken;
 ---
@@ -29,7 +32,13 @@ const csrf = Astro.locals.csrfToken;
 
       <div class="editor-form__head" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
         <h2 style="font-size: 1.25rem; font-weight: 600;">{page.slug === 'about' ? 'Edit About Page' : page.slug === 'contact' ? 'Edit Contact Page' : 'Edit How It Works'}</h2>
-        <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> Save Changes</button>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+            <input type="checkbox" name="published" value="1" checked={page.published === 1} />
+            Published
+          </label>
+          <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> Save Changes</button>
+        </div>
       </div>
 
       <div class="field">
@@ -46,6 +55,20 @@ const csrf = Astro.locals.csrfToken;
         <textarea class="textarea" id="content_md" name="content_md" rows="20" style="font-family:var(--font-mono); font-size:13px; line-height:1.6; min-height: 400px;" required>{page.content_md}</textarea>
         <span class="field-hint">Supports full Markdown formatting (headers, bold, links, lists).</span>
       </div>
+
+      <div style="margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+        <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">SEO Settings</h3>
+        <div class="field">
+          <label class="label" for="meta_title">Meta Title</label>
+          <input class="input" id="meta_title" name="meta_title" value={page.meta_title} />
+          <span class="field-hint">Optional. Overrides the default page title in search results.</span>
+        </div>
+        <div class="field" style="margin-top: 1rem;">
+          <label class="label" for="meta_description">Meta Description</label>
+          <textarea class="textarea" id="meta_description" name="meta_description" rows="3">{page.meta_description}</textarea>
+          <span class="field-hint">Brief description shown in search results and social shares.</span>
+        </div>
+      </div>
     </form>
 
     {page.slug === 'about' && (
@@ -54,6 +77,9 @@ const csrf = Astro.locals.csrfToken;
         <input type="hidden" name="slug" value={page.slug} />
         <input type="hidden" name="title" value={page.title} />
         <input type="hidden" name="content_md" value={page.content_md} />
+        <input type="hidden" name="published" value={page.published} />
+        <input type="hidden" name="meta_title" value={page.meta_title || ''} />
+        <input type="hidden" name="meta_description" value={page.meta_description || ''} />
         
         <div class="editor-form__head" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
           <h2 style="font-size: 1.25rem; font-weight: 600;">Profile Photo</h2>

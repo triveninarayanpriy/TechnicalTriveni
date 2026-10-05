@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { addContactMessage } from '../../lib/db';
 import { verifyCsrf, rateLimit, clientIp } from '../../lib/auth';
 import { verifyTurnstile } from '../../lib/turnstile';
+import { sendEmail } from '../../lib/email';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const redirect = (to: string) => new Response(null, { status: 303, headers: { Location: to } });
@@ -41,5 +42,21 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   await addContactMessage(env.DB, { name, email, subject, message });
+
+  const ackHtml = `
+    <p>Hi ${name},</p>
+    <p>Thank you for reaching out to Technical Triveni!</p>
+    <p>We have received your message regarding "<strong>${subject || 'Your inquiry'}</strong>" and will get back to you as soon as possible.</p>
+    <br/>
+    <p>Best regards,</p>
+    <p>Technical Triveni Team</p>
+  `;
+
+  await sendEmail(env, {
+    to: email,
+    subject: `Re: ${subject || 'Your inquiry'} - Received`,
+    html: ackHtml
+  });
+
   return redirect('/contact?sent=1');
 };

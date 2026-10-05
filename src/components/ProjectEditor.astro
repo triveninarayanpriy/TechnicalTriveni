@@ -13,6 +13,29 @@ const { project, csrf, components = [] } = Astro.props;
 const p = project;
 const isNew = !p;
 const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
+
+const isPaid = p?.combo_enabled === 1;
+const hasCover = p?.images && p.images.length > 0;
+const hasPrice = p?.price_inr && p.price_inr > 0;
+const hasBom = p?.bom && p.bom.length > 0;
+
+const missingPublishChecks = [];
+if (!isNew) {
+  if (!hasCover) missingPublishChecks.push('Cover image missing');
+  if (isPaid && !hasPrice) missingPublishChecks.push('Price missing for paid combo');
+  if (isPaid && !hasBom) missingPublishChecks.push('BOM is empty for paid combo');
+}
+
+let showStalePriceWarning = false;
+if (p?.cost_checked) {
+  const checkDate = new Date(p.cost_checked);
+  if (!isNaN(checkDate.getTime())) {
+    const daysOld = (new Date().getTime() - checkDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysOld > 60) {
+      showStalePriceWarning = true;
+    }
+  }
+}
 ---
 
 <div class="editor">
@@ -21,9 +44,23 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
     <input type="hidden" name="csrf" value={csrf} />
     {p && <input type="hidden" name="id" value={p.id} />}
 
-    <div class="editor-form__head">
-      <h2>{isNew ? 'New project' : 'Project details'}</h2>
-      <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> {isNew ? 'Create project' : 'Save changes'}</button>
+    <div class="editor-save-bar" style="position: sticky; top: 0; z-index: 100; background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 1rem; display: flex; justify-content: space-between; align-items: center; margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-radius: var(--r-md) var(--r-md) 0 0;">
+      <div class="action-bar-left" style="display: flex; gap: 0.5rem; align-items: center;">
+        <h2 style="font-size: var(--fs-md); margin-right: 1rem;">{isNew ? 'New project' : 'Project details'}</h2>
+        {!isNew && <button type="button" class="btn btn-ghost btn-xs"><Icon name="copy" size={14} /> Duplicate</button>}
+        {!isNew && <button type="button" class="btn btn-ghost btn-xs"><Icon name="archive" size={14} /> Archive</button>}
+        {!isNew && <button type="button" class="btn btn-ghost btn-xs"><Icon name="history" size={14} /> History</button>}
+      </div>
+      <div class="action-bar-right" style="display: flex; gap: 0.75rem; align-items: center;">
+        {missingPublishChecks.length > 0 && (
+          <div class="publish-checks" style="font-size: 0.8rem; color: var(--danger); display: flex; align-items: center; gap: 0.25rem;" title={missingPublishChecks.join(', ')}>
+            <Icon name="alert-circle" size={14} /> Cannot Publish ({missingPublishChecks.length})
+          </div>
+        )}
+        <button type="submit" name="action" value="draft" class="btn btn-ghost"><Icon name="save" size={16} /> Save Draft</button>
+        {p && <a href={`/projects/${p.slug}`} target="_blank" class="btn btn-ghost"><Icon name="external" size={14} /> Preview</a>}
+        <button type="submit" name="action" value="publish" class="btn btn-primary" disabled={missingPublishChecks.length > 0} title={missingPublishChecks.join(', ')}><Icon name="send" size={16} /> Publish</button>
+      </div>
     </div>
 
     <div class="grid-2">
@@ -46,35 +83,27 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
     <div class="field">
       
       <div class="field">
-        <label class="label" for="layout_version">Layout Version</label>
-        <select class="select" id="layout_version" name="layout_version">
-          <option value="1" selected={(!p?.layout_version || p.layout_version === 1)}>Legacy Layout (v1)</option>
-          <option value="2" selected={p?.layout_version === 2}>Structured Layout (v2)</option>
-        </select>
-      </div>
-      
-      <div class="field">
-        <label class="label" for="prereqs_json">Prerequisites (JSON Array)</label>
-        <textarea class="textarea" id="prereqs_json" name="prereqs_json">{val(p?.prereqs_json) || '[]'}</textarea>
+        <label class="label">Prerequisites</label>
+        <div class="list-editor" data-name="prereqs_json" data-type="string" data-value={val(p?.prereqs_json) || '[]'}></div>
       </div>
 
       <div class="field">
-        <label class="label" for="not_included_json">Not Included (JSON Array)</label>
-        <textarea class="textarea" id="not_included_json" name="not_included_json">{val(p?.not_included_json) || '[]'}</textarea>
+        <label class="label">Not Included</label>
+        <div class="list-editor" data-name="not_included_json" data-type="string" data-value={val(p?.not_included_json) || '[]'}></div>
       </div>
 
       <div class="field">
-        <label class="label" for="outcomes_json">What you will learn / Outcomes (JSON Array)</label>
-        <textarea class="textarea" id="outcomes_json" name="outcomes_json">{val(p?.outcomes_json) || '[]'}</textarea>
+        <label class="label">What you will learn / Outcomes</label>
+        <div class="list-editor" data-name="outcomes_json" data-type="string" data-value={val(p?.outcomes_json) || '[]'}></div>
       </div>
 
       <div class="field">
-        <label class="label" for="faq_json">FAQ (JSON Array of &#123;q, a&#125; objects)</label>
-        <textarea class="textarea" id="faq_json" name="faq_json">{val(p?.faq_json) || '[]'}</textarea>
+        <label class="label">FAQ</label>
+        <div class="list-editor" data-name="faq_json" data-type="faq" data-value={val(p?.faq_json) || '[]'}></div>
       </div>
 
       <label class="label" for="description">Description (Markdown) - Used for v1 or as intro for v2</label>
-      <textarea class="textarea editor-desc" id="description" name="description" placeholder="## What you'll build…">{val(p?.description)}</textarea>
+      <textarea class="textarea editor-desc" id="description" name="description" placeholder="## What you'll build…" data-markdown>{val(p?.description)}</textarea>
       <span class="field-hint">Supports Markdown: ## headings, **bold**, lists, `code`, links.</span>
     </div>
 
@@ -120,6 +149,11 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
         <input class="input" id="outcome_line" name="outcome_line" maxlength="240" placeholder="₹800 me phone se chalne wala home automation system" value={val(p?.outcome_line)} />
         <span class="field-hint">One concrete result shown under the title.</span>
       </div>
+      {showStalePriceWarning && (
+        <div class="stale-warning" style="background: rgba(245, 158, 11, 0.1); color: #d97706; padding: 0.75rem; border: 1px solid #d97706; border-radius: var(--r-sm); margin-bottom: 1rem;">
+          <Icon name="alert-triangle" size={16} /> <strong>Stale Price Warning:</strong> Cost checked date is older than 60 days. Please verify prices.
+        </div>
+      )}
       <div class="grid-3">
         <div class="field">
           <label class="label" for="est_cost">Approx build cost</label>
@@ -140,12 +174,12 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
       </div>
       <div class="field">
         <label class="label" for="safety_note">Safety note (Markdown) — required for mains / battery / motor builds</label>
-        <textarea class="textarea" id="safety_note" name="safety_note" placeholder="This project uses 230V AC mains. Work with power off…">{val(p?.safety_note)}</textarea>
+        <textarea class="textarea" id="safety_note" name="safety_note" placeholder="This project uses 230V AC mains. Work with power off…" data-markdown data-templates="safety">{val(p?.safety_note)}</textarea>
         <span class="field-hint">Shown as a red safety callout at the top of the build.</span>
       </div>
       <div class="field">
         <label class="label" for="credits">Credits &amp; attributions (Markdown)</label>
-        <textarea class="textarea" id="credits" name="credits" placeholder="Library X by … (MIT). Wiring based on …">{val(p?.credits)}</textarea>
+        <textarea class="textarea" id="credits" name="credits" placeholder="Library X by … (MIT). Wiring based on …" data-markdown>{val(p?.credits)}</textarea>
       </div>
     </fieldset>
 
@@ -153,12 +187,12 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
       <legend>Search &amp; social (SEO)</legend>
       <p class="field-hint" style="margin-top:-0.25rem">Leave blank to auto-use the title, summary and cover image.</p>
       <div class="field">
-        <label class="label" for="meta_title">Meta title</label>
+        <label class="label" for="meta_title">Meta title <span id="meta-title-count" class="dim mono" style="float:right">(0/60)</span></label>
         <input class="input" id="meta_title" name="meta_title" maxlength="70" placeholder={val(p?.title) || 'Defaults to the project title'} value={val(p?.meta_title)} />
         <span class="field-hint">~60 characters shows best in Google.</span>
       </div>
       <div class="field">
-        <label class="label" for="meta_description">Meta description</label>
+        <label class="label" for="meta_description">Meta description <span id="meta-desc-count" class="dim mono" style="float:right">(0/160)</span></label>
         <textarea class="textarea" id="meta_description" name="meta_description" maxlength="180" placeholder="Defaults to the summary">{val(p?.meta_description)}</textarea>
         <span class="field-hint">~155 characters. This is the snippet under your link in search results.</span>
       </div>
@@ -173,7 +207,7 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
       <div class="grid-2">
         <div class="field">
           <label class="label" for="price_inr">Price (₹)</label>
-          <input class="input" id="price_inr" name="price_inr" type="number" min="0" step="1" value={val(p?.price_inr ?? 0)} />
+          <input class="input" id="price_inr" name="price_inr" type="number" min="0" step="1" value={p?.price_inr > 0 ? p.price_inr : ''} />
         </div>
         <div class="field">
           <label class="label" for="combo_title">Combo title</label>
@@ -207,10 +241,7 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
       </div>
     </div>
 
-    <div class="editor-form__foot">
-      <button type="submit" class="btn btn-primary btn-lg"><Icon name="check" size={16} /> {isNew ? 'Create project' : 'Save changes'}</button>
-      {p && <a href={`/projects/${p.slug}`} target="_blank" class="btn btn-ghost">Preview <Icon name="external" size={14} /></a>}
-    </div>
+    <!-- bottom buttons removed in favor of sticky action bar -->
   </form>
 
   {p && (
@@ -233,7 +264,10 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
         <p class="dim child-lead">Upload photos and <span class="mono">.glb / .gltf</span> 3D files together. Reorder with the arrows — the <strong>first item is the cover thumbnail</strong>, and if it’s a 3D file it shows as the rotatable showcase.</p>
 
         <div class="media-list">
-          {p.images.map((img, i) => (
+          {p.images.map((img, i) => {
+            const isUnused = img.kind !== 'cover' && img.kind !== 'model' && !(p.description?.includes(img.url)) && !(p.safety_note?.includes(img.url));
+            const displayName = img.url.split('/').pop()?.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-/, '') || '';
+            return (
             <div class:list={['media-item', { 'media-item--lead': i === 0 }]}>
               <div class="media-item__preview">
                 {img.kind === 'model' ? (
@@ -244,13 +278,30 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
                 {i === 0 && <span class="media-item__lead-tag">{img.kind === 'model' ? '3D showcase' : 'Thumbnail'}</span>}
               </div>
               <div class="media-item__body">
-                <span class:list={['kind-badge', img.kind === 'model' ? 'kind-badge--3d' : 'kind-badge--img']}>
-                  {img.kind === 'model' ? '3D model' : 'Photo'}
-                </span>
-                <span class="dim mono media-item__name">{img.url.split('/').pop()}</span>
-                {img.caption && <span class="dim media-item__cap">{img.caption}</span>}
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <span class:list={['kind-badge', img.kind === 'model' ? 'kind-badge--3d' : (img.kind === 'cover' ? 'kind-badge--cover' : 'kind-badge--img')]}>
+                    {img.kind === 'model' ? '3D model' : (img.kind === 'cover' ? 'Cover' : 'Photo')}
+                  </span>
+                  {isUnused && <span class="mini-tag" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger);">Unused</span>}
+                </div>
+                <span class="dim mono media-item__name" title={img.url}>{displayName}</span>
+                <form method="post" action="/api/admin/media/update" style="margin-top: 0.25rem;">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={img.id} />
+                  <input type="hidden" name="project_id" value={p.id} />
+                  <input class="input input--sm" style="width: 100%; font-size: var(--fs-xs); padding: 0.2rem 0.4rem;" name="caption" value={img.caption || ''} placeholder="Alt text / caption..." onchange="this.form.submit()" />
+                </form>
               </div>
               <div class="media-item__ctrl">
+                {img.kind !== 'cover' && img.kind !== 'model' && (
+                  <form method="post" action="/api/admin/media/update" class="inline-form">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={img.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <input type="hidden" name="kind" value="cover" />
+                    <button class="ctrl-btn" style="color: var(--brand-red);" type="submit" title="Set as Cover"><Icon name="image" size={15} /></button>
+                  </form>
+                )}
                 <form method="post" action="/api/admin/project/action" class="inline-form">
                   <input type="hidden" name="csrf" value={csrf} />
                   <input type="hidden" name="id" value={p.id} />
@@ -273,7 +324,7 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
                 </form>
               </div>
             </div>
-          ))}
+          )})}
           {p.images.length === 0 && <p class="dim">No media yet — add photos or 3D files below.</p>}
         </div>
 
@@ -758,6 +809,7 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
   .media-item__cap { font-size: var(--fs-xs); }
   .kind-badge { align-self: flex-start; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.45rem; border-radius: var(--r-full); }
   .kind-badge--img { background: var(--surface-3); color: var(--text-muted); }
+  .kind-badge--cover { background: rgba(52,211,153,0.15); color: var(--success); }
   .kind-badge--3d { background: rgba(231,36,42,0.14); color: var(--brand-red); }
   .media-item__ctrl { display: flex; gap: 4px; flex-shrink: 0; }
   .ctrl-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
@@ -787,6 +839,39 @@ const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 </style>
 
 <script>
+  // Unsaved changes guard
+  let formChanged = false;
+  document.querySelectorAll('.editor-form input, .editor-form textarea, .editor-form select').forEach(el => {
+    el.addEventListener('change', () => formChanged = true);
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (formChanged) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+  const mainForm = document.querySelector('.editor-form');
+  if (mainForm) {
+    mainForm.addEventListener('submit', () => formChanged = false);
+  }
+
+  // SEO Tab counters
+  const metaTitle = document.getElementById('meta_title');
+  const metaTitleCount = document.getElementById('meta-title-count');
+  if (metaTitle && metaTitleCount) {
+    const updateTitleCount = () => { metaTitleCount.textContent = `(${metaTitle.value.length}/60)`; };
+    metaTitle.addEventListener('input', updateTitleCount);
+    updateTitleCount();
+  }
+
+  const metaDesc = document.getElementById('meta_description');
+  const metaDescCount = document.getElementById('meta-desc-count');
+  if (metaDesc && metaDescCount) {
+    const updateDescCount = () => { metaDescCount.textContent = `(${metaDesc.value.length}/160)`; };
+    metaDesc.addEventListener('input', updateDescCount);
+    updateDescCount();
+  }
+
   // Auto-suggest slug from title for new projects (only if slug is empty).
   const title = document.querySelector('[data-title]') as HTMLInputElement | null;
   const slug = document.querySelector('[data-slug]') as HTMLInputElement | null;
@@ -899,4 +984,190 @@ if (fileUploadInput && fileLabelInput) {
     }
   });
 }
+
+  // --- Compute BOM Total ---
+  const bomRows = document.querySelectorAll('.bom-row');
+  let computedTotal = 0;
+  bomRows.forEach(row => {
+    const qtyInput = row.querySelector('input[name="qty"]');
+    const priceInput = row.querySelector('input[name="unit_price_inr"]');
+    if (qtyInput && priceInput) {
+      const qtyStr = qtyInput.value;
+      let qty = 1;
+      const m = qtyStr.match(/\d+/);
+      if (m) qty = parseInt(m[0], 10);
+      const price = parseInt(priceInput.value || '0', 10);
+      if (!isNaN(price) && price > 0) computedTotal += (price * qty);
+    }
+  });
+  const compLabel = document.getElementById('computed-cost');
+  if (compLabel && computedTotal > 0) {
+    compLabel.textContent = '(Auto sum: ₹' + computedTotal + ')';
+  }
+
+  // --- List Editor ---
+  document.querySelectorAll(".list-editor").forEach(el => {
+    const name = el.dataset.name;
+    const type = el.dataset.type;
+    let items = [];
+    try { items = JSON.parse(el.dataset.value || "[]"); } catch { items = []; }
+    if (!Array.isArray(items)) items = [];
+    
+    const hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = name;
+    el.appendChild(hidden);
+    
+    const container = document.createElement("div");
+    container.className = "list-editor-items";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.gap = "0.5rem";
+    container.style.marginBottom = "0.75rem";
+    el.appendChild(container);
+    
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn btn-ghost btn-xs";
+    addBtn.textContent = "+ Add Item";
+    el.appendChild(addBtn);
+    
+    const updateHidden = () => { hidden.value = JSON.stringify(items); };
+    
+    const render = () => {
+      container.innerHTML = "";
+      items.forEach((item, i) => {
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.gap = "0.5rem";
+        row.style.alignItems = "flex-start";
+        
+        if (type === "faq") {
+          const col = document.createElement("div");
+          col.style.flex = "1";
+          col.style.display = "flex";
+          col.style.flexDirection = "column";
+          col.style.gap = "0.25rem";
+          
+          const qInput = document.createElement("input");
+          qInput.className = "input";
+          qInput.placeholder = "Question";
+          qInput.value = item.q || "";
+          qInput.oninput = (e) => { items[i].q = e.target.value; updateHidden(); };
+          
+          const aInput = document.createElement("textarea");
+          aInput.className = "textarea";
+          aInput.placeholder = "Answer";
+          aInput.value = item.a || "";
+          aInput.style.minHeight = "60px";
+          aInput.oninput = (e) => { items[i].a = e.target.value; updateHidden(); };
+          
+          col.appendChild(qInput);
+          col.appendChild(aInput);
+          row.appendChild(col);
+        } else {
+          const input = document.createElement("input");
+          input.className = "input";
+          input.style.flex = "1";
+          input.value = item || "";
+          input.oninput = (e) => { items[i] = e.target.value; updateHidden(); };
+          row.appendChild(input);
+        }
+        
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn btn-ghost btn-xs btn-danger";
+        delBtn.textContent = "x";
+        delBtn.onclick = () => { items.splice(i, 1); updateHidden(); render(); };
+        row.appendChild(delBtn);
+        
+        container.appendChild(row);
+      });
+      updateHidden();
+    };
+    
+    addBtn.onclick = () => {
+      items.push(type === "faq" ? {q:"", a:""} : "");
+      updateHidden();
+      render();
+    };
+    
+    render();
+  });
+
+  // --- Markdown Toolbar ---
+  document.querySelectorAll("textarea[data-markdown]").forEach(textarea => {
+    const wrap = document.createElement("div");
+    wrap.style.display = "flex";
+    wrap.style.flexDirection = "column";
+    wrap.style.gap = "0.25rem";
+    textarea.parentNode.insertBefore(wrap, textarea);
+    wrap.appendChild(textarea);
+    
+    const tb = document.createElement("div");
+    tb.className = "markdown-toolbar";
+    tb.style.display = "flex";
+    tb.style.gap = "0.25rem";
+    tb.style.padding = "0.25rem";
+    tb.style.background = "var(--bg-2)";
+    tb.style.border = "1px solid var(--border)";
+    tb.style.borderBottom = "none";
+    tb.style.borderTopLeftRadius = "var(--r-sm)";
+    tb.style.borderTopRightRadius = "var(--r-sm)";
+    
+    // adjust textarea styles
+    textarea.style.borderTopLeftRadius = "0";
+    textarea.style.borderTopRightRadius = "0";
+    
+    const insert = (prefix, suffix) => {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const before = text.substring(0, start);
+      const after = text.substring(end);
+      const sel = text.substring(start, end);
+      textarea.value = before + prefix + sel + suffix + after;
+      textarea.selectionStart = start + prefix.length;
+      textarea.selectionEnd = start + prefix.length + sel.length;
+      textarea.focus();
+    };
+    
+    const mkBtn = (label, pref, suf) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn btn-ghost btn-xs";
+      b.textContent = label;
+      b.onclick = () => insert(pref, suf);
+      tb.appendChild(b);
+    };
+    
+    mkBtn("B", "**", "**");
+    mkBtn("I", "*", "*");
+    mkBtn("Link", "[", "](url)");
+    mkBtn("Code", "`", "`");
+    mkBtn("List", "- ", "");
+    
+    if (textarea.dataset.templates === "safety") {
+      const sel = document.createElement("select");
+      sel.className = "select select--sm";
+      sel.style.marginLeft = "auto";
+      sel.innerHTML = `<option value="">+ Template</option>
+        <option value="lipo">LiPo Warning</option>
+        <option value="mains">Mains Voltage</option>
+        <option value="motor">Motor/Propeller</option>`;
+      sel.onchange = (e) => {
+        const v = e.target.value;
+        if (!v) return;
+        let t = "";
+        if (v==="lipo") t = "**⚠️ LiPo Warning:** Use a proper balance charger and never leave charging batteries unattended.";
+        if (v==="mains") t = "**⚡ DANGER: HIGH VOLTAGE.** This project uses 230V AC mains. Ensure power is completely disconnected before touching any wiring.";
+        if (v==="motor") t = "**⚠️ SAFETY FIRST:** Always remove propellers before testing motors on the bench.";
+        insert(t, "");
+        sel.value = "";
+      };
+      tb.appendChild(sel);
+    }
+    
+    wrap.insertBefore(tb, textarea);
+  });
 </script>
