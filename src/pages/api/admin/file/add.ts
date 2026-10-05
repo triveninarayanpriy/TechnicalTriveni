@@ -20,6 +20,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!(file instanceof File) || file.size === 0) return flashRedirect(back, { err: 'Choose a file to upload.' });
 
   try {
+    const accessLevel = form.get('access_level') as string;
+    const is_free = accessLevel === 'free' ? 1 : checkbox(form, 'is_free');
+    const in_combo = accessLevel === 'combo' ? 1 : checkbox(form, 'in_combo');
+
     const up = await uploadToStore(env.BLOBS, file, `projects/${projectId}/files`);
     await addFile(env.DB, {
       project_id: projectId,
@@ -28,8 +32,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       r2_key: up.key,
       filename: up.filename,
       size_bytes: up.size,
-      is_free: checkbox(form, 'is_free'),
-      in_combo: checkbox(form, 'in_combo'),
+      is_free,
+      in_combo,
       sort: 0,
     });
     return flashRedirect(back, { ok: 'File uploaded.' });

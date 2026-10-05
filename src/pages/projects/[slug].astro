@@ -31,6 +31,8 @@ const hasModel = media.some(m => m.kind === 'model');
 const codeFiles = project.files.filter((f) => (f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch') && f.is_free === 1);
 const freeFiles = project.files.filter((f) => f.is_free === 1 && f.kind !== 'code' && f.kind !== 'hex' && f.kind !== 'sketch');
 const comboFiles = project.files.filter((f) => f.in_combo === 1);
+const allFreeFiles = [...codeFiles, ...freeFiles];
+const isSingleFreeFile = allFreeFiles.length === 1 && !project.code_repo_url;
 const kindLabel = (k: string) => FILE_KINDS.find((x) => x.key === k)?.label ?? 'File';
 const kindIcon = (k: string) => FILE_KINDS.find((x) => x.key === k)?.icon ?? 'file';
 const yt = youtubeId(project.video_url);
@@ -209,7 +211,14 @@ const jsonLd = {
                   </div>
                 </div>
                 <p class="cta-card__desc">All resources for this project are free to download.</p>
-                <a href="#downloads" class="btn btn-primary btn-block"><Icon name="download" size={15} /> Get files</a>
+                {isSingleFreeFile ? (
+                  <a href={`/api/download/free/${allFreeFiles[0].id}`} class="btn btn-primary btn-block" style="display:flex; flex-direction:column; padding: 0.5rem;" target="_blank" rel="noopener">
+                    <div style="display:flex; align-items:center; gap:0.4rem; justify-content:center;"><Icon name="download" size={15} /> Download file</div>
+                    {allFreeFiles[0].label && <span style="font-size:0.75rem; font-weight:normal; opacity:0.8; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{allFreeFiles[0].label}</span>}
+                  </a>
+                ) : (
+                  <a href="#downloads" class="btn btn-primary btn-block"><Icon name="download" size={15} /> Get files</a>
+                )}
                 {(project.code_repo_url || codeFiles.length > 0) && (
                   <a href="#code" class="btn btn-ghost btn-block"><Icon name="github" size={15} /> Source code</a>
                 )}
@@ -448,6 +457,8 @@ const jsonLd = {
       priceLabel={paid ? `Pack ${formatINR(project.price_inr)}` : 'Free'}
       comboTitle={project.combo_title}
       includedCount={comboFiles.length}
+      singleFileUrl={isSingleFreeFile ? `/api/download/free/${allFreeFiles[0].id}` : undefined}
+      singleFileLabel={isSingleFreeFile ? `Download file` : undefined}
     />
 
   </div>
