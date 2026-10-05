@@ -77,7 +77,19 @@ export function buildOrderEmail(order: Order, downloadUrl: string): { subject: s
       <p style="margin:0 0 22px">${button(safeUrl, 'Download your files')}</p>
       <p style="margin:0 0 8px;color:#5a6072;font-size:13px;line-height:1.6">This link is private to you &mdash; keep it safe.
       You can re-access all your downloads any time from <a href="https://www.technicaltriveni.me/account/downloads" style="color:${BRAND}">My downloads</a> using this email.</p>
-      <p style="margin:18px 0 0;color:#8a90a2;font-size:12px">Order ${order.id}</p>
+      
+        <div style="border-top:1px solid #e1e4e8;margin:24px 0;padding-top:24px;">
+          <p style="margin:0 0 8px;font-size:15px;font-weight:600">Rate this project</p>
+          <p style="margin:0 0 12px;color:#5a6072;font-size:13px;">Help others by rating this pack. Just one click!</p>
+          <p style="margin:0 0 16px;">
+            <a href="https://www.technicaltriveni.me/api/rate?order_id=${order.id}&rating=1" style="font-size:24px;text-decoration:none;margin-right:4px;">⭐</a>
+            <a href="https://www.technicaltriveni.me/api/rate?order_id=${order.id}&rating=2" style="font-size:24px;text-decoration:none;margin-right:4px;">⭐</a>
+            <a href="https://www.technicaltriveni.me/api/rate?order_id=${order.id}&rating=3" style="font-size:24px;text-decoration:none;margin-right:4px;">⭐</a>
+            <a href="https://www.technicaltriveni.me/api/rate?order_id=${order.id}&rating=4" style="font-size:24px;text-decoration:none;margin-right:4px;">⭐</a>
+            <a href="https://www.technicaltriveni.me/api/rate?order_id=${order.id}&rating=5" style="font-size:24px;text-decoration:none;">⭐</a>
+          </p>
+        </div>
+        <p style="margin:18px 0 0;color:#8a90a2;font-size:12px">Order ${order.id}</p>
     `),
   };
 }

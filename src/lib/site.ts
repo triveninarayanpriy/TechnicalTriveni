@@ -11,7 +11,7 @@ export const SITE = {
   /** Confluence metaphor: three streams meeting — the brand's core idea. */
   tagline: 'Where electronics, software, and AI converge.',
   description:
-    'Build real electronics projects the right way. Every project on Technical Triveni ships with full schematics, circuit diagrams, source code, 3D files, a complete bill of materials, and direct component links — plus optional done-for-you resource combos.',
+    'Build real electronics projects the right way. Every project on Technical Triveni ships with full schematics, circuit diagrams, source code, 3D files, a complete bill of materials, and direct component links — plus optional done-for-you resource packs.',
   /** Short one-liner for social cards. */
   ogDescription:
     'Full build details, schematics, code, and resources for electronics & tech projects — from the Technical Triveni channel.',
@@ -83,7 +83,7 @@ export const PROFILE = {
 export const NAV: { label: string; href: string }[] = [
   { label: 'Projects', href: '/projects' },
   { label: 'How it works', href: '/how-it-works' },
-  { label: 'My purchases', href: '/account/downloads' },
+  { label: 'My downloads', href: '/account/downloads' },
   { label: 'About', href: '/about' },
   { label: 'Contact', href: '/contact' },
 ];
@@ -109,6 +109,7 @@ export const FOOTER_LINKS: { title: string; links: { label: string; href: string
       { label: 'Affiliate Disclosure', href: '/legal/affiliate' },
       { label: 'Cookie Policy', href: '/legal/cookies' },
       { label: 'Refund Policy', href: '/legal/refund' },
+      { label: 'Digital Delivery', href: '/legal/digital-delivery' },
     ],
   },
 ];

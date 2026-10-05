@@ -138,6 +138,94 @@ const jsonLd = {
     </section>
   )}
 
+  
+  <!-- ===================== WHAT YOU GET ===================== -->
+  <section class="section" style="border-top: 1px solid var(--border);">
+    <div class="container">
+      <div class="section-head" data-reveal style="text-align: center; max-width: 600px; margin: 0 auto 3rem;">
+        <h2 style="font-size: 2rem; margin-bottom: 1rem;">What every pack includes</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem;">No guessing, no missing libraries, no broken links. You get everything needed to replicate the build.</p>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem;" data-reveal data-reveal-delay="100ms">
+        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
+          <Icon name="file-text" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Full Source Code</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Clean, commented firmware and sketches. Ready to compile and upload directly to your board.</p>
+        </div>
+        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
+          <Icon name="cpu" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Wiring & Schematics</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">High-resolution wiring diagrams and pinouts so you never cross a wire or fry a component.</p>
+        </div>
+        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
+          <Icon name="cart" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Complete Parts List</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">An interactive bill of materials with precise component specs and direct purchase links.</p>
+        </div>
+        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
+          <Icon name="youtube" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Video Walkthrough</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Every project has a corresponding YouTube video showing the exact build process.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== YOUTUBE ===================== -->
+  <section class="section section--alt">
+    <div class="container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; align-items: center;">
+      <div data-reveal>
+        <h2 style="font-size: 2rem; margin-bottom: 1rem; line-height: 1.2;">See the builds in action on YouTube</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.6; margin-bottom: 1.5rem;">I document every major project on my channel. Watch the process, see the final result, and then grab the project pack here to build it yourself.</p>
+        <a href="https://www.youtube.com/@TechnicalTriveni" target="_blank" class="btn btn-primary"><Icon name="youtube" size={18} /> Subscribe to Channel</a>
+      </div>
+      <div data-reveal data-reveal-delay="100ms" style="width: 100%;">
+        <div style="position: relative; width: 100%; padding-bottom: 56.25%; border-radius: var(--r-md); overflow: hidden; background: #000; box-shadow: var(--shadow-md);">
+          <lite-youtube videoid="qWj0V1c1_bU" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"></lite-youtube>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== LEAD MAGNET ===================== -->
+  <section class="section" style="background: linear-gradient(135deg, var(--ink), var(--ink-2)); color: #fff;">
+    <div class="container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; align-items: center;">
+      <div data-reveal>
+        <span class="mono" style="color: var(--brand-red); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase;">Free Resource</span>
+        <h2 style="font-size: 2rem; margin: 0.5rem 0 1rem 0; line-height: 1.2;">Free Tools for Students in India (2026)</h2>
+        <p style="color: var(--on-ink-muted); font-size: 1.1rem; line-height: 1.6; margin-bottom: 1.5rem;">A massive curated directory of 23 free software, cloud, and hardware tools available for engineering students.</p>
+        <a href="/resources/free-tools-for-students-india-2026" class="btn btn-primary"><Icon name="download" size={18} /> Get the Free PDF</a>
+      </div>
+      <div data-reveal data-reveal-delay="100ms">
+        <img src="/Technical_Triveni_Student_Tools_Guide.png" alt="Free Tools for Students" style="width: 100%; max-width: 400px; height: auto; border-radius: var(--r-md); box-shadow: 0 20px 40px rgba(0,0,0,0.4);" loading="lazy" />
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FAQ ===================== -->
+  <section class="section">
+    <div class="container" style="max-width: 800px;">
+      <div class="section-head" data-reveal style="text-align: center; margin: 0 auto 3rem;">
+        <h2 style="font-size: 2rem; margin-bottom: 1rem;">Frequently Asked Questions</h2>
+      </div>
+      <div data-reveal data-reveal-delay="100ms" style="display: flex; flex-direction: column; gap: 1rem;">
+        <details style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; align-items: center;">What happens after I purchase? <Icon name="chevron-down" size={18} /></summary>
+          <p style="margin-top: 1rem; color: var(--text-muted); line-height: 1.6;">You'll instantly receive an email with a secure download link for your project pack (ZIP file). You can download it as many times as you need.</p>
+        </details>
+        <details style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; align-items: center;">Do I need expensive tools? <Icon name="chevron-down" size={18} /></summary>
+          <p style="margin-top: 1rem; color: var(--text-muted); line-height: 1.6;">Most projects only require a basic soldering iron, wire strippers, and a multimeter. The BOM (Bill of Materials) for each project clearly lists everything you need.</p>
+        </details>
+        <details style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; align-items: center;">Are the components available locally? <Icon name="chevron-down" size={18} /></summary>
+          <p style="margin-top: 1rem; color: var(--text-muted); line-height: 1.6;">Yes! The parts lists are optimized for Indian makers with links to Amazon India, Robu, or local electronics stores.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+
   <!-- ===================== CTA ===================== -->
   <section class="section">
     <div class="container">
@@ -157,6 +245,7 @@ const jsonLd = {
   {hero?.model_url && (
     <script is:inline type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
   )}
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@justinribeiro/lite-youtube-embed@2.1.2/lite-youtube.js"></script>
 </Base>
 
 <style>

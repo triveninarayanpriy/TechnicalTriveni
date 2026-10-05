@@ -57,7 +57,29 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // Amount is ALWAYS derived server-side from the database.
-  const amountInr = project.price_inr;
+  
+  
+  let amountInr = project.price_inr;
+  let validCoupon = null;
+  
+  if (couponCode) {
+    const coupon = await env.DB.prepare('SELECT * FROM coupons WHERE code = ?').bind(couponCode).first();
+    if (coupon) {
+      const now = Math.floor(Date.now() / 1000);
+      const isExpired = coupon.expires_at && coupon.expires_at < now;
+      const isMaxed = coupon.max_uses > 0 && coupon.used >= coupon.max_uses;
+      
+      if (!isExpired && !isMaxed) {
+        validCoupon = coupon.code;
+        if (coupon.discount_pct > 0) {
+          amountInr = Math.max(0, amountInr - Math.floor(amountInr * (coupon.discount_pct / 100)));
+        } else if (coupon.discount_inr > 0) {
+          amountInr = Math.max(0, amountInr - coupon.discount_inr);
+        }
+      }
+    }
+  }
+
   const orderId = crypto.randomUUID();
 
   // Auto-detect test mode
@@ -76,6 +98,7 @@ export const POST: APIRoute = async ({ request }) => {
     email,
     amount_inr: amountInr,
     is_test,
+    coupon_code: validCoupon,
   });
 
   try {

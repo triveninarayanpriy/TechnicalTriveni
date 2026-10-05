@@ -35,7 +35,7 @@ export default defineConfig({
         "default-src 'self'",
         "img-src 'self' data: blob: https:",
         "font-src 'self' https://fonts.gstatic.com",
-        "connect-src 'self' blob: data: https://api.razorpay.com https://lumberjack.razorpay.com https://cdn.jsdelivr.net https://modelviewer.dev",
+        "connect-src 'self' blob: data: https://api.razorpay.com https://lumberjack.razorpay.com https://cdn.jsdelivr.net https://modelviewer.dev https://plausible.io",
         "media-src 'self' https:",
         "frame-src https://api.razorpay.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com",
         "worker-src 'self' blob:",
@@ -53,6 +53,7 @@ export default defineConfig({
           'https://checkout.razorpay.com',
           'https://challenges.cloudflare.com',
           'https://cdn.jsdelivr.net',
+          'https://plausible.io',
         ],
       },
       styleDirective: {

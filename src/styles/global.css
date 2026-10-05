@@ -562,3 +562,11 @@ small { font-size: var(--fs-sm); }
   }
   [data-reveal] { opacity: 1; transform: none; }
 }
+
+/* Make markdown tables scrollable on mobile */
+.prose table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}

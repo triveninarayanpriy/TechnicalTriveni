@@ -5,6 +5,8 @@
 
 /* --------------------------------------------------------------- types --- */
 export interface Project {
+    file_count?: number;
+    file_kinds?: string;
   id: number;
   slug: string;
   title: string;
@@ -33,6 +35,11 @@ export interface Project {
   published: number;
   sort: number;
   meta_title: string;
+    version: string;
+    last_tested_at: string;
+    youtube_views: number;
+    youtube_likes: number;
+    youtube_updated_at: number;
   meta_description: string;
   og_image: string;
   arch_svg: string;
@@ -88,7 +95,9 @@ export interface ProjectLink {
   id: number; project_id: number; label: string; url: string; kind: string; sort: number;
 }
 export interface Order {
-  id: string; project_id: number; project_title: string; email: string;
+  coupon_code?: string;
+    rating?: number;
+    id: number; project_title: string; email: string;
   amount_inr: number; currency: string; status: string; is_test: number;
   notes: string;
   razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string;
@@ -120,9 +129,11 @@ export interface ListOpts {
   featuredOnly?: boolean;
   category?: string;
   search?: string;
+  orderBy?: 'newest' | 'custom' | 'price_asc' | 'price_desc';
   limit?: number;
   offset?: number;
-  orderBy?: 'featured' | 'newest';
+  difficulty?: string;
+  priceMode?: string;
 }
 
 function buildWhere(opts: ListOpts): { clause: string; binds: unknown[] } {
@@ -131,6 +142,14 @@ function buildWhere(opts: ListOpts): { clause: string; binds: unknown[] } {
   if (opts.publishedOnly) where.push('published = 1');
   if (opts.featuredOnly) where.push('featured = 1');
   if (opts.category && opts.category !== 'All') { where.push('category = ?'); binds.push(opts.category); }
+  if (opts.difficulty && opts.difficulty !== 'all') { where.push('difficulty = ?'); binds.push(opts.difficulty); }
+  
+  if (opts.priceMode === 'free') {
+    where.push('(price_inr IS NULL OR price_inr = 0)');
+  } else if (opts.priceMode === 'paid') {
+    where.push('price_inr > 0');
+  }
+
   if (opts.search) {
     where.push('(title LIKE ? OR summary LIKE ? OR tags LIKE ?)');
     const s = `%${opts.search}%`;
@@ -142,15 +161,19 @@ function buildWhere(opts: ListOpts): { clause: string; binds: unknown[] } {
 export async function listProjects(db: D1Database, opts: ListOpts = {}): Promise<Project[]> {
   const { clause, binds } = buildWhere(opts);
   const order =
-    opts.orderBy === 'newest'
-      ? 'ORDER BY created_at DESC, id DESC'
-      : 'ORDER BY featured DESC, sort ASC, created_at DESC';
+    opts.orderBy === 'newest' ? 'ORDER BY created_at DESC, id DESC' :
+     opts.orderBy === 'price_asc' ? 'ORDER BY price_inr ASC, created_at DESC' :
+     opts.orderBy === 'price_desc' ? 'ORDER BY price_inr DESC, created_at DESC' :
+     'ORDER BY featured DESC, sort ASC, created_at DESC';
   let tail = '';
   if (opts.limit) {
     tail = `LIMIT ${Math.max(1, Math.min(100, opts.limit | 0))}`;
     if (opts.offset && opts.offset > 0) tail += ` OFFSET ${opts.offset | 0}`;
   }
-  const sql = `SELECT * FROM projects ${clause} ${order} ${tail}`;
+  const sql = `SELECT *, 
+      (SELECT COUNT(*) FROM project_files WHERE project_id = projects.id) as file_count,
+      (SELECT GROUP_CONCAT(kind) FROM project_files WHERE project_id = projects.id) as file_kinds
+    FROM projects ${clause} ${order} ${tail}`;
   const res = await db.prepare(sql).bind(...binds).all<Project>();
   return res.results ?? [];
 }
@@ -541,7 +564,7 @@ export async function deleteLink(db: D1Database, id: number) {
 /* -------------------------------------------------------------- orders --- */
 
 export async function createOrder(db: D1Database, o: {
-  id: string; project_id: number; project_title: string; email: string; amount_inr: number;
+  id: string; project_id: number; project_title: string; email: string; amount_inr: number; is_test: number; coupon_code?: string;
 }): Promise<void> {
   await db.prepare(
     `INSERT INTO orders (id,project_id,project_title,email,amount_inr,status,created_at)

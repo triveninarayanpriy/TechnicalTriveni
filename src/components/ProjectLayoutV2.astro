@@ -10,9 +10,12 @@ interface Props {
   paid: boolean;
   descHtml: string;
   safetyHtml: string;
+  yt?: string;
+  ratingAvg?: number;
+  ratingCount?: number;
 }
 
-const { project, estCost, paid, descHtml, safetyHtml, yt } = Astro.props;
+const { project, estCost, paid, descHtml, safetyHtml, yt, ratingAvg = 0, ratingCount = 0 } = Astro.props;
 
 const tags = parseTags(project.tags);
 const media = project.images.length > 0 ? project.images : [{ kind: 'image', url: project.cover_image, caption: project.title }];
@@ -54,6 +57,13 @@ const groupedPins = project.pins.reduce((acc, pin) => {
       {estCost > 0 && <span class="chip"><Icon name="cart" size={13} /> Estimated build cost &#8377;{Number(estCost).toLocaleString('en-IN')}</span>}
     </div>
     <h1 class="hero-title" style="font-size: 2.5rem; margin: 1rem 0 0.5rem 0;">{project.title}</h1>
+
+      {ratingCount > 0 && (
+        <div style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; color: #fbbf24; background: rgba(251, 191, 36, 0.1); padding: 0.2rem 0.6rem; border-radius: var(--r-full); font-weight: 600; margin-top: 0.5rem;">
+          <Icon name="star" size={14} style="fill: currentColor;" /> {ratingAvg} <span style="color: var(--text-muted); font-weight: 400; margin-left: 0.25rem;">({ratingCount} verified {ratingCount === 1 ? 'buyer' : 'buyers'})</span>
+        </div>
+      )}
+
     {project.outcome_line && <p class="hero-outcome" style="color: var(--brand-red); font-weight: 500; font-size: 1.1rem; margin-bottom: 1rem;">{project.outcome_line}</p>}
     <p class="hero-summary" style="font-size: 1.1rem; color: var(--text-muted); max-width: 800px;">{project.summary}</p>
   </header>
@@ -75,7 +85,7 @@ const groupedPins = project.pins.reduce((acc, pin) => {
           <div class="safety__head" style="color: #d97706; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.5rem;">
             <Icon name="shield-alert" size={18} /><span>Safety first &mdash; read before you build</span>
           </div>
-          <details class="safety__body prose prose--tight">
+          <details class="safety__body prose prose--tight" open={shouldExpandSafety}>
             <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Read all safety rules</summary>
             <div style="margin-top: 0.75rem; padding-left: 1rem; border-left: 2px solid rgba(245, 158, 11, 0.3);">
               <Fragment set:html={safetyHtml} />
@@ -137,7 +147,7 @@ const groupedPins = project.pins.reduce((acc, pin) => {
                 <tbody>
                   {items.map(b => (
                     <tr style="border-bottom: 1px solid var(--hairline);">
-                      <td style="padding: 0.5rem; text-align: center;"><input type="checkbox" class="bom-check" data-price={b.unit_price_inr} /></td>
+                      <td style="padding: 0.5rem; text-align: center;"><input type="checkbox" class="bom-check" data-price={b.unit_price_inr * (parseInt(b.qty, 10) || 1)} checked={group === 'Tools & Optional'} title="I already have this part" /></td>
                       <td style="padding: 0.5rem;">
                         <span class="bom-name" style="font-weight: 500;">{b.name}</span>
                         {b.notes && <div style="font-size: 0.8rem; color: var(--text-dim);">{b.notes}</div>}
@@ -152,8 +162,8 @@ const groupedPins = project.pins.reduce((acc, pin) => {
             </div>
           ))}
           <div class="bom-total" style="background: var(--surface); padding: 1rem; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
-            <span>Estimated Remaining Cost:</span>
-            <span id="bom-calc-total" style="color: var(--brand-red); font-size: 1.2rem;">&#8377;{Number(estCost).toLocaleString('en-IN')}</span>
+            <span>Your selection:</span>
+            <span id="bom-calc-total" style="color: var(--brand-red); font-size: 1.2rem;">&#8377;{Number(estCost).toLocaleString('en-IN')} (excludes tools)</span>
           </div>
         </div>
       </section>
@@ -269,6 +279,23 @@ const groupedPins = project.pins.reduce((acc, pin) => {
         </section>
       )}
 
+<!-- Source & License -->
+      {(project.code_repo_url || project.license) && (
+        <section class="v2-sec" id="code" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+          <h2 class="sec__title"><Icon name="code" size={20} /> Code & License</h2>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+            {project.code_repo_url && (
+              <a href={project.code_repo_url} target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); padding: 0.75rem 1rem; border-radius: var(--r-md); font-weight: 500; color: var(--text); text-decoration: none;">
+                <Icon name="github" size={18} /> GitHub Repository
+              </a>
+            )}
+            <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px dashed var(--border); padding: 0.75rem 1rem; border-radius: var(--r-md); font-weight: 500; color: var(--text-muted);">
+              <Icon name="file-text" size={18} /> License: {project.license || 'MIT'}
+            </div>
+          </div>
+        </section>
+      )}
+
 <!-- FAQ -->
       {faqs.length > 0 && (
         <section class="v2-sec" id="faq" style="margin-top: 3rem;">
@@ -337,7 +364,18 @@ const groupedPins = project.pins.reduce((acc, pin) => {
           {faqs.length > 0 && <li><a href="#faq" class="toc-link" style="color: var(--text-muted); text-decoration: none;">FAQ</a></li>}
         </ul>
       </div>
+
     </aside>
+  </div>
+  
+  <div class="mobile-buy-bar">
+    <div class="mobile-buy-bar__info">
+      <span class="mobile-buy-bar__price">{paid ? formatINR(project.price_inr) : 'Free'}</span>
+      <span class="mobile-buy-bar__label">{paid ? 'Digital pack' : 'Open resource'}</span>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="document.getElementById('buy-email').focus(); document.getElementById('buy').scrollIntoView({behavior: 'smooth'})">
+      Get Access
+    </button>
   </div>
 </div>
 

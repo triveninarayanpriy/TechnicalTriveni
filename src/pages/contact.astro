@@ -10,6 +10,9 @@ import { turnstileEnabled } from '../lib/turnstile';
 const sent = Astro.url.searchParams.get('sent') === '1';
 const error = Astro.url.searchParams.get('error');
 const csrf = Astro.locals.csrfToken;
+  const initialTopic = Astro.url.searchParams.get('topic') || '';
+  const initialProject = Astro.url.searchParams.get('project') || '';
+
 const tsOn = turnstileEnabled(env);
 const tsKey = env.TURNSTILE_SITE_KEY;
 
@@ -67,15 +70,42 @@ const customHtml = pageData?.content_md ? renderMarkdown(pageData.content_md) : 
               <input class="input" id="email" name="email" type="email" required maxlength="200" autocomplete="email" />
             </div>
           </div>
-          <div class="field">
-            <label class="label" for="subject">Subject</label>
-            <input class="input" id="subject" name="subject" maxlength="120" placeholder="What's this about?" />
-          </div>
+          
+            <div class="grid-2">
+              <div class="field">
+                <label class="label" for="topic">How can we help?</label>
+                <select class="input" id="topic" name="topic">
+                  <option value="">Select a topic...</option>
+                  <option value="pre-sales" selected={initialTopic === 'pre-sales'}>Question before buying</option>
+                  <option value="support" selected={initialTopic === 'support'}>Help with a download/project</option>
+                  <option value="collab" selected={initialTopic === 'collab'}>Partnership / Collaboration</option>
+                  <option value="other" selected={initialTopic === 'other'}>Other</option>
+                </select>
+              </div>
+              <div class="field" id="order-field" style="display: none;">
+                <label class="label" for="order_id">Order ID (optional)</label>
+                <input class="input" id="order_id" name="order_id" maxlength="50" placeholder="e.g. 102" />
+              </div>
+            </div>
+            
+            <div class="field">
+              <label class="label" for="subject">Subject</label>
+              <input class="input" id="subject" name="subject" maxlength="120" placeholder="What's this about?" value={initialProject ? `Question regarding ${initialProject}` : ''} />
+            </div>
+
           <div class="field">
             <label class="label" for="message">Message</label>
             <textarea class="textarea" id="message" name="message" required maxlength="4000" placeholder="Tell us more…"></textarea>
           </div>
-          <!-- honeypot: bots fill this, humans don't see it -->
+          
+            <div class="field" style="display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 1rem;">
+              <input type="checkbox" id="newsletter" name="newsletter" value="1" checked style="margin-top: 0.25rem;" />
+              <label for="newsletter" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; line-height: 1.4;">
+                Send me occasional project updates and new releases. (We respect your inbox).
+              </label>
+            </div>
+
+            <!-- honeypot: bots fill this, humans don't see it -->
           <input type="text" name="company" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
 
           {tsOn && (
@@ -89,6 +119,19 @@ const customHtml = pageData?.content_md ? renderMarkdown(pageData.content_md) : 
   </section>
 
   {tsOn && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+
+  <script>
+    const topicSelect = document.getElementById('topic') as HTMLSelectElement;
+    const orderField = document.getElementById('order-field');
+    if (topicSelect && orderField) {
+      const toggleOrder = () => {
+        orderField.style.display = topicSelect.value === 'support' ? 'block' : 'none';
+      };
+      topicSelect.addEventListener('change', toggleOrder);
+      toggleOrder();
+    }
+  </script>
+
 </Base>
 
 <style>

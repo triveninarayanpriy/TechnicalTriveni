@@ -35,7 +35,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const name = String(form.get('name') || '').trim().slice(0, 80);
   const email = String(form.get('email') || '').trim().slice(0, 200);
   const subject = String(form.get('subject') || '').trim().slice(0, 120);
-  const message = String(form.get('message') || '').trim().slice(0, 4000);
+  const topic = String(form.get('topic') || '').trim();
+  const orderId = String(form.get('order_id') || '').trim();
+  let message = String(form.get('message') || '').trim().slice(0, 4000);
+  
+  if (topic || orderId) {
+    message = `Topic: ${topic || 'N/A'}
+Order ID: ${orderId || 'N/A'}
+
+${message}`;
+  }
 
   if (!name || !EMAIL_RE.test(email) || !message) {
     return redirect('/contact?error=invalid');

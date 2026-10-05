@@ -43,200 +43,78 @@ const jsonLd = {
     </div>
   </section>
 
-  <!-- ===================== ABOUT ME ===================== -->
-  <section class="section">
+  
+  <!-- ===================== PROOF & PHILOSOPHY ===================== -->
+  <section class="section" style="padding: 4rem 0;">
     <div class="container about-me">
       <div class="am-photo" data-reveal>
         <div class="am-photo__ring">
-          <img src={profilePhoto} alt={PROFILE.name} width="360" height="360" />
-        </div>
-        <div class="am-badges">
-          <span class="am-badge mono"><Icon name="cpu" size={14} /> ECE · VLSI</span>
-          <span class="am-badge mono"><Icon name="spark" size={14} /> NIT Patna</span>
+          <img src={profilePhoto} alt={PROFILE.name} class="am-photo__img" loading="eager" />
         </div>
       </div>
-
-      <div class="am-body" data-reveal data-reveal-delay="80ms">
-        <h2 class="am-name">{PROFILE.name} <span class="am-pron">{PROFILE.pronouns}</span></h2>
-        <p class="am-role">{PROFILE.title}</p>
-        <p class="am-loc"><Icon name="external" size={14} /> {PROFILE.location}</p>
-
-        <div class="am-bio prose">
-          {customBioHtml ? (
-            <Fragment set:html={customBioHtml} />
-          ) : (
-            PROFILE.bio.map((para) => <p>{para}</p>)
+      
+      <div class="am-content">
+        <h2 class="h2" data-reveal style="margin-bottom: 1.5rem;">Why I build Technical Triveni</h2>
+        <div class="prose" data-reveal>
+          {customBioHtml ? <Fragment set:html={customBioHtml} /> : (
+            <p>I started Technical Triveni because I was tired of electronics tutorials that don't work. Most guides online leave out crucial steps, skip the messy parts, and never show the troubleshooting process.</p>
           )}
+          <p>This store is different. Every pack is based on a philosophy of absolute transparency and proof.</p>
         </div>
 
-        <div class="am-skills">
-          {PROFILE.skills.map((s) => <span class="am-skill">{s}</span>)}
-        </div>
-
-        <div class="am-socials">
-          {socials.map((s) => (
-            <a href={s.href} target="_blank" rel="noopener" class="am-social">
-              <Icon name={s.icon} size={18} /> <span>{s.label}</span>
-            </a>
+        <div class="am-values" style="display: grid; gap: 1.5rem; margin-top: 2rem;">
+          {values.map((v: any, i: number) => (
+            <div class="value-card" data-reveal style={`animation-delay: ${i * 0.1}s; display: flex; gap: 1rem; background: var(--surface); padding: 1.5rem; border-radius: var(--r-md); border: 1px solid var(--border);`} >
+              <Icon name={v.icon} size={28} style="color: var(--brand-red); flex-shrink: 0;" />
+              <div>
+                <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 600;">{v.title}</h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">{v.text}</p>
+              </div>
+            </div>
           ))}
-          <a href={`mailto:${SITE.email}`} class="am-social am-social--mail"><Icon name="mail" size={18} /> <span>Email</span></a>
+        </div>
+
+        <div class="am-socials" data-reveal style="margin-top: 2.5rem;">
+          <p class="am-socials__label" style="font-weight: 600; margin-bottom: 1rem;">Verify the builds on:</p>
+          <div class="am-socials__list" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            {socials.map((s: any) => (
+              <a href={s.href} target="_blank" rel="noopener" class="btn btn-ghost" style="border: 1px solid var(--border);">
+                <Icon name={s.icon} size={18} /> {s.label}
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===================== HIGHLIGHTS ===================== -->
-  <section class="section-sm section--alt">
+  <!-- ===================== THE STANDARD ===================== -->
+  <section class="section" style="background: var(--surface-2); padding: 4rem 0; border-top: 1px solid var(--border);">
     <div class="container">
-      <div class="hl-grid">
-        {PROFILE.highlights.map((h) => (
-          <div class="hl" data-reveal>
-            <span class="hl__v">{h.value}</span>
-            <span class="hl__l">{h.label}</span>
+      <h2 class="h2" style="text-align: center; margin-bottom: 3rem;">The Technical Triveni Standard</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+        <div style="background: var(--bg); padding: 2rem; border-radius: var(--r-md); border: 1px solid var(--border);">
+          <div style="background: var(--success); color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+            <Icon name="check" size={20} />
           </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== MISSION ===================== -->
-  <section class="section">
-    <div class="container mission" data-reveal>
-      <span class="eyebrow">Why this exists</span>
-      <blockquote class="mission__quote">{PROFILE.mission}</blockquote>
-    </div>
-  </section>
-
-  <!-- ===================== WHAT YOU'LL FIND + VALUES ===================== -->
-  <section class="section-sm section--alt">
-    <div class="container about-cols">
-      <div class="about-story" data-reveal>
-        <span class="eyebrow">The Triveni</span>
-        <h2 class="section-title">What you'll find here.</h2>
-        <p class="muted" style="margin:0.9rem 0 1.5rem">
-          “Triveni” is the meeting of three rivers — for me, the disciplines behind every modern build:
-          <strong> Electronics</strong>, <strong>Software</strong> and <strong>AI</strong>. Week to week that means:
-        </p>
-        <ul class="channel-list">
-          {PROFILE.channel.map((c) => (
-            <li><Icon name="check" size={16} /> <span>{c}</span></li>
-          ))}
-        </ul>
-        <p class="muted" style="margin-top:1.25rem">New video every week, with three Shorts. Every project is built and tested by me.</p>
-      </div>
-
-      <aside class="about-values" data-reveal data-reveal-delay="80ms">
-        {values.map((v) => (
-          <div class="value-card">
-            <div class="value-card__icon"><Icon name={v.icon} size={20} /></div>
-            <div><h3>{v.title}</h3><p class="muted">{v.text}</p></div>
+          <h3 style="font-size: 1.25rem; margin-bottom: 1rem; font-weight: 600;">Hardware Verified</h3>
+          <p style="color: var(--text-muted); line-height: 1.6;">I don't sell theory. Every single project is built on a breadboard or PCB, programmed, and tested in the real world before the pack is published.</p>
+        </div>
+        <div style="background: var(--bg); padding: 2rem; border-radius: var(--r-md); border: 1px solid var(--border);">
+          <div style="background: #3b82f6; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+            <Icon name="youtube" size={20} />
           </div>
-        ))}
-      </aside>
-    </div>
-  </section>
-
-  <!-- ===================== EXPERIENCE ===================== -->
-  <section class="section">
-    <div class="container">
-      <div class="exp-head" data-reveal>
-        <span class="eyebrow">Beyond the bench</span>
-        <h2 class="section-title">Roles &amp; involvement.</h2>
-      </div>
-      <div class="exp-grid">
-        {PROFILE.experience.map((e) => (
-          <div class="exp-card" data-reveal>
-            <span class="exp-card__role">{e.role}</span>
-            <span class="exp-card__org">{e.org}</span>
-            {e.note && <span class="exp-card__note">{e.note}</span>}
+          <h3 style="font-size: 1.25rem; margin-bottom: 1rem; font-weight: 600;">Video Proof</h3>
+          <p style="color: var(--text-muted); line-height: 1.6;">Look for the YouTube proof link on every paid project. I show the final result working so you know exactly what you're getting.</p>
+        </div>
+        <div style="background: var(--bg); padding: 2rem; border-radius: var(--r-md); border: 1px solid var(--border);">
+          <div style="background: #fbbf24; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+            <Icon name="star" size={20} />
           </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== CTA ===================== -->
-  <section class="section">
-    <div class="container center" data-reveal>
-      <h2 class="section-title">Let's build together.</h2>
-      <p class="muted" style="max-width:48ch;margin:1rem auto 1.75rem">Explore the library, follow along, or reach out to collaborate.</p>
-      <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap">
-        <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
-        <a href="/contact" class="btn btn-ghost btn-lg">Get in touch</a>
+          <h3 style="font-size: 1.25rem; margin-bottom: 1rem; font-weight: 600;">Verified Reviews</h3>
+          <p style="color: var(--text-muted); line-height: 1.6;">Ratings can only be submitted by people who actually bought and downloaded the pack via an encrypted email link. No fake counters, no bots.</p>
+        </div>
       </div>
     </div>
   </section>
 </Base>
-
-<style>
-  .page-hero { padding-block: clamp(3rem, 8vw, 5rem) clamp(2rem, 4vw, 3rem); text-align: center; }
-  .page-hero h1 { font-size: clamp(2.5rem, 6vw, 3.5rem); margin-block: 0.9rem 1.25rem; font-family: var(--font-display); letter-spacing: -0.02em; }
-  .page-hero__lead { color: var(--text-muted); max-width: 60ch; margin: 0 auto; font-size: var(--fs-lg); line-height: 1.6; }
-  .section--alt { background: linear-gradient(180deg, var(--surface-2), var(--surface)); border-block: 1px solid var(--border); }
-  .section-title { font-size: var(--fs-2xl); font-family: var(--font-display); letter-spacing: -0.01em; }
-
-  /* about me */
-  .about-me { display: grid; grid-template-columns: 340px 1fr; gap: clamp(2rem, 5vw, 4rem); align-items: start; }
-  .am-photo { position: sticky; top: calc(var(--header-h) + 2rem); }
-  .am-photo__ring { border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-md); background: var(--surface); padding: 0.5rem; }
-  .am-photo__ring img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: calc(var(--r-xl) - 0.5rem); display: block; }
-  .am-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1.25rem; }
-  .am-badge { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-xs); padding: 0.4rem 0.8rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); font-weight: 500; }
-  .am-badge :global(svg) { color: var(--brand-red); }
-
-  .am-name { font-size: 2.25rem; font-family: var(--font-display); display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; letter-spacing: -0.01em; }
-  .am-pron { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; padding: 0.2rem 0.5rem; background: var(--surface-2); border-radius: var(--r-sm); }
-  .am-role { color: var(--text); font-weight: 600; font-size: var(--fs-lg); margin-top: 0.5rem; }
-  .am-loc { color: var(--text-dim); font-size: var(--fs-sm); margin-top: 0.35rem; display: inline-flex; align-items: center; gap: 0.4rem; }
-  .am-bio { margin-top: 1.75rem; font-size: 1.05rem; }
-  .am-bio p { color: var(--text-muted); line-height: 1.7; margin-bottom: 1rem; }
-  .am-skills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 2rem; }
-  .am-skill { font-size: var(--fs-xs); font-family: var(--font-mono); padding: 0.4rem 0.8rem; border-radius: var(--r-sm); background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-  .am-socials { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline); }
-  .am-social { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.1rem; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: var(--fs-sm); font-weight: 550; transition: all 0.2s; }
-  .am-social:hover { color: var(--text); border-color: var(--brand-red); background: var(--surface-2); transform: translateY(-1px); }
-
-  /* highlights */
-  .hl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
-  .hl { text-align: center; padding: 1.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
-  .hl__v { display: block; font-family: var(--font-display); font-weight: 700; font-size: 2.25rem; color: var(--text); letter-spacing: -0.02em; margin-bottom: 0.25rem; }
-  .hl__l { display: block; font-size: var(--fs-sm); color: var(--text-muted); }
-
-  /* mission */
-  .mission { max-width: 860px; margin: 0 auto; text-align: center; }
-  .mission__quote { font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.4; font-weight: 500; color: var(--text); margin-top: 1.5rem; letter-spacing: -0.01em; }
-
-  /* channel + values */
-  .about-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 4rem; align-items: start; }
-  .channel-list { display: flex; flex-direction: column; gap: 0.85rem; }
-  .channel-list li { display: flex; gap: 0.75rem; align-items: flex-start; color: var(--text); font-size: var(--fs-md); }
-  .channel-list :global(svg) { color: var(--brand-red); flex-shrink: 0; margin-top: 3px; }
-  .about-values { display: flex; flex-direction: column; gap: 1rem; }
-  .value-card { display: flex; gap: 1rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
-  .value-card__icon { width: 48px; height: 48px; flex-shrink: 0; display: grid; place-items: center; border-radius: var(--r-md); background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
-  .value-card h3 { font-size: 1.1rem; margin-bottom: 0.35rem; font-family: var(--font-display); }
-
-  /* experience */
-  .exp-head { margin-bottom: 2rem; text-align: center; }
-  .exp-head .eyebrow { display: block; margin-bottom: 0.5rem; justify-content: center; }
-  .exp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
-  .exp-card { display: flex; flex-direction: column; gap: 0.35rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); transition: transform 0.2s, box-shadow 0.2s; }
-  .exp-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-red); }
-  .exp-card__role { font-weight: 600; font-size: var(--fs-md); color: var(--text); }
-  .exp-card__org { color: var(--text-muted); font-size: var(--fs-sm); font-weight: 500; }
-  .exp-card__note { color: var(--text-dim); font-size: var(--fs-xs); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--hairline); }
-
-  @media (max-width: 860px) {
-    .about-me { grid-template-columns: 1fr; gap: 2.5rem; }
-    .am-photo { position: static; max-width: 280px; margin-inline: auto; text-align: center; }
-    .am-name { justify-content: center; }
-    .am-role, .am-loc, .am-name { text-align: center; }
-    .about-cols { grid-template-columns: 1fr; gap: 2.5rem; }
-    .hl-grid { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 520px) {
-    .mission__quote { font-size: 1.25rem; }
-    .am-socials { gap: 0.5rem; justify-content: center; }
-    .am-social { padding: 0.5rem 0.9rem; font-size: var(--fs-xs); }
-  }
-</style>

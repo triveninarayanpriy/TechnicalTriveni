@@ -38,7 +38,7 @@ const paid = project.combo_enabled === 1 && project.price_inr > 0;
     <div class="pcard__meta">
       <span class="chip chip--cat">{project.category}</span>
       {paid ? (
-        <span class="pcard__price">{formatINR(project.price_inr)}<span class="pcard__price-sub">combo</span></span>
+        <span class="pcard__price">{formatINR(project.price_inr)}<span class="pcard__price-sub">pack</span></span>
       ) : (
         <span class="pcard__free">Free</span>
       )}
@@ -50,7 +50,7 @@ const paid = project.combo_enabled === 1 && project.price_inr > 0;
       <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>
       <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>
       {project.model_url && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
-      {paid && <span class="inc-chip inc-chip--combo" title="Combo parts available"><Icon name="cart" size={11} /> Combo</span>}
+      {paid && <span class="inc-chip inc-chip--combo" title="Pack parts available"><Icon name="cart" size={11} /> Pack</span>}
     </div>
 
     <div class="pcard__foot">

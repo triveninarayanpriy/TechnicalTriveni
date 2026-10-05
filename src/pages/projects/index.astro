@@ -9,17 +9,20 @@ const PAGE_SIZE = 10;
 const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
+const difficulty = (url.searchParams.get('difficulty') || 'all').trim();
+const priceMode = (url.searchParams.get('priceMode') || 'all').trim();
+const sortMode = (url.searchParams.get('sort') || 'newest').trim();
 const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
 
 let projects: Awaited<ReturnType<typeof listProjects>> = [];
 let categories: string[] = [];
 let total = 0;
 try {
-  const opts = { publishedOnly: true, category: cat, search: q || undefined };
+  const opts = { publishedOnly: true, category: cat, search: q || undefined, difficulty, priceMode };
   [total, categories] = await Promise.all([countProjects(env.DB, opts), distinctCategories(env.DB)]);
   projects = await listProjects(env.DB, {
     ...opts,
-    orderBy: 'newest',
+    orderBy: sortMode as any,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
@@ -34,16 +37,22 @@ const pageUrl = (p: number) => {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (cat !== 'All') params.set('cat', cat);
+  if (difficulty !== 'all') params.set('difficulty', difficulty);
+  if (priceMode !== 'all') params.set('priceMode', priceMode);
+  if (sortMode !== 'newest') params.set('sort', sortMode);
   if (p > 1) params.set('page', String(p));
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
 };
 const chipUrl = (c: string) => {
-  const params = new URLSearchParams();
-  if (c !== 'All') params.set('cat', c);
-  if (q) params.set('q', q);
+  const params = new URLSearchParams(url.search);
+  if (c !== 'All') params.set('cat', c); else params.delete('cat');
+  params.delete('page');
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
+};
+const filterUrl = () => {
+  return '/projects';
 };
 
 // Windowed page numbers with ellipses.

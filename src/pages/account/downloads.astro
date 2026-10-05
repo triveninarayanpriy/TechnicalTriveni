@@ -33,7 +33,7 @@ const mailOn = emailEnabled(env);
     <div class="container container-narrow">
       {valid ? (
         <div class="mydl">
-          <h1>Your purchases</h1>
+          <h1>Your downloads</h1>
           <p class="muted mydl__sub">Signed in as <strong>{email}</strong>. Open any project to re-download its files.</p>
           {orders.length > 0 ? (
             <div class="mydl__list">
@@ -48,7 +48,7 @@ const mailOn = emailEnabled(env);
               ))}
             </div>
           ) : (
-            <p class="muted center" style="margin-top:2rem">No purchases found for this email yet.</p>
+            <p class="muted center" style="margin-top:2rem">No downloads found for this email yet.</p>
           )}
         </div>
       ) : (
@@ -56,7 +56,7 @@ const mailOn = emailEnabled(env);
           <div class="mydl__icon"><Icon name="download" size={34} /></div>
           <h1 class="center">My downloads</h1>
           <p class="muted center mydl__sub">
-            Enter the email you used at checkout and we'll send you a secure link to all your purchased files.
+            Enter the email you used at checkout and we'll send you a secure link to all your project files.
             No password needed.
           </p>
           {mailOn ? (

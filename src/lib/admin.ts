@@ -30,5 +30,5 @@ export function intField(form: FormData, name: string, fallback = 0): number {
 
 /** Trim + cap a string field. */
 export function strField(form: FormData, name: string, max = 5000): string {
-  return String(form.get(name) ?? '').trim().slice(0, max);
+  return String(form.get(name) ?? '').trim().replace(/\\n/g, '\n').slice(0, max);
 }
