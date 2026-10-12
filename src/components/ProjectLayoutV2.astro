@@ -1,9 +1,11 @@
 ---
-import Icon from '../components/Icon.astro';
-import type { ProjectFull } from '../lib/db';
-import { parseTags, formatINR, difficultyClass, formatBytes } from '../lib/format';
-import { FILE_KINDS } from '../lib/site';
+import Icon from './Icon.astro';
+import BomTable from './BomTable.astro';
 import TroubleTable from './TroubleTable.astro';
+import ProjectCard from './ProjectCard.astro';
+import type { ProjectFull, Project } from '../lib/db';
+import { formatINR, formatDate, formatBytes, cleanFileName, difficultyClass } from '../lib/format';
+import { FILE_KINDS } from '../lib/site';
 
 interface Props {
   project: ProjectFull;
@@ -11,22 +13,32 @@ interface Props {
   paid: boolean;
   descHtml: string;
   safetyHtml: string;
-  yt?: string;
+  yt?: string | null;
   ratingAvg?: number;
   ratingCount?: number;
+  relatedPacks?: Project[];
 }
 
-const { project, estCost, paid, descHtml, safetyHtml, yt, ratingAvg = 0, ratingCount = 0 } = Astro.props;
+const {
+  project,
+  estCost,
+  paid,
+  descHtml,
+  safetyHtml,
+  yt,
+  ratingAvg = 0,
+  ratingCount = 0,
+  relatedPacks = [],
+} = Astro.props;
 
-const tags = parseTags(project.tags);
-const media = project.images.length > 0 ? project.images : [{ kind: 'image', url: project.cover_image, caption: project.title }];
-const first = media[0];
-
+// Safe array parser
 const safeArr = (str: any) => {
+  if (!str) return [];
+  if (Array.isArray(str)) return str;
   try {
-    const arr = JSON.parse(str || '[]');
+    const arr = JSON.parse(str);
     return Array.isArray(arr) ? arr : [];
-  } catch (e) {
+  } catch {
     return [];
   }
 };
@@ -36,470 +48,1892 @@ const outcomes = safeArr(project.outcomes_json);
 const notIncluded = safeArr(project.not_included_json);
 const faqs = safeArr(project.faq_json);
 
-const cleanFileLabel = (label: string, kind?: string) => {
-  let l = (label || '').trim();
-  if (!l && kind) l = FILE_KINDS.find(x => x.key === kind)?.label ?? 'File';
-  if (!l) return 'File';
-  l = l.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-/, '');
-  l = l.replace(/^\d{10,}-/, '');
-  l = l.replace(/\s*\(\d+\)(?=\.[a-zA-Z0-9]+$|$)/, '');
-  return l.trim() || 'File';
-};
+// Real Badges calculation
+const fileKindsStr = (project.file_kinds || '').toLowerCase();
+const filesList = project.files || [];
+const hasCode = filesList.some((f) => f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch') || fileKindsStr.includes('code');
+const hasSchematic = filesList.some((f) => f.kind === 'schematic') || (project.pins && project.pins.length > 0) || fileKindsStr.includes('schematic');
+const has3D = filesList.some((f) => f.kind === 'model' || f.kind === '3d') || !!project.model_url;
+const hasPdf = filesList.some((f) => f.kind === 'pdf') || (!hasCode && !hasSchematic && !has3D);
+const hasBom = project.bom && project.bom.length > 0;
 
-// Group BOM
-const groupedBom = project.bom.reduce((acc, item) => {
-  const g = item.group_name || 'General';
-  if (!acc[g]) acc[g] = [];
-  acc[g].push(item);
+const badges: { label: string; icon: string }[] = [];
+if (hasCode) badges.push({ label: 'Code', icon: 'code' });
+if (hasSchematic && badges.length < 2) badges.push({ label: 'Schematic', icon: 'schematic' });
+if (has3D && badges.length < 2) badges.push({ label: '3D Files', icon: 'cube' });
+if (hasPdf && badges.length < 2) badges.push({ label: 'PDF Guide', icon: 'doc' });
+if (hasBom && badges.length < 2) badges.push({ label: 'Parts List', icon: 'cart' });
+
+// Media Gallery assembly
+const rawImages = (project.images || []).map((img, i) => ({
+  id: `img-${img.id || i}`,
+  type: img.kind === 'model' ? 'model' : 'image',
+  url: img.url,
+  caption: img.caption || project.title,
+}));
+
+if (rawImages.length === 0 && project.cover_image) {
+  rawImages.push({
+    id: 'cover',
+    type: 'image',
+    url: project.cover_image,
+    caption: project.title,
+  });
+}
+
+const mediaList = [...rawImages];
+const hasModel = mediaList.some((m) => m.type === 'model');
+const firstMedia = mediaList[0] || { type: 'image', url: project.cover_image || '/og-default.png', caption: project.title };
+
+// Deduplicate files by cleaned label and url
+const uniqueFiles = filesList.reduce((acc, f) => {
+  const clean = cleanFileName(f.label, f.kind);
+  const key = `${clean}_${f.url || f.id}`;
+  if (!acc.map.has(key)) {
+    acc.map.set(key, true);
+    acc.list.push({ ...f, cleanLabel: clean });
+  }
   return acc;
-}, {} as Record<string, typeof project.bom>);
+}, { map: new Map<string, boolean>(), list: [] as any[] }).list;
+
+// File counts for buy box
+const codeCount = uniqueFiles.filter((f) => f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch').length;
+const schematicCount = uniqueFiles.filter((f) => f.kind === 'schematic').length;
+const modelCount = uniqueFiles.filter((f) => f.kind === 'model' || f.kind === '3d').length;
+const pdfCount = uniqueFiles.filter((f) => f.kind === 'pdf' || f.kind === 'doc').length;
 
 // Group Pins by Module
-const groupedPins = project.pins.reduce((acc, pin) => {
+const groupedPins = (project.pins || []).reduce((acc, pin) => {
   const m = pin.module || 'General';
   if (!acc[m]) acc[m] = [];
   acc[m].push(pin);
   return acc;
 }, {} as Record<string, typeof project.pins>);
 
+// Meta Row construction
+const metaParts: string[] = [];
+if (project.difficulty) metaParts.push(project.difficulty);
+if (project.build_time) metaParts.push(project.build_time);
+else metaParts.push('2 h');
+if (estCost > 0) metaParts.push(`Core cost ≈ ${formatINR(estCost)}`);
+if (project.updated_at) metaParts.push(`Updated ${formatDate(project.updated_at)}`);
+const metaRow = metaParts.join(' · ');
+
+const lastUpdated = formatDate(project.updated_at);
 ---
 
-<div class="proj-layout-v2 container dp">
-  <!-- 1. Header Area -->
-  <header class="v2-header">
-    <nav class="crumbs">
-      <a href="/">Home</a> <span>/</span> <a href="/projects">Projects</a> <span>/</span> <span class="dim">{project.title}</span>
-    </nav>
-    <div class="hero-meta" style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-      <span class="chip chip--cat">{project.category}</span>
-      <span class:list={['badge', difficultyClass(project.difficulty)]}>{project.difficulty}</span>
-      {project.build_time && <span class="chip"><Icon name="clock" size={13} /> {project.build_time}</span>}
-      {estCost > 0 && <span class="chip"><Icon name="cart" size={13} /> Estimated build cost &#8377;{Number(estCost).toLocaleString('en-IN')}</span>}
-    </div>
-    <h1 class="hero-title" style="font-size: 2.5rem; margin: 1rem 0 0.5rem 0;">{project.title}</h1>
+<div class="project-layout">
+  <!-- BREADCRUMBS -->
+  <nav class="p-crumbs container" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="p-crumbs__sep">/</span>
+    <a href="/projects">Projects</a>
+    <span class="p-crumbs__sep">/</span>
+    <a href={`/projects?cat=${encodeURIComponent(project.category || 'All')}`}>{project.category || 'Projects'}</a>
+    <span class="p-crumbs__sep">/</span>
+    <span class="p-crumbs__current">{project.title}</span>
+  </nav>
 
-      {ratingCount > 0 && (
-        <div style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; color: #fbbf24; background: rgba(251, 191, 36, 0.1); padding: 0.2rem 0.6rem; border-radius: var(--r-full); font-weight: 600; margin-top: 0.5rem;">
-          <Icon name="star" size={14} style="fill: currentColor;" /> {ratingAvg} <span style="color: var(--text-muted); font-weight: 400; margin-left: 0.25rem;">({ratingCount} verified {ratingCount === 1 ? 'buyer' : 'buyers'})</span>
+  <!-- TITLE BLOCK -->
+  <header class="p-header container">
+    <span class="p-eyebrow">{project.category || 'PROJECT PACK'}</span>
+    <h1 class="p-title">{project.title}</h1>
+    {project.summary && <p class="p-summary">{project.summary}</p>}
+
+    <div class="p-meta-bar">
+      <span class="p-meta-text">{metaRow}</span>
+      {badges.length > 0 && (
+        <div class="p-badges">
+          {badges.map((b) => (
+            <span class="p-badge">
+              <Icon name={b.icon} size={13} /> {b.label}
+            </span>
+          ))}
         </div>
       )}
-
-    {project.outcome_line && <p class="hero-outcome" style="color: var(--brand-red); font-weight: 500; font-size: 1.1rem; margin-bottom: 1rem;">{project.outcome_line}</p>}
-    <p class="hero-summary" style="font-size: 1.1rem; color: var(--text-muted); max-width: 800px;">{project.summary}</p>
+    </div>
   </header>
 
-  <!-- 2. Grid (Main + Sticky Sidebar) -->
-  <div class="v2-grid">
-    
-    <!-- MAIN COLUMN -->
-    <main class="v2-main">
-      
-      <!-- Media Gallery -->
-      <section class="v2-sec media-gallery" style="margin-bottom: 2rem;">
-        <img src={first.url} alt={project.title} style="width: 100%; border-radius: var(--r-md); object-fit: cover; aspect-ratio: 16/9; background: var(--bg-2);" />
-      </section>
-
-      <!-- Safety Amber Box -->
-      {safetyHtml && (
-        <div class="safety panel v2-safety" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--r-md); margin-bottom: 2rem; padding: 1rem 1.25rem;">
-          <div class="safety__head" style="color: #d97706; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.5rem;">
-            <Icon name="shield-alert" size={18} /><span>Safety first &mdash; read before you build</span>
+  <!-- HERO 7/5 GRID -->
+  <section class="p-hero-grid container">
+    <!-- LEFT COLUMN: Media Viewer (7 cols) -->
+    <div class="p-viewer">
+      <div class="p-stage" id="media-stage">
+        {yt ? (
+          <div class="p-stage__yt" id="stage-yt">
+            <lite-youtube videoid={yt} playlabel={`Play video: ${project.title}`}></lite-youtube>
           </div>
-          <details class="safety__body prose prose--tight" open={shouldExpandSafety}>
-            <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Read all safety rules</summary>
-            <div style="margin-top: 0.75rem; padding-left: 1rem; border-left: 2px solid rgba(245, 158, 11, 0.3);">
-              <Fragment set:html={safetyHtml} />
+        ) : firstMedia.type === 'model' ? (
+          <model-viewer
+            src={firstMedia.url}
+            camera-controls
+            auto-rotate
+            shadow-intensity="1"
+            exposure="1.2"
+            class="p-stage__model"
+            alt={`3D Model of ${project.title}`}
+          ></model-viewer>
+        ) : (
+          <img
+            src={firstMedia.url}
+            alt={firstMedia.caption || project.title}
+            class="p-stage__img"
+            id="stage-img"
+            width="800"
+            height="500"
+            loading="eager"
+          />
+        )}
+      </div>
+
+      <!-- Media Thumbnails Strip -->
+      {(mediaList.length > 1 || yt) && (
+        <div class="p-thumbs" role="tablist" aria-label="Media gallery thumbnails">
+          {yt && (
+            <button
+              type="button"
+              class:list={['p-thumb-btn', { 'is-active': true }]}
+              data-yt-id={yt}
+              aria-label="View Video"
+            >
+              <div class="p-thumb-icon"><Icon name="play" size={18} /></div>
+              <span class="p-thumb-label">Video</span>
+            </button>
+          )}
+          {mediaList.map((m, i) => (
+            <button
+              type="button"
+              class:list={['p-thumb-btn', { 'is-active': !yt && i === 0 }]}
+              data-media-url={m.url}
+              data-media-type={m.type}
+              aria-label={`View image ${i + 1}`}
+            >
+              {m.type === 'model' ? (
+                <div class="p-thumb-icon"><Icon name="cube" size={18} /></div>
+              ) : (
+                <img src={m.url} alt="" width="64" height="40" loading="lazy" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <!-- RIGHT COLUMN: Sticky Buy Box (5 cols) -->
+    <aside class="p-sidebar">
+      <div
+        class="buy-box"
+        id="main-buy-box"
+        data-project-id={project.id}
+        data-slug={project.slug}
+        data-paid={paid ? '1' : '0'}
+        data-price={project.price_inr || 0}
+      >
+        {paid ? (
+          <div class="buy-box__paid">
+            <div class="buy-box__top">
+              <span class="buy-box__tag">DIGITAL PROJECT PACK</span>
+              <div class="buy-box__price-wrap">
+                <span class="buy-box__price">{formatINR(project.price_inr)}</span>
+                <span class="buy-box__price-sub">one-time purchase &middot; instant access</span>
+              </div>
             </div>
-          </details>
+
+            <!-- What's inside list -->
+            <div class="buy-box__contents">
+              <span class="buy-box__contents-title">What's included in this pack:</span>
+              <ul class="buy-box__checklist">
+                {codeCount > 0 && (
+                  <li><Icon name="code" size={15} /> {codeCount} tested source code {codeCount === 1 ? 'file' : 'files'}</li>
+                )}
+                {schematicCount > 0 && (
+                  <li><Icon name="schematic" size={15} /> {schematicCount} verified circuit {schematicCount === 1 ? 'schematic' : 'schematics'}</li>
+                )}
+                {modelCount > 0 && (
+                  <li><Icon name="cube" size={15} /> {modelCount} ready-to-print 3D STL {modelCount === 1 ? 'model' : 'models'}</li>
+                )}
+                {pdfCount > 0 && (
+                  <li><Icon name="doc" size={15} /> Complete documentation & wiring guide</li>
+                )}
+                {hasBom && (
+                  <li><Icon name="cart" size={15} /> Verified parts list with direct buy links</li>
+                )}
+              </ul>
+            </div>
+
+            <!-- Form -->
+            <form class="buy-box__form" id="checkout-form" onsubmit="return false;">
+              <div class="buy-box__field">
+                <label for="buy-email" class="buy-box__label">Your email address</label>
+                <input
+                  type="email"
+                  id="buy-email"
+                  class="buy-box__input"
+                  placeholder="name@example.com"
+                  required
+                  autocomplete="email"
+                />
+              </div>
+
+              <div class="buy-box__coupon">
+                <input
+                  type="text"
+                  id="coupon_code"
+                  class="buy-box__input buy-box__input--sm"
+                  placeholder="Discount code (optional)"
+                  autocomplete="off"
+                />
+              </div>
+
+              <button type="button" class="btn-buy-action" id="btn-buy-submit">
+                <Icon name="lock" size={16} /> Buy pack &mdash; {formatINR(project.price_inr)}
+              </button>
+            </form>
+
+            <div class="buy-box__trust">
+              <div class="trust-item">
+                <Icon name="shield" size={14} /> Secure checkout via Razorpay (UPI, Cards, NetBanking)
+              </div>
+              <div class="trust-item">
+                <Icon name="check-circle" size={14} /> 7-day build guarantee &middot; direct email support
+              </div>
+              <div class="trust-item">
+                <Icon name="download" size={14} /> Download link sent immediately to your email
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div class="buy-box__free">
+            <span class="buy-box__tag buy-box__tag--free">FREE DIGITAL RESOURCE</span>
+            <h3 class="buy-box__free-title">Get free project files</h3>
+            <p class="buy-box__free-desc">
+              Enter your email and we'll instantly send you the full resource download link. No spam, ever.
+            </p>
+
+            <form class="buy-box__form" id="free-claim-form" onsubmit="return false;">
+              <div class="buy-box__field">
+                <label for="buy-email" class="buy-box__label">Your email address</label>
+                <input
+                  type="email"
+                  id="buy-email"
+                  class="buy-box__input"
+                  placeholder="name@example.com"
+                  required
+                  autocomplete="email"
+                />
+              </div>
+
+              <button type="button" class="btn-buy-action btn-buy-action--free" id="btn-free-submit">
+                <Icon name="download" size={16} /> Get free files &rarr;
+              </button>
+            </form>
+
+            <div class="buy-box__trust">
+              <div class="trust-item">
+                <Icon name="check-circle" size={14} /> Instant download link sent to your inbox
+              </div>
+              <div class="trust-item">
+                <Icon name="shield" size={14} /> 100% free open resource &middot; no payment needed
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+  </section>
+
+  <!-- STICKY SECTION NAV PILLS -->
+  <nav class="p-secnav" id="sticky-secnav" aria-label="Page sections">
+    <div class="container p-secnav__inner">
+      <a href="#overview" class="p-secnav__link is-active">Overview</a>
+      {hasBom && <a href="#parts" class="p-secnav__link">Parts list</a>}
+      {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
+        <a href="#wiring" class="p-secnav__link">Wiring</a>
+      )}
+      {project.steps?.length > 0 && <a href="#steps" class="p-secnav__link">Build steps</a>}
+      {project.troubleshooting?.length > 0 && (
+        <a href="#troubleshooting" class="p-secnav__link">Troubleshooting</a>
+      )}
+      {uniqueFiles.length > 0 && <a href="#files" class="p-secnav__link">Files included</a>}
+      {faqs.length > 0 && <a href="#faq" class="p-secnav__link">FAQ</a>}
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="p-content container">
+    <!-- 1. OVERVIEW -->
+    <section class="p-sec" id="overview">
+      <h2 class="p-sec__title">Overview</h2>
+
+      <!-- Safety Alert Box (if present) -->
+      {safetyHtml && (
+        <aside class="p-safety-box" role="alert">
+          <div class="p-safety-box__header">
+            <Icon name="shield" size={20} />
+            <h3 class="p-safety-box__title">Safety first &mdash; read before building</h3>
+          </div>
+          <div class="p-safety-box__body prose" set:html={safetyHtml}></div>
+        </aside>
+      )}
+
+      <!-- Description Markdown -->
+      <div class="prose p-overview-body" set:html={descHtml}></div>
+
+      <!-- Outcomes list (if present) -->
+      {outcomes.length > 0 && (
+        <div class="p-outcomes">
+          <h3 class="p-subhead">What you'll build & learn</h3>
+          <ul class="p-check-list">
+            {outcomes.map((o: string) => (
+              <li>
+                <Icon name="check-circle" size={16} /> <span>{o}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      <!-- What you'll learn -->
-      <section class="v2-sec" id="learning">
-        <h2 class="sec__title"><Icon name="graduation-cap" size={20} /> What you'll learn</h2>
-        <div class="prose">
-          <Fragment set:html={descHtml} />
+      <!-- Prerequisites & Not Included (if present) -->
+      {(prereqs.length > 0 || notIncluded.length > 0) && (
+        <div class="p-prereqs-grid">
+          {prereqs.length > 0 && (
+            <div class="p-panel">
+              <h4 class="p-panel__title"><Icon name="doc" size={16} /> Prerequisites</h4>
+              <ul class="p-bullet-list">
+                {prereqs.map((p: string) => <li>{p}</li>)}
+              </ul>
+            </div>
+          )}
+          {notIncluded.length > 0 && (
+            <div class="p-panel">
+              <h4 class="p-panel__title"><Icon name="info" size={16} /> Not included in this pack</h4>
+              <ul class="p-bullet-list">
+                {notIncluded.map((n: string) => <li>{n}</li>)}
+              </ul>
+            </div>
+          )}
         </div>
-        
-        {outcomes.length > 0 && (
-          <ul class="v2-list outcomes-list" style="margin-top: 1rem;">
-            {outcomes.map((o: string) => <li style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;"><Icon name="check-circle" size={18} style="color: var(--success);" /> {o}</li>)}
-          </ul>
-        )}
-      </section>
+      )}
+    </section>
 
-      <!-- Prerequisites & Not Included -->
-      <section class="v2-sec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 2rem 0;">
-        {prereqs.length > 0 && (
-          <div class="panel">
-            <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;"><Icon name="book-open" size={16} /> Prerequisites</h3>
-            <ul style="padding-left: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
-              {prereqs.map((p: string) => <li>{p}</li>)}
-            </ul>
+    <!-- 2. PARTS LIST (BOM) -->
+    {hasBom && (
+      <section class="p-sec" id="parts">
+        <h2 class="p-sec__title">Parts list & components</h2>
+        <BomTable items={project.bom} costChecked={project.cost_checked} />
+      </section>
+    )}
+
+    <!-- 3. WIRING & CONNECTIONS -->
+    {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
+      <section class="p-sec" id="wiring">
+        <h2 class="p-sec__title">Wiring & connections</h2>
+
+        <!-- Wiring Diagram Images (if present) -->
+        {project.wiring_diagrams && project.wiring_diagrams.length > 0 && (
+          <div class="p-wiring-diagrams">
+            {project.wiring_diagrams.map((d) => (
+              <figure class="p-wiring-diagram">
+                <img src={d.url} alt={d.label || 'Wiring diagram'} loading="lazy" />
+                {d.label && <figcaption class="p-wiring-diagram__cap">{d.label}</figcaption>}
+              </figure>
+            ))}
           </div>
         )}
-        {notIncluded.length > 0 && (
-          <div class="panel">
-            <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;"><Icon name="x-circle" size={16} style="color: var(--warning);" /> Not included</h3>
-            <ul style="padding-left: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
-              {notIncluded.map((n: string) => <li>{n}</li>)}
-            </ul>
-          </div>
-        )}
-      </section>
 
-      <!-- Parts and Tools -->
-      {project.bom.length > 0 && (
-      <section class="v2-sec" id="parts">
-        <h2 class="sec__title"><Icon name="cpu" size={20} /> Parts and tools</h2>
-        {project.cost_checked && (
-          <p class="muted small" style="margin-bottom: 1rem; font-size: 0.85rem;">
-            Prices checked {project.cost_checked}. 
-            <a href="/legal/affiliate" target="_blank" rel="noopener noreferrer" class="link" style="color: var(--brand-red);">Affiliate disclosure</a>
-          </p>
-        )}
-        <div class="grouped-bom">
-          {Object.entries(groupedBom).map(([group, items]) => (
-            <div class="bom-group" style="margin-bottom: 1.5rem;">
-              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">{group}</h3>
-              <div class="table-responsive"><table class="bom v2-bom" style="width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 500px;">
+        <!-- Pin Tables by Module -->
+        {Object.entries(groupedPins).map(([moduleName, pins]) => (
+          <div class="p-pin-module">
+            <h3 class="p-pin-module__title">{moduleName} Connections</h3>
+            <div class="p-table-wrap">
+              <table class="p-table">
                 <thead>
-                  <tr style="text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--border);">
-                    <th style="padding: 0.5rem; width: 40px;">Got</th>
-                    <th style="padding: 0.5rem;">Item</th>
-                    <th style="padding: 0.5rem; width: 80px;">Qty</th>
-                    <th style="padding: 0.5rem; width: 120px;">Price</th>
-                    <th style="padding: 0.5rem; width: 80px;">Link</th>
+                  <tr>
+                    <th>From Pin / Component</th>
+                    <th>To Pin / Board</th>
+                    <th>Connection Note</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map(b => (
-                    <tr style="border-bottom: 1px solid var(--hairline);">
-                      <td style="padding: 0.5rem; text-align: center;"><input type="checkbox" class="bom-check" data-price={b.unit_price_inr * (parseInt(b.qty, 10) || 1)} checked={group === 'Tools & Optional'} title="I already have this part" /></td>
-                      <td style="padding: 0.5rem;">
-                        <span class="bom-name" style="font-weight: 500;">{b.name}</span>
-                        {b.notes && <div style="font-size: 0.8rem; color: var(--text-dim);">{b.notes}</div>}
-                      </td>
-                      <td style="padding: 0.5rem;">{b.qty}</td>
-                      <td style="padding: 0.5rem;">{b.unit_price_inr > 0 ? formatINR(b.unit_price_inr) : <span class="dim">Price not set</span>}</td>
-                      <td style="padding: 0.5rem;">{b.affiliate_url ? <a href={b.affiliate_url} target="_blank" rel="noopener noreferrer" class="link-sm" style="color: var(--brand-red);">Buy</a> : '-'}</td>
+                  {pins.map((p) => (
+                    <tr>
+                      <td class="font-mono font-bold">{p.from_pin}</td>
+                      <td class="font-mono">{p.to_pin}</td>
+                      <td class="text-ink-2">{p.note || '&mdash;'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            </div>
+          </div>
+        ))}
+      </section>
+    )}
+
+    <!-- 4. BUILD STEPS -->
+    {project.steps?.length > 0 && (
+      <section class="p-sec" id="steps">
+        <h2 class="p-sec__title">Build steps</h2>
+        <div class="p-steps-list">
+          {project.steps.map((s, i) => (
+            <article class="p-step-card" data-step-index={i}>
+              <div class="p-step-card__header">
+                <span class="p-step-badge">{i + 1}</span>
+                <div class="p-step-card__title-wrap">
+                  <h3 class="p-step-card__title">{s.title}</h3>
+                  {s.goal && <p class="p-step-card__goal">Goal: {s.goal}</p>}
+                </div>
+                {s.time_est && (
+                  <span class="p-step-time"><Icon name="clock" size={13} /> {s.time_est}</span>
+                )}
+              </div>
+
+              <div class="p-step-card__body">
+                {s.image_url && (
+                  <div class="p-step-card__media">
+                    <img src={s.image_url} alt={s.title} loading="lazy" />
+                  </div>
+                )}
+                <div class="prose" set:html={s.body}></div>
+
+                {s.expected_res && (
+                  <div class="p-step-res p-step-res--ok">
+                    <Icon name="check-circle" size={16} />
+                    <div>
+                      <strong>Expected result:</strong> {s.expected_res}
+                    </div>
+                  </div>
+                )}
+
+                {s.if_fails && (
+                  <div class="p-step-res p-step-res--warn">
+                    <Icon name="help-circle" size={16} />
+                    <div>
+                      <strong>If it fails:</strong> {s.if_fails}
+                    </div>
+                  </div>
+                )}
+
+                <div class="p-step-check">
+                  <label class="p-step-check__label">
+                    <input type="checkbox" class="step-progress-check" data-step-id={s.id || i} />
+                    <span>Step completed</span>
+                  </label>
+                </div>
+              </div>
+            </article>
           ))}
-          {estCost > 0 && (
-            <div class="bom-total" style="background: var(--surface); padding: 1rem; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
-              <span>Your selection:</span>
-              <span id="bom-calc-total" style="color: var(--brand-red); font-size: 1.2rem;">{formatINR(estCost)} (excludes tools)</span>
+        </div>
+      </section>
+    )}
+
+    <!-- 5. TROUBLESHOOTING -->
+    {project.troubleshooting?.length > 0 && (
+      <section class="p-sec" id="troubleshooting">
+        <h2 class="p-sec__title">Troubleshooting</h2>
+        <TroubleTable items={project.troubleshooting} />
+      </section>
+    )}
+
+    <!-- 6. FILES INCLUDED -->
+    {uniqueFiles.length > 0 && (
+      <section class="p-sec" id="files">
+        <h2 class="p-sec__title">Files included</h2>
+        <p class="p-sec__subtext">
+          {paid
+            ? 'Complete digital asset bundle delivered to your email immediately upon checkout.'
+            : 'Available for immediate free download.'}
+        </p>
+
+        <div class="p-files-grid">
+          {uniqueFiles.map((f: any) => {
+            const sz = formatBytes(f.size_bytes);
+            return (
+              <div class="p-file-item">
+                <div class="p-file-item__icon">
+                  <Icon
+                    name={
+                      f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch'
+                        ? 'code'
+                        : f.kind === 'schematic'
+                        ? 'schematic'
+                        : f.kind === 'model' || f.kind === '3d'
+                        ? 'cube'
+                        : 'doc'
+                    }
+                    size={22}
+                  />
+                </div>
+                <div class="p-file-item__info">
+                  <span class="p-file-item__name">{f.cleanLabel}</span>
+                  <div class="p-file-item__meta">
+                    <span class="p-file-item__kind">
+                      {FILE_KINDS.find((x) => x.key === f.kind)?.label ?? (f.kind || 'File')}
+                    </span>
+                    {sz && <span class="p-file-item__size">&middot; {sz}</span>}
+                  </div>
+                </div>
+
+                <div class="p-file-item__action">
+                  {f.is_free === 1 ? (
+                    <a href={`/api/download/free/${f.id}`} class="btn-file-dl" download>
+                      Download <Icon name="download" size={13} />
+                    </a>
+                  ) : (
+                    <span class="file-pack-badge">Pack file</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    <!-- 7. CODE & LICENSE -->
+    {(project.code_repo_url || project.license) && (
+      <section class="p-sec" id="license">
+        <h2 class="p-sec__title">Code & license</h2>
+        <div class="p-license-row">
+          {project.code_repo_url && (
+            <a
+              href={project.code_repo_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-license-link"
+            >
+              <Icon name="github" size={18} /> Open Source GitHub Repository
+            </a>
+          )}
+          {project.license && (
+            <div class="p-license-badge">
+              <Icon name="doc" size={16} /> License: <strong>{project.license}</strong>
             </div>
           )}
         </div>
       </section>
-      )}
+    )}
 
-      <!-- Wiring Tabs -->
-      {project.pins.length > 0 && (
-        <section class="v2-sec" id="wiring" style="margin-top: 3rem;">
-          <h2 class="sec__title"><Icon name="git-merge" size={20} /> Wiring & Connections</h2>
-          <div class="v2-wiring-tabs" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; border-bottom: 2px solid var(--border);">
-            {Object.keys(groupedPins).map((m, i) => (
-              <button class:list={['v2-tab-btn', { 'is-active': i === 0 }]} data-tab-target={m} style="padding: 0.5rem 1rem; cursor: pointer; background: none; border: none; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -2px;">{m}</button>
-            ))}
-          </div>
-          <div class="v2-wiring-panels">
-            {Object.entries(groupedPins).map(([m, pins], i) => (
-              <div class="v2-tab-panel" data-tab-name={m} style={i === 0 ? '' : 'display: none;'}>
-                <div class="table-responsive"><table class="pins v2-pins" style="min-width: 450px;">
-                  <thead><tr><th>From</th><th>To</th><th>Note</th></tr></thead>
-                  <tbody>
-                    {pins.map(p => (
-                      <tr>
-                        <td>{p.from_pin}</td>
-                        <td>{p.to_pin}</td>
-                        <td class="dim">{p.note}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+    <!-- 8. FAQ -->
+    {faqs.length > 0 && (
+      <section class="p-sec" id="faq">
+        <h2 class="p-sec__title">Frequently asked questions</h2>
+        <div class="p-faq-list">
+          {faqs.map((f: { q: string; a: string }) => (
+            <details class="p-faq-item">
+              <summary class="p-faq-q">
+                <span>{f.q}</span>
+                <Icon name="chevron-down" size={16} />
+              </summary>
+              <div class="p-faq-a prose">
+                <p>{f.a}</p>
               </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <!-- Build Stages -->
-      {project.steps.length > 0 && (
-        <section class="v2-sec" id="stages" style="margin-top: 3rem;">
-          <h2 class="sec__title"><Icon name="tool" size={20} /> Build Stages</h2>
-          <div class="v2-stages-accordion">
-            {project.steps.map((s, i) => (
-              <div class="v2-stage-card" style="border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 1rem; background: var(--surface); overflow: hidden;">
-                <div class="v2-stage-head" style="padding: 1rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2);">
-                  <div style="background: var(--brand-red); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">{i + 1}</div>
-                  <div style="flex: 1;">
-                    <h3 style="font-size: 1.1rem; margin: 0;">{s.title}</h3>
-                    {s.goal && <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Goal: {s.goal}</p>}
-                  </div>
-                  {s.time_est && <span class="chip"><Icon name="clock" size={13} /> {s.time_est}</span>}
-                </div>
-                <div class="v2-stage-body" style="padding: 1.25rem;">
-                  <div class="prose prose--tight">
-                    <Fragment set:html={s.body} />
-                  </div>
-                  
-                  {s.parts_needed && (
-                    <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg); border-radius: var(--r-sm);">
-                      <strong>Parts:</strong> {s.parts_needed}
-                    </div>
-                  )}
-
-                  {s.expected_res && (
-                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--success); border-radius: 0 var(--r-sm) var(--r-sm) 0;">
-                      <strong style="color: var(--success);"><Icon name="check-circle" size={16} /> Expected Result:</strong><br/>
-                      <span style="font-size: 0.9rem;">{s.expected_res}</span>
-                    </div>
-                  )}
-
-                  {s.if_fails && (
-                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning); border-radius: 0 var(--r-sm) var(--r-sm) 0;">
-                      <strong style="color: var(--warning);"><Icon name="alert-triangle" size={16} /> If it fails:</strong><br/>
-                      <span style="font-size: 0.9rem;">{s.if_fails}</span>
-                    </div>
-                  )}
-
-                  <div style="margin-top: 1.5rem; text-align: right;">
-                    <label style="display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 600; color: var(--text-muted); padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg);">
-                      <input type="checkbox" class="v2-stage-pass" data-stage={i} /> Stage Passed
-                    </label>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      
-      <!-- Code & Downloads -->
-      {project.files && project.files.length > 0 && (
-        <section class="v2-sec" id="code" style="margin-top: 3rem;">
-          <h2 class="sec__title"><Icon name="folder" size={20} /> Code & Downloads</h2>
-          <div class="files" style="display: flex; flex-direction: column; gap: 0.5rem;">
-            {project.files.map((f: any) => {
-              const clean = cleanFileLabel(f.label, f.kind);
-              const sz = formatBytes(f.size_bytes);
-              return (
-                <div class="file-row" style="display: flex; align-items: center; gap: 0.75rem; border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--r-md);">
-                  <Icon name={f.kind === 'code' ? 'code' : f.kind === 'schematic' ? 'schematic' : f.kind === 'model3d' ? 'cube' : 'file-text'} size={24} style="color: var(--brand-red);" />
-                  <div style="flex: 1;">
-                    <div style="font-weight: 500;">{clean} {sz && <small class="dim mono">({sz})</small>}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">{f.kind ? (FILE_KINDS.find(x => x.key === f.kind)?.label ?? f.kind) : 'File'}</div>
-                  </div>
-                  {f.is_free === 1 ? (
-                    <a href={`/api/download/free/${f.id}`} class="btn btn-sm btn-outline" download>Download</a>
-                  ) : (
-                    <span class="badge badge--sm" style="font-size: 0.75rem;">Pack file</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      <!-- Troubleshooting -->
-      {project.troubleshooting && project.troubleshooting.length > 0 && (
-        <section class="v2-sec" id="troubleshooting" style="margin-top: 3rem;">
-          <h2 class="sec__title"><Icon name="alert-triangle" size={20} /> Troubleshooting</h2>
-          <TroubleTable items={project.troubleshooting} />
-        </section>
-      )}
-
-<!-- Source & License -->
-      {(project.code_repo_url || project.license) && (
-        <section class="v2-sec" id="code" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
-          <h2 class="sec__title"><Icon name="code" size={20} /> Code & License</h2>
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
-            {project.code_repo_url && (
-              <a href={project.code_repo_url} target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); padding: 0.75rem 1rem; border-radius: var(--r-md); font-weight: 500; color: var(--text); text-decoration: none;">
-                <Icon name="github" size={18} /> GitHub Repository
-              </a>
-            )}
-            <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px dashed var(--border); padding: 0.75rem 1rem; border-radius: var(--r-md); font-weight: 500; color: var(--text-muted);">
-              <Icon name="file-text" size={18} /> License: {project.license || 'MIT'}
-            </div>
-          </div>
-        </section>
-      )}
-
-<!-- FAQ -->
-      {faqs.length > 0 && (
-        <section class="v2-sec" id="faq" style="margin-top: 3rem;">
-          <h2 class="sec__title"><Icon name="help-circle" size={20} /> FAQ</h2>
-          <div class="trouble">
-            {faqs.map((f: {q: string, a: string}) => (
-              <details class="trouble__item">
-                <summary>{f.q}</summary>
-                <div class="prose prose--tight">
-                  <p>{f.a}</p>
-                </div>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
-
-    </main>
-    
-    <!-- SIDEBAR -->
-    <aside class="v2-sidebar">
-      <div class="cta-card" id="buy" data-buy data-project-id={project.id} data-slug={project.slug} data-payments={paid ? '1' : '0'} style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-        <div class="cta-card__row" style="margin-bottom: 1rem;">
-          <div>
-            <span class="cta-card__kicker mono" style="font-size: 0.8rem; color: var(--brand-red); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">{(project.combo_title || 'Full Project Pack').replace(/combo/gi, 'Pack')}</span>
-            <div class="cta-card__price" style="font-size: 2rem; font-weight: 700; font-family: var(--font-display); line-height: 1;">
-              {paid ? formatINR(project.price_inr) : 'Free'}
-              <span style="display: block; font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-top: 0.25rem;">{paid ? 'one-time • digital pack' : 'open resource'}</span>
-            </div>
-          </div>
+            </details>
+          ))}
         </div>
-        
-        {(paid || project.files.length > 0) && (
-          <details class="cta-card__details" style="margin-bottom: 1.25rem; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); padding: 0.5rem 0;">
-            <summary style="cursor: pointer; font-weight: 600; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">What's included? <Icon name="chevron-down" size={16} /></summary>
-            <div style="padding-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted);">
-              {project.combo_description && <p style="margin-bottom: 0.75rem;">{project.combo_description}</p>}
-              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
-                {project.files.filter(f => f.in_combo === 1 || !paid).map(f => {
-                  const clean = cleanFileLabel(f.label, f.kind);
-                  const sz = formatBytes(f.size_bytes);
-                  return (
-                    <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
-                      <Icon name="file-text" size={16} style="color: var(--brand-red); flex-shrink: 0;" /> 
-                      <span>{clean} {sz && <small class="dim mono">({sz})</small>}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </details>
-        )}
-        
-        
-          <div class="cta-card__action" style="display: flex; flex-direction: column; gap: 0.75rem;">
-            <div class="input-wrap">
-              <input type="email" id="buy-email" class="input input--sm" style="width: 100%;" placeholder="Your email address..." required />
-            </div>
-            <button type="button" class="btn btn-primary btn-block btn-buy" data-buy-btn style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 1rem; font-weight: 600;">
-              <Icon name="lock" size={16} /> {paid ? 'Buy &amp; download' : 'Get free resources'}
-            </button>
-          </div>
+      </section>
+    )}
 
+    <!-- AUTHOR & SUPPORT BLOCK -->
+    <section class="p-author-block">
+      <div class="p-author-img-wrap">
+        <img
+          src="/images/triveni.jpg"
+          alt="Triveni"
+          width="120"
+          height="120"
+          class="p-author-img"
+          loading="lazy"
+        />
       </div>
-
-      <div class="toc" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.5rem;">
-        <span class="toc-title" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-muted); margin-bottom: 1rem; display: block;">On this page</span>
-        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;">
-          <li><a href="#learning" class="toc-link" style="color: var(--text-muted); text-decoration: none;">What you'll learn</a></li>
-          <li><a href="#parts" class="toc-link" style="color: var(--text-muted); text-decoration: none;">Parts and tools</a></li>
-          {project.pins.length > 0 && <li><a href="#wiring" class="toc-link" style="color: var(--text-muted); text-decoration: none;">Wiring</a></li>}
-          {project.steps.length > 0 && <li><a href="#stages" class="toc-link" style="color: var(--text-muted); text-decoration: none;">Build Stages</a></li>}
-          {faqs.length > 0 && <li><a href="#faq" class="toc-link" style="color: var(--text-muted); text-decoration: none;">FAQ</a></li>}
-        </ul>
+      <div class="p-author-content">
+        <span class="p-author-label">CREATOR & ENGINEER</span>
+        <h3 class="p-author-title">Built and tested by Triveni</h3>
+        <p class="p-author-text">
+          Every schematic, line of code, and 3D model in this pack was built, tested, and verified on real bench hardware in the Technical Triveni workshop. Need assistance or running into a tricky bring-up issue? Drop me an email anytime.
+        </p>
+        <a href="mailto:technicaltriveniyt@gmail.com" class="p-author-email">
+          <Icon name="mail" size={15} /> technicaltriveniyt@gmail.com
+        </a>
       </div>
+    </section>
 
-    </aside>
-  </div>
-  
-  <div class="mobile-buy-bar">
-    <div class="mobile-buy-bar__info">
-      <span class="mobile-buy-bar__price">{paid ? formatINR(project.price_inr) : 'Free'}</span>
-      <span class="mobile-buy-bar__label">{paid ? 'Digital pack' : 'Open resource'}</span>
+    <!-- RELATED PACKS -->
+    {relatedPacks.length > 0 && (
+      <section class="p-related-section">
+        <h2 class="p-sec__title">Other project packs you might like</h2>
+        <div class="p-related-grid">
+          {relatedPacks.map((p) => (
+            <ProjectCard project={p} />
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+
+  <!-- MOBILE STICKY BUY BAR (Height 60px) -->
+  <div class="mobile-sticky-bar" id="mobile-sticky-bar">
+    <div class="mobile-sticky-bar__info">
+      <span class="mobile-sticky-bar__title">{project.title}</span>
+      <span class="mobile-sticky-bar__price">
+        {paid ? formatINR(project.price_inr) : <strong class="text-success">Free</strong>}
+      </span>
     </div>
-    <button type="button" class="btn btn-primary" onclick="document.getElementById('buy-email').focus(); document.getElementById('buy').scrollIntoView({behavior: 'smooth'})">
-      Get Access
+    <button type="button" class="btn-mobile-buy" id="btn-mobile-scroll">
+      {paid ? `Buy pack — ${formatINR(project.price_inr)}` : 'Get free files'}
     </button>
   </div>
 </div>
 
 <script>
-  // BOM Checkboxes logic
-  const checkBoxes = document.querySelectorAll('.bom-check');
-  const totalDisplay = document.getElementById('bom-calc-total');
-  let baseTotal = parseFloat(totalDisplay?.textContent?.replace(/[^0-9.]/g, '') || '0');
+  // Media Viewer thumbnail switcher
+  const stage = document.getElementById('media-stage');
+  const stageImg = document.getElementById('stage-img') as HTMLImageElement;
+  const thumbBtns = document.querySelectorAll<HTMLButtonElement>('.p-thumb-btn');
 
-  checkBoxes.forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const price = parseFloat((e.target as HTMLInputElement).dataset.price || '0');
-      if ((e.target as HTMLInputElement).checked) {
-        baseTotal -= price;
-      } else {
-        baseTotal += price;
-      }
-      if (totalDisplay) {
-        totalDisplay.innerHTML = '&#8377;' + Math.max(0, baseTotal).toLocaleString('en-IN');
-      }
-    });
-  });
-
-  // Wiring Tabs logic
-  const tabBtns = document.querySelectorAll('.v2-tab-btn');
-  const tabPanels = document.querySelectorAll('.v2-tab-panel');
-  tabBtns.forEach(btn => {
+  thumbBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('is-active'));
-      tabPanels.forEach(p => (p as HTMLElement).style.display = 'none');
+      thumbBtns.forEach((b) => b.classList.remove('is-active'));
       btn.classList.add('is-active');
-      const target = (btn as HTMLElement).dataset.tabTarget;
-      const panel = document.querySelector(".v2-tab-panel[data-tab-name=\"" + target + "\"]");
-      if (panel) (panel as HTMLElement).style.display = 'block';
-    });
-  });
 
-  // Stage Checklist
-  const stageChecks = document.querySelectorAll('.v2-stage-pass');
-  stageChecks.forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const el = e.target as HTMLInputElement;
-      const card = el.closest('.v2-stage-card') as HTMLElement;
-      if (el.checked) {
-        card.style.opacity = '0.7';
-        card.style.borderColor = 'var(--success)';
-      } else {
-        card.style.opacity = '1';
-        card.style.borderColor = 'var(--border)';
+      const ytId = btn.dataset.ytId;
+      const mediaUrl = btn.dataset.mediaUrl;
+      const mediaType = btn.dataset.mediaType;
+
+      if (!stage) return;
+
+      if (ytId) {
+        stage.innerHTML = `<div class="p-stage__yt"><lite-youtube videoid="${ytId}"></lite-youtube></div>`;
+      } else if (mediaType === 'model' && mediaUrl) {
+        stage.innerHTML = `<model-viewer src="${mediaUrl}" camera-controls auto-rotate shadow-intensity="1" exposure="1.2" class="p-stage__model"></model-viewer>`;
+      } else if (mediaUrl) {
+        stage.innerHTML = `<img src="${mediaUrl}" alt="Project image" class="p-stage__img" width="800" height="500" />`;
       }
     });
   });
+
+  // Mobile Sticky Buy Bar trigger & scroll
+  const buyBox = document.getElementById('main-buy-box');
+  const stickyBar = document.getElementById('mobile-sticky-bar');
+  const mobileScrollBtn = document.getElementById('btn-mobile-scroll');
+
+  if (buyBox && stickyBar) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting && window.innerWidth <= 900) {
+            stickyBar.classList.add('is-visible');
+          } else {
+            stickyBar.classList.remove('is-visible');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(buyBox);
+
+    mobileScrollBtn?.addEventListener('click', () => {
+      buyBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
+      if (emailInput) setTimeout(() => emailInput.focus(), 400);
+    });
+  }
+
+  // Section Nav active pill highlighting on scroll
+  const secLinks = document.querySelectorAll<HTMLAnchorElement>('.p-secnav__link');
+  const sections = document.querySelectorAll<HTMLElement>('.p-sec');
+
+  window.addEventListener(
+    'scroll',
+    () => {
+      let currentId = '';
+      sections.forEach((sec) => {
+        const top = sec.offsetTop - 140;
+        if (window.scrollY >= top) {
+          currentId = sec.getAttribute('id') || '';
+        }
+      });
+      if (currentId) {
+        secLinks.forEach((link) => {
+          link.classList.toggle('is-active', link.getAttribute('href') === `#${currentId}`);
+        });
+      }
+    },
+    { passive: true }
+  );
+
+  // Step Completion Progress (persisted in localStorage)
+  const projBox = document.getElementById('main-buy-box');
+  if (projBox && projBox.dataset.projectId) {
+    const storageKey = `tt-step-prog-${projBox.dataset.projectId}`;
+    let savedSteps: string[] = [];
+    try {
+      savedSteps = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    } catch {}
+
+    const stepChecks = document.querySelectorAll<HTMLInputElement>('.step-progress-check');
+    stepChecks.forEach((cb) => {
+      const stepId = cb.dataset.stepId || '';
+      if (savedSteps.includes(stepId)) {
+        cb.checked = true;
+        cb.closest('.p-step-card')?.classList.add('is-completed');
+      }
+
+      cb.addEventListener('change', () => {
+        const card = cb.closest('.p-step-card');
+        if (cb.checked) {
+          card?.classList.add('is-completed');
+          if (!savedSteps.includes(stepId)) savedSteps.push(stepId);
+        } else {
+          card?.classList.remove('is-completed');
+          savedSteps = savedSteps.filter((id) => id !== stepId);
+        }
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(savedSteps));
+        } catch {}
+      });
+    });
+  }
+
+  // Checkout and Free Claim logic
+  const buyBtn = document.getElementById('btn-buy-submit') as HTMLButtonElement;
+  const freeBtn = document.getElementById('btn-free-submit') as HTMLButtonElement;
+  const buyBoxContainer = document.getElementById('main-buy-box');
+
+  // Handle Free Claim
+  if (freeBtn && buyBoxContainer) {
+    freeBtn.addEventListener('click', async () => {
+      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
+      if (!emailInput || !emailInput.value || !emailInput.checkValidity()) {
+        emailInput?.reportValidity();
+        return;
+      }
+
+      freeBtn.disabled = true;
+      freeBtn.innerHTML = `Preparing free files...`;
+
+      try {
+        const res = await fetch('/api/download/free-claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: parseInt(buyBoxContainer.dataset.projectId || '0', 10),
+            email: emailInput.value.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to claim download');
+
+        buyBoxContainer.innerHTML = `
+          <div class="buy-success">
+            <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+            <h3 class="buy-success__title">Free files ready!</h3>
+            <p class="buy-success__text">We just emailed the download link to <strong>${emailInput.value}</strong>.</p>
+            <a href="${data.redirect || '/account/downloads'}" class="btn-buy-action btn-buy-action--free">Download files now</a>
+          </div>
+        `;
+      } catch (err: any) {
+        alert(err.message || 'Error claiming files');
+        freeBtn.disabled = false;
+        freeBtn.innerHTML = `Get free files &rarr;`;
+      }
+    });
+  }
+
+  // Handle Paid Razorpay Checkout
+  if (buyBtn && buyBoxContainer) {
+    buyBtn.addEventListener('click', async () => {
+      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
+      const couponInput = document.getElementById('coupon_code') as HTMLInputElement;
+
+      if (!emailInput || !emailInput.value || !emailInput.checkValidity()) {
+        emailInput?.reportValidity();
+        return;
+      }
+
+      buyBtn.disabled = true;
+      buyBtn.innerHTML = `Connecting to checkout...`;
+
+      try {
+        const res = await fetch('/api/razorpay/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: parseInt(buyBoxContainer.dataset.projectId || '0', 10),
+            email: emailInput.value.trim(),
+            couponCode: couponInput ? couponInput.value.trim() : '',
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
+
+        if (data.alreadyPaid) {
+          buyBoxContainer.innerHTML = `
+            <div class="buy-success">
+              <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+              <h3 class="buy-success__title">You already own this pack!</h3>
+              <p class="buy-success__text">We emailed the fresh download link to <strong>${emailInput.value}</strong>.</p>
+              <a href="/account/downloads" class="btn-buy-action">View my downloads</a>
+            </div>
+          `;
+          return;
+        }
+
+        const rzp = new (window as any).Razorpay({
+          key: data.keyId,
+          amount: data.amount,
+          currency: 'INR',
+          name: 'Technical Triveni',
+          description: buyBoxContainer.dataset.slug || 'Project Pack',
+          order_id: data.razorpayOrderId,
+          handler: async function (response: any) {
+            buyBtn.innerHTML = `Verifying payment...`;
+            try {
+              const vres = await fetch('/api/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  orderId: data.orderId,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+              const vdata = await vres.json();
+              if (!vres.ok) throw new Error(vdata.error || 'Verification failed');
+              window.location.href = vdata.redirect || '/account/downloads';
+            } catch (err: any) {
+              alert('Payment confirmed, but session verification failed: ' + err.message);
+              window.location.href = '/account/downloads';
+            }
+          },
+          prefill: { email: emailInput.value.trim() },
+          theme: { color: '#E92424' },
+        });
+
+        rzp.on('payment.failed', function () {
+          buyBtn.disabled = false;
+          buyBtn.innerHTML = `Buy pack &mdash; ₹${buyBoxContainer.dataset.price}`;
+          alert('Payment was cancelled or failed. Please try again.');
+        });
+
+        rzp.open();
+      } catch (err: any) {
+        alert(err.message || 'Error starting payment');
+        buyBtn.disabled = false;
+        buyBtn.innerHTML = `Buy pack &mdash; ₹${buyBoxContainer.dataset.price}`;
+      }
+    });
+  }
 </script>
 
 <style>
-
-  /* ===== Responsive Logic ===== */
-  .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
-  .v2-grid { display: grid; grid-template-columns: 1fr 320px; gap: 2rem; margin-top: 2rem; align-items: start; }
-  .v2-sidebar { position: sticky; top: calc(var(--header-h, 60px) + 1.5rem); display: flex; flex-direction: column; gap: 1.5rem; }
-  .mobile-buy-bar { display: none; }
-
-  @media (max-width: 900px) {
-    .v2-grid { display: flex; flex-direction: column; gap: 3rem; margin-top: 1.5rem; }
-    .v2-sidebar { position: static; display: flex; }
-    .v2-safety { margin-left: -1rem; margin-right: -1rem; border-radius: 0; border-left: none; border-right: none; }
-    .mobile-buy-bar {
-      display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface);
-      border-top: 1px solid var(--border); padding: 0.75rem 1rem; z-index: 100;
-      justify-content: space-between; align-items: center; box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
-      padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
-    }
-    .mobile-buy-bar__info { display: flex; flex-direction: column; }
-    .mobile-buy-bar__price { font-weight: 700; font-size: 1.25rem; font-family: var(--font-display); line-height: 1.1; }
-    .mobile-buy-bar__label { font-size: 0.75rem; color: var(--text-muted); }
-    .proj-layout-v2 { padding-bottom: 80px; }
+  /* Base Project Layout */
+  .project-layout {
+    background: var(--bg);
+    padding-bottom: 80px;
   }
 
-  .v2-tab-btn.is-active { color: var(--brand-red); border-bottom-color: var(--brand-red) !important; }
+  /* Breadcrumbs */
+  .p-crumbs {
+    padding-top: 24px;
+    padding-bottom: 12px;
+    font-size: 13px;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .p-crumbs a {
+    color: var(--ink-2);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .p-crumbs a:hover {
+    color: var(--red);
+  }
+  .p-crumbs__sep {
+    color: var(--line);
+  }
+  .p-crumbs__current {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* Header Block */
+  .p-header {
+    padding-top: 12px;
+    padding-bottom: 24px;
+  }
+  .p-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--red);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .p-title {
+    font-size: clamp(2rem, 1.2rem + 3.6vw, 3.75rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+  .p-summary {
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 820px;
+    margin: 0 0 16px;
+  }
+  .p-meta-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .p-meta-text {
+    font-size: 14px;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .p-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .p-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-chip);
+    color: var(--ink-2);
+  }
+
+  /* 7/5 Grid */
+  .p-hero-grid {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: 32px;
+    align-items: start;
+    padding-top: 16px;
+    padding-bottom: 40px;
+  }
+  @media (max-width: 900px) {
+    .p-hero-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+
+  /* Media Viewer */
+  .p-viewer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .p-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .p-stage__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .p-stage__model {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .p-stage__yt {
+    width: 100%;
+    height: 100%;
+  }
+  .p-stage__yt lite-youtube {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+  }
+
+  .p-thumbs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .p-thumbs::-webkit-scrollbar {
+    display: none;
+  }
+  .p-thumb-btn {
+    width: 64px;
+    height: 40px;
+    padding: 0;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background: var(--bg-soft);
+    overflow: hidden;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 150ms ease;
+  }
+  .p-thumb-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .p-thumb-btn.is-active {
+    border-color: var(--red);
+  }
+  .p-thumb-icon {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    background: var(--ink);
+    color: #ffffff;
+  }
+  .p-thumb-label {
+    display: none;
+  }
+
+  /* Sticky Buy Box */
+  .p-sidebar {
+    position: sticky;
+    top: 84px;
+  }
+  .buy-box {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+  .buy-box__tag {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--red);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .buy-box__tag--free {
+    color: var(--success);
+  }
+  .buy-box__price-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .buy-box__price {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .buy-box__price-sub {
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+  .buy-box__free-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 6px;
+  }
+  .buy-box__free-desc {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin: 0 0 16px;
+  }
+
+  .buy-box__contents {
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .buy-box__contents-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .buy-box__checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .buy-box__checklist li {
+    font-size: 13px;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .buy-box__checklist :global(svg) {
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  .buy-box__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .buy-box__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-2);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .buy-box__input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: var(--r-btn);
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .buy-box__input:focus {
+    outline: none;
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(233, 36, 36, 0.12);
+  }
+  .buy-box__input--sm {
+    height: 38px;
+    font-size: 13px;
+  }
+
+  .btn-buy-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 48px;
+    background: var(--red);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--r-btn);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 100ms ease;
+  }
+  .btn-buy-action:hover {
+    background: var(--red-dark);
+  }
+  .btn-buy-action:active {
+    transform: scale(0.99);
+  }
+  .btn-buy-action--free {
+    background: var(--ink);
+  }
+  .btn-buy-action--free:hover {
+    background: #000000;
+  }
+
+  .buy-box__trust {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .trust-item {
+    font-size: 12px;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .trust-item :global(svg) {
+    color: var(--success);
+    flex-shrink: 0;
+  }
+
+  .buy-success {
+    text-align: center;
+    padding: 24px 12px;
+  }
+  .buy-success__icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    display: grid;
+    place-items: center;
+  }
+  .buy-success__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .buy-success__text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin: 0 0 16px;
+  }
+
+  /* Sticky Section Nav Bar */
+  .p-secnav {
+    position: sticky;
+    top: 64px;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border-block: 1px solid var(--line);
+    margin-bottom: 32px;
+  }
+  .p-secnav__inner {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-block: 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .p-secnav__inner::-webkit-scrollbar {
+    display: none;
+  }
+  .p-secnav__link {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--r-chip);
+    border: 1px solid transparent;
+    color: var(--ink-2);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    transition: all 150ms ease;
+  }
+  .p-secnav__link:hover {
+    color: var(--ink);
+    background: var(--bg-soft);
+  }
+  .p-secnav__link.is-active {
+    background: var(--ink);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  /* Content Sections */
+  .p-content {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    max-width: 900px;
+  }
+  .p-sec {
+    scroll-margin-top: 130px;
+  }
+  .p-sec__title {
+    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .p-sec__subtext {
+    font-size: 15px;
+    color: var(--ink-2);
+    margin: -8px 0 20px;
+  }
+
+  /* Safety Box */
+  .p-safety-box {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-left: 4px solid var(--warn);
+    border-radius: var(--r-card);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .p-safety-box__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--warn);
+    margin-bottom: 8px;
+  }
+  .p-safety-box__title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .p-safety-box__body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  /* Outcomes & Prereqs */
+  .p-subhead {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 24px 0 12px;
+  }
+  .p-check-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .p-check-list li {
+    font-size: 15px;
+    color: var(--ink-2);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .p-check-list :global(svg) {
+    color: var(--success);
+    flex-shrink: 0;
+    position: relative;
+    top: 2px;
+  }
+
+  .p-prereqs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  @media (max-width: 640px) {
+    .p-prereqs-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .p-panel {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 18px 20px;
+  }
+  .p-panel__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 10px;
+  }
+  .p-bullet-list {
+    padding-left: 20px;
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.6;
+  }
+
+  /* Wiring Tables */
+  .p-wiring-diagrams {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .p-wiring-diagram {
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    overflow: hidden;
+    background: var(--bg-soft);
+  }
+  .p-wiring-diagram img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .p-wiring-diagram__cap {
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  .p-pin-module {
+    margin-bottom: 24px;
+  }
+  .p-pin-module__title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  .p-table-wrap {
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg);
+  }
+  .p-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 480px;
+  }
+  .p-table th {
+    background: var(--bg-soft);
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+  .p-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .p-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Steps Cards */
+  .p-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .p-step-card {
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    background: var(--bg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: border-color 150ms ease;
+  }
+  .p-step-card.is-completed {
+    border-color: var(--success);
+    opacity: 0.85;
+  }
+  .p-step-card__header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: var(--bg-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  .p-step-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--red);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 14px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .p-step-card__title-wrap {
+    flex: 1;
+  }
+  .p-step-card__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .p-step-card__goal {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin: 2px 0 0;
+  }
+  .p-step-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .p-step-card__body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .p-step-card__media {
+    border-radius: 8px;
+    overflow: hidden;
+    max-height: 340px;
+    background: var(--bg-soft);
+  }
+  .p-step-card__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .p-step-res {
+    padding: 12px 16px;
+    border-radius: var(--r-btn);
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .p-step-res--ok {
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    color: var(--success);
+  }
+  .p-step-res--warn {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    color: var(--warn);
+  }
+  .p-step-check {
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: flex-end;
+  }
+  .p-step-check__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .p-step-check__label input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--success);
+  }
+
+  /* Files Grid */
+  .p-files-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .p-file-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    background: var(--bg);
+    transition: border-color 150ms ease;
+  }
+  .p-file-item__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: var(--bg-soft);
+    display: grid;
+    place-items: center;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+  .p-file-item__info {
+    flex: 1;
+    min-width: 0;
+  }
+  .p-file-item__name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    display: block;
+    word-break: break-word;
+  }
+  .p-file-item__meta {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+  .p-file-item__action {
+    flex-shrink: 0;
+  }
+  .btn-file-dl {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--r-btn);
+    background: var(--ink);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 150ms ease;
+  }
+  .btn-file-dl:hover {
+    background: #000000;
+  }
+  .file-pack-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-3);
+    background: var(--bg-soft);
+    padding: 6px 12px;
+    border-radius: var(--r-chip);
+    border: 1px solid var(--line);
+  }
+
+  /* Code & License */
+  .p-license-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .btn-license-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 18px;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--r-btn);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .btn-license-link:hover {
+    background: var(--ink);
+    color: #ffffff;
+  }
+  .p-license-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--ink-2);
+    padding: 10px 16px;
+    border-radius: var(--r-btn);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+  }
+
+  /* FAQ Accordion */
+  .p-faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .p-faq-item {
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .p-faq-q {
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .p-faq-q::-webkit-details-marker {
+    display: none;
+  }
+  .p-faq-item[open] .p-faq-q {
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-soft);
+  }
+  .p-faq-a {
+    padding: 16px 20px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  /* Author block */
+  .p-author-block {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 32px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    margin-top: 16px;
+  }
+  @media (max-width: 640px) {
+    .p-author-block {
+      flex-direction: column;
+      text-align: center;
+      gap: 16px;
+      padding: 24px 16px;
+    }
+  }
+  .p-author-img-wrap {
+    flex-shrink: 0;
+  }
+  .p-author-img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  }
+  .p-author-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--red);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .p-author-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .p-author-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 12px;
+  }
+  .p-author-email {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red);
+    text-decoration: underline;
+  }
+  .p-author-email:hover {
+    color: var(--red-dark);
+  }
+
+  /* Related Packs */
+  .p-related-section {
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  .p-related-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 20px;
+  }
+  @media (max-width: 900px) {
+    .p-related-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+
+  /* Mobile Sticky Bottom Bar (Height 60px) */
+  .mobile-sticky-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--line);
+    padding: 0 16px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 90;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(100%);
+    transition: transform 200ms ease;
+  }
+  .mobile-sticky-bar.is-visible {
+    display: flex;
+    transform: translateY(0);
+  }
+  .mobile-sticky-bar__info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding-right: 12px;
+  }
+  .mobile-sticky-bar__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 170px;
+  }
+  .mobile-sticky-bar__price {
+    font-size: 14px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .btn-mobile-buy {
+    height: 42px;
+    padding: 0 16px;
+    background: var(--red);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--r-btn);
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
 </style>
