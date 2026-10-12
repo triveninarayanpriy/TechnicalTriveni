@@ -1040,10 +1040,14 @@ const lastUpdated = formatDate(project.updated_at);
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
   }
   .p-stage {
     position: relative;
     width: 100%;
+    max-width: 100%;
     aspect-ratio: 16 / 10;
     background: var(--bg-soft);
     border: 1px solid var(--line);
@@ -1076,6 +1080,9 @@ const lastUpdated = formatDate(project.updated_at);
     display: flex;
     gap: 8px;
     overflow-x: auto;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
     padding: 6px 2px;
     margin-top: 4px;
     scrollbar-width: none;
