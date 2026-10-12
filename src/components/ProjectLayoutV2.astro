@@ -159,11 +159,7 @@ const lastUpdated = formatDate(project.updated_at);
     <!-- LEFT COLUMN: Media Viewer (7 cols) -->
     <div class="p-viewer">
       <div class="p-stage" id="media-stage">
-        {yt ? (
-          <div class="p-stage__yt" id="stage-yt">
-            <lite-youtube videoid={yt} playlabel={`Play video: ${project.title}`}></lite-youtube>
-          </div>
-        ) : firstMedia.type === 'model' ? (
+        {firstMedia.type === 'model' ? (
           <model-viewer
             src={firstMedia.url}
             camera-controls
@@ -189,21 +185,10 @@ const lastUpdated = formatDate(project.updated_at);
       <!-- Media Thumbnails Strip -->
       {(mediaList.length > 1 || yt) && (
         <div class="p-thumbs" role="tablist" aria-label="Media gallery thumbnails">
-          {yt && (
-            <button
-              type="button"
-              class:list={['p-thumb-btn', { 'is-active': true }]}
-              data-yt-id={yt}
-              aria-label="View Video"
-            >
-              <div class="p-thumb-icon"><Icon name="play" size={18} /></div>
-              <span class="p-thumb-label">Video</span>
-            </button>
-          )}
           {mediaList.map((m, i) => (
             <button
               type="button"
-              class:list={['p-thumb-btn', { 'is-active': !yt && i === 0 }]}
+              class:list={['p-thumb-btn', { 'is-active': i === 0 }]}
               data-media-url={m.url}
               data-media-type={m.type}
               aria-label={`View image ${i + 1}`}
@@ -211,10 +196,22 @@ const lastUpdated = formatDate(project.updated_at);
               {m.type === 'model' ? (
                 <div class="p-thumb-icon"><Icon name="cube" size={18} /></div>
               ) : (
-                <img src={m.url} alt="" width="64" height="40" loading="lazy" />
+                <img src={m.url} alt="" width="72" height="48" loading="lazy" />
               )}
             </button>
           ))}
+          {yt && (
+            <button
+              type="button"
+              class="p-thumb-btn p-thumb-btn--yt"
+              data-yt-id={yt}
+              aria-label="View Video"
+            >
+              <div class="p-thumb-icon p-thumb-icon--yt">
+                <Icon name="play" size={18} />
+              </div>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -638,7 +635,7 @@ const lastUpdated = formatDate(project.updated_at);
     <section class="p-author-block">
       <div class="p-author-img-wrap">
         <img
-          src="/images/triveni.jpg"
+          src="/brand/profile.jpg"
           alt="Triveni"
           width="120"
           height="120"
@@ -1079,23 +1076,25 @@ const lastUpdated = formatDate(project.updated_at);
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding: 6px 2px;
+    margin-top: 4px;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
   .p-thumbs::-webkit-scrollbar {
     display: none;
   }
   .p-thumb-btn {
-    width: 64px;
-    height: 40px;
+    width: 68px;
+    height: 44px;
     padding: 0;
-    border-radius: 6px;
-    border: 2px solid transparent;
+    border-radius: 8px;
+    border: 2px solid var(--line);
     background: var(--bg-soft);
     overflow: hidden;
     cursor: pointer;
     flex-shrink: 0;
-    transition: border-color 150ms ease;
+    transition: all 150ms ease;
   }
   .p-thumb-btn img {
     width: 100%;
@@ -1105,6 +1104,7 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .p-thumb-btn.is-active {
     border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(233, 36, 36, 0.2);
   }
   .p-thumb-icon {
     width: 100%;
@@ -1112,6 +1112,10 @@ const lastUpdated = formatDate(project.updated_at);
     display: grid;
     place-items: center;
     background: var(--ink);
+    color: #ffffff;
+  }
+  .p-thumb-icon--yt {
+    background: var(--red);
     color: #ffffff;
   }
   .p-thumb-label {
