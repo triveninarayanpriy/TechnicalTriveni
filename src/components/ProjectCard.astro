@@ -1,24 +1,43 @@
 ---
 import type { Project } from '../lib/db';
 import Icon from './Icon.astro';
-import { formatINR, parseTags, difficultyClass } from '../lib/format';
+import { formatINR } from '../lib/format';
 
 interface Props {
   project: Project;
   reveal?: boolean;
 }
 const { project, reveal = true } = Astro.props;
-const tags = parseTags(project.tags).slice(0, 3);
 const paid = (project.price_inr ?? 0) > 0;
+
 const fileKindsStr = (project.file_kinds || '').toLowerCase();
 const hasCode = fileKindsStr.includes('code') || fileKindsStr.includes('sketch') || fileKindsStr.includes('hex');
 const hasSchematic = fileKindsStr.includes('schematic') || fileKindsStr.includes('circuit');
 const has3D = fileKindsStr.includes('model') || fileKindsStr.includes('3d') || !!project.model_url;
 const hasPdf = fileKindsStr.includes('pdf') || fileKindsStr.includes('doc') || (!hasCode && !hasSchematic && !has3D);
+
+// Badges: max two, plain text with icon
+const badges: { label: string; icon: string }[] = [];
+if (hasCode) badges.push({ label: 'Code', icon: 'code' });
+if (hasSchematic && badges.length < 2) badges.push({ label: 'Schematic', icon: 'schematic' });
+if (has3D && badges.length < 2) badges.push({ label: '3D', icon: 'cube' });
+if (hasPdf && badges.length < 2) badges.push({ label: 'PDF', icon: 'file-text' });
+
+// Meta row: "Beginner · 2 h · Core cost ≈ ₹1,480"
+const metaParts: string[] = [];
+if (project.difficulty) metaParts.push(project.difficulty);
+if (project.build_time) metaParts.push(project.build_time);
+else metaParts.push('2 h');
+
+if (project.cost_override && project.cost_override > 0) {
+  metaParts.push(`Core cost ≈ ${formatINR(project.cost_override)}`);
+}
+const metaRow = metaParts.join(' · ');
 ---
 
 <article class="pcard" data-reveal={reveal ? '' : undefined}>
-  <a href={`/projects/${project.slug}`} class="pcard__stretch" aria-label={project.title}></a>
+  <a href={`/projects/${project.slug}`} class="pcard__stretch" aria-label={`View ${project.title}`}></a>
+  
   <div class="pcard__media">
     {project.cover_image ? (
       <img src={project.cover_image} alt={project.title} loading="lazy" decoding="async" width="640" height="400" />
@@ -26,44 +45,44 @@ const hasPdf = fileKindsStr.includes('pdf') || fileKindsStr.includes('doc') || (
       <div class="pcard__placeholder grid-bg" aria-hidden="true">
         <svg viewBox="-4 -4 120 100" class="pcard__mark">
           <defs><path id={`m-${project.id}`} d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
-          <use href={`#m-${project.id}`} x="0" fill="var(--brand-red)" opacity="0.9"/>
-          <use href={`#m-${project.id}`} x="50" fill="#2a2c34"/>
+          <use href={`#m-${project.id}`} x="0" fill="var(--red)" opacity="0.9"/>
+          <use href={`#m-${project.id}`} x="50" fill="var(--ink-2)"/>
         </svg>
       </div>
     )}
-    <div class="pcard__badges">
-      <span class:list={['badge', difficultyClass(project.difficulty)]}>{project.difficulty}</span>
-    </div>
+
+    {badges.length > 0 && (
+      <div class="pcard__badges">
+        {badges.map((b) => (
+          <span class="pcard__badge">
+            <Icon name={b.icon} size={11} /> {b.label}
+          </span>
+        ))}
+      </div>
+    )}
+
     {project.video_url && (
-      <span class="pcard__video" title="Has a video"><Icon name="play" size={14} /></span>
+      <span class="pcard__video" title="Video walkthrough included">
+        <Icon name="play" size={12} />
+      </span>
     )}
   </div>
 
   <div class="pcard__body">
-    <div class="pcard__meta">
-      <span class="chip chip--cat">{project.category}</span>
-      {paid ? (
-        <span class="pcard__price">{formatINR(project.price_inr)}<span class="pcard__price-sub">pack</span></span>
-      ) : (
-        <span class="pcard__free">Free</span>
-      )}
-    </div>
+    <span class="pcard__cat">{project.category || 'PROJECT'}</span>
     <h3 class="pcard__title">{project.title}</h3>
-    <p class="pcard__summary">{project.summary}</p>
-
-    <div class="pcard__includes">
-      {hasCode && <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>}
-      {hasSchematic && <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>}
-      {has3D && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
-      {hasPdf && <span class="inc-chip" title="PDF Guide"><Icon name="file-text" size={11} /> PDF</span>}
-      {paid && <span class="inc-chip inc-chip--combo" title="Project Pack available"><Icon name="cart" size={11} /> Pack</span>}
-    </div>
+    <div class="pcard__meta-row">{metaRow}</div>
+    {project.summary && <p class="pcard__summary">{project.summary}</p>}
 
     <div class="pcard__foot">
-      <div class="pcard__tags">
-        {tags.map((t) => <span class="tag-dot">{t}</span>)}
+      <div class="pcard__price-wrap">
+        {paid ? (
+          <span class="pcard__price">{formatINR(project.price_inr)}</span>
+        ) : (
+          <span class="pcard__free">Free</span>
+        )}
       </div>
-      <span class="pcard__cta">View <Icon name="arrow-right" size={15} /></span>
+      <span class="pcard__cta">View &rarr;</span>
     </div>
   </div>
 </article>
@@ -73,89 +92,173 @@ const hasPdf = fileKindsStr.includes('pdf') || fileKindsStr.includes('doc') || (
     position: relative;
     display: flex;
     flex-direction: column;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.28s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+    height: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   }
-  .pcard:hover { transform: translateY(-4px); border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
-  .pcard__stretch { position: absolute; inset: 0; z-index: 2; border-radius: inherit; }
+  @media (hover: hover) and (min-width: 768px) {
+    .pcard:hover {
+      transform: translateY(-2px);
+      border-color: var(--ink-2);
+      box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 12px 28px rgba(0,0,0,.08);
+    }
+  }
+  .pcard__stretch {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+  }
+
+  /* 16:10 Media ratio */
   .pcard__media {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-2);
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: var(--bg-soft);
+    border-radius: 10px;
     overflow: hidden;
   }
-  .pcard__media img { width: 100%; height: auto; display: block; transition: transform 0.5s var(--ease); }
-  .pcard:hover .pcard__media img { transform: scale(1.05); }
+  .pcard__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 300ms var(--ease);
+  }
+  @media (hover: hover) {
+    .pcard:hover .pcard__media img {
+      transform: scale(1.03);
+    }
+  }
   .pcard__placeholder {
     display: grid;
     place-items: center;
-    width: 100%; height: 100%;
-    background-color: var(--surface-2);
+    width: 100%;
+    height: 100%;
   }
-  .pcard__mark { width: 42%; opacity: 0.85; }
-  .pcard__badges { position: absolute; top: 0.75rem; left: 0.75rem; display: flex; gap: 0.4rem; }
-  .pcard__badges .badge { background: rgba(255,255,255,0.92); backdrop-filter: blur(6px); border-color: rgba(17,24,39,0.12); box-shadow: var(--shadow-sm); }
+  .pcard__mark { width: 36%; opacity: 0.85; }
+
+  /* Max two badges overlay */
+  .pcard__badges {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    gap: 5px;
+    z-index: 1;
+  }
+  .pcard__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 550;
+    padding: 3px 7px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--ink);
+  }
   .pcard__video {
-    position: absolute; top: 0.75rem; right: 0.75rem;
-    width: 30px; height: 30px; display: grid; place-items: center;
-    background: var(--brand-red); color: #fff; border-radius: 50%;
-    box-shadow: var(--shadow-md);
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--red);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    z-index: 1;
   }
-  .pcard__body { padding: 0.9rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
-  .pcard__meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  .chip--cat { font-size: var(--fs-xs); padding: 0.25rem 0.6rem; }
-  .pcard__price { font-family: var(--font-display); font-weight: 700; color: var(--text); display: inline-flex; align-items: baseline; gap: 0.3rem; }
-  .pcard__price-sub { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
+
+  /* Card content */
+  .pcard__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding-top: 14px;
+    gap: 6px;
+  }
+  .pcard__cat {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .pcard__title {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: color 180ms ease;
+  }
+  .pcard:hover .pcard__title {
+    color: var(--red);
+  }
+  .pcard__meta-row {
+    font-size: 13px;
+    color: var(--ink-3);
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pcard__summary {
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Foot row */
+  .pcard__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .pcard__price {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+  }
   .pcard__free {
-    font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.05em;
-    color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
-    padding: 0.2rem 0.55rem; border-radius: var(--r-full);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--success);
   }
-  .pcard__title { font-size: var(--fs-md); line-height: 1.25; transition: color 0.2s; }
-  .pcard:hover .pcard__title { color: var(--brand-red); }
-  .pcard__summary { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.5; flex: 1;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .pcard__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.35rem; padding-top: 0.85rem; border-top: 1px solid var(--hairline); }
-  .pcard__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-  .tag-dot { font-size: var(--fs-xs); color: var(--text-dim); font-family: var(--font-mono); }
-  .tag-dot::before { content: '#'; opacity: 0.6; }
   .pcard__cta {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm);
-    color: var(--brand-red); white-space: nowrap;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
-
-  /* ---- Compact 2-column cards on phones ---- */
-  @media (max-width: 600px) {
-    .pcard__badges { top: 0.4rem; left: 0.4rem; }
-    .pcard__badges .badge { padding: 0.15rem 0.35rem; font-size: 0.55rem; }
-    .pcard__video { top: 0.4rem; right: 0.4rem; width: 24px; height: 24px; }
-    .pcard__video :global(svg) { width: 10px; height: 10px; }
-    .pcard__body { padding: 0.6rem; gap: 0.3rem; }
-    .pcard__meta { gap: 0.3rem; flex-wrap: wrap; }
-    .chip--cat { font-size: 0.55rem; padding: 0.15rem 0.35rem; }
-    .pcard__price { font-size: var(--fs-sm); }
-    .pcard__price-sub { font-size: 0.6rem; }
-    .pcard__free { font-size: 0.55rem; padding: 0.15rem 0.4rem; }
-    .pcard__title { font-size: 0.75rem; line-height: 1.25; }
-    .pcard__summary { display: none; }
-    .pcard__foot { padding-top: 0.5rem; margin-top: auto; }
-    .pcard__tags { display: none; }
-    .pcard__cta { font-size: 0.65rem; gap: 0.2rem; }
-    .pcard__cta :global(svg) { width: 12px; height: 12px; }
-  }
-
-  /* Included indicator chips */
-  .pcard__includes { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
-  .inc-chip { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.6rem; font-family: var(--font-mono); font-weight: 550; padding: 0.2rem 0.4rem; border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); transition: all 0.2s; }
-  .inc-chip :global(svg) { color: var(--text-dim); }
-  .pcard:hover .inc-chip { border-color: var(--border-strong); color: var(--text); }
-  .inc-chip--combo { background: rgba(231,36,42,0.05); color: var(--brand-red); border-color: rgba(231,36,42,0.15); }
-  .inc-chip--combo :global(svg) { color: var(--brand-red); }
 </style>
