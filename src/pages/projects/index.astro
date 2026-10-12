@@ -5,7 +5,7 @@ import Icon from '../../components/Icon.astro';
 import { listProjects, countProjects, distinctCategories } from '../../lib/db';
 import { env } from 'cloudflare:workers';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 12;
 const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
@@ -18,6 +18,7 @@ const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1)
 let projects: Awaited<ReturnType<typeof listProjects>> = [];
 let categories: string[] = [];
 let total = 0;
+
 try {
   const opts = { publishedOnly: true, category: cat, search: q || undefined, difficulty, priceMode };
   [total, categories] = await Promise.all([countProjects(env.DB, opts), distinctCategories(env.DB)]);
@@ -30,41 +31,39 @@ try {
 } catch {
   /* DB not ready */
 }
+
 const cats = ['All', ...categories];
 const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-// Build a URL preserving q + cat, setting a page.
+// Preserve filters across navigation
 const pageUrl = (p: number) => {
-  const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  if (cat !== 'All') params.set('cat', cat);
-  if (difficulty !== 'all') params.set('difficulty', difficulty);
-  if (priceMode !== 'all') params.set('price', priceMode);
-  if (sortMode !== 'newest') params.set('sort', sortMode);
+  const params = new URLSearchParams(url.search);
   if (p > 1) params.set('page', String(p));
+  else params.delete('page');
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
 };
+
 const priceUrl = (m: string) => {
   const params = new URLSearchParams(url.search);
-  if (m !== 'all') params.set('price', m); else params.delete('price');
+  if (m !== 'all') params.set('price', m);
+  else params.delete('price');
   params.delete('priceMode');
   params.delete('page');
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
 };
+
 const chipUrl = (c: string) => {
   const params = new URLSearchParams(url.search);
-  if (c !== 'All') params.set('cat', c); else params.delete('cat');
+  if (c !== 'All') params.set('cat', c);
+  else params.delete('cat');
   params.delete('page');
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
 };
-const filterUrl = () => {
-  return '/projects';
-};
 
-// Windowed page numbers with ellipses.
+// Windowed page numbers with ellipses
 const pageItems: (number | '…')[] = [];
 if (totalPages <= 7) {
   for (let i = 1; i <= totalPages; i++) pageItems.push(i);
@@ -81,119 +80,539 @@ const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 const to = Math.min(page * PAGE_SIZE, total);
 ---
 
-<Base title="Projects" description="Browse electronics, robotics, AI and software projects — each with full schematics, code, 3D files and a parts list.">
-  <section class="page-hero">
-    <div class="container">      <form class="filter-bar" method="get" action="/projects" data-reveal>
-        <div class="search-field">
-          <Icon name="search" size={18} />
-          <input type="search" name="q" value={q} placeholder="Search projects, e.g. ESP32, robot, sensor…" class="search-input" aria-label="Search projects" />
+<Base
+  title="Projects | Technical Triveni"
+  description="Browse electronics, robotics, and automation project packs. Each pack includes schematics, code, 3D print models, and verified parts lists."
+>
+  <div class="projects-page">
+    <section class="projects-hero">
+      <div class="container">
+        <div class="projects-hero__header">
+          <h1 class="projects-hero__title">Projects</h1>
+          <p class="projects-hero__subtitle">
+            Tested schematics, clean code, 3D files, and verified parts lists for makers and engineering students.
+          </p>
         </div>
-        {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
-        <button type="submit" class="btn btn-primary">Search</button>
-      </form>
 
-      <div class="chips-row" data-reveal style="flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-        <span class="mono dim" style="font-size: var(--fs-xs);">Price:</span>
-        <a href={priceUrl('all')} class:list={['filter-chip', { 'is-active': priceMode === 'all' }]}>All</a>
-        <a href={priceUrl('free')} class:list={['filter-chip', { 'is-active': priceMode === 'free' }]}>Free</a>
-        <a href={priceUrl('paid')} class:list={['filter-chip', { 'is-active': priceMode === 'paid' }]}>Paid</a>
-        <span class="mono dim" style="font-size: var(--fs-xs); margin-left: 0.5rem;">Category:</span>
-        {cats.map((c) => (
-          <a href={chipUrl(c)} class:list={['filter-chip', { 'is-active': c === cat }]}>{c}</a>
-        ))}
+        <div class="filter-controls">
+          <form class="search-form" method="get" action="/projects" role="search">
+            <div class="search-input-wrap">
+              <Icon name="search" size={18} />
+              <input
+                type="search"
+                name="q"
+                value={q}
+                placeholder="Search projects (e.g. Drone, ESP32, Robot, LiPo)…"
+                class="search-input"
+                aria-label="Search projects"
+              />
+            </div>
+            {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
+            {priceMode !== 'all' && <input type="hidden" name="price" value={priceMode} />}
+            <button type="submit" class="btn-search">Search</button>
+          </form>
+
+          <div class="price-pills" role="group" aria-label="Filter by price">
+            <span class="filter-label">Price:</span>
+            <div class="price-pills__group">
+              <a href={priceUrl('all')} class:list={['chip', { 'chip--active': priceMode === 'all' }]}>All</a>
+              <a href={priceUrl('free')} class:list={['chip', { 'chip--active': priceMode === 'free' }]}>Free</a>
+              <a href={priceUrl('paid')} class:list={['chip', { 'chip--active': priceMode === 'paid' }]}>Paid</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Horizontally scrollable category chips -->
+        <nav class="categories-bar" aria-label="Filter by category">
+          <div class="categories-scroll">
+            {cats.map((c) => (
+              <a
+                href={chipUrl(c)}
+                class:list={['chip', { 'chip--active': c === cat }]}
+              >
+                {c}
+              </a>
+            ))}
+          </div>
+        </nav>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section-sm">
-    <div class="container">
-      <div class="results-bar">
-        <p class="results-count muted mono">
-          {total > 0 ? <>Showing {from}–{to} of {total}</> : '0 projects'}
-          {q && <> · “{q}”</>}
-          {cat !== 'All' && <> · {cat}</>}
-        </p>
-        <span class="sort-label mono dim"><Icon name="clock" size={13} /> Newest first</span>
-      </div>
-
-      {projects.length > 0 ? (
-        <>
-          <div class="proj-grid">
-            {projects.map((p) => <ProjectCard project={p} />)}
+    <section class="projects-content">
+      <div class="container">
+        <div class="results-bar">
+          <div class="results-meta">
+            <p class="results-count">
+              {total > 0 ? (
+                <>Showing <strong>{from}–{to}</strong> of <strong>{total}</strong> {total === 1 ? 'pack' : 'packs'}</>
+              ) : (
+                <>0 project packs found</>
+              )}
+            </p>
+            {(q || cat !== 'All' || priceMode !== 'all') && (
+              <div class="active-filter-tags">
+                {q && <span class="filter-tag">“{q}”</span>}
+                {cat !== 'All' && <span class="filter-tag">{cat}</span>}
+                {priceMode !== 'all' && <span class="filter-tag">{priceMode === 'free' ? 'Free only' : 'Paid only'}</span>}
+                <a href="/projects" class="filter-clear-link">Clear filters</a>
+              </div>
+            )}
           </div>
 
-          {totalPages > 1 && (
-            <nav class="pagination" aria-label="Pagination">
-              <a class:list={['page-btn', 'page-arrow', { 'is-disabled': page <= 1 }]}
-                 href={page > 1 ? pageUrl(page - 1) : undefined} aria-label="Previous page" aria-disabled={page <= 1}>
-                <Icon name="chevron-right" size={16} /></a>
-              {pageItems.map((it) =>
-                it === '…' ? (
-                  <span class="page-gap">…</span>
-                ) : (
-                  <a href={pageUrl(it)} class:list={['page-btn', { 'is-current': it === page }]}
-                     aria-current={it === page ? 'page' : undefined}>{it}</a>
-                ),
-              )}
-              <a class:list={['page-btn', 'page-arrow', 'page-next', { 'is-disabled': page >= totalPages }]}
-                 href={page < totalPages ? pageUrl(page + 1) : undefined} aria-label="Next page" aria-disabled={page >= totalPages}>
-                <Icon name="chevron-right" size={16} /></a>
-            </nav>
-          )}
-        </>
-      ) : (
-        <div class="empty">
-          <div class="empty__icon"><Icon name="search" size={26} /></div>
-          <h3>No projects found</h3>
-          <p class="muted">Try a different search or clear the filters.</p>
-          <a href="/projects" class="btn btn-ghost" style="margin-top:1rem">Reset filters</a>
+          <span class="sort-badge">
+            <Icon name="clock" size={13} /> Newest first
+          </span>
         </div>
-      )}
-    </div>
-  </section>
+
+        {projects.length > 0 ? (
+          <>
+            <div class="projects-grid">
+              {projects.map((p) => (
+                <ProjectCard project={p} />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <nav class="pagination" aria-label="Pagination">
+                <a
+                  class:list={['page-btn', 'page-prev', { 'is-disabled': page <= 1 }]}
+                  href={page > 1 ? pageUrl(page - 1) : undefined}
+                  aria-label="Previous page"
+                  aria-disabled={page <= 1}
+                >
+                  &larr; Prev
+                </a>
+
+                <div class="page-numbers">
+                  {pageItems.map((it) =>
+                    it === '…' ? (
+                      <span class="page-gap" aria-hidden="true">&hellip;</span>
+                    ) : (
+                      <a
+                        href={pageUrl(it)}
+                        class:list={['page-num', { 'page-num--current': it === page }]}
+                        aria-current={it === page ? 'page' : undefined}
+                      >
+                        {it}
+                      </a>
+                    ),
+                  )}
+                </div>
+
+                <a
+                  class:list={['page-btn', 'page-next', { 'is-disabled': page >= totalPages }]}
+                  href={page < totalPages ? pageUrl(page + 1) : undefined}
+                  aria-label="Next page"
+                  aria-disabled={page >= totalPages}
+                >
+                  Next &rarr;
+                </a>
+              </nav>
+            )}
+          </>
+        ) : (
+          <div class="empty-state">
+            <div class="empty-state__icon">
+              <Icon name="search" size={28} />
+            </div>
+            <h2 class="empty-state__title">No projects found</h2>
+            <p class="empty-state__text">
+              We couldn't find any projects matching your current filters or search query.
+            </p>
+            <a href="/projects" class="btn-reset">
+              Reset all filters
+            </a>
+          </div>
+        )}
+      </div>
+    </section>
+  </div>
 </Base>
 
 <style>
-  .page-hero { padding-block: 1.5rem 1rem; border-bottom: 1px solid var(--hairline); }
-  .page-hero h1 { font-size: var(--fs-2xl); margin-block: 0.75rem 0.6rem; }
-  .page-hero__lead { color: var(--text-muted); max-width: 56ch; font-size: var(--fs-md); }
-
-  .filter-bar { display: flex; gap: 0.6rem; max-width: 620px; }
-  .search-field { position: relative; flex: 1; display: flex; align-items: center; }
-  .search-field :global(svg) { position: absolute; left: 0.9rem; color: var(--text-dim); pointer-events: none; }
-  .search-input { width: 100%; padding: 0.8rem 1rem 0.8rem 2.7rem; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-full); color: var(--text); box-shadow: var(--shadow-sm); }
-  .search-input:focus { outline: none; border-color: var(--brand-red); box-shadow: 0 0 0 3px rgba(231,36,42,0.15); }
-
-  .chips-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.1rem; }
-  .filter-chip { padding: 0.4rem 0.9rem; border-radius: var(--r-full); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 550; transition: all 0.2s; box-shadow: var(--shadow-sm); }
-  .filter-chip:hover { color: var(--text); border-color: var(--border-strong); }
-  .filter-chip.is-active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
-
-  .results-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-  .results-count { font-size: var(--fs-sm); }
-  .sort-label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--fs-xs); }
-
-  .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 1.1rem; }
-
-  .pagination { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 2.5rem; }
-  .page-btn {
-    min-width: 40px; height: 40px; padding: 0 0.6rem; display: inline-flex; align-items: center; justify-content: center;
-    border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text);
-    font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); box-shadow: var(--shadow-sm);
-    transition: all 0.18s var(--ease);
+  .projects-page {
+    background: var(--bg);
+    min-height: calc(100vh - 64px - 320px);
   }
-  .page-btn:hover { border-color: var(--brand-red); color: var(--brand-red); }
-  .page-btn.is-current { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
-  .page-arrow :global(svg) { transform: rotate(180deg); }
-  .page-next :global(svg) { transform: none; }
-  .page-btn.is-disabled { opacity: 0.4; pointer-events: none; }
-  .page-gap { color: var(--text-dim); padding: 0 0.2rem; }
 
-  .empty { text-align: center; padding: 4rem 1rem; }
-  .empty__icon { width: 60px; height: 60px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); box-shadow: var(--shadow-sm); }
+  /* Hero Section */
+  .projects-hero {
+    padding-top: 48px;
+    padding-bottom: 24px;
+    background: var(--bg-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  @media (min-width: 768px) {
+    .projects-hero {
+      padding-top: 64px;
+      padding-bottom: 32px;
+    }
+  }
 
-  @media (max-width: 600px) {
-    .filter-bar { flex-direction: column; }
-    .proj-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .projects-hero__header {
+    margin-bottom: 24px;
+  }
+  .projects-hero__title {
+    font-size: clamp(2rem, 1.4rem + 2.5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  .projects-hero__subtitle {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 65ch;
+    margin: 0;
+  }
+
+  /* Filter Controls */
+  .filter-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  @media (min-width: 768px) {
+    .filter-controls {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .search-form {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    max-width: 540px;
+  }
+  .search-input-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .search-input-wrap :global(svg) {
+    position: absolute;
+    left: 14px;
+    color: var(--ink-3);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 16px 0 42px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-btn);
+    color: var(--ink);
+    font-size: 15px;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(233, 36, 36, 0.12);
+  }
+  @media (max-width: 640px) {
+    .search-input {
+      height: 48px;
+      font-size: 16px; /* Prevents iOS auto-zoom */
+    }
+  }
+
+  .btn-search {
+    height: 44px;
+    padding: 0 20px;
+    background: var(--red);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--r-btn);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 150ms ease;
+  }
+  .btn-search:hover {
+    background: var(--red-dark);
+  }
+  @media (max-width: 640px) {
+    .btn-search {
+      height: 48px;
+    }
+  }
+
+  /* Price filter pills */
+  .price-pills {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .filter-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .price-pills__group {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Chips */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--r-chip);
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 150ms ease;
+    cursor: pointer;
+  }
+  .chip:hover {
+    background: var(--bg-soft);
+    border-color: var(--ink-3);
+    color: var(--ink);
+  }
+  .chip--active {
+    background: var(--ink) !important;
+    color: #ffffff !important;
+    border-color: var(--ink) !important;
+    font-weight: 600;
+  }
+
+  /* Categories Bar */
+  .categories-bar {
+    margin-top: 16px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .categories-scroll {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .categories-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Main Content Section */
+  .projects-content {
+    padding-top: 32px;
+    padding-bottom: 64px;
+  }
+  @media (min-width: 768px) {
+    .projects-content {
+      padding-bottom: 96px;
+    }
+  }
+
+  /* Results Bar */
+  .results-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .results-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .results-count {
+    font-size: 14px;
+    color: var(--ink-2);
+    margin: 0;
+  }
+  .results-count strong {
+    color: var(--ink);
+  }
+  .active-filter-tags {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .filter-tag {
+    font-size: 12px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--ink-2);
+  }
+  .filter-clear-link {
+    font-size: 12px;
+    color: var(--red);
+    font-weight: 500;
+    text-decoration: underline;
+    margin-left: 4px;
+  }
+  .filter-clear-link:hover {
+    color: var(--red-dark);
+  }
+  .sort-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+
+  /* Grid Layout */
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 960px) {
+    .projects-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+  }
+  @media (max-width: 640px) {
+    .projects-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 48px;
+  }
+  .page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: var(--r-btn);
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .page-btn:hover {
+    border-color: var(--ink-2);
+    background: var(--bg-soft);
+  }
+  .page-btn.is-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .page-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 8px;
+    border-radius: var(--r-btn);
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .page-num:hover {
+    border-color: var(--ink);
+  }
+  .page-num--current {
+    background: var(--ink);
+    color: #ffffff;
+    border-color: var(--ink);
+  }
+  .page-gap {
+    padding: 0 6px;
+    color: var(--ink-3);
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+    background: var(--bg-soft);
+    border: 1px dashed var(--line);
+    border-radius: var(--r-card);
+    max-width: 540px;
+    margin: 40px auto 0;
+  }
+  .empty-state__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink-3);
+    display: grid;
+    place-items: center;
+    margin: 0 auto 16px;
+  }
+  .empty-state__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .empty-state__text {
+    font-size: 15px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin: 0 0 24px;
+  }
+  .btn-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    padding: 0 20px;
+    border-radius: var(--r-btn);
+    border: 1.5px solid var(--ink);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .btn-reset:hover {
+    background: var(--ink);
+    color: #ffffff;
   }
 </style>
