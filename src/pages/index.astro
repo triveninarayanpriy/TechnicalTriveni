@@ -1,366 +1,662 @@
 ---
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
-import { SITE } from '../lib/site';
-import { listProjects } from '../lib/db';
-import { formatINR, difficultyClass } from '../lib/format';
+import ProjectCard from '../components/ProjectCard.astro';
+import { SITE, PROFILE } from '../lib/site';
+import { listProjects, type Project } from '../lib/db';
+import { formatINR } from '../lib/format';
 import { env } from 'cloudflare:workers';
 
-let featured = [] as Awaited<ReturnType<typeof listProjects>>;
-let recent = [] as Awaited<ReturnType<typeof listProjects>>;
+let allProjects: Project[] = [];
 try {
-  featured = await listProjects(env.DB, { publishedOnly: true, featuredOnly: true, limit: 100 });
-  if (featured.length === 0) featured = await listProjects(env.DB, { publishedOnly: true, limit: 100 });
-  recent = await listProjects(env.DB, { publishedOnly: true, orderBy: 'newest', limit: 100 });
+  allProjects = await listProjects(env.DB, { publishedOnly: true, limit: 12 });
 } catch {
   /* DB not ready */
 }
-const hero = featured[0];
-const featuredCards = featured;
-const marqueeNames = recent.length ? recent.map((p) => p.title) : ['Weather Station', 'Line Robot', 'AI Voice Hub', 'RFID Lock', 'Smart Lamp', 'Energy Monitor'];
 
-const included = [
-  { icon: 'schematic', title: 'Schematics & wiring', text: 'Clear circuit diagrams with pin-by-pin connections.' },
-  { icon: 'code', title: 'Source code', text: 'Complete, well-commented firmware and software.' },
-  { icon: 'cube', title: '3D files', text: 'Printable enclosures and mounts (STL) where relevant.' },
-  { icon: 'doc', title: 'Build guide', text: 'A step-by-step PDF so nothing is left to guesswork.' },
-  { icon: 'cart', title: 'Parts list + links', text: 'Every component with a direct buy link.' },
-  { icon: 'play', title: 'Video walkthrough', text: 'See it built end-to-end on YouTube.' },
-];
+// Select the Drone or ESP32 as hero project
+const heroProject = allProjects.find((p) => p.slug === 'arduino-drone') || allProjects[0];
+
+// Select 4 featured projects for the grid
+const featuredPacks = allProjects.filter((p) => p.slug !== heroProject?.slug).slice(0, 4);
+if (featuredPacks.length < 4 && heroProject) {
+  featuredPacks.unshift(heroProject);
+}
+const displayPacks = featuredPacks.slice(0, 4);
+
+const heroPaid = (heroProject?.price_inr ?? 0) > 0;
+const heroBadges = ['Code', 'Schematic'];
+if (heroProject?.model_url || heroProject?.file_kinds?.includes('3d')) heroBadges.push('3D');
 
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'Organization',
+  '@type': 'WebSite',
   name: SITE.name,
   description: SITE.description,
-  url: Astro.site?.toString(),
-  sameAs: [SITE.socials.youtube, SITE.socials.instagram].filter(Boolean),
+  url: Astro.site?.toString() || 'https://www.technicaltriveni.me',
+  sameAs: [SITE.socials.youtube, SITE.socials.instagram, SITE.socials.github, SITE.socials.linkedin].filter(Boolean),
 };
 ---
 
 <Base jsonLd={jsonLd}>
   <!-- ============================ HERO ============================ -->
-  <section class="hero">
-    <div class="container hero__inner">
-      <div class="hero__copy">
-        <h1 data-reveal>Build real projects,<br />the <span class="gradient-text">right way.</span></h1>
-        <p class="hero__lead" data-reveal data-reveal-delay="60ms">
-          Full schematics, source code, 3D files, parts list & buy links
-          — everything you need to go from watching to building.
+  <section class="home-hero">
+    <div class="container home-hero__grid">
+      <!-- Left Column (7 cols) -->
+      <div class="home-hero__copy">
+        <span class="home-hero__eyebrow">Electronics · Software · AI</span>
+        <h1 class="home-hero__title">
+          Engineering project packs you can <span class="text-red">actually build.</span>
+        </h1>
+        <p class="home-hero__lead">
+          Full schematics, source code, 3D files, and verified parts lists — everything you need to go from watching a video to holding a working build.
         </p>
-        <div class="hero__actions" data-reveal data-reveal-delay="120ms">
-          <a href="/projects" class="btn btn-primary btn-lg">Explore projects <Icon name="arrow-right" size={18} /></a>
-          <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="btn btn-ghost btn-lg"><Icon name="youtube" size={18} /> Watch on YouTube</a>
+        <div class="home-hero__buttons">
+          <a href="/projects" class="btn btn-primary btn-lg">
+            Browse packs <Icon name="arrow-right" size={16} />
+          </a>
+          <a href="/how-it-works" class="btn btn-secondary btn-lg">
+            How it works
+          </a>
         </div>
       </div>
 
-      <!-- Hero 3D Model Showcase (Desktop Only) -->
-      {hero && (
-        <div class="hero__model-wrapper" data-reveal data-reveal-delay="120ms">
-          <a href={`/projects/${hero.slug}`} class="showcase-card">
-            <div class="showcase-card__media">
-              {hero.model_url ? (
-                <model-viewer
-                  src={hero.model_url}
-                  camera-controls
-                  auto-rotate
-                  auto-rotate-delay="0"
-                  rotation-per-second="18deg"
-                  interaction-prompt="none"
-                  shadow-intensity="0.6"
-                  exposure="1.1"
-                  ar
-                  aria-label={`3D model of ${hero.title}`}
-                  class="showcase-card__3d"
-                ></model-viewer>
-              ) : hero.cover_image ? (
-                <img src={hero.cover_image} alt={hero.title} width="720" height="450" />
+      <!-- Right Column (5 cols): Featured Project Card -->
+      {heroProject && (
+        <div class="home-hero__card-col">
+          <article class="hero-card">
+            <a href={`/projects/${heroProject.slug}`} class="hero-card__stretch" aria-label={`View ${heroProject.title}`}></a>
+            <div class="hero-card__media">
+              {heroProject.cover_image ? (
+                <img src={heroProject.cover_image} alt={heroProject.title} width="640" height="400" loading="eager" />
               ) : (
-                <div class="showcase-card__ph grid-bg"></div>
+                <div class="hero-card__ph">
+                  <Icon name="cube" size={48} />
+                </div>
               )}
-              {hero.model_url && <span class="showcase-card__3dtag mono"><Icon name="cube" size={12} /> Drag to rotate</span>}
-              <span class="showcase-card__badge"><Icon name="spark" size={12} /> Featured</span>
-            </div>
-            <div class="showcase-card__body">
-              <h3 class="showcase-card__title">{hero.title}</h3>
-              <p class="showcase-card__summary">{hero.summary}</p>
-              <div class="showcase-card__foot">
-                <span class="showcase-card__price">{hero.combo_enabled && hero.price_inr > 0 ? formatINR(hero.price_inr) : 'Free'}<small>{hero.combo_enabled && hero.price_inr > 0 ? ' pack' : ''}</small></span>
-                <span class="showcase-card__cta">View project <Icon name="arrow-right" size={14} /></span>
+              <div class="hero-card__badges">
+                {heroBadges.slice(0, 2).map((b) => (
+                  <span class="hero-card__badge">{b}</span>
+                ))}
               </div>
             </div>
-          </a>
+            <div class="hero-card__body">
+              <span class="hero-card__cat">{heroProject.category || 'FEATURED PACK'}</span>
+              <h3 class="hero-card__title">{heroProject.title}</h3>
+              <p class="hero-card__summary">{heroProject.summary}</p>
+              <div class="hero-card__foot">
+                <span class="hero-card__price">
+                  {heroPaid ? formatINR(heroProject.price_inr) : <span class="text-success">Free</span>}
+                </span>
+                <span class="hero-card__cta">View pack &rarr;</span>
+              </div>
+            </div>
+          </article>
         </div>
       )}
     </div>
   </section>
 
-  <!-- ===================== FEATURED / LIBRARY ===================== -->
-  {featuredCards.length > 0 && (
-    <section class="section section--alt" style="padding-top:2.5rem;">
+  <!-- ======================== THREE VALUES ======================== -->
+  <section class="values-section">
+    <div class="container values-grid">
+      <div class="value-item">
+        <div class="value-item__icon"><Icon name="cpu" size={24} /></div>
+        <h3 class="value-item__title">Tested circuit</h3>
+        <p class="value-item__text">Every schematic and pin connection verified on real hardware.</p>
+      </div>
+      <div class="value-item">
+        <div class="value-item__icon"><Icon name="layers" size={24} /></div>
+        <h3 class="value-item__title">Complete files</h3>
+        <p class="value-item__text">Code, 3D STLs, schematics and parts lists in one download.</p>
+      </div>
+      <div class="value-item">
+        <div class="value-item__icon"><Icon name="mail" size={24} /></div>
+        <h3 class="value-item__title">Direct support</h3>
+        <p class="value-item__text">Ask questions, get help from the builder.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= FEATURED PACKS ======================= -->
+  {displayPacks.length > 0 && (
+    <section class="section">
       <div class="container">
-        <div class="section-head" data-reveal style="text-align:center;max-width:none;margin-bottom:2.5rem;">
-          <h2 class="lib-title">Our Projects</h2>
+        <div class="section-head-row">
+          <div>
+            <h2 class="section-heading">Featured project packs</h2>
+            <p class="section-subtext">Verified builds with schematics, code, 3D files, and parts lists.</p>
+          </div>
+          <a href="/projects" class="section-link">
+            View all {allProjects.length > 0 ? allProjects.length : '4'} packs &rarr;
+          </a>
         </div>
 
-        <div class="prod-grid">
-          {featuredCards.map((p) => (
-            <article class="prod">
-              <a href={`/projects/${p.slug}`} class="prod__stretch" aria-label={p.title}></a>
-              <div class="prod__media">
-                {p.cover_image ? <img src={p.cover_image} alt={p.title} loading="lazy" width="640" height="400" /> : <div class="prod__ph grid-bg"></div>}
-                {p.is_new === 1 && <span class="prod__new">NEW</span>}
-                <span class:list={['badge', 'prod__diff', difficultyClass(p.difficulty)]}>{p.difficulty}</span>
-              </div>
-              <div class="prod__body">
-                <h3 class="prod__title">{p.title}</h3>
-                <span class="prod__cat mono">{p.category}</span>
-                <p class="prod__summary">{p.summary}</p>
-                <div class="prod__includes">
-                  <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>
-                  <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>
-                  {p.model_url && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
-                  {p.combo_enabled === 1 && p.price_inr > 0 && <span class="inc-chip inc-chip--combo" title="Project pack available"><Icon name="cart" size={11} /> Pack</span>}
-                </div>
-                <div class="prod__foot">
-                  <span class="prod__price">{p.combo_enabled && p.price_inr > 0 ? formatINR(p.price_inr) : 'Free'}<small>{p.combo_enabled && p.price_inr > 0 ? ' pack' : ''}</small></span>
-                  <a href={`/projects/${p.slug}`} class="prod__btn">View project <Icon name="arrow-right" size={15} /></a>
-                </div>
-              </div>
-            </article>
+        <div class="packs-grid">
+          {displayPacks.map((p) => (
+            <ProjectCard project={p} />
           ))}
-        </div>
-
-        <div class="lib-cta-center" data-reveal>
-          <a href="/projects" class="btn btn-primary btn-lg"><Icon name="layers" size={17} /> View All Projects <Icon name="arrow-right" size={16} /></a>
         </div>
       </div>
     </section>
   )}
 
-  
-  <!-- ===================== WHAT YOU GET ===================== -->
-  <section class="section" style="border-top: 1px solid var(--border);">
+  <!-- ================== WHAT EVERY PACK INCLUDES ================== -->
+  <section class="section bg-soft">
     <div class="container">
-      <div class="section-head" data-reveal style="text-align: center; max-width: 600px; margin: 0 auto 3rem;">
-        <h2 style="font-size: 2rem; margin-bottom: 1rem;">What every pack includes</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem;">No guessing, no missing libraries, no broken links. You get everything needed to replicate the build.</p>
+      <div class="section-center-head">
+        <h2 class="section-heading">What every pack includes</h2>
+        <p class="section-subtext">No guessing, no missing libraries, no broken links.</p>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem;" data-reveal data-reveal-delay="100ms">
-        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
-          <Icon name="file-text" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
-          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Full Source Code</h3>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Clean, commented firmware and sketches. Ready to compile and upload directly to your board.</p>
+
+      <div class="includes-grid">
+        <div class="includes-card">
+          <div class="includes-card__icon"><Icon name="code" size={30} /></div>
+          <h3 class="includes-card__title">Source code</h3>
+          <p class="includes-card__text">Clean, commented firmware and sketches ready to flash to your board.</p>
         </div>
-        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
-          <Icon name="cpu" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
-          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Wiring & Schematics</h3>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">High-resolution wiring diagrams and pinouts so you never cross a wire or fry a component.</p>
+        <div class="includes-card">
+          <div class="includes-card__icon"><Icon name="schematic" size={30} /></div>
+          <h3 class="includes-card__title">Wiring & schematics</h3>
+          <p class="includes-card__text">Clear circuit diagrams and pin tables so you never cross a wire.</p>
         </div>
-        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
-          <Icon name="cart" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
-          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Complete Parts List</h3>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">An interactive bill of materials with precise component specs and direct purchase links.</p>
+        <div class="includes-card">
+          <div class="includes-card__icon"><Icon name="cart" size={30} /></div>
+          <h3 class="includes-card__title">Complete parts list</h3>
+          <p class="includes-card__text">Exact component specifications with direct local purchase links.</p>
         </div>
-        <div style="background: var(--surface); border: 1px solid var(--border); padding: 2rem; border-radius: var(--r-md);">
-          <Icon name="youtube" size={28} style="color: var(--brand-red); margin-bottom: 1rem;" />
-          <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 600;">Video Walkthrough</h3>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Every project has a corresponding YouTube video showing the exact build process.</p>
+        <div class="includes-card">
+          <div class="includes-card__icon"><Icon name="play" size={30} /></div>
+          <h3 class="includes-card__title">Video walkthrough</h3>
+          <p class="includes-card__text">Full build videos on YouTube showing the physical bring-up step by step.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===================== YOUTUBE ===================== -->
-  <section class="section section--alt">
-    <div class="container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; align-items: center;">
-      <div data-reveal>
-        <h2 style="font-size: 2rem; margin-bottom: 1rem; line-height: 1.2;">See the builds in action on YouTube</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.6; margin-bottom: 1.5rem;">I document every major project on my channel. Watch the process, see the final result, and then grab the project pack here to build it yourself.</p>
-        <a href="https://www.youtube.com/@TechnicalTriveni" target="_blank" class="btn btn-primary"><Icon name="youtube" size={18} /> Subscribe to Channel</a>
-      </div>
-      <div data-reveal data-reveal-delay="100ms" style="width: 100%;">
-        <div style="position: relative; width: 100%; padding-bottom: 56.25%; border-radius: var(--r-md); overflow: hidden; background: #000; box-shadow: var(--shadow-md);">
-          <lite-youtube videoid="qWj0V1c1_bU" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"></lite-youtube>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== LEAD MAGNET ===================== -->
-  <section class="section" style="background: linear-gradient(135deg, var(--ink), var(--ink-2)); color: #fff;">
-    <div class="container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; align-items: center;">
-      <div data-reveal>
-        <span class="mono" style="color: var(--brand-red); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase;">Free Resource</span>
-        <h2 style="font-size: 2rem; margin: 0.5rem 0 1rem 0; line-height: 1.2;">Free Tools for Students in India (2026)</h2>
-        <p style="color: var(--on-ink-muted); font-size: 1.1rem; line-height: 1.6; margin-bottom: 1.5rem;">A massive curated directory of 23 free software, cloud, and hardware tools available for engineering students.</p>
-        <a href="/resources/free-tools-for-students-india-2026" class="btn btn-primary"><Icon name="download" size={18} /> Get the Free PDF</a>
-      </div>
-      <div data-reveal data-reveal-delay="100ms">
-        <img src="/Technical_Triveni_Student_Tools_Guide.png" alt="Free Tools for Students" style="width: 100%; max-width: 400px; height: auto; border-radius: var(--r-md); box-shadow: 0 20px 40px rgba(0,0,0,0.4);" loading="lazy" />
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== FAQ ===================== -->
+  <!-- ======================= YOUTUBE CHANNEL ======================= -->
   <section class="section">
-    <div class="container" style="max-width: 800px;">
-      <div class="section-head" data-reveal style="text-align: center; margin: 0 auto 3rem;">
-        <h2 style="font-size: 2rem; margin-bottom: 1rem;">Frequently Asked Questions</h2>
+    <div class="container yt-grid">
+      <div class="yt-copy">
+        <span class="yt-label">THE CHANNEL</span>
+        <h2 class="section-heading">Watch every build before you buy.</h2>
+        <p class="yt-text">
+          Every project on Technical Triveni is documented end-to-end on YouTube so you can watch the physical prototype come to life before downloading the pack.
+        </p>
+        <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+          <Icon name="youtube" size={18} /> Visit channel &rarr;
+        </a>
       </div>
-      <div data-reveal data-reveal-delay="100ms" style="display: flex; flex-direction: column; gap: 1rem;">
-        <details style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; align-items: center;">What happens after I purchase? <Icon name="chevron-down" size={18} /></summary>
-          <p style="margin-top: 1rem; color: var(--text-muted); line-height: 1.6;">You'll instantly receive an email with a secure download link for your project pack (ZIP file). You can download it as many times as you need.</p>
-        </details>
-        <details style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; align-items: center;">Do I need expensive tools? <Icon name="chevron-down" size={18} /></summary>
-          <p style="margin-top: 1rem; color: var(--text-muted); line-height: 1.6;">Most projects only require a basic soldering iron, wire strippers, and a multimeter. The BOM (Bill of Materials) for each project clearly lists everything you need.</p>
-        </details>
-        <details style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 1.1rem; list-style: none; display: flex; justify-content: space-between; align-items: center;">Are the components available locally? <Icon name="chevron-down" size={18} /></summary>
-          <p style="margin-top: 1rem; color: var(--text-muted); line-height: 1.6;">Yes! The parts lists are optimized for Indian makers with links to Amazon India, Robu, or local electronics stores.</p>
-        </details>
+      <div class="yt-player">
+        <lite-youtube videoid="qWj0V1c1_bU" style="border-radius: var(--r-card); overflow: hidden; box-shadow: var(--shadow);"></lite-youtube>
       </div>
     </div>
   </section>
 
-
-  <!-- ===================== CTA ===================== -->
-  <section class="section">
-    <div class="container">
-      <div class="cta-compact" data-reveal>
-        <div class="cta-compact__info">
-          <h2 class="cta-compact__title">Ready to build something real?</h2>
-          <p class="cta-compact__text">Get instant access to complete schematics, code, and 3D files.</p>
-        </div>
-        <div class="cta-compact__actions">
-          <a href="/projects" class="btn btn-primary">Explore projects <Icon name="arrow-right" size={16} /></a>
-          <a href="/how-it-works" class="btn btn-ghost">How it works</a>
-        </div>
+  <!-- =================== COMMUNITY / ABOUT STRIP =================== -->
+  <section class="about-strip">
+    <div class="container about-strip__inner">
+      <img src={PROFILE.photo} alt={PROFILE.name} class="about-strip__avatar" width="96" height="96" loading="lazy" />
+      <div class="about-strip__copy">
+        <h3 class="about-strip__name">{PROFILE.name}</h3>
+        <p class="about-strip__bio">
+          {PROFILE.lead} YouTube shows the highlight reel, but Technical Triveni is where you get the complete verified code, schematics, and parts lists to actually finish the build.
+        </p>
+        <a href="/about" class="about-strip__link">Read more about Triveni &rarr;</a>
       </div>
     </div>
   </section>
 
-  {hero?.model_url && (
-    <script is:inline type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
-  )}
   <script type="module" src="https://cdn.jsdelivr.net/npm/@justinribeiro/lite-youtube-embed@2.1.2/lite-youtube.js"></script>
 </Base>
 
 <style>
-  /* ---------------- hero (desktop 2-column, mobile centered) ---------------- */
-  .hero { position: relative; padding-top: clamp(2rem, 5vw, 4rem); overflow: hidden; }
-  .hero__inner { display: grid; grid-template-columns: 1.4fr 0.6fr; gap: clamp(2rem, 4vw, 3rem); align-items: center; text-align: left; max-width: 1200px; margin: 0 auto; padding-bottom: clamp(2.5rem, 5vw, 4.5rem); }
-  .hero__copy { max-width: none; }
-  .hero h1 { font-size: clamp(3rem, 5vw, 4.2rem); margin-block: 0 1.25rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
-  .hero__lead { color: var(--text-muted); font-size: var(--fs-lg); max-width: 90%; line-height: 1.6; margin: 0; }
-  .hero__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; justify-content: flex-start; }
-  
-  .hero__model-wrapper { display: flex; justify-content: flex-end; }
-  .showcase-card { display: flex; flex-direction: column; width: 100%; max-width: 320px; background: var(--surface); border-radius: var(--r-xl); border: 1px solid var(--border); box-shadow: var(--shadow-xl); overflow: hidden; transition: transform 0.28s var(--ease), border-color 0.2s; color: inherit; }
-  .showcase-card:hover { transform: translateY(-4px); border-color: var(--border-strong); }
-  .showcase-card__media { position: relative; background: var(--surface-2); border-bottom: 1px solid var(--hairline); overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .showcase-card__3d { width: 100%; height: auto; aspect-ratio: 1/1; background: radial-gradient(120% 120% at 50% 0%, #1b1f2b, #0c0d11); --poster-color: transparent; }
-  .showcase-card__media img, .showcase-card__ph { width: 100%; height: auto; display: block; }
-  .showcase-card__3dtag { position: absolute; bottom: 0.75rem; right: 0.75rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; padding: 0.25rem 0.6rem; border-radius: var(--r-full); background: rgba(12,13,17,0.75); color: #fff; backdrop-filter: blur(8px); box-shadow: var(--shadow-sm); }
-  .showcase-card__badge { position: absolute; top: 0.75rem; left: 0.75rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; font-family: var(--font-mono); font-weight: 600; padding: 0.25rem 0.5rem; border-radius: var(--r-full); background: var(--brand-red); color: #fff; box-shadow: var(--shadow-md); text-transform: uppercase; letter-spacing: 0.05em; }
-  .showcase-card__body { padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; }
-  .showcase-card__title { font-size: var(--fs-base); font-weight: 700; transition: color 0.2s; line-height: 1.25; }
-  .showcase-card:hover .showcase-card__title { color: var(--brand-red); }
-  .showcase-card__summary { color: var(--text-muted); font-size: var(--fs-xs); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; margin-bottom: 0.2rem; }
-  .showcase-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding-top: 0.65rem; border-top: 1px solid var(--hairline); }
-  .showcase-card__price { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); display: inline-flex; align-items: baseline; gap: 0.2rem; }
-  .showcase-card__price small { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
-  .showcase-card__cta { display: inline-flex; align-items: center; gap: 0.25rem; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); color: var(--brand-red); }
+  /* ---------------- Hero Section ---------------- */
+  .home-hero {
+    padding-top: 96px;
+    padding-bottom: 80px;
+    background: var(--bg);
+  }
+  .home-hero__grid {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .home-hero__copy {
+    display: flex;
+    flex-direction: column;
+  }
+  .home-hero__eyebrow {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .home-hero__title {
+    font-family: var(--font-display);
+    font-size: var(--fs-h1);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 20px 0;
+  }
+  .text-red {
+    color: var(--red);
+  }
+  .text-success {
+    color: var(--success);
+  }
+  .home-hero__lead {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+    max-width: 52ch;
+    margin: 0 0 32px 0;
+  }
+  .home-hero__buttons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
 
-
-  /* ---------------- section heads ---------------- */
-  .section--alt { background: linear-gradient(180deg, var(--bg-2), #eef0f4); border-block: 1px solid var(--hairline); }
-  .section-head { max-width: 56ch; margin-bottom: 2rem; }
-  .section-head .eyebrow { margin-bottom: 0.8rem; }
-  .section-head--row { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; max-width: none; flex-wrap: wrap; margin-bottom: 2.25rem; }
-  .lib-title { font-size: var(--fs-2xl); line-height: 1.05; margin-bottom: 0.75rem; }
-  .prod-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-  .prod { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); transition: transform 0.28s var(--ease), box-shadow 0.28s var(--ease), border-color 0.28s var(--ease); }
-  .prod:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
-  .prod__stretch { position: absolute; inset: 0; z-index: 2; }
-  .prod__media { position: relative; background: var(--surface-2); overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .prod__media img, .prod__ph { width: 100%; height: auto; display: block; transition: transform 0.5s var(--ease); }
-  .prod:hover .prod__media img { transform: scale(1.05); }
-  .prod__new { position: absolute; top: 0.65rem; left: 0.65rem; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.2rem 0.5rem; border-radius: var(--r-full); background: var(--brand-red); color: #fff; box-shadow: var(--shadow-md); }
-  .prod__diff { position: absolute; bottom: 0.65rem; left: 0.65rem; background: rgba(255,255,255,0.94); box-shadow: var(--shadow-sm); }
-  .prod__body { padding: 0.75rem 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
-  .prod__title { font-size: var(--fs-sm); font-weight: 650; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color 0.2s; }
-  .prod:hover .prod__title { color: var(--brand-red); }
-  .prod__cat { font-size: var(--fs-xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
-  .prod__summary { color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  
-  .prod__includes { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
-  .inc-chip { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.6rem; font-family: var(--font-mono); font-weight: 550; padding: 0.2rem 0.4rem; border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); transition: all 0.2s; }
-  .inc-chip :global(svg) { color: var(--text-dim); }
-  .prod:hover .inc-chip { border-color: var(--border-strong); color: var(--text); }
-  .inc-chip--combo { background: rgba(231,36,42,0.05); color: var(--brand-red); border-color: rgba(231,36,42,0.15); }
-  .inc-chip--combo :global(svg) { color: var(--brand-red); }
-
-  .prod__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.3rem; padding-top: 0.65rem; border-top: 1px solid var(--hairline); }
-  .prod__price { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); display: inline-flex; align-items: baseline; gap: 0.2rem; }
-  .prod__price small { font-size: var(--fs-xs); color: var(--text-dim); font-weight: 500; }
-  .prod__btn { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-sm); color: #fff; background: var(--brand-red); padding: 0.45rem 0.8rem; border-radius: var(--r-full); position: relative; z-index: 3; box-shadow: var(--shadow-glow); transition: background 0.2s; }
-  .prod__btn:hover { background: var(--brand-red-600); }
-
-  .lib-cta-center { text-align: center; margin-top: 2rem; }
-
-  /* ---------------- CTA COMPACT ---------------- */
-  .cta-compact {
+  /* Right Hero Card */
+  .home-hero__card-col {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .hero-card {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
+  }
+  @media (hover: hover) and (min-width: 768px) {
+    .hero-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--ink-2);
+    }
+  }
+  .hero-card__stretch {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+  }
+  .hero-card__media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-soft);
+  }
+  .hero-card__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .hero-card__ph {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: var(--ink-3);
+  }
+  .hero-card__badges {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 1;
+  }
+  .hero-card__badge {
+    font-size: 11px;
+    font-weight: 550;
+    padding: 3px 7px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--ink);
+  }
+  .hero-card__body {
+    display: flex;
+    flex-direction: column;
+    padding-top: 14px;
+    gap: 6px;
+  }
+  .hero-card__cat {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  .hero-card__title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hero-card__summary {
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hero-card__foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 2rem;
-    background: linear-gradient(135deg, var(--surface), var(--bg-2));
-    border: 1px solid var(--border);
-    border-radius: var(--r-xl);
-    padding: 2.25rem 3rem;
-    box-shadow: var(--shadow-sm);
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
   }
-  .cta-compact__info { flex: 1; }
-  .cta-compact__title { font-size: var(--fs-xl); font-weight: 700; margin-bottom: 0.4rem; color: var(--text); line-height: 1.1; }
-  .cta-compact__text { color: var(--text-muted); font-size: var(--fs-base); margin: 0; }
-  .cta-compact__actions { display: flex; gap: 0.75rem; flex-shrink: 0; }
+  .hero-card__price {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .hero-card__cta {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red);
+  }
 
-  /* ============================ responsive ============================ */
-  @media (max-width: 940px) {
-    .hero__inner { grid-template-columns: 1fr; text-align: center; gap: 2rem; }
-    .hero__model-wrapper { display: none; }
-    .hero__lead { margin: 0 auto; }
-    .hero__actions { justify-content: center; }
-    .prod-grid { grid-template-columns: 1fr 1fr; }
+  /* ---------------- Three Values Section ---------------- */
+  .values-section {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-soft);
+    padding: 48px 0;
   }
+  .values-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .value-item {
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .value-item:not(:last-child) {
+    border-right: 1px solid var(--line);
+  }
+  .value-item__icon {
+    color: var(--red);
+    margin-bottom: 4px;
+  }
+  .value-item__title {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .value-item__text {
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ---------------- Section Headers ---------------- */
+  .section-head-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .section-center-head {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 36px;
+  }
+  .section-heading {
+    font-family: var(--font-display);
+    font-size: var(--fs-h2);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--ink);
+    margin: 0 0 8px 0;
+  }
+  .section-subtext {
+    font-size: var(--fs-base);
+    color: var(--ink-2);
+    margin: 0;
+    line-height: 1.5;
+  }
+  .section-link {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--red);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .section-link:hover {
+    text-decoration: underline;
+  }
+  .bg-soft {
+    background: var(--bg-soft);
+  }
+
+  /* ---------------- Packs Grid ---------------- */
+  .packs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+
+  /* ---------------- What Every Pack Includes ---------------- */
+  .includes-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    text-align: center;
+  }
+  .includes-card {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .includes-card__icon {
+    color: var(--red);
+    margin-bottom: 8px;
+  }
+  .includes-card__title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .includes-card__text {
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ---------------- YouTube Channel ---------------- */
+  .yt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .yt-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .yt-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  .yt-text {
+    font-size: var(--fs-base);
+    color: var(--ink-2);
+    line-height: 1.6;
+    margin: 0 0 16px 0;
+  }
+  .yt-copy .btn {
+    align-self: flex-start;
+  }
+  .yt-player {
+    width: 100%;
+  }
+
+  /* ---------------- Community / About Strip ---------------- */
+  .about-strip {
+    border-top: 1px solid var(--line);
+    background: var(--bg-soft);
+    padding: 48px 0;
+  }
+  .about-strip__inner {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    max-width: 860px;
+  }
+  .about-strip__avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--line);
+    flex-shrink: 0;
+  }
+  .about-strip__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .about-strip__name {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .about-strip__bio {
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+    line-height: 1.6;
+    margin: 0;
+  }
+  .about-strip__link {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--red);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    margin-top: 4px;
+    align-self: flex-start;
+  }
+
+  /* ============================ Responsive ============================ */
+  @media (max-width: 1024px) {
+    .home-hero {
+      padding-top: 64px;
+      padding-bottom: 64px;
+    }
+    .home-hero__grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+    .home-hero__card-col {
+      justify-content: flex-start;
+    }
+    .packs-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .yt-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+
+  /* Mobile Phones (< 640px) */
   @media (max-width: 640px) {
-    .hero { padding-top: 1rem; }
-    .hero h1 { font-size: 2.25rem; margin-block: 0.5rem 0.65rem; }
-    .hero__lead { font-size: var(--fs-base); }
-    .hero__actions { gap: 0.5rem; margin-top: 1.5rem; }
-    .hero__actions .btn { flex: 1 1 auto; justify-content: center; }
+    .home-hero {
+      padding-top: 48px;
+      padding-bottom: 48px;
+    }
+    .home-hero__buttons {
+      flex-direction: column;
+      width: 100%;
+    }
+    .home-hero__buttons .btn {
+      width: 100%;
+    }
 
-    .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
-    .prod__header { padding: 0.6rem 0.6rem 0.35rem; }
-    .prod__title { font-size: 0.75rem; }
-    .prod__body { padding: 0.5rem 0.6rem 0.6rem; gap: 0.25rem; }
-    .prod__cat { font-size: 0.55rem; }
-    .prod__summary { display: none; }
-    .prod__price { font-size: 0.8rem; }
-    .prod__price small { font-size: 0.55rem; }
-    .prod__btn { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
-    .prod__btn :global(svg) { width: 12px; height: 12px; }
-    .prod__new { padding: 0.15rem 0.35rem; font-size: 0.5rem; top: 0.4rem; left: 0.4rem; }
-    .prod__diff { font-size: 0.55rem; padding: 0.15rem 0.35rem; bottom: 0.4rem; left: 0.4rem; }
-    
-    .lib-cta-center .btn { width: 100%; justify-content: center; }
-    
-    .cta-compact { flex-direction: column; text-align: center; padding: 2rem 1.5rem; gap: 1.5rem; }
-    .cta-compact__title { font-size: var(--fs-lg); }
-    .cta-compact__actions { width: 100%; flex-direction: column; }
-    .cta-compact__actions .btn { width: 100%; justify-content: center; }
+    .values-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .value-item {
+      padding: 0;
+    }
+    .value-item:not(:last-child) {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 20px;
+    }
+
+    .packs-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .includes-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .includes-card {
+      padding: 16px 12px;
+    }
+
+    .about-strip__inner {
+      flex-direction: column;
+      text-align: center;
+      gap: 16px;
+    }
+    .about-strip__link {
+      align-self: center;
+    }
   }
 </style>
