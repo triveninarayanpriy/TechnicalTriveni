@@ -1,7 +1,8 @@
 ---
 import Icon from '../components/Icon.astro';
 import type { ProjectFull } from '../lib/db';
-import { parseTags, formatINR, difficultyClass } from '../lib/format';
+import { parseTags, formatINR, difficultyClass, formatBytes } from '../lib/format';
+import { FILE_KINDS } from '../lib/site';
 import TroubleTable from './TroubleTable.astro';
 
 interface Props {
@@ -34,6 +35,16 @@ const prereqs = safeArr(project.prereqs_json);
 const outcomes = safeArr(project.outcomes_json);
 const notIncluded = safeArr(project.not_included_json);
 const faqs = safeArr(project.faq_json);
+
+const cleanFileLabel = (label: string, kind?: string) => {
+  let l = (label || '').trim();
+  if (!l && kind) l = FILE_KINDS.find(x => x.key === kind)?.label ?? 'File';
+  if (!l) return 'File';
+  l = l.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-/, '');
+  l = l.replace(/^\d{10,}-/, '');
+  l = l.replace(/\s*\(\d+\)(?=\.[a-zA-Z0-9]+$|$)/, '');
+  return l.trim() || 'File';
+};
 
 // Group BOM
 const groupedBom = project.bom.reduce((acc, item) => {
@@ -138,8 +149,15 @@ const groupedPins = project.pins.reduce((acc, pin) => {
       </section>
 
       <!-- Parts and Tools -->
+      {project.bom.length > 0 && (
       <section class="v2-sec" id="parts">
         <h2 class="sec__title"><Icon name="cpu" size={20} /> Parts and tools</h2>
+        {project.cost_checked && (
+          <p class="muted small" style="margin-bottom: 1rem; font-size: 0.85rem;">
+            Prices checked {project.cost_checked}. 
+            <a href="/legal/affiliate" target="_blank" rel="noopener noreferrer" class="link" style="color: var(--brand-red);">Affiliate disclosure</a>
+          </p>
+        )}
         <div class="grouped-bom">
           {Object.entries(groupedBom).map(([group, items]) => (
             <div class="bom-group" style="margin-bottom: 1.5rem;">
@@ -150,7 +168,8 @@ const groupedPins = project.pins.reduce((acc, pin) => {
                     <th style="padding: 0.5rem; width: 40px;">Got</th>
                     <th style="padding: 0.5rem;">Item</th>
                     <th style="padding: 0.5rem; width: 80px;">Qty</th>
-                    <th style="padding: 0.5rem; width: 100px;">Price</th>
+                    <th style="padding: 0.5rem; width: 120px;">Price</th>
+                    <th style="padding: 0.5rem; width: 80px;">Link</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -162,7 +181,8 @@ const groupedPins = project.pins.reduce((acc, pin) => {
                         {b.notes && <div style="font-size: 0.8rem; color: var(--text-dim);">{b.notes}</div>}
                       </td>
                       <td style="padding: 0.5rem;">{b.qty}</td>
-                      <td style="padding: 0.5rem;">{b.unit_price_inr > 0 ? "&#8377;" + b.unit_price_inr : "-"}</td>
+                      <td style="padding: 0.5rem;">{b.unit_price_inr > 0 ? formatINR(b.unit_price_inr) : <span class="dim">Price not set</span>}</td>
+                      <td style="padding: 0.5rem;">{b.affiliate_url ? <a href={b.affiliate_url} target="_blank" rel="noopener noreferrer" class="link-sm" style="color: var(--brand-red);">Buy</a> : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -170,12 +190,15 @@ const groupedPins = project.pins.reduce((acc, pin) => {
             </div>
             </div>
           ))}
-          <div class="bom-total" style="background: var(--surface); padding: 1rem; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
-            <span>Your selection:</span>
-            <span id="bom-calc-total" style="color: var(--brand-red); font-size: 1.2rem;">&#8377;{Number(estCost).toLocaleString('en-IN')} (excludes tools)</span>
-          </div>
+          {estCost > 0 && (
+            <div class="bom-total" style="background: var(--surface); padding: 1rem; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
+              <span>Your selection:</span>
+              <span id="bom-calc-total" style="color: var(--brand-red); font-size: 1.2rem;">{formatINR(estCost)} (excludes tools)</span>
+            </div>
+          )}
         </div>
       </section>
+      )}
 
       <!-- Wiring Tabs -->
       {project.pins.length > 0 && (
@@ -266,16 +289,24 @@ const groupedPins = project.pins.reduce((acc, pin) => {
         <section class="v2-sec" id="code" style="margin-top: 3rem;">
           <h2 class="sec__title"><Icon name="folder" size={20} /> Code & Downloads</h2>
           <div class="files" style="display: flex; flex-direction: column; gap: 0.5rem;">
-            {project.files.map((f: any) => (
-              <div class="file-row" style="display: flex; align-items: center; gap: 0.75rem; border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--r-md);">
-                <Icon name="file-text" size={24} style="color: var(--brand-red);" />
-                <div style="flex: 1;">
-                  <div style="font-weight: 500;">{f.label}</div>
-                  <div style="font-size: 0.8rem; color: var(--text-muted);">Stage: {f.stage_tag || 'General'}</div>
+            {project.files.map((f: any) => {
+              const clean = cleanFileLabel(f.label, f.kind);
+              const sz = formatBytes(f.size_bytes);
+              return (
+                <div class="file-row" style="display: flex; align-items: center; gap: 0.75rem; border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--r-md);">
+                  <Icon name={f.kind === 'code' ? 'code' : f.kind === 'schematic' ? 'schematic' : f.kind === 'model3d' ? 'cube' : 'file-text'} size={24} style="color: var(--brand-red);" />
+                  <div style="flex: 1;">
+                    <div style="font-weight: 500;">{clean} {sz && <small class="dim mono">({sz})</small>}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">{f.kind ? (FILE_KINDS.find(x => x.key === f.kind)?.label ?? f.kind) : 'File'}</div>
+                  </div>
+                  {f.is_free === 1 ? (
+                    <a href={`/api/download/free/${f.id}`} class="btn btn-sm btn-outline" download>Download</a>
+                  ) : (
+                    <span class="badge badge--sm" style="font-size: 0.75rem;">Pack file</span>
+                  )}
                 </div>
-                <button class="btn btn-sm">Download</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -337,15 +368,22 @@ const groupedPins = project.pins.reduce((acc, pin) => {
           </div>
         </div>
         
-        {paid && (
+        {(paid || project.files.length > 0) && (
           <details class="cta-card__details" style="margin-bottom: 1.25rem; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); padding: 0.5rem 0;">
             <summary style="cursor: pointer; font-weight: 600; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">What's included? <Icon name="chevron-down" size={16} /></summary>
             <div style="padding-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted);">
               {project.combo_description && <p style="margin-bottom: 0.75rem;">{project.combo_description}</p>}
               <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
-                {project.files.filter(f => f.in_combo === 1).map(f => (
-                  <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><Icon name="file-text" size={16} style="color: var(--brand-red); flex-shrink: 0;" /> <span>{f.label}</span></li>
-                ))}
+                {project.files.filter(f => f.in_combo === 1 || !paid).map(f => {
+                  const clean = cleanFileLabel(f.label, f.kind);
+                  const sz = formatBytes(f.size_bytes);
+                  return (
+                    <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                      <Icon name="file-text" size={16} style="color: var(--brand-red); flex-shrink: 0;" /> 
+                      <span>{clean} {sz && <small class="dim mono">({sz})</small>}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </details>
