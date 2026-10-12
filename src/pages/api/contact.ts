@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { addContactMessage } from '../../lib/db';
+import { addContactMessage, getSetting } from '../../lib/db';
 import { verifyCsrf, rateLimit, clientIp } from '../../lib/auth';
 import { verifyTurnstile } from '../../lib/turnstile';
 import { sendEmail } from '../../lib/email';
@@ -52,10 +52,14 @@ ${message}`;
 
   await addContactMessage(env.DB, { name, email, subject, message });
 
+  const replyTime = await getSetting(env.DB, 'reply_time');
+  const replyTimeNote = replyTime ? `<p>We typically reply within <strong>${replyTime}</strong>.</p>` : '';
+
   const ackHtml = `
     <p>Hi ${name},</p>
     <p>Thank you for reaching out to Technical Triveni!</p>
-    <p>We have received your message regarding "<strong>${subject || 'Your inquiry'}</strong>" and will get back to you as soon as possible.</p>
+    <p>We have received your message regarding "<strong>${subject || 'Your inquiry'}</strong>".</p>
+    ${replyTimeNote}
     <br/>
     <p>Best regards,</p>
     <p>Technical Triveni Team</p>
