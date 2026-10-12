@@ -70,10 +70,16 @@ const integrations = [
           <hr style="border: 0; border-top: 1px solid var(--border); margin: 1rem 0;" />
           
           <h3 style="display:flex; align-items:center; gap:0.5rem;"><Icon name="bell" size={16} /> Announcement Bar</h3>
-          <p class="field-hint" style="margin-bottom: 1rem;">Show a banner at the very top of the site. Leave text blank to hide.</p>
+          <p class="field-hint" style="margin-bottom: 1rem;">Show a banner at the very top of the site. Dismissible for 7 days by visitors.</p>
+          <div class="field" style="margin-bottom: 0.75rem;">
+            <label style="display:flex; align-items:center; gap:0.6rem; font-weight:550; cursor:pointer;">
+              <input type="checkbox" name="announcement_enabled" value="1" checked={settings.announcement_enabled === '1'} style="width:16px; height:16px; accent-color:var(--red);" />
+              <span>Enable announcement banner</span>
+            </label>
+          </div>
           <div class="field">
             <label class="label" for="site_announcement">Message Text</label>
-            <input class="input" id="site_announcement" name="site_announcement" maxlength="160" placeholder="e.g. 50% off all combos this week!" value={settings.site_announcement || ''} />
+            <input class="input" id="site_announcement" name="site_announcement" maxlength="160" placeholder="Need help with an order? Email technicaltriveniyt@gmail.com" value={settings.site_announcement || 'Need help with an order? Email technicaltriveniyt@gmail.com'} />
           </div>
           <div class="grid-2">
             <div class="field">

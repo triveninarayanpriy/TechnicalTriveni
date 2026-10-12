@@ -3,13 +3,16 @@ import { env } from 'cloudflare:workers';
 import { setSetting } from '../../../../lib/db';
 import { csrfOk, strField, flashRedirect } from '../../../../lib/admin';
 
-const ALLOWED = ['site_announcement', 'contact_email', 'announcement_link', 'announcement_expiry', 'test_emails'];
+const ALLOWED = ['site_announcement', 'contact_email', 'announcement_link', 'announcement_expiry', 'test_emails', 'announcement_enabled'];
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
   if (!csrfOk(cookies, form)) return flashRedirect('/admin/settings', { err: 'Session expired.' });
 
+  await setSetting(env.DB, 'announcement_enabled', form.get('announcement_enabled') === '1' ? '1' : '0');
+
   for (const key of ALLOWED) {
+    if (key === 'announcement_enabled') continue;
     if (form.has(key)) {
       await setSetting(env.DB, key, strField(form, key, 500));
     }
