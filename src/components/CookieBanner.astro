@@ -1,30 +1,75 @@
 ---
-// Privacy-first cookie notice. The site uses essential cookies only, so this is
-// an informational notice the visitor acknowledges once (stored locally). If
-// non-essential cookies are ever added, this becomes a real accept/decline gate.
+// Privacy-first cookie notice. The site uses essential cookies only.
+// Bottom-left on desktop (max 360px), slim bar on phones (above sticky buy bar).
 ---
-<div class="cookie" id="cookie-banner" hidden>
+<div class="cookie" id="cookie-banner" hidden role="region" aria-label="Cookie notice">
   <p class="cookie__text">
-    We use only <strong>essential cookies</strong> to keep the site secure and working — no ads, no cross-site tracking.
-    <a href="/legal/cookies">Learn more</a>.
+    We use essential cookies to keep the site secure. <a href="/legal/cookies">Learn more</a>
   </p>
   <button class="btn btn-primary btn-sm" id="cookie-ok" type="button">Got it</button>
 </div>
 
 <style>
   .cookie {
-    position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 200;
-    max-width: 640px; margin-inline: auto;
-    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-    padding: 0.85rem 1.1rem; border-radius: var(--r-lg);
-    background: var(--surface); border: 1px solid var(--border);
-    box-shadow: var(--shadow-lg);
+    position: fixed;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    transition: opacity 180ms ease, transform 180ms ease;
   }
-  .cookie[hidden] { display: none; }
-  .cookie__text { flex: 1; min-width: 220px; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.5; }
-  .cookie__text a { color: var(--brand-red); text-decoration: underline; }
-  .cookie .btn-sm { padding: 0.5rem 1rem; font-size: var(--fs-sm); white-space: nowrap; }
-  @media (max-width: 420px) { .cookie .btn-sm { width: 100%; } }
+  .cookie[hidden] {
+    display: none;
+  }
+  .cookie__text {
+    flex: 1;
+    font-size: var(--fs-xs);
+    color: var(--ink-2);
+    line-height: 1.4;
+    margin: 0;
+  }
+  .cookie__text a {
+    color: var(--red);
+    text-decoration: underline;
+    font-weight: 550;
+    white-space: nowrap;
+  }
+  .cookie .btn-sm {
+    min-height: 36px;
+    padding: 0 0.85rem;
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Desktop: bottom-left, max-width 360px */
+  @media (min-width: 641px) {
+    .cookie {
+      bottom: 1.5rem;
+      left: 1.5rem;
+      right: auto;
+      max-width: 360px;
+      padding: 0.85rem 1rem;
+      border-radius: var(--r-card);
+    }
+  }
+
+  /* Phones: slim bar at bottom (above sticky buy bar) */
+  @media (max-width: 640px) {
+    .cookie {
+      bottom: var(--sticky-buy-h, 0px);
+      left: 0;
+      right: 0;
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      padding: 0.5rem 0.75rem;
+    }
+  }
 </style>
 
 <script>
@@ -33,7 +78,9 @@
   const ok = document.getElementById('cookie-ok');
   try {
     if (banner && localStorage.getItem(KEY) !== '1') banner.hidden = false;
-  } catch { /* storage blocked → keep it hidden, nothing non-essential is loaded anyway */ }
+  } catch {
+    /* storage blocked -> keep hidden */
+  }
   ok?.addEventListener('click', () => {
     if (banner) banner.hidden = true;
     try { localStorage.setItem(KEY, '1'); } catch { /* ignore */ }
