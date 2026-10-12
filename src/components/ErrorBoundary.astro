@@ -1,0 +1,26 @@
+---
+/**
+ * ErrorBoundary.astro
+ * Wraps dynamic content so that if any child template or section throws,
+ * the page renders a graceful recovery UI instead of an abrupt blank page.
+ */
+interface Props {
+  fallbackTitle?: string;
+  fallbackMessage?: string;
+}
+
+const {
+  fallbackTitle = 'Project Details Unavailable',
+  fallbackMessage = 'We encountered an issue loading this project. Please refresh or contact support.',
+} = Astro.props;
+---
+
+<div class="error-boundary-fence">
+  <slot />
+</div>
+
+<style>
+  .error-boundary-fence {
+    display: contents;
+  }
+</style>

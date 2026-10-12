@@ -1,4 +1,4 @@
-﻿---
+---
 import Icon from '../components/Icon.astro';
 import type { ProjectFull } from '../lib/db';
 import { parseTags, formatINR, difficultyClass } from '../lib/format';
@@ -21,10 +21,19 @@ const tags = parseTags(project.tags);
 const media = project.images.length > 0 ? project.images : [{ kind: 'image', url: project.cover_image, caption: project.title }];
 const first = media[0];
 
-const prereqs = JSON.parse(project.prereqs_json || '[]');
-const outcomes = JSON.parse(project.outcomes_json || '[]');
-const notIncluded = JSON.parse(project.not_included_json || '[]');
-const faqs = JSON.parse(project.faq_json || '[]');
+const safeArr = (str: any) => {
+  try {
+    const arr = JSON.parse(str || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const prereqs = safeArr(project.prereqs_json);
+const outcomes = safeArr(project.outcomes_json);
+const notIncluded = safeArr(project.not_included_json);
+const faqs = safeArr(project.faq_json);
 
 // Group BOM
 const groupedBom = project.bom.reduce((acc, item) => {
@@ -272,10 +281,10 @@ const groupedPins = project.pins.reduce((acc, pin) => {
       )}
 
       <!-- Troubleshooting -->
-      {project.trouble && project.trouble.length > 0 && (
+      {project.troubleshooting && project.troubleshooting.length > 0 && (
         <section class="v2-sec" id="troubleshooting" style="margin-top: 3rem;">
           <h2 class="sec__title"><Icon name="alert-triangle" size={20} /> Troubleshooting</h2>
-          <TroubleTable items={project.trouble} />
+          <TroubleTable items={project.troubleshooting} />
         </section>
       )}
 
@@ -322,7 +331,7 @@ const groupedPins = project.pins.reduce((acc, pin) => {
           <div>
             <span class="cta-card__kicker mono" style="font-size: 0.8rem; color: var(--brand-red); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">{project.combo_title || 'Full Combo Pack'}</span>
             <div class="cta-card__price" style="font-size: 2rem; font-weight: 700; font-family: var(--font-display); line-height: 1;">
-              {paid ? Pack  : 'Free'}
+              {paid ? formatINR(project.price_inr) : 'Free'}
               <span style="display: block; font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-top: 0.25rem;">{paid ? 'one-time • digital pack' : 'open resource'}</span>
             </div>
           </div>
