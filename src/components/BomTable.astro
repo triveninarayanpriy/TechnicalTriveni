@@ -10,19 +10,41 @@ interface Props {
 
 const { items, costChecked } = Astro.props;
 
-// Group items
-const coreItems = items.filter(b => !(b.group_name || '').toLowerCase().includes('tool') && !(b.group_name || '').toLowerCase().includes('optional'));
-const toolItems = items.filter(b => (b.group_name || '').toLowerCase().includes('tool') || (b.group_name || '').toLowerCase().includes('optional'));
+// Group items into Core vs Tools/Optional
+const coreItems = items.filter(
+  (b) =>
+    !(b.group_name || '').toLowerCase().includes('tool') &&
+    !(b.group_name || '').toLowerCase().includes('optional')
+);
+const toolItems = items.filter(
+  (b) =>
+    (b.group_name || '').toLowerCase().includes('tool') ||
+    (b.group_name || '').toLowerCase().includes('optional')
+);
 
-const hasAffiliate = items.some(b => b.is_affiliate === 1);
+const hasAffiliate = items.some((b) => b.is_affiliate === 1 && b.affiliate_url);
+const pricedItems = items.filter((b) => (b.unit_price_inr ?? 0) > 0);
+const hasPriced = pricedItems.length > 0;
+
+const totalCoreCost = coreItems
+  .filter((b) => (b.unit_price_inr ?? 0) > 0)
+  .reduce((sum, b) => {
+    const q = parseInt(b.qty, 10);
+    const qty = Number.isFinite(q) && q > 0 ? q : 1;
+    return sum + b.unit_price_inr * qty;
+  }, 0);
 ---
 
-<div class="bom-meta" style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-  <div>
-    {hasAffiliate && <span>Some links are affiliate links. You pay nothing extra.</span>}
+<div class="bom-meta">
+  <div class="bom-meta__affiliate">
+    {hasAffiliate && (
+      <span>
+        Some links are affiliate links. <a href="/legal/affiliate" class="bom-meta__link" target="_blank" rel="noopener noreferrer">Affiliate disclosure</a>.
+      </span>
+    )}
   </div>
-  <div>
-    {costChecked && <span>Prices checked {costChecked}</span>}
+  <div class="bom-meta__date">
+    <span>Prices checked {costChecked || 'October 2026'}</span>
   </div>
 </div>
 
@@ -34,94 +56,308 @@ const hasAffiliate = items.some(b => b.is_affiliate === 1);
         <th>Part</th>
         <th>Qty</th>
         <th>Price</th>
-        <th></th>
+        <th class="col-buy"></th>
       </tr>
     </thead>
     {coreItems.length > 0 && (
       <tbody class="bom-group">
-        <tr><td colspan="5" class="bom-group-title">Core build</td></tr>
-        {coreItems.map((b) => (
-          <tr class="bom-item-row" data-bom-id={b.id}>
-            <td class="col-check">
-              <input type="checkbox" class="bom-check" data-price={b.unit_price_inr * (parseInt(b.qty, 10) || 1)} title="I have this part" />
-            </td>
-            <td>
-              <div class="bom-name-wrap">
-                <span class="bom-name">{b.name}</span>
-                {b.notes && <span class="bom-note">{b.notes}</span>}
-              </div>
-            </td>
-            <td class="mono">{b.qty}</td>
-            <td class="mono bom-price-col">
-              {b.unit_price_inr > 0 ? formatINR(b.unit_price_inr) : '-'}
-            </td>
-            <td class="bom-buy-col">
-              {b.affiliate_url ? (
-                <a href={b.affiliate_url} target="_blank" rel="nofollow sponsored noopener" class="btn btn-ghost btn-sm btn-buy">
-                  Buy <Icon name="arrow-up-right" size={13} />
-                </a>
-              ) : (
-                <span class="dim mono" style="font-size:var(--fs-xs)">-</span>
-              )}
-            </td>
-          </tr>
-        ))}
+        <tr>
+          <td colspan="5" class="bom-group-title">Core build components</td>
+        </tr>
+        {coreItems.map((b) => {
+          const qty = parseInt(b.qty, 10) || 1;
+          const priced = (b.unit_price_inr ?? 0) > 0;
+          return (
+            <tr class="bom-item-row" data-bom-id={b.id}>
+              <td class="col-check">
+                <input
+                  type="checkbox"
+                  class="bom-check"
+                  data-price={priced ? b.unit_price_inr * qty : 0}
+                  title="I already have this part"
+                />
+              </td>
+              <td>
+                <div class="bom-name-wrap">
+                  <span class="bom-name">{b.name}</span>
+                  {b.notes && <span class="bom-note">{b.notes}</span>}
+                </div>
+              </td>
+              <td class="bom-qty">{b.qty}</td>
+              <td class="bom-price">
+                {priced ? (
+                  formatINR(b.unit_price_inr)
+                ) : (
+                  <span class="bom-price--unset">Price not set</span>
+                )}
+              </td>
+              <td class="bom-buy-col">
+                {b.affiliate_url ? (
+                  <a
+                    href={b.affiliate_url}
+                    target="_blank"
+                    rel="nofollow sponsored noopener"
+                    class="btn-buy-part"
+                  >
+                    Buy <Icon name="external-link" size={12} />
+                  </a>
+                ) : (
+                  <span class="bom-empty-dash">&mdash;</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     )}
-    
+
     {toolItems.length > 0 && (
       <tbody class="bom-group">
-        <tr><td colspan="5" class="bom-group-title">Tools & Optional</td></tr>
-        {toolItems.map((b) => (
-          <tr class="bom-item-row" data-bom-id={b.id}>
-            <td class="col-check">
-              <input type="checkbox" class="bom-check" data-price={b.unit_price_inr * (parseInt(b.qty, 10) || 1)} checked title="I have this part" />
-            </td>
-            <td>
-              <div class="bom-name-wrap">
-                <span class="bom-name">{b.name}</span>
-                {b.notes && <span class="bom-note">{b.notes}</span>}
-              </div>
-            </td>
-            <td class="mono">{b.qty}</td>
-            <td class="mono bom-price-col">
-              {b.unit_price_inr > 0 ? formatINR(b.unit_price_inr) : '-'}
-            </td>
-            <td class="bom-buy-col">
-              {b.affiliate_url ? (
-                <a href={b.affiliate_url} target="_blank" rel="nofollow sponsored noopener" class="btn btn-ghost btn-sm btn-buy">
-                  Buy <Icon name="arrow-up-right" size={13} />
-                </a>
-              ) : (
-                <span class="dim mono" style="font-size:var(--fs-xs)">-</span>
-              )}
-            </td>
-          </tr>
-        ))}
+        <tr>
+          <td colspan="5" class="bom-group-title">Tools & Optional equipment</td>
+        </tr>
+        {toolItems.map((b) => {
+          const qty = parseInt(b.qty, 10) || 1;
+          const priced = (b.unit_price_inr ?? 0) > 0;
+          return (
+            <tr class="bom-item-row" data-bom-id={b.id}>
+              <td class="col-check">
+                <input
+                  type="checkbox"
+                  class="bom-check"
+                  data-price={priced ? b.unit_price_inr * qty : 0}
+                  checked
+                  title="I already have this tool"
+                />
+              </td>
+              <td>
+                <div class="bom-name-wrap">
+                  <span class="bom-name">{b.name}</span>
+                  {b.notes && <span class="bom-note">{b.notes}</span>}
+                </div>
+              </td>
+              <td class="bom-qty">{b.qty}</td>
+              <td class="bom-price">
+                {priced ? (
+                  formatINR(b.unit_price_inr)
+                ) : (
+                  <span class="bom-price--unset">Price not set</span>
+                )}
+              </td>
+              <td class="bom-buy-col">
+                {b.affiliate_url ? (
+                  <a
+                    href={b.affiliate_url}
+                    target="_blank"
+                    rel="nofollow sponsored noopener"
+                    class="btn-buy-part"
+                  >
+                    Buy <Icon name="external-link" size={12} />
+                  </a>
+                ) : (
+                  <span class="bom-empty-dash">&mdash;</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     )}
   </table>
-  
-  <div class="bom-total-row">
-    <span>Your selection:</span>
-    <span class="bom-total-price mono" id="bom-calc-total"></span>
-  </div>
+
+  {hasPriced && totalCoreCost > 0 && (
+    <div class="bom-total-row">
+      <span class="bom-total-label">Core build estimate (priced parts):</span>
+      <span class="bom-total-price" id="bom-calc-total" data-base-total={totalCoreCost}>
+        {formatINR(totalCoreCost)}
+      </span>
+    </div>
+  )}
 </div>
 
+<script>
+  // Interactive BOM cost calculator
+  const checkBoxes = document.querySelectorAll<HTMLInputElement>('.bom-check');
+  const totalDisplay = document.getElementById('bom-calc-total');
+
+  if (totalDisplay) {
+    const baseTotal = parseFloat(totalDisplay.dataset.baseTotal || '0');
+    let currentDeduction = 0;
+
+    checkBoxes.forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const itemPrice = parseFloat(cb.dataset.price || '0');
+        // Only core items affect base total calculation
+        const isTool = cb.closest('tbody')?.textContent?.includes('Tools');
+        if (!isTool && itemPrice > 0) {
+          if (cb.checked) {
+            currentDeduction += itemPrice;
+          } else {
+            currentDeduction -= itemPrice;
+          }
+          const remaining = Math.max(0, baseTotal - currentDeduction);
+          totalDisplay.textContent = '₹' + remaining.toLocaleString('en-IN');
+        }
+      });
+    });
+  }
+</script>
+
 <style>
-  .bom-table-wrapper { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
-  .bom-table { width: 100%; border-collapse: collapse; text-align: left; }
-  .bom-table th { padding: 0.75rem 1rem; background: var(--surface-2); font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
-  .bom-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
-  .bom-table tr:last-child td { border-bottom: none; }
-  .bom-group-title { font-weight: 600; color: var(--text); background: rgba(0,0,0,0.02); padding-top: 1rem !important; padding-bottom: 0.5rem !important; font-size: 0.85rem; }
-  .bom-name-wrap { display: flex; flex-direction: column; gap: 0.15rem; }
-  .bom-name { font-weight: 500; font-size: var(--fs-sm); }
-  .bom-note { font-size: 0.75rem; color: var(--text-muted); }
-  .col-check { width: 40px; text-align: center; }
-  .bom-buy-col { text-align: right; }
-  .btn-buy { padding: 0.35rem 0.6rem; font-size: 0.75rem; border: 1px solid var(--border); }
-  .btn-buy:hover { border-color: var(--brand-red); color: var(--brand-red); background: transparent; }
-  .bom-total-row { padding: 1.25rem 1rem; display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); border-top: 1px solid var(--border); font-weight: 600; }
-  .bom-total-price { font-size: 1.25rem; font-family: var(--font-display); color: var(--brand-red); }
+  .bom-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .bom-meta__link {
+    color: var(--red);
+    text-decoration: underline;
+  }
+  .bom-meta__link:hover {
+    color: var(--red-dark);
+  }
+
+  .bom-table-wrapper {
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg);
+    box-shadow: var(--shadow);
+  }
+
+  .bom-table {
+    width: 100%;
+    min-width: 520px;
+    border-collapse: collapse;
+    text-align: left;
+  }
+  .bom-table th {
+    padding: 12px 16px;
+    background: var(--bg-soft);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--line);
+  }
+  .bom-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .bom-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .bom-group-title {
+    font-weight: 600;
+    color: var(--ink-2);
+    background: var(--bg-soft);
+    padding: 10px 16px !important;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .bom-name-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .bom-name {
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .bom-note {
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  .col-check {
+    width: 44px;
+    text-align: center;
+  }
+  .bom-check {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--red);
+    cursor: pointer;
+  }
+
+  .bom-qty {
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    color: var(--ink-2);
+    width: 60px;
+  }
+
+  .bom-price {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    width: 110px;
+  }
+  .bom-price--unset {
+    font-family: inherit;
+    font-weight: normal;
+    font-size: 13px;
+    color: var(--ink-3);
+    font-style: italic;
+  }
+
+  .bom-buy-col {
+    text-align: right;
+    width: 90px;
+  }
+  .btn-buy-part {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: var(--r-btn);
+    color: var(--ink);
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .btn-buy-part:hover {
+    border-color: var(--red);
+    color: var(--red);
+    background: var(--bg-soft);
+  }
+  .bom-empty-dash {
+    color: var(--ink-3);
+  }
+
+  .bom-total-row {
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-soft);
+    border-top: 1px solid var(--line);
+    font-weight: 600;
+  }
+  .bom-total-label {
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .bom-total-price {
+    font-size: 20px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--red);
+  }
 </style>

@@ -30,6 +30,15 @@ export function formatBytes(bytes: number | null | undefined): string {
   return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
+export function cleanFileName(label: string | null | undefined, fallback = 'File'): string {
+  let s = (label || '').trim();
+  if (!s) return fallback;
+  s = s.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}[-_]/, '');
+  s = s.replace(/^\d{10,}[-_]/, '');
+  s = s.replace(/\s*\(\d+\)(?=\.[a-zA-Z0-9]+$|$)/, '');
+  return s.trim() || fallback;
+}
+
 export function slugify(input: string): string {
   return input
     .toLowerCase()
