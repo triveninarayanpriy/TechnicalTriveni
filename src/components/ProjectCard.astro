@@ -9,7 +9,12 @@ interface Props {
 }
 const { project, reveal = true } = Astro.props;
 const tags = parseTags(project.tags).slice(0, 3);
-const paid = project.combo_enabled === 1 && project.price_inr > 0;
+const paid = (project.price_inr ?? 0) > 0;
+const fileKindsStr = (project.file_kinds || '').toLowerCase();
+const hasCode = fileKindsStr.includes('code') || fileKindsStr.includes('sketch') || fileKindsStr.includes('hex');
+const hasSchematic = fileKindsStr.includes('schematic') || fileKindsStr.includes('circuit');
+const has3D = fileKindsStr.includes('model') || fileKindsStr.includes('3d') || !!project.model_url;
+const hasPdf = fileKindsStr.includes('pdf') || fileKindsStr.includes('doc') || (!hasCode && !hasSchematic && !has3D);
 ---
 
 <article class="pcard" data-reveal={reveal ? '' : undefined}>
@@ -47,10 +52,11 @@ const paid = project.combo_enabled === 1 && project.price_inr > 0;
     <p class="pcard__summary">{project.summary}</p>
 
     <div class="pcard__includes">
-      <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>
-      <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>
-      {project.model_url && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
-      {paid && <span class="inc-chip inc-chip--combo" title="Pack parts available"><Icon name="cart" size={11} /> Pack</span>}
+      {hasCode && <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>}
+      {hasSchematic && <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>}
+      {has3D && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
+      {hasPdf && <span class="inc-chip" title="PDF Guide"><Icon name="file-text" size={11} /> PDF</span>}
+      {paid && <span class="inc-chip inc-chip--combo" title="Project Pack available"><Icon name="cart" size={11} /> Pack</span>}
     </div>
 
     <div class="pcard__foot">

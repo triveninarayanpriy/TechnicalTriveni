@@ -22,8 +22,8 @@ const isAdmin = !!Astro.locals.admin;
     </nav>
 
     <div class="site-header__actions">
-      <a href="/projects" class="btn btn-primary btn--header">
-        Start building <Icon name="arrow-right" size={16} />
+      <a href="/projects?price=free" class="btn btn-primary btn--header">
+        Free resources <Icon name="arrow-right" size={16} />
       </a>
       <button class="nav-toggle" data-nav-toggle aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
         <Icon name="menu" size={24} />
@@ -37,8 +37,8 @@ const isAdmin = !!Astro.locals.admin;
       {NAV.map((item) => (
         <a href={item.href} class="mobile-nav__link">{item.label}</a>
       ))}
-      <a href="/projects" class="btn btn-primary btn-block" style="margin-top:1rem">
-        Start building <Icon name="arrow-right" size={16} />
+      <a href="/projects?price=free" class="btn btn-primary btn-block" style="margin-top:1rem">
+        Free resources <Icon name="arrow-right" size={16} />
       </a>
     </nav>
   </div>

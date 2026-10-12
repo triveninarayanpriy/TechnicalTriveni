@@ -10,7 +10,8 @@ const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
 const difficulty = (url.searchParams.get('difficulty') || 'all').trim();
-const priceMode = (url.searchParams.get('priceMode') || 'all').trim();
+const rawPrice = (url.searchParams.get('price') || url.searchParams.get('priceMode') || 'all').trim().toLowerCase();
+const priceMode = rawPrice === 'free' ? 'free' : rawPrice === 'paid' ? 'paid' : 'all';
 const sortMode = (url.searchParams.get('sort') || 'newest').trim();
 const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
 
@@ -38,9 +39,17 @@ const pageUrl = (p: number) => {
   if (q) params.set('q', q);
   if (cat !== 'All') params.set('cat', cat);
   if (difficulty !== 'all') params.set('difficulty', difficulty);
-  if (priceMode !== 'all') params.set('priceMode', priceMode);
+  if (priceMode !== 'all') params.set('price', priceMode);
   if (sortMode !== 'newest') params.set('sort', sortMode);
   if (p > 1) params.set('page', String(p));
+  const s = params.toString();
+  return `/projects${s ? `?${s}` : ''}`;
+};
+const priceUrl = (m: string) => {
+  const params = new URLSearchParams(url.search);
+  if (m !== 'all') params.set('price', m); else params.delete('price');
+  params.delete('priceMode');
+  params.delete('page');
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
 };
@@ -83,7 +92,12 @@ const to = Math.min(page * PAGE_SIZE, total);
         <button type="submit" class="btn btn-primary">Search</button>
       </form>
 
-      <div class="chips-row" data-reveal>
+      <div class="chips-row" data-reveal style="flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+        <span class="mono dim" style="font-size: var(--fs-xs);">Price:</span>
+        <a href={priceUrl('all')} class:list={['filter-chip', { 'is-active': priceMode === 'all' }]}>All</a>
+        <a href={priceUrl('free')} class:list={['filter-chip', { 'is-active': priceMode === 'free' }]}>Free</a>
+        <a href={priceUrl('paid')} class:list={['filter-chip', { 'is-active': priceMode === 'paid' }]}>Paid</a>
+        <span class="mono dim" style="font-size: var(--fs-xs); margin-left: 0.5rem;">Category:</span>
         {cats.map((c) => (
           <a href={chipUrl(c)} class:list={['filter-chip', { 'is-active': c === cat }]}>{c}</a>
         ))}
