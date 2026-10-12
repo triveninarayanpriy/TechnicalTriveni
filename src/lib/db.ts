@@ -385,7 +385,7 @@ export async function deleteFile(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_files WHERE id = ?').bind(id).run();
 }
 export async function getComboFiles(db: D1Database, projectId: number): Promise<ProjectFile[]> {
-  const res = await db.prepare('SELECT * FROM project_files WHERE project_id = ? AND in_combo = 1 ORDER BY sort')
+  const res = await db.prepare('SELECT * FROM project_files WHERE project_id = ? AND (in_combo = 1 OR is_free = 1) ORDER BY sort')
     .bind(projectId).all<ProjectFile>();
   return res.results ?? [];
 }
