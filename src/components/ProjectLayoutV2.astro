@@ -360,7 +360,7 @@ const groupedPins = project.pins.reduce((acc, pin) => {
       <div class="cta-card" id="buy" data-buy data-project-id={project.id} data-slug={project.slug} data-payments={paid ? '1' : '0'} style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
         <div class="cta-card__row" style="margin-bottom: 1rem;">
           <div>
-            <span class="cta-card__kicker mono" style="font-size: 0.8rem; color: var(--brand-red); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">{project.combo_title || 'Full Combo Pack'}</span>
+            <span class="cta-card__kicker mono" style="font-size: 0.8rem; color: var(--brand-red); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">{(project.combo_title || 'Full Project Pack').replace(/combo/gi, 'Pack')}</span>
             <div class="cta-card__price" style="font-size: 2rem; font-weight: 700; font-family: var(--font-display); line-height: 1;">
               {paid ? formatINR(project.price_inr) : 'Free'}
               <span style="display: block; font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-top: 0.25rem;">{paid ? 'one-time • digital pack' : 'open resource'}</span>

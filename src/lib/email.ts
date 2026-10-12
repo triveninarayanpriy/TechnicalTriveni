@@ -103,7 +103,7 @@ export function buildMagicLinkEmail(magicUrl: string): { subject: string; html: 
       <p style="margin:0 0 16px;line-height:1.6">Click below to see every project you've purchased and re-download the files.
       This link works for 30 minutes.</p>
       <p style="margin:0 0 22px">${button(safeUrl, 'View my downloads')}</p>
-      <p style="margin:0;color:#8a90a2;font-size:12px;line-height:1.6">If you didn't request this, you can safely ignore it &mdash; no one else can see your purchases.</p>
+      <p style="margin:0;color:#8a90a2;font-size:12px;line-height:1.6">If you didn't request this, you can safely ignore it &mdash; no one else can see your downloads.</p>
     `),
   };
 }

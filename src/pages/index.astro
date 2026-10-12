@@ -85,7 +85,7 @@ const jsonLd = {
               <h3 class="showcase-card__title">{hero.title}</h3>
               <p class="showcase-card__summary">{hero.summary}</p>
               <div class="showcase-card__foot">
-                <span class="showcase-card__price">{hero.combo_enabled && hero.price_inr > 0 ? formatINR(hero.price_inr) : 'Free'}<small>{hero.combo_enabled && hero.price_inr > 0 ? ' combo' : ''}</small></span>
+                <span class="showcase-card__price">{hero.combo_enabled && hero.price_inr > 0 ? formatINR(hero.price_inr) : 'Free'}<small>{hero.combo_enabled && hero.price_inr > 0 ? ' pack' : ''}</small></span>
                 <span class="showcase-card__cta">View project <Icon name="arrow-right" size={14} /></span>
               </div>
             </div>
@@ -120,10 +120,10 @@ const jsonLd = {
                   <span class="inc-chip" title="Source Code"><Icon name="code" size={11} /> Code</span>
                   <span class="inc-chip" title="Schematic"><Icon name="schematic" size={11} /> Schematic</span>
                   {p.model_url && <span class="inc-chip" title="3D Files"><Icon name="cube" size={11} /> 3D</span>}
-                  {p.combo_enabled === 1 && p.price_inr > 0 && <span class="inc-chip inc-chip--combo" title="Combo parts available"><Icon name="cart" size={11} /> Combo</span>}
+                  {p.combo_enabled === 1 && p.price_inr > 0 && <span class="inc-chip inc-chip--combo" title="Project pack available"><Icon name="cart" size={11} /> Pack</span>}
                 </div>
                 <div class="prod__foot">
-                  <span class="prod__price">{p.combo_enabled && p.price_inr > 0 ? formatINR(p.price_inr) : 'Free'}<small>{p.combo_enabled && p.price_inr > 0 ? ' combo' : ''}</small></span>
+                  <span class="prod__price">{p.combo_enabled && p.price_inr > 0 ? formatINR(p.price_inr) : 'Free'}<small>{p.combo_enabled && p.price_inr > 0 ? ' pack' : ''}</small></span>
                   <a href={`/projects/${p.slug}`} class="prod__btn">View project <Icon name="arrow-right" size={15} /></a>
                 </div>
               </div>

@@ -18,7 +18,7 @@ export const POST: APIRoute = async ({ request }) => {
   if (!email || !EMAIL_RE.test(email)) return json({ error: 'Please enter a valid email.' }, 400);
 
   // Generic response either way — never reveal whether an email has orders.
-  const generic = { ok: true, message: 'If that email has purchases, a sign-in link is on its way.' };
+  const generic = { ok: true, message: 'If that email has downloads, a sign-in link is on its way.' };
 
   if (!emailEnabled(env)) {
     return json({ ok: false, message: 'Email delivery is not set up yet. Use the download link from your purchase, or contact us.' });
