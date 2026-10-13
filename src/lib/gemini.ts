@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { getSetting } from './db';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 export async function getGeminiApiKey(env: any, db?: D1Database): Promise<string | null> {
   if (env?.GEMINI_API_KEY && typeof env.GEMINI_API_KEY === 'string' && env.GEMINI_API_KEY.trim()) {

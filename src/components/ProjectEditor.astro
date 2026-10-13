@@ -328,7 +328,7 @@ const tabMissing = {
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <span style="color: var(--brand-red); display: flex;"><Icon name="spark" size={18} /></span>
           <strong style="font-size: var(--fs-sm); color: var(--text);">Draft from Notes with Gemini AI</strong>
-          <span class="mini-tag" style="background: rgba(231,36,42,0.12); color: var(--brand-red); font-size: 0.72rem; font-weight: 600;">Gemini 2.5 Flash</span>
+          <span class="mini-tag" style="background: rgba(231,36,42,0.12); color: var(--brand-red); font-size: 0.72rem; font-weight: 600;">Gemini 3.8 Flash</span>
         </div>
         <span class="dim ai-draft-summary-hint" style="font-size: var(--fs-xs);">Paste rough notes, code, or BOM to auto-populate editable draft fields</span>
       </summary>
@@ -2931,7 +2931,7 @@ const tabMissing = {
       const originalText = aiGenerateNotesBtn.innerHTML;
       aiGenerateNotesBtn.disabled = true;
       aiGenerateNotesBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:4px;"></span> Drafting with Gemini...';
-      aiNotesStatus.innerHTML = '<span class="dim" style="font-size: var(--fs-xs);">Analyzing notes with Gemini 2.5 Flash...</span>';
+      aiNotesStatus.innerHTML = '<span class="dim" style="font-size: var(--fs-xs);">Analyzing notes with Gemini 3.8 Flash...</span>';
 
       try {
         const res = await fetch('/api/admin/ai/draft-notes', {
