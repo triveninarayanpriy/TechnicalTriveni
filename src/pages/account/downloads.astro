@@ -246,14 +246,36 @@ const mailOn = emailEnabled(env);
     gap: 8px;
   }
   @media (max-width: 600px) {
+    .mydl-section {
+      padding: 36px 0 60px;
+    }
+    .mydl--form {
+      padding: 24px 16px;
+      border-radius: 16px;
+    }
+    .mydl__icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+    }
+    .mydl-title {
+      font-size: 1.875rem;
+    }
+    .mydl-sub {
+      font-size: 0.9375rem;
+      margin-bottom: 24px;
+    }
     .order-card {
       flex-direction: column;
       align-items: stretch;
-      padding: 18px;
+      padding: 16px;
+      gap: 12px;
+      border-radius: 14px;
     }
     .order-card__btn {
       height: 48px;
       justify-content: center;
+      width: 100%;
     }
   }
   .mydl-empty {

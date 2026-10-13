@@ -659,14 +659,22 @@ export async function getOrdersByEmail(db: D1Database, email: string): Promise<O
 /* ------------------------------------------------------------ settings --- */
 
 export async function getSetting(db: D1Database, key: string): Promise<string | null> {
-  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>();
-  return row?.value ?? null;
+  try {
+    const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>();
+    return row?.value ?? null;
+  } catch {
+    return null;
+  }
 }
 export async function getSettings(db: D1Database): Promise<Record<string, string>> {
-  const res = await db.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
-  const out: Record<string, string> = {};
-  for (const r of res.results ?? []) out[r.key] = r.value;
-  return out;
+  try {
+    const res = await db.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
+    const out: Record<string, string> = {};
+    for (const r of res.results ?? []) out[r.key] = r.value;
+    return out;
+  } catch {
+    return {};
+  }
 }
 export async function setSetting(db: D1Database, key: string, value: string): Promise<void> {
   await db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
@@ -774,12 +782,20 @@ export async function getDashboardStats(db: D1Database, days: number): Promise<D
 
 /* --------------------------------------------------------------- Pages --- */
 export async function getPage(db: D1Database, slug: string): Promise<Page | null> {
-  return db.prepare('SELECT * FROM pages WHERE slug = ?').bind(slug).first<Page>();
+  try {
+    return await db.prepare('SELECT * FROM pages WHERE slug = ?').bind(slug).first<Page>();
+  } catch {
+    return null;
+  }
 }
 
 export async function getAllPages(db: D1Database): Promise<Page[]> {
-  const { results } = await db.prepare('SELECT * FROM pages ORDER BY title ASC').all<Page>();
-  return results;
+  try {
+    const { results } = await db.prepare('SELECT * FROM pages ORDER BY title ASC').all<Page>();
+    return results;
+  } catch {
+    return [];
+  }
 }
 
 export async function upsertPage(db: D1Database, page: Partial<Page> & { slug: string }): Promise<void> {

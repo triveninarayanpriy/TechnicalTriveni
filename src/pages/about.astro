@@ -126,9 +126,11 @@ const jsonLd = {
   <!-- CTA -->
   <section class="about-cta-section">
     <div class="container center">
-      <h2 class="about-cta-title">Explore the project packs</h2>
-      <p class="about-cta-sub">From flight controllers to autonomous robotics, discover full documentation ready for your workbench.</p>
-      <a href="/projects" class="btn btn-primary btn-lg">Browse all projects →</a>
+      <div class="about-cta-card">
+        <h2 class="about-cta-title">Explore the project packs</h2>
+        <p class="about-cta-sub">From flight controllers to autonomous robotics, discover full documentation ready for your workbench.</p>
+        <a href="/projects" class="btn btn-primary btn-lg">Browse all projects &rarr;</a>
+      </div>
     </div>
   </section>
 </Base>
@@ -338,11 +340,20 @@ const jsonLd = {
     background: var(--bg-soft);
   }
 
-  /* Bottom CTA */
+  /* Bottom CTA Card */
   .about-cta-section {
     background: var(--bg-soft);
     border-top: 1px solid var(--line);
-    padding: clamp(48px, 6vw, 80px) 0;
+    padding: clamp(40px, 6vw, 80px) 0;
+  }
+  .about-cta-card {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: clamp(28px, 5vw, 48px);
+    max-width: 680px;
+    margin: 0 auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
   .about-cta-title {
     font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
@@ -354,20 +365,79 @@ const jsonLd = {
     font-size: 1rem;
     color: var(--ink-2);
     max-width: 52ch;
-    margin: 0 auto 28px;
+    margin: 0 auto 24px;
+    line-height: 1.5;
   }
   .btn-lg {
     height: 48px;
     padding: 0 28px;
     font-size: 1rem;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
+    border-radius: var(--r-btn);
   }
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     .btn-lg {
       width: 100%;
+    }
+    .about-hero {
+      padding: 36px 0 20px;
+    }
+    .about-title {
+      font-size: 2rem;
+    }
+    .about-lead {
+      font-size: 0.9375rem;
+    }
+    .about-section {
+      padding: 24px 0 40px;
+    }
+    .about-grid {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .about-photo-col {
+      max-width: 340px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .about-badges-box {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .about-badge-item {
+      padding: 12px 10px;
+    }
+    .about-badge-num {
+      font-size: 1.125rem;
+    }
+    .about-badge-label {
+      font-size: 0.6875rem;
+    }
+    .about-values {
+      gap: 12px;
+    }
+    .value-card {
+      padding: 14px 16px;
+      gap: 14px;
+      border-radius: 14px;
+    }
+    .value-card__icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+    }
+    .social-chip {
+      height: 44px;
+      padding: 0 16px;
+      font-size: 0.875rem;
+    }
+    .about-cta-card {
+      padding: 24px 18px;
+      border-radius: 16px;
     }
   }
 </style>

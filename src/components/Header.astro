@@ -44,28 +44,43 @@ const centerLinks = [
     </div>
   </div>
 
-  <!-- Mobile Drawer Backdrop & Full-Height Sheet -->
+  <!-- Mobile Full-Screen Menu Overlay -->
   <div class="mobile-sheet-wrap" id="mobile-nav" data-mobile-nav hidden>
     <div class="mobile-backdrop" data-backdrop></div>
     <div class="mobile-sheet" role="dialog" aria-modal="true" aria-label="Site menu">
       <div class="mobile-sheet__header">
         <Logo size={26} />
-        <button type="button" class="mobile-sheet__close" data-nav-close aria-label="Close menu">&times;</button>
+        <button type="button" class="mobile-sheet__close" data-nav-close aria-label="Close menu">
+          <Icon name="close" size={22} />
+        </button>
       </div>
 
-      <nav class="mobile-sheet__nav" aria-label="Mobile Navigation">
-        {centerLinks.map((item) => (
-          <a href={item.href} class:list={['mobile-sheet__link', { 'is-active': isActive(item.href) }]}>
-            {item.label}
-          </a>
-        ))}
-        <a href="/account/downloads" class:list={['mobile-sheet__link', { 'is-active': isActive('/account/downloads') }]}>
-          <Icon name="download" size={18} /> My downloads
+      <div class="mobile-sheet__body">
+        <nav class="mobile-sheet__nav" aria-label="Mobile Navigation">
+          {centerLinks.map((item) => (
+            <a href={item.href} class:list={['mobile-sheet__link', { 'is-active': isActive(item.href) }]}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        <!-- "My downloads" Card -->
+        <a href="/account/downloads" class:list={['mobile-menu-dl-card', { 'is-active': isActive('/account/downloads') }]}>
+          <div class="mobile-menu-dl-card__icon">
+            <Icon name="download" size={20} />
+          </div>
+          <div class="mobile-menu-dl-card__info">
+            <span class="mobile-menu-dl-card__title">My downloads</span>
+            <span class="mobile-menu-dl-card__sub">Access your purchased project packs</span>
+          </div>
+          <div class="mobile-menu-dl-card__arrow">
+            <Icon name="chevron-right" size={18} />
+          </div>
         </a>
-      </nav>
+      </div>
 
       <div class="mobile-sheet__footer">
-        <a href="/projects?price=free" class="btn btn-primary btn-block">
+        <a href="/projects?price=free" class="btn btn-primary btn-block mobile-menu-free-btn">
           Free resources <Icon name="arrow-right" size={16} />
         </a>
       </div>
@@ -210,87 +225,168 @@ const centerLinks = [
     border-color: var(--line);
   }
 
-  /* Full-height mobile sheet */
+  /* Full-Screen Mobile Menu Overlay */
   .mobile-sheet-wrap {
     position: fixed;
     inset: 0;
     z-index: 2000;
     display: flex;
+    width: 100vw;
+    height: 100dvh;
   }
   .mobile-sheet-wrap[hidden] {
     display: none;
   }
   .mobile-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(21, 19, 20, 0.45);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    display: none; /* Full screen overlay replaces side drawer */
   }
   .mobile-sheet {
     position: relative;
     width: 100%;
-    max-width: 320px;
     height: 100dvh;
-    margin-left: auto;
     background: var(--bg);
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
     z-index: 10;
-    animation: slideIn 180ms ease;
+    animation: fadeIn 180ms ease;
   }
-  @keyframes slideIn {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .mobile-sheet__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--line);
+    padding: 0 1.25rem;
     min-height: 64px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
   }
   .mobile-sheet__close {
-    background: transparent;
-    border: none;
-    font-size: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-btn);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
     color: var(--ink);
     cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    line-height: 1;
-    border-radius: var(--r-btn);
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+  .mobile-sheet__close:hover {
+    background: var(--line);
+  }
+
+  .mobile-sheet__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
   }
   .mobile-sheet__nav {
     display: flex;
     flex-direction: column;
-    padding: 1rem 0.75rem;
-    flex: 1;
-    overflow-y: auto;
-    gap: 0.25rem;
+    gap: 0.75rem;
   }
   .mobile-sheet__link {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.75rem 1rem;
-    font-size: 1rem;
-    font-weight: 550;
+    font-size: clamp(1.625rem, 1.4rem + 1.2vw, 2rem);
+    font-weight: 700;
+    font-family: var(--font-display, 'Space Grotesk', system-ui, sans-serif);
+    letter-spacing: -0.02em;
     color: var(--ink);
-    border-radius: var(--r-btn);
     text-decoration: none;
-    min-height: 44px;
+    padding: 0.5rem 0;
+    min-height: 48px;
+    transition: color 150ms ease, transform 150ms ease;
   }
-  .mobile-sheet__link:hover,
+  .mobile-sheet__link:hover {
+    color: var(--ink);
+    transform: translateX(2px);
+  }
   .mobile-sheet__link.is-active {
-    background: var(--bg-soft);
     color: var(--red);
   }
+
+  /* "My downloads" Card */
+  .mobile-menu-dl-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    text-decoration: none;
+    margin-top: 2rem;
+    transition: border-color 150ms ease, background 150ms ease;
+    min-height: 60px;
+  }
+  .mobile-menu-dl-card:hover {
+    border-color: var(--ink-3);
+  }
+  .mobile-menu-dl-card.is-active {
+    border-color: var(--red);
+    background: rgba(217, 31, 38, 0.04);
+  }
+  .mobile-menu-dl-card__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(217, 31, 38, 0.08);
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .mobile-menu-dl-card__info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .mobile-menu-dl-card__title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .mobile-menu-dl-card__sub {
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+    line-height: 1.3;
+  }
+  .mobile-menu-dl-card__arrow {
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+
+  /* Pinned "Free resources" button at bottom */
   .mobile-sheet__footer {
-    padding: 1rem 1.25rem 1.5rem;
+    margin-top: auto;
+    padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
     border-top: 1px solid var(--line);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .mobile-menu-free-btn {
+    height: 48px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
   }
 
   @media (max-width: 880px) {

@@ -28,6 +28,18 @@ const replyTime = await getSetting(env.DB, 'reply_time');
       <div class="contact-intro">
         <span class="contact-eyebrow">DIRECT CONTACT</span>
         <h1 class="contact-title">{pageData?.title || "Let's talk builds."}</h1>
+
+        <!-- Order ID and Razorpay Payment ID Note -->
+        <div class="order-support-note">
+          <div class="order-support-note__icon">
+            <Icon name="info" size={18} />
+          </div>
+          <div class="order-support-note__text">
+            <strong>Order & Download Support:</strong>
+            <span>Please include your <strong>Order ID</strong> or <strong>Razorpay Payment ID</strong> so we can verify your purchase and send replacement files instantly.</span>
+          </div>
+        </div>
+
         {customHtml ? (
           <div class="contact-prose">
             <Fragment set:html={customHtml} />
@@ -57,7 +69,7 @@ const replyTime = await getSetting(env.DB, 'reply_time');
             <div class="contact-card__icon"><Icon name="play" size={20} /></div>
             <div class="contact-card__info">
               <span class="contact-card__label">Demonstrations & builds</span>
-              <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="contact-card__val">YouTube Channel →</a>
+              <a href={SITE.socials.youtube} target="_blank" rel="noopener" class="contact-card__val">YouTube Channel &rarr;</a>
             </div>
           </div>
         </div>
@@ -82,7 +94,7 @@ const replyTime = await getSetting(env.DB, 'reply_time');
           </div>
         )}
 
-        <form method="post" action="/api/contact" class="contact-form">
+        <form method="post" action="/api/contact" class="contact-form" id="contact-form">
           <input type="hidden" name="csrf" value={csrf} />
 
           <div class="grid-2">
@@ -108,8 +120,8 @@ const replyTime = await getSetting(env.DB, 'reply_time');
               </select>
             </div>
             <div class="field" id="order-field" style="display: none;">
-              <label class="field-label" for="order_id">Order ID (optional)</label>
-              <input class="field-input" id="order_id" name="order_id" maxlength="50" placeholder="e.g. ord_12345" />
+              <label class="field-label" for="order_id">Order ID or Razorpay Payment ID</label>
+              <input class="field-input" id="order_id" name="order_id" maxlength="50" placeholder="e.g. ord_12345 or pay_xyz" />
             </div>
           </div>
 
@@ -131,6 +143,12 @@ const replyTime = await getSetting(env.DB, 'reply_time');
             </label>
           </div>
 
+          <!-- Sponsorship note below fields -->
+          <div class="sponsorship-note">
+            <Icon name="spark" size={16} />
+            <span>Interested in hardware sponsorships, component reviews, or custom enterprise kits? Mention it above or email <a href="mailto:technicaltriveniyt@gmail.com">technicaltriveniyt@gmail.com</a>.</span>
+          </div>
+
           <!-- honeypot -->
           <input type="text" name="company" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
 
@@ -138,11 +156,19 @@ const replyTime = await getSetting(env.DB, 'reply_time');
             <div class="cf-turnstile" data-sitekey={tsKey} data-theme="light"></div>
           )}
 
-          <button type="submit" class="btn btn-primary btn-submit">
+          <!-- In-flow submit button for desktop -->
+          <button type="submit" class="btn btn-primary btn-submit btn-submit-inline">
             <Icon name="mail" size={18} /> Send message
           </button>
         </form>
       </div>
+    </div>
+
+    <!-- Sticky Bottom Bar for mobile devices (≤768px) -->
+    <div class="mobile-sticky-submit" id="mobile-sticky-bar">
+      <button type="submit" form="contact-form" class="btn btn-primary btn-submit-sticky">
+        <Icon name="mail" size={18} /> Send message
+      </button>
     </div>
   </section>
 
@@ -408,5 +434,112 @@ const replyTime = await getSetting(env.DB, 'reply_time');
     background: rgba(233, 36, 36, 0.1);
     border: 1px solid rgba(233, 36, 36, 0.3);
     color: var(--red);
+  }
+
+  /* Order & Download Note */
+  .order-support-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(217, 31, 38, 0.05);
+    border: 1px solid rgba(217, 31, 38, 0.2);
+    border-radius: 12px;
+    margin-top: 4px;
+  }
+  .order-support-note__icon {
+    color: var(--red);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .order-support-note__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+  .order-support-note__text strong {
+    color: var(--ink);
+  }
+
+  /* Sponsorship Note */
+  .sponsorship-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+  .sponsorship-note :global(svg) {
+    color: var(--red);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .sponsorship-note a {
+    color: var(--red);
+    text-decoration: underline;
+  }
+
+  /* Mobile Sticky Submit Bar */
+  .mobile-sticky-submit {
+    display: none;
+  }
+  @media (max-width: 768px) {
+    .contact-section {
+      padding-top: 36px;
+      padding-bottom: 100px; /* Room for sticky bottom bar */
+    }
+    .contact-title {
+      font-size: 2rem;
+    }
+    .contact-lead {
+      font-size: 0.9375rem;
+    }
+    .contact-form-wrap {
+      padding: 20px 16px;
+      border-radius: 14px;
+    }
+    .btn-submit-inline {
+      display: none;
+    }
+    .mobile-sticky-submit {
+      display: block;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--line);
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      z-index: 100;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    }
+    .btn-submit-sticky {
+      width: 100%;
+      height: 48px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .field-input,
+    .field-select {
+      height: 48px;
+      font-size: 16px; /* Prevents auto zoom */
+    }
+    .field-textarea {
+      font-size: 16px;
+    }
   }
 </style>
