@@ -11,6 +11,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   await setSetting(env.DB, 'announcement_enabled', form.get('announcement_enabled') === '1' ? '1' : '0');
 
+  if (form.has('gemini_api_key')) {
+    const keyVal = strField(form, 'gemini_api_key', 200);
+    if (keyVal && !keyVal.includes('•••')) {
+      await setSetting(env.DB, 'gemini_api_key', keyVal);
+    }
+  }
+
   for (const key of ALLOWED) {
     if (key === 'announcement_enabled') continue;
     if (form.has(key)) {

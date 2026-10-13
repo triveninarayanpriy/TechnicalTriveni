@@ -156,6 +156,39 @@ const tabMissing = {
     </button>
   </nav>
 
+  <!-- ==================== GEMINI AI DRAFTING ASSISTANT ==================== -->
+  <div class="ai-draft-assistant-box" style="margin: 1.25rem 0;">
+    <details class="ai-draft-details" open={isNew} style="background: var(--surface); border: 1px solid rgba(231, 36, 42, 0.35); border-radius: var(--r-md); overflow: hidden; box-shadow: 0 2px 12px rgba(231,36,42,0.06);">
+      <summary class="ai-draft-summary" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; cursor: pointer; background: rgba(231, 36, 42, 0.04); user-select: none;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span style="color: var(--brand-red); display: flex;"><Icon name="spark" size={18} /></span>
+          <strong style="font-size: var(--fs-sm); color: var(--text);">Draft from Notes with Gemini AI</strong>
+          <span class="mini-tag" style="background: rgba(231,36,42,0.12); color: var(--brand-red); font-size: 0.72rem; font-weight: 600;">Gemini 2.5 Flash</span>
+        </div>
+        <span class="dim ai-draft-summary-hint" style="font-size: var(--fs-xs);">Paste rough notes, code, or BOM to auto-populate editable draft fields</span>
+      </summary>
+      <div style="padding: 1.25rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.85rem;">
+        <label class="label" for="ai-notes-input" style="margin: 0; display: flex; justify-content: space-between;">
+          <span>Raw Project Notes, Code, BOM, or Terminal Output</span>
+          <span class="dim" style="font-weight: 400;">Lands in editable form fields — review before saving</span>
+        </label>
+        <textarea
+          class="textarea"
+          id="ai-notes-input"
+          rows="4"
+          placeholder="Paste raw notes, code snippet, hardware datasheet excerpts, BOM list, or terminal logs here (e.g. 'Build an ESP32 LoRa field tracker with GPS module NEO-6M, SX1278 transceiver, 18650 LiPo battery. Error: GPS not getting fix...')..."
+          style="font-family: var(--font-mono); font-size: var(--fs-xs); line-height: 1.5;"
+        ></textarea>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div id="ai-notes-status" style="font-size: var(--fs-xs); min-height: 18px;"></div>
+          <button type="button" class="btn btn-primary btn-sm" id="ai-generate-notes-btn">
+            <Icon name="spark" size={14} /> Generate Draft
+          </button>
+        </div>
+      </div>
+    </details>
+  </div>
+
   <!-- ==================== TAB 1: BASICS ==================== -->
   <section class="editor-tab-panel" data-panel="basics">
     <div class="panel">
@@ -509,9 +542,15 @@ const tabMissing = {
 
         <!-- Phase B Faster BOM Entry: Type-Ahead Search against Component Library -->
         <div class="bom-add-container" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
-          <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
-            <Icon name="cart" size={16} /> Add a Component
-          </h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+              <Icon name="cart" size={16} /> Add a Component
+            </h4>
+            <button type="button" class="btn btn-ghost btn-xs ai-tab-fill-btn" data-ai-tab="parts" style="color: var(--brand-red);">
+              <Icon name="spark" size={13} /> Suggest Parts with AI
+            </button>
+          </div>
+          <div id="ai-parts-suggestions" style="margin-bottom: 0.75rem;" hidden></div>
 
           <!-- 1. Default Flow: Type-Ahead Search from Component Library -->
           <form method="post" action="/api/admin/bom/add" id="bom-lib-add-form" class="bom-lib-add">
@@ -582,7 +621,7 @@ const tabMissing = {
 
           <!-- 3. Full 8-field custom component form (closed / hidden by default) -->
           <form method="post" action="/api/admin/bom/add" id="bom-custom-add-form" class="bom-add" hidden style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="custom-bom-header" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
               <strong style="font-size: var(--fs-sm); color: var(--text);">Custom Project-Specific Component</strong>
               <button type="button" class="btn btn-ghost btn-xs" id="close-custom-comp-btn">Cancel</button>
             </div>
@@ -592,16 +631,16 @@ const tabMissing = {
 
             <div class="grid-bom">
               <input class="input" name="name" id="custom-name" placeholder="Component Name *" required />
-              <input class="input" name="qty" placeholder="Qty" value="1" />
-              <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
+              <input class="input" name="qty" id="custom-qty" placeholder="Qty" value="1" />
+              <input class="input" name="unit_price_inr" id="custom-price" type="number" min="0" placeholder="₹ price" />
             </div>
             <div class="grid-3">
-              <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
+              <input class="input" name="store" id="custom-store" placeholder="Store (Amazon, Robu…)" />
               <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
-              <input class="input mono" name="affiliate_url" placeholder="Buy / affiliate URL" />
+              <input class="input mono" name="affiliate_url" id="custom-url" placeholder="Buy / affiliate URL" />
             </div>
             <div class="grid-2">
-              <input class="input" name="notes" placeholder="Notes / substitutes (optional)" />
+              <input class="input" name="notes" id="custom-notes" placeholder="Notes / substitutes (optional)" />
               <div class="bom-add__foot">
                 <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
                 <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add Custom Part</button>
@@ -662,14 +701,25 @@ const tabMissing = {
         </div>
 
         <!-- Fully expanded Add Pin Form -->
-        <form method="post" action="/api/admin/pin/add" class="add-row" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          <input class="input mono" name="from_pin" placeholder="From (e.g. ESP32 D5)" required />
-          <input class="input mono" name="to_pin" placeholder="To (e.g. Relay IN1)" required />
-          <input class="input" name="note" placeholder="Note (optional e.g. 10k Pull-up)" />
-          <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Pin</button>
-        </form>
+        <div style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+              <Icon name="cpu" size={16} /> Add Pin Connection
+            </h4>
+            <button type="button" class="btn btn-ghost btn-xs ai-tab-fill-btn" data-ai-tab="wiring" style="color: var(--brand-red);">
+              <Icon name="spark" size={13} /> Suggest Wiring with AI
+            </button>
+          </div>
+          <div id="ai-wiring-suggestions" style="margin-bottom: 0.75rem;" hidden></div>
+          <form method="post" action="/api/admin/pin/add" class="add-row">
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="project_id" value={p.id} />
+            <input class="input mono" name="from_pin" id="wiring-from-pin" placeholder="From (e.g. ESP32 D5)" required />
+            <input class="input mono" name="to_pin" id="wiring-to-pin" placeholder="To (e.g. Relay IN1)" required />
+            <input class="input" name="note" id="wiring-note" placeholder="Note (optional e.g. 10k Pull-up)" />
+            <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Pin</button>
+          </form>
+        </div>
       </div>
     )}
   </section>
@@ -813,20 +863,28 @@ const tabMissing = {
         </div>
 
         <form method="post" action="/api/admin/trouble/add" class="stack-add" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
-          <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Troubleshooting Tip</h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+              <Icon name="plus-circle" size={16} /> Add a Troubleshooting Tip
+            </h4>
+            <button type="button" class="btn btn-ghost btn-xs ai-tab-fill-btn" data-ai-tab="troubleshooting" style="color: var(--brand-red);">
+              <Icon name="spark" size={13} /> Suggest with AI
+            </button>
+          </div>
+          <div id="ai-trouble-suggestions" style="margin-bottom: 0.75rem;" hidden></div>
           <input type="hidden" name="csrf" value={csrf} />
           <input type="hidden" name="project_id" value={p.id} />
           <div class="field">
             <label class="label">Symptom <span class="required">*</span></label>
-            <input class="input" name="symptom" placeholder="Symptom e.g. 'Failed to connect to ESP32: Timed out waiting for packet header'" required />
+            <input class="input" name="symptom" id="trouble-symptom-input" placeholder="Symptom e.g. 'Failed to connect to ESP32: Timed out waiting for packet header'" required />
           </div>
           <div class="field">
             <label class="label">Probable Cause</label>
-            <input class="input" name="cause" placeholder="Probable Cause e.g. Boot mode pin GPIO0 not pulled low during reset or bad USB data cable" />
+            <input class="input" name="cause" id="trouble-cause-input" placeholder="Probable Cause e.g. Boot mode pin GPIO0 not pulled low during reset or bad USB data cable" />
           </div>
           <div class="field">
             <label class="label">Fix (Markdown) <span class="required">*</span></label>
-            <textarea class="textarea" name="fix" placeholder="The fix (Markdown: hold Boot button while plugging in USB, check baud rate)…" required data-markdown></textarea>
+            <textarea class="textarea" name="fix" id="trouble-fix-input" placeholder="The fix (Markdown: hold Boot button while plugging in USB, check baud rate)…" required data-markdown></textarea>
           </div>
           <div>
             <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Tip</button>
@@ -1051,10 +1109,16 @@ const tabMissing = {
   <!-- ==================== TAB 10: SEO ==================== -->
   <section class="editor-tab-panel" data-panel="seo" hidden>
     <div class="panel">
-      <h3 class="panel-section-title"><Icon name="search" size={18} /> Search Engine Optimization &amp; Social Meta</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h3 class="panel-section-title" style="margin: 0;"><Icon name="search" size={18} /> Search Engine Optimization &amp; Social Meta</h3>
+        <button type="button" class="btn btn-ghost btn-xs ai-tab-fill-btn" data-ai-tab="seo" style="color: var(--brand-red);">
+          <Icon name="spark" size={13} /> Draft SEO with AI
+        </button>
+      </div>
+      <div id="ai-seo-suggestions" style="margin-bottom: 0.75rem;" hidden></div>
 
       <!-- Closed-by-default accordion for SEO -->
-      <details class="editor-accordion" open={false}>
+      <details class="editor-accordion" id="seo-accordion" open={false}>
         <summary class="editor-accordion__summary">
           <span class="editor-accordion__title"><Icon name="search" size={16} /> SEO &amp; Social Snippet Settings</span>
           <span class="dim" style="font-size: var(--fs-xs);">Meta titles, snippet descriptions, OG card image, repository URL</span>
@@ -1403,8 +1467,120 @@ const tabMissing = {
     text-decoration: underline;
   }
 
+  /* Gemini AI Drafting Styles */
+  .ai-draft-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--brand-red);
+    background: rgba(231, 36, 42, 0.08);
+    border: 1px solid rgba(231, 36, 42, 0.28);
+    border-radius: var(--r-full);
+    padding: 0.15rem 0.55rem;
+    margin-left: auto;
+    line-height: 1.4;
+    vertical-align: middle;
+    animation: fadeIn 0.2s ease;
+  }
+  .label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .ai-draft-input {
+    border-color: rgba(231, 36, 42, 0.6) !important;
+    background-color: rgba(231, 36, 42, 0.03) !important;
+  }
+  .ai-draft-badge .badge-dismiss {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 0.15rem;
+    margin-left: 0.2rem;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .ai-draft-badge .badge-dismiss:hover {
+    opacity: 1;
+  }
+  .ai-prompt-box {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 1rem;
+    margin-bottom: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .ai-suggestion-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--brand-red);
+    border-radius: var(--r-sm);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .ai-suggestion-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .ai-suggestion-card__main {
+    flex: 1;
+    min-width: 0;
+  }
+  .ai-suggestion-card__title {
+    font-weight: 600;
+    font-size: var(--fs-sm);
+    color: var(--text);
+  }
+  .ai-suggestion-card__meta {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+  .ai-status-msg {
+    font-size: var(--fs-xs);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .ai-status-msg.error {
+    color: var(--danger);
+  }
+  .ai-status-msg.success {
+    color: var(--success);
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   @media (max-width: 640px) {
     .grid-2, .grid-3, .grid-bom { grid-template-columns: 1fr; }
+    .ai-draft-summary {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 0.4rem;
+    }
+    .ai-draft-summary-hint {
+      display: none !important;
+    }
+    .ai-draft-badge {
+      margin-left: 0;
+      font-size: 0.68rem;
+    }
   }
 </style>
 
@@ -1912,6 +2088,12 @@ const tabMissing = {
       render();
     };
 
+    (el as any).__setListItems = (newItems: any[]) => {
+      items = Array.isArray(newItems) ? newItems : [];
+      updateHidden();
+      render();
+    };
+
     render();
   });
 
@@ -1989,4 +2171,545 @@ const tabMissing = {
 
     wrap.insertBefore(tb, textarea);
   });
+
+  // ============================================================
+  // --- GEMINI AI ASSISTANT: CLIENT-SIDE INTEGRATION ---
+  // ============================================================
+
+  // Helper to attach an "AI draft — review before saving" badge
+  function addAiDraftBadge(targetEl: HTMLElement | HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, label = 'AI draft — review before saving') {
+    const parent = targetEl.parentElement;
+    if (!parent) return;
+
+    if (targetEl instanceof HTMLInputElement || targetEl instanceof HTMLTextAreaElement || targetEl instanceof HTMLSelectElement) {
+      targetEl.classList.add('ai-draft-input');
+      const clearHighlight = () => targetEl.classList.remove('ai-draft-input');
+      targetEl.addEventListener('input', clearHighlight, { once: true });
+      targetEl.addEventListener('change', clearHighlight, { once: true });
+    }
+
+    const targetId = targetEl.id || targetEl.getAttribute('name') || targetEl.dataset.name || 'field';
+    const existing = parent.querySelector(`.ai-draft-badge[data-for="${targetId}"]`);
+    if (existing) return;
+
+    const badge = document.createElement('span');
+    badge.className = 'ai-draft-badge';
+    badge.dataset.for = targetId;
+    badge.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> ${label} <button type="button" class="badge-dismiss" title="Accept draft" aria-label="Accept draft">✕</button>`;
+
+    const removeBadge = () => {
+      badge.remove();
+      targetEl.classList.remove('ai-draft-input');
+    };
+
+    badge.querySelector('.badge-dismiss')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeBadge();
+    });
+
+    targetEl.addEventListener('input', removeBadge, { once: true });
+    targetEl.addEventListener('change', removeBadge, { once: true });
+
+    // Place next to label if found
+    const labelEl = parent.querySelector(`label[for="${targetEl.id}"]`) || targetEl.closest('.field')?.querySelector('.label');
+    if (labelEl) {
+      labelEl.appendChild(badge);
+    } else if (targetEl.closest('#bom-custom-add-form')) {
+      const customHeader = targetEl.closest('#bom-custom-add-form')?.querySelector('.custom-bom-header');
+      if (customHeader && !customHeader.querySelector('.ai-draft-badge')) {
+        customHeader.insertBefore(badge, customHeader.querySelector('#close-custom-comp-btn'));
+      }
+    } else {
+      targetEl.parentNode?.insertBefore(badge, targetEl);
+    }
+  }
+
+  // Helper to gather core project context
+  function getProjectContext() {
+    const title = (document.getElementById('title') as HTMLInputElement)?.value || '';
+    const summary = (document.getElementById('summary') as HTMLTextAreaElement)?.value || '';
+    const description = (document.getElementById('description') as HTMLTextAreaElement)?.value || '';
+    const category = (document.getElementById('category') as HTMLInputElement)?.value || '';
+    return { title, summary, description, category };
+  }
+
+  // --- 1. Draft from Notes with Gemini ---
+  const aiGenerateNotesBtn = document.getElementById('ai-generate-notes-btn') as HTMLButtonElement | null;
+  const aiNotesInput = document.getElementById('ai-notes-input') as HTMLTextAreaElement | null;
+  const aiNotesStatus = document.getElementById('ai-notes-status');
+
+  if (aiGenerateNotesBtn && aiNotesInput && aiNotesStatus) {
+    aiGenerateNotesBtn.addEventListener('click', async () => {
+      const notes = aiNotesInput.value.trim();
+      if (!notes) {
+        aiNotesStatus.innerHTML = '<span class="ai-status-msg error">Please paste some project notes, code, or terminal output first.</span>';
+        aiNotesInput.focus();
+        return;
+      }
+
+      const originalText = aiGenerateNotesBtn.innerHTML;
+      aiGenerateNotesBtn.disabled = true;
+      aiGenerateNotesBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:4px;"></span> Drafting with Gemini...';
+      aiNotesStatus.innerHTML = '<span class="dim" style="font-size: var(--fs-xs);">Analyzing notes with Gemini 2.5 Flash...</span>';
+
+      try {
+        const res = await fetch('/api/admin/ai/draft-notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          if (data?.error === 'NO_KEY') {
+            aiNotesStatus.innerHTML = '<span class="ai-status-msg error">⚠️ Gemini API key not configured. <a href="/admin/settings#integrations" target="_blank" style="text-decoration:underline;font-weight:600;color:inherit;">Configure in Settings &rarr;</a></span>';
+          } else {
+            aiNotesStatus.innerHTML = `<span class="ai-status-msg error">⚠️ ${data?.message || 'Failed to generate draft.'}</span>`;
+          }
+          return;
+        }
+
+        const draft = data.draft;
+        if (!draft) {
+          aiNotesStatus.innerHTML = '<span class="ai-status-msg error">No draft returned from Gemini.</span>';
+          return;
+        }
+
+        // 1. Populate Basics
+        const titleEl = document.getElementById('title') as HTMLInputElement | null;
+        if (draft.title && titleEl) {
+          titleEl.value = draft.title;
+          addAiDraftBadge(titleEl);
+          const slugEl = document.getElementById('slug') as HTMLInputElement | null;
+          if (slugEl && !slugEl.value) {
+            slugEl.value = draft.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          }
+          const barTitle = document.querySelector('.editor-bar-title');
+          if (barTitle) barTitle.textContent = draft.title;
+        }
+
+        const summaryEl = document.getElementById('summary') as HTMLTextAreaElement | null;
+        if (draft.summary && summaryEl) {
+          summaryEl.value = draft.summary;
+          addAiDraftBadge(summaryEl);
+        }
+
+        const catEl = document.getElementById('category') as HTMLInputElement | null;
+        if (draft.category && catEl) {
+          catEl.value = draft.category;
+          addAiDraftBadge(catEl);
+        }
+
+        const diffEl = document.getElementById('difficulty') as HTMLSelectElement | null;
+        if (draft.difficulty && diffEl) {
+          diffEl.value = draft.difficulty;
+          addAiDraftBadge(diffEl);
+        }
+
+        const buildTimeEl = document.getElementById('build_time') as HTMLInputElement | null;
+        if (draft.build_time && buildTimeEl) {
+          buildTimeEl.value = draft.build_time;
+          addAiDraftBadge(buildTimeEl);
+        }
+
+        // 2. Populate Description & Markdown
+        const descEl = document.getElementById('description') as HTMLTextAreaElement | null;
+        if (draft.description && descEl) {
+          descEl.value = draft.description;
+          addAiDraftBadge(descEl);
+        }
+
+        // 3. Outcomes & Prerequisites lists
+        const outcomesEl = document.querySelector<HTMLElement>('.list-editor[data-name="outcomes_json"]');
+        if (Array.isArray(draft.outcomes) && outcomesEl && (outcomesEl as any).__setListItems) {
+          (outcomesEl as any).__setListItems(draft.outcomes);
+          addAiDraftBadge(outcomesEl);
+        }
+
+        const prereqsEl = document.querySelector<HTMLElement>('.list-editor[data-name="prereqs_json"]');
+        if (Array.isArray(draft.prerequisites) && prereqsEl && (prereqsEl as any).__setListItems) {
+          (prereqsEl as any).__setListItems(draft.prerequisites);
+          addAiDraftBadge(prereqsEl);
+        }
+
+        // 4. Initial Troubleshooting Tip
+        if (Array.isArray(draft.troubleshooting) && draft.troubleshooting.length > 0) {
+          const firstTip = draft.troubleshooting[0];
+          const sympEl = document.getElementById('trouble-symptom-input') as HTMLInputElement | null;
+          const causeEl = document.getElementById('trouble-cause-input') as HTMLInputElement | null;
+          const fixEl = document.getElementById('trouble-fix-input') as HTMLTextAreaElement | null;
+          if (sympEl) {
+            sympEl.value = firstTip.symptom || '';
+            addAiDraftBadge(sympEl);
+          }
+          if (causeEl) {
+            causeEl.value = firstTip.cause || '';
+            addAiDraftBadge(causeEl);
+          }
+          if (fixEl) {
+            fixEl.value = firstTip.fix || '';
+            addAiDraftBadge(fixEl);
+          }
+
+          // If multiple tips, also render them in the suggestions container
+          const troubleContainer = document.getElementById('ai-trouble-suggestions');
+          if (troubleContainer && draft.troubleshooting.length > 1) {
+            renderTroubleCards(troubleContainer, draft.troubleshooting);
+          }
+        }
+
+        // Update tab indicators
+        if (typeof updateTabDots === 'function') updateTabDots();
+
+        aiNotesStatus.innerHTML = '<span class="ai-status-msg success">✨ Draft successfully generated into editable form fields! Review and refine each tab before saving.</span>';
+      } catch (err: any) {
+        aiNotesStatus.innerHTML = `<span class="ai-status-msg error">⚠️ Network/Server error: ${err?.message || 'Failed to call API.'}</span>`;
+      } finally {
+        aiGenerateNotesBtn.disabled = false;
+        aiGenerateNotesBtn.innerHTML = originalText;
+      }
+    });
+  }
+
+  // --- 2. Per-Tab AI Fill Assistants ---
+  document.querySelectorAll<HTMLButtonElement>('.ai-tab-fill-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const tab = btn.dataset.aiTab;
+      if (!tab) return;
+
+      if (tab === 'seo') {
+        // SEO drafts directly into meta fields
+        const seoContainer = document.getElementById('ai-seo-suggestions');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:4px;"></span> Drafting SEO...';
+
+        try {
+          const res = await fetch('/api/admin/ai/fill-tab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tab: 'seo', context: getProjectContext() })
+          });
+          const data = await res.json();
+
+          if (!res.ok || !data.ok) {
+            if (seoContainer) {
+              seoContainer.removeAttribute('hidden');
+              if (data?.error === 'NO_KEY') {
+                seoContainer.innerHTML = '<div class="ai-status-msg error">⚠️ Gemini API key not configured. <a href="/admin/settings#integrations" target="_blank" style="text-decoration:underline;font-weight:600;color:inherit;">Configure in Settings &rarr;</a></div>';
+              } else {
+                seoContainer.innerHTML = `<div class="ai-status-msg error">⚠️ ${data?.message || 'Failed to draft SEO.'}</div>`;
+              }
+            }
+            return;
+          }
+
+          const seoDetails = document.getElementById('seo-accordion') as HTMLDetailsElement | null;
+          if (seoDetails) seoDetails.open = true;
+
+          const metaTitleEl = document.getElementById('meta_title') as HTMLInputElement | null;
+          const metaDescEl = document.getElementById('meta_description') as HTMLTextAreaElement | null;
+
+          if (data.suggestions?.meta_title && metaTitleEl) {
+            metaTitleEl.value = data.suggestions.meta_title;
+            addAiDraftBadge(metaTitleEl);
+            metaTitleEl.dispatchEvent(new Event('input'));
+          }
+
+          if (data.suggestions?.meta_description && metaDescEl) {
+            metaDescEl.value = data.suggestions.meta_description;
+            addAiDraftBadge(metaDescEl);
+            metaDescEl.dispatchEvent(new Event('input'));
+          }
+
+          if (seoContainer) {
+            seoContainer.removeAttribute('hidden');
+            seoContainer.innerHTML = '<div class="ai-status-msg success">✨ High-CTR SEO title and description drafted! Review above before saving.</div>';
+          }
+        } catch (err: any) {
+          if (seoContainer) {
+            seoContainer.removeAttribute('hidden');
+            seoContainer.innerHTML = `<div class="ai-status-msg error">⚠️ Error: ${err?.message || 'Failed to call Gemini.'}</div>`;
+          }
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+        return;
+      }
+
+      // For parts, wiring, troubleshooting: toggle prompt box and fetch
+      let targetContainer: HTMLElement | null = null;
+      let promptPlaceholder = '';
+      let genButtonLabel = '';
+
+      if (tab === 'parts') {
+        targetContainer = document.getElementById('ai-parts-suggestions');
+        promptPlaceholder = 'Paste parts list, BOM notes, or component list (or leave blank to infer from project description)...';
+        genButtonLabel = 'Suggest Components';
+      } else if (tab === 'wiring') {
+        targetContainer = document.getElementById('ai-wiring-suggestions');
+        promptPlaceholder = 'Paste pinout notes or connection instructions (or leave blank to infer from project description)...';
+        genButtonLabel = 'Suggest Wiring';
+      } else if (tab === 'troubleshooting') {
+        targetContainer = document.getElementById('ai-trouble-suggestions');
+        promptPlaceholder = 'Paste error logs, symptoms, or debugging notes (or leave blank to infer from project description)...';
+        genButtonLabel = 'Suggest Tips';
+      }
+
+      if (!targetContainer) return;
+
+      // Toggle container open/closed
+      if (!targetContainer.hidden && targetContainer.querySelector('.ai-prompt-box')) {
+        targetContainer.hidden = true;
+        targetContainer.innerHTML = '';
+        return;
+      }
+
+      targetContainer.removeAttribute('hidden');
+      targetContainer.innerHTML = `
+        <div class="ai-prompt-box">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:var(--fs-xs); display:flex; align-items:center; gap:0.4rem; color:var(--text);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              Gemini AI Suggestions for ${tab === 'parts' ? 'BOM' : tab === 'wiring' ? 'Wiring' : 'Troubleshooting'}
+            </strong>
+            <button type="button" class="btn btn-ghost btn-xs ai-close-box-btn">✕ Close</button>
+          </div>
+          <textarea class="textarea ai-prompt-notes" rows="2" placeholder="${promptPlaceholder}" style="font-size:var(--fs-xs); line-height:1.4;"></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+            <div class="ai-prompt-status" style="font-size:var(--fs-xs); min-height:16px;"></div>
+            <button type="button" class="btn btn-primary btn-xs ai-run-gen-btn">${genButtonLabel}</button>
+          </div>
+          <div class="ai-cards-list" style="margin-top:0.5rem;"></div>
+        </div>
+      `;
+
+      const promptBox = targetContainer.querySelector('.ai-prompt-box') as HTMLElement;
+      const closeBtn = promptBox.querySelector('.ai-close-box-btn') as HTMLButtonElement;
+      const runBtn = promptBox.querySelector('.ai-run-gen-btn') as HTMLButtonElement;
+      const notesEl = promptBox.querySelector('.ai-prompt-notes') as HTMLTextAreaElement;
+      const statusEl = promptBox.querySelector('.ai-prompt-status') as HTMLElement;
+      const cardsList = promptBox.querySelector('.ai-cards-list') as HTMLElement;
+
+      closeBtn.addEventListener('click', () => {
+        if (targetContainer) {
+          targetContainer.hidden = true;
+          targetContainer.innerHTML = '';
+        }
+      });
+
+      runBtn.addEventListener('click', async () => {
+        const userNotes = notesEl.value.trim();
+        const originalBtnText = runBtn.innerHTML;
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:4px;"></span> Consulting Gemini...';
+        statusEl.innerHTML = '<span class="dim">Analyzing project context...</span>';
+
+        try {
+          const context = { ...getProjectContext(), notes: userNotes };
+          const res = await fetch('/api/admin/ai/fill-tab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tab, context })
+          });
+          const data = await res.json();
+
+          if (!res.ok || !data.ok) {
+            if (data?.error === 'NO_KEY') {
+              statusEl.innerHTML = '<span class="ai-status-msg error">⚠️ Gemini API key not configured. <a href="/admin/settings#integrations" target="_blank" style="text-decoration:underline;font-weight:600;color:inherit;">Configure in Settings &rarr;</a></span>';
+            } else {
+              statusEl.innerHTML = `<span class="ai-status-msg error">⚠️ ${data?.message || 'Failed to get suggestions.'}</span>`;
+            }
+            return;
+          }
+
+          statusEl.innerHTML = '<span class="ai-status-msg success">✨ Click "Fill in Form" on any item below to populate editable form fields.</span>';
+
+          if (tab === 'parts') {
+            renderPartsCards(cardsList, data.suggestions?.parts || []);
+          } else if (tab === 'wiring') {
+            renderWiringCards(cardsList, data.suggestions?.wiring || []);
+          } else if (tab === 'troubleshooting') {
+            renderTroubleCards(cardsList, data.suggestions?.troubleshooting || []);
+          }
+        } catch (err: any) {
+          statusEl.innerHTML = `<span class="ai-status-msg error">⚠️ Network error: ${err?.message || 'Failed to contact server.'}</span>`;
+        } finally {
+          runBtn.disabled = false;
+          runBtn.innerHTML = originalBtnText;
+        }
+      });
+    });
+  });
+
+  // Render suggested Parts cards
+  function renderPartsCards(container: HTMLElement, parts: any[]) {
+    if (!parts.length) {
+      container.innerHTML = '<p class="dim" style="font-size:var(--fs-xs);">No components suggested for this context.</p>';
+      return;
+    }
+    container.innerHTML = parts.map((part, i) => `
+      <div class="ai-suggestion-card" data-idx="${i}">
+        <div class="ai-suggestion-card__main">
+          <div class="ai-suggestion-card__title">${part.name}</div>
+          <div class="ai-suggestion-card__meta">
+            Qty: <strong>${part.qty || '1'}</strong>
+            ${part.unit_price_inr ? ` • Est: <strong>₹${part.unit_price_inr}</strong>` : ''}
+            ${part.store ? ` • Store: ${part.store}` : ''}
+            ${part.notes ? ` • Note: ${part.notes}` : ''}
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-xs ai-use-part-btn">Fill in Form</button>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.ai-use-part-btn').forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        const part = parts[i];
+        if (!part) return;
+
+        // Reveal custom BOM form
+        const customForm = document.getElementById('bom-custom-add-form');
+        const toggleCustomBtn = document.getElementById('toggle-custom-comp-btn');
+        if (customForm) customForm.removeAttribute('hidden');
+        if (toggleCustomBtn) toggleCustomBtn.style.display = 'none';
+
+        const nameInput = document.getElementById('custom-name') as HTMLInputElement | null;
+        const qtyInput = document.getElementById('custom-qty') as HTMLInputElement | null;
+        const priceInput = document.getElementById('custom-price') as HTMLInputElement | null;
+        const storeInput = document.getElementById('custom-store') as HTMLInputElement | null;
+        const specInput = document.getElementById('custom-notes') as HTMLInputElement | null;
+
+        if (nameInput) {
+          nameInput.value = part.name || '';
+          addAiDraftBadge(nameInput);
+        }
+        if (qtyInput) {
+          qtyInput.value = String(part.qty || '1');
+          addAiDraftBadge(qtyInput);
+        }
+        if (priceInput && part.unit_price_inr) {
+          priceInput.value = String(part.unit_price_inr);
+          addAiDraftBadge(priceInput);
+        }
+        if (storeInput && part.store) {
+          storeInput.value = part.store;
+          addAiDraftBadge(storeInput);
+        }
+        if (specInput && part.notes) {
+          specInput.value = part.notes;
+          addAiDraftBadge(specInput);
+        }
+
+        btn.textContent = '✓ In Form';
+        (btn as HTMLButtonElement).disabled = true;
+
+        if (customForm) {
+          customForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    });
+  }
+
+  // Render suggested Wiring cards
+  function renderWiringCards(container: HTMLElement, wiring: any[]) {
+    if (!wiring.length) {
+      container.innerHTML = '<p class="dim" style="font-size:var(--fs-xs);">No wiring connections suggested.</p>';
+      return;
+    }
+    container.innerHTML = wiring.map((w, i) => `
+      <div class="ai-suggestion-card" data-idx="${i}">
+        <div class="ai-suggestion-card__main">
+          <div class="ai-suggestion-card__title">
+            <code>${w.from_pin}</code> &rarr; <code>${w.to_pin}</code>
+          </div>
+          <div class="ai-suggestion-card__meta">
+            ${w.module ? `<span class="mini-tag">${w.module}</span> ` : ''}
+            ${w.note ? w.note : ''}
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-xs ai-use-wiring-btn">Fill in Form</button>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.ai-use-wiring-btn').forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        const item = wiring[i];
+        if (!item) return;
+
+        const fromInput = document.getElementById('wiring-from-pin') as HTMLInputElement | null;
+        const toInput = document.getElementById('wiring-to-pin') as HTMLInputElement | null;
+        const noteInput = document.getElementById('wiring-note') as HTMLInputElement | null;
+
+        if (fromInput) {
+          fromInput.value = item.from_pin || '';
+          addAiDraftBadge(fromInput);
+        }
+        if (toInput) {
+          toInput.value = item.to_pin || '';
+          addAiDraftBadge(toInput);
+        }
+        if (noteInput && item.note) {
+          noteInput.value = item.note;
+          addAiDraftBadge(noteInput);
+        }
+
+        btn.textContent = '✓ In Form';
+        (btn as HTMLButtonElement).disabled = true;
+
+        if (fromInput) fromInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
+
+  // Render suggested Troubleshooting cards
+  function renderTroubleCards(container: HTMLElement, trouble: any[]) {
+    if (!trouble.length) {
+      container.innerHTML = '<p class="dim" style="font-size:var(--fs-xs);">No troubleshooting tips suggested.</p>';
+      return;
+    }
+    container.innerHTML = trouble.map((t, i) => `
+      <div class="ai-suggestion-card" data-idx="${i}">
+        <div class="ai-suggestion-card__main">
+          <div class="ai-suggestion-card__title">⚠️ ${t.symptom}</div>
+          <div class="ai-suggestion-card__meta">
+            ${t.cause ? `<div><strong>Cause:</strong> ${t.cause}</div>` : ''}
+            <div><strong>Fix:</strong> ${t.fix}</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-xs ai-use-trouble-btn">Fill in Form</button>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.ai-use-trouble-btn').forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        const item = trouble[i];
+        if (!item) return;
+
+        const sympInput = document.getElementById('trouble-symptom-input') as HTMLInputElement | null;
+        const causeInput = document.getElementById('trouble-cause-input') as HTMLInputElement | null;
+        const fixInput = document.getElementById('trouble-fix-input') as HTMLTextAreaElement | null;
+
+        if (sympInput) {
+          sympInput.value = item.symptom || '';
+          addAiDraftBadge(sympInput);
+        }
+        if (causeInput) {
+          causeInput.value = item.cause || '';
+          addAiDraftBadge(causeInput);
+        }
+        if (fixInput) {
+          fixInput.value = item.fix || '';
+          addAiDraftBadge(fixInput);
+        }
+
+        btn.textContent = '✓ In Form';
+        (btn as HTMLButtonElement).disabled = true;
+
+        if (sympInput) sympInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
 </script>
