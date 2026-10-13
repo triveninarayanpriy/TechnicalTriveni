@@ -354,9 +354,9 @@ const totalCoreCost = coreItems
     text-align: left;
   }
   .bom-table th {
-    padding: 12px 16px;
+    padding: 10px 14px;
     background: var(--bg-soft);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--ink-3);
     text-transform: uppercase;
@@ -364,7 +364,7 @@ const totalCoreCost = coreItems
     border-bottom: 1px solid var(--line);
   }
   .bom-table td {
-    padding: 14px 16px;
+    padding: 11px 14px;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
     font-size: 14px;
@@ -378,8 +378,8 @@ const totalCoreCost = coreItems
     font-weight: 600;
     color: var(--ink-2);
     background: var(--bg-soft);
-    padding: 10px 16px !important;
-    font-size: 13px;
+    padding: 8px 14px !important;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
@@ -390,12 +390,14 @@ const totalCoreCost = coreItems
     gap: 2px;
   }
   .bom-name {
-    font-weight: 500;
+    font-weight: 550;
     color: var(--ink);
+    line-height: 1.35;
   }
   .bom-note {
     font-size: 12px;
     color: var(--ink-3);
+    line-height: 1.35;
   }
 
   .col-check {
@@ -403,8 +405,8 @@ const totalCoreCost = coreItems
     text-align: center;
   }
   .bom-check {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
     accent-color: var(--red);
     cursor: pointer;
   }
@@ -413,7 +415,8 @@ const totalCoreCost = coreItems
     font-family: var(--font-mono, monospace);
     font-size: 13px;
     color: var(--ink-2);
-    width: 60px;
+    width: 64px;
+    white-space: nowrap;
   }
 
   .bom-price {
@@ -422,18 +425,25 @@ const totalCoreCost = coreItems
     color: var(--ink);
     white-space: nowrap;
     width: 110px;
+    text-align: right;
+    padding-right: 20px !important;
+  }
+  .bom-table th:nth-child(4) {
+    text-align: right;
+    padding-right: 20px !important;
   }
   .bom-price--unset {
     font-family: inherit;
     font-weight: normal;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--ink-3);
     font-style: italic;
   }
 
   .bom-buy-col {
     text-align: right;
-    width: 90px;
+    width: 88px;
+    white-space: nowrap;
   }
   .btn-buy-part {
     display: inline-flex;
