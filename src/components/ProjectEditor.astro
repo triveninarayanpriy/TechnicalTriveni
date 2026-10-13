@@ -432,17 +432,34 @@ const tabMissing = {
           </div>
         )}
 
-        <!-- Fully expanded BOM list -->
+        <!-- Fully expanded BOM list with reorder controls -->
         <div class="rows">
-          {p.bom.map((b) => (
+          {p.bom.map((b, i) => (
             <details class="data-row-edit bom-row" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
               <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                 <div class="data-row__main" style="flex: 1;">
                   <strong>{b.name} <span class="dim mono">x{b.qty}</span>{b.unit_price_inr > 0 && <span class="dim mono"> • ₹{b.unit_price_inr}</span>}</strong>
-                  <span class="dim" style="font-size: 0.8rem; margin-top: 0.2rem;">{b.store || '—'}{b.affiliate_url ? ' • link set' : ' • no link'}{b.is_affiliate === 1 ? ' • affiliate' : ''}</span>
+                  <span class="dim" style="font-size: 0.8rem; margin-top: 0.2rem;">{b.store || '—'}{b.affiliate_url ? ' • link set' : ' • no link'}{b.is_affiliate === 1 ? ' • affiliate' : ''}{b.component_id > 0 ? ' • from library' : ''}</span>
                 </div>
-                <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
+                <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
                   <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
+                  {['up', 'down'].map((dir) => (
+                    <form method="post" action="/api/admin/bom/move" class="inline-form">
+                      <input type="hidden" name="csrf" value={csrf} />
+                      <input type="hidden" name="id" value={b.id} />
+                      <input type="hidden" name="project_id" value={p.id} />
+                      <input type="hidden" name="dir" value={dir} />
+                      <button
+                        class="btn btn-ghost btn-xs bom-reorder-btn"
+                        type="submit"
+                        onclick="event.stopPropagation();"
+                        disabled={dir === 'up' ? i === 0 : i === p.bom.length - 1}
+                        title={dir === 'up' ? 'Move earlier' : 'Move later'}
+                      >
+                        <Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} />
+                      </button>
+                    </form>
+                  ))}
                   <form method="post" action="/api/admin/bom/delete" class="inline-form" onsubmit="return confirm('Delete this part?');">
                     <input type="hidden" name="csrf" value={csrf} />
                     <input type="hidden" name="id" value={b.id} />
@@ -476,44 +493,122 @@ const tabMissing = {
               </form>
             </details>
           ))}
-          {p.bom.length === 0 && <p class="dim">No components yet.</p>}
+          {p.bom.length === 0 && <p class="dim">No components added yet.</p>}
         </div>
 
-        <!-- Fully expanded Add BOM Item Form -->
-        <form method="post" action="/api/admin/bom/add" class="bom-add" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
-          <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Component</h4>
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          {components.length > 0 && (
-            <div class="field">
-              <label class="label">From library <span class="dim">(optional — keeps price live)</span></label>
-              <select class="select" name="component_id" data-comp-pick>
-                <option value="0">— Custom component (fill fields below) —</option>
-                {components.map((c) => (
-                  <option value={c.id}>{c.name}{c.unit_price_inr > 0 ? ` · ₹${c.unit_price_inr}` : ''}{c.store ? ` · ${c.store}` : ''}</option>
-                ))}
-              </select>
-              <span class="field-hint">Pick a saved part and the fields below are ignored — its live price/link are used everywhere.</span>
+        <!-- Embedded Component Library Data for Instant Type-Ahead Search -->
+        <script id="component-library-data" type="application/json" set:html={JSON.stringify(components.map((c) => ({
+          id: c.id,
+          name: c.name,
+          store: c.store || '',
+          price: c.unit_price_inr || 0,
+          buy_url: c.buy_url || '',
+          is_affiliate: c.is_affiliate || 0,
+          price_checked: c.price_checked || '',
+        })))}></script>
+
+        <!-- Phase B Faster BOM Entry: Type-Ahead Search against Component Library -->
+        <div class="bom-add-container" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
+          <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+            <Icon name="cart" size={16} /> Add a Component
+          </h4>
+
+          <!-- 1. Default Flow: Type-Ahead Search from Component Library -->
+          <form method="post" action="/api/admin/bom/add" id="bom-lib-add-form" class="bom-lib-add">
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="project_id" value={p.id} />
+            <input type="hidden" name="component_id" id="typeahead-comp-id" value="0" />
+
+            <div class="typeahead-wrapper" style="position: relative;">
+              <label class="label" for="bom-typeahead-input">From Component Library <span class="dim">(auto-fills price, store &amp; buy link)</span></label>
+              <div class="typeahead-input-wrap" style="position: relative; display: flex; align-items: center;">
+                <input
+                  class="input"
+                  type="text"
+                  id="bom-typeahead-input"
+                  placeholder="Type to search library parts (e.g. ESP32, BME280, OLED, Servo)..."
+                  autocomplete="off"
+                  style="padding-left: 2.25rem;"
+                />
+                <span style="position: absolute; left: 0.75rem; color: var(--text-dim); pointer-events: none; display: flex;">
+                  <Icon name="search" size={16} />
+                </span>
+              </div>
+
+              <!-- Floating Dropdown Matches -->
+              <div id="bom-typeahead-results" class="typeahead-results" hidden></div>
             </div>
-          )}
-          <div class="grid-bom" data-comp-fields>
-            <input class="input" name="name" placeholder="Component" />
-            <input class="input" name="qty" placeholder="Qty" value="1" />
-            <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
-          </div>
-          <div class="grid-3" data-comp-fields>
-            <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
-            <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
-            <input class="input mono" name="affiliate_url" placeholder="Buy / affiliate URL" />
-          </div>
-          <div class="grid-2" data-comp-fields>
-            <input class="input" name="notes" placeholder="Notes / substitutes (optional)" />
-            <div class="bom-add__foot">
-              <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
-              <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add to BOM</button>
+
+            <!-- Match Selected Confirmation Card -->
+            <div id="typeahead-selected-card" class="typeahead-selected-card" hidden style="background: var(--bg); border: 1px solid var(--brand-red); border-radius: var(--r-sm); padding: 0.85rem 1rem; margin-top: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span class="mini-tag" style="background: rgba(231,36,42,0.12); color: var(--brand-red); font-weight: 600;">Library Part Selected</span>
+                  <strong id="selected-comp-name" style="font-size: 0.95rem;"></strong>
+                </div>
+                <button type="button" id="typeahead-clear-btn" class="btn btn-ghost btn-xs" style="color: var(--text-dim);">
+                  Change part
+                </button>
+              </div>
+              <div style="display: flex; gap: 1rem; font-size: var(--fs-xs); color: var(--text-muted); align-items: center; margin-bottom: 0.75rem;">
+                <span id="selected-comp-price" style="font-weight: 600; color: var(--text);"></span>
+                <span id="selected-comp-store"></span>
+                <span id="selected-comp-link" class="mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;"></span>
+              </div>
+              <div class="grid-2" style="align-items: center;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <label class="label" style="margin: 0; white-space: nowrap;">Qty:</label>
+                  <input class="input" name="qty" id="selected-comp-qty" value="1" placeholder="Qty" style="width: 80px;" />
+                  <input class="input" name="notes" placeholder="Notes / substitute (optional)" style="flex: 1;" />
+                </div>
+                <div style="display: flex; justify-content: flex-end;">
+                  <button class="btn btn-primary" type="submit" id="selected-comp-submit">
+                    <Icon name="cart" size={15} /> Add to BOM
+                  </button>
+                </div>
+              </div>
             </div>
+          </form>
+
+          <!-- 2. Small secondary link to toggle custom component form -->
+          <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <button type="button" class="secondary-toggle-link" id="toggle-custom-comp-btn">
+              <Icon name="plus" size={13} /> Add a brand-new custom component instead
+            </button>
+            <a href="/admin/components" target="_blank" class="dim" style="font-size: var(--fs-xs); display: flex; align-items: center; gap: 0.3rem;">
+              <Icon name="external" size={12} /> Manage full library ({components.length})
+            </a>
           </div>
-        </form>
+
+          <!-- 3. Full 8-field custom component form (closed / hidden by default) -->
+          <form method="post" action="/api/admin/bom/add" id="bom-custom-add-form" class="bom-add" hidden style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="font-size: var(--fs-sm); color: var(--text);">Custom Project-Specific Component</strong>
+              <button type="button" class="btn btn-ghost btn-xs" id="close-custom-comp-btn">Cancel</button>
+            </div>
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="project_id" value={p.id} />
+            <input type="hidden" name="component_id" value="0" />
+
+            <div class="grid-bom">
+              <input class="input" name="name" id="custom-name" placeholder="Component Name *" required />
+              <input class="input" name="qty" placeholder="Qty" value="1" />
+              <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
+            </div>
+            <div class="grid-3">
+              <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
+              <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
+              <input class="input mono" name="affiliate_url" placeholder="Buy / affiliate URL" />
+            </div>
+            <div class="grid-2">
+              <input class="input" name="notes" placeholder="Notes / substitutes (optional)" />
+              <div class="bom-add__foot">
+                <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
+                <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add Custom Part</button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     )}
   </section>
@@ -1221,6 +1316,62 @@ const tabMissing = {
     .editor-bar-title { max-width: 100%; }
   }
 
+  /* BOM Type-Ahead Search & Secondary Link */
+  .typeahead-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+  }
+  .bom-add[hidden], .typeahead-selected-card[hidden], .typeahead-results[hidden] { display: none !important; }
+  .typeahead-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0.85rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--hairline);
+    transition: background 0.12s;
+  }
+  .typeahead-item:hover, .typeahead-item.is-selected {
+    background: var(--surface-2);
+  }
+  .typeahead-item__name {
+    font-weight: 550;
+    font-size: var(--fs-sm);
+    color: var(--text);
+  }
+  .typeahead-item__meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: var(--fs-xs);
+  }
+  .secondary-toggle-link {
+    background: none;
+    border: none;
+    color: var(--brand-red);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .secondary-toggle-link:hover {
+    text-decoration: underline;
+  }
+
   @media (max-width: 640px) {
     .grid-2, .grid-3, .grid-bom { grid-template-columns: 1fr; }
   }
@@ -1456,20 +1607,135 @@ const tabMissing = {
     });
   }
 
-  // --- BOM: dim custom fields when a library component is picked ---
-  const compPick = document.querySelector('[data-comp-pick]') as HTMLSelectElement | null;
-  const compFields = document.querySelectorAll('[data-comp-fields]');
-  const syncComp = () => {
-    if (!compFields.length) return;
-    const usingLib = compPick && compPick.value !== '0';
-    compFields.forEach((el) => {
-      (el as HTMLElement).style.opacity = usingLib ? '0.4' : '1';
-      el.querySelectorAll('input').forEach((inp) => {
-        (inp as HTMLInputElement).disabled = !!usingLib;
+  // --- Phase B: BOM Type-Ahead Search against Component Library ---
+  const compDataEl = document.getElementById('component-library-data');
+  let compLibrary: any[] = [];
+  try {
+    if (compDataEl && compDataEl.textContent) {
+      compLibrary = JSON.parse(compDataEl.textContent);
+    }
+  } catch {
+    compLibrary = [];
+  }
+
+  const typeaheadInput = document.getElementById('bom-typeahead-input') as HTMLInputElement | null;
+  const typeaheadResults = document.getElementById('bom-typeahead-results');
+  const typeaheadCompId = document.getElementById('typeahead-comp-id') as HTMLInputElement | null;
+  const selectedCard = document.getElementById('typeahead-selected-card');
+  const selectedName = document.getElementById('selected-comp-name');
+  const selectedPrice = document.getElementById('selected-comp-price');
+  const selectedStore = document.getElementById('selected-comp-store');
+  const selectedLink = document.getElementById('selected-comp-link');
+  const clearBtn = document.getElementById('typeahead-clear-btn');
+  const toggleCustomBtn = document.getElementById('toggle-custom-comp-btn') as HTMLElement | null;
+  const closeCustomBtn = document.getElementById('close-custom-comp-btn');
+  const customForm = document.getElementById('bom-custom-add-form');
+
+  if (typeaheadInput && typeaheadResults && typeaheadCompId) {
+    const renderMatches = (matches: any[]) => {
+      if (!matches.length) {
+        typeaheadResults.innerHTML = '<div style="padding: 0.75rem; font-size: var(--fs-xs); color: var(--text-dim); text-align: center;">No matching library parts found. Click "+ Add custom" below to create one.</div>';
+        typeaheadResults.removeAttribute('hidden');
+        return;
+      }
+      typeaheadResults.innerHTML = matches
+        .map(
+          (c) => `
+        <div class="typeahead-item" data-id="${c.id}">
+          <div>
+            <span class="typeahead-item__name">${c.name}</span>
+            ${c.store ? `<span class="dim" style="font-size: 0.75rem; margin-left: 0.35rem;">(${c.store})</span>` : ''}
+          </div>
+          <div class="typeahead-item__meta">
+            ${c.price > 0 ? `<strong style="color: var(--text);">₹${c.price}</strong>` : '<span class="dim">—</span>'}
+            ${c.is_affiliate ? '<span class="mini-tag">ad</span>' : ''}
+          </div>
+        </div>
+      `
+        )
+        .join('');
+      typeaheadResults.removeAttribute('hidden');
+
+      typeaheadResults.querySelectorAll<HTMLElement>('.typeahead-item').forEach((item) => {
+        item.addEventListener('click', () => {
+          const id = Number(item.dataset.id);
+          const comp = compLibrary.find((c: any) => c.id === id);
+          if (comp) selectComponent(comp);
+        });
       });
+    };
+
+    const selectComponent = (comp: any) => {
+      typeaheadCompId.value = String(comp.id);
+      if (selectedCard && selectedName && selectedPrice && selectedStore && selectedLink) {
+        selectedName.textContent = comp.name;
+        selectedPrice.textContent = comp.price > 0 ? `₹${comp.price}` : 'Price not set';
+        selectedStore.textContent = comp.store ? `• ${comp.store}` : '';
+        selectedLink.textContent = comp.buy_url ? comp.buy_url : 'No direct link';
+        selectedCard.removeAttribute('hidden');
+      }
+      typeaheadResults.setAttribute('hidden', '');
+      typeaheadInput.value = '';
+      const qtyInput = document.getElementById('selected-comp-qty') as HTMLInputElement | null;
+      if (qtyInput) qtyInput.focus();
+    };
+
+    typeaheadInput.addEventListener('input', () => {
+      const q = typeaheadInput.value.trim().toLowerCase();
+      if (!q) {
+        typeaheadResults.setAttribute('hidden', '');
+        return;
+      }
+      const matches = compLibrary.filter(
+        (c: any) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.store && c.store.toLowerCase().includes(q))
+      ).slice(0, 8);
+      renderMatches(matches);
     });
-  };
-  compPick?.addEventListener('change', syncComp);
+
+    typeaheadInput.addEventListener('focus', () => {
+      if (typeaheadInput.value.trim()) {
+        const q = typeaheadInput.value.trim().toLowerCase();
+        const matches = compLibrary.filter(
+          (c: any) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.store && c.store.toLowerCase().includes(q))
+        ).slice(0, 8);
+        renderMatches(matches);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!typeaheadInput.contains(e.target as Node) && !typeaheadResults.contains(e.target as Node)) {
+        typeaheadResults.setAttribute('hidden', '');
+      }
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        typeaheadCompId.value = '0';
+        if (selectedCard) selectedCard.setAttribute('hidden', '');
+        typeaheadInput.focus();
+      });
+    }
+  }
+
+  // Toggle custom component form
+  if (toggleCustomBtn && customForm) {
+    toggleCustomBtn.addEventListener('click', () => {
+      customForm.removeAttribute('hidden');
+      toggleCustomBtn.style.display = 'none';
+      const nameInput = document.getElementById('custom-name') as HTMLInputElement | null;
+      if (nameInput) nameInput.focus();
+    });
+  }
+  if (closeCustomBtn && customForm && toggleCustomBtn) {
+    closeCustomBtn.addEventListener('click', () => {
+      customForm.setAttribute('hidden', '');
+      toggleCustomBtn.style.display = 'inline-flex';
+    });
+  }
 
   // Auto-fill file label from filename
   const fileUploadInput = document.getElementById('file-upload-input') as HTMLInputElement | null;
