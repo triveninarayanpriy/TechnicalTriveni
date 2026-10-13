@@ -55,6 +55,14 @@ const estCost = (project.bom || [])
 const descHtml = project.description ? renderMarkdown(project.description) : '';
 const safetyHtml = project.safety_note ? renderMarkdown(project.safety_note) : '';
 
+// Pre-render step body markdown so ProjectLayoutV2 can safely use set:html
+if (project.steps) {
+  project.steps = project.steps.map((step) => ({
+    ...step,
+    body: step.body ? renderMarkdown(step.body) : '',
+  }));
+}
+
 // Fetch 3 related project packs
 let relatedPacks: any[] = [];
 try {

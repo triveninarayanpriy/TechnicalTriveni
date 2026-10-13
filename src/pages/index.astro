@@ -614,8 +614,21 @@ const jsonLd = {
   /* Mobile Phones (< 640px) */
   @media (max-width: 640px) {
     .home-hero {
-      padding-top: 48px;
-      padding-bottom: 48px;
+      padding-top: 28px;
+      padding-bottom: 32px;
+    }
+    .home-hero__title {
+      font-size: 30px !important;
+      line-height: 1.15 !important;
+      margin-bottom: 12px !important;
+    }
+    .home-hero__lead {
+      font-size: 15px !important;
+      line-height: 1.5 !important;
+      margin-bottom: 20px !important;
+    }
+    .home-hero__eyebrow {
+      margin-bottom: 8px !important;
     }
     .home-hero__buttons {
       flex-direction: column;
@@ -639,7 +652,8 @@ const jsonLd = {
     }
 
     .packs-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
     }
 
     .includes-grid {

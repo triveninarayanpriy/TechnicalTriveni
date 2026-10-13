@@ -261,4 +261,48 @@ const metaRow = metaParts.join(' · ');
     align-items: center;
     gap: 4px;
   }
+
+  @media (max-width: 640px) {
+    .pcard {
+      padding: 10px;
+      border-radius: var(--r-sm);
+    }
+    .pcard__body {
+      padding-top: 8px;
+      gap: 4px;
+    }
+    .pcard__cat {
+      font-size: 10px;
+    }
+    .pcard__title {
+      font-size: 14px;
+      line-height: 1.25;
+      -webkit-line-clamp: 2;
+    }
+    .pcard__meta-row {
+      font-size: 11px;
+    }
+    .pcard__summary {
+      font-size: 12px;
+      -webkit-line-clamp: 1;
+      display: none; /* Hide summary preview on 2-col mobile cards to preserve clean density */
+    }
+    .pcard__foot {
+      padding-top: 8px;
+      margin-top: 6px;
+    }
+    .pcard__price {
+      font-size: 14px;
+    }
+    .pcard__free {
+      font-size: 13px;
+    }
+    .pcard__cta {
+      font-size: 12px;
+    }
+    .pcard__badge {
+      font-size: 9px;
+      padding: 2px 5px;
+    }
+  }
 </style>
