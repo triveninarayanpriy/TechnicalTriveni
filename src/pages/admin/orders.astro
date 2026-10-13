@@ -1,8 +1,10 @@
 ---
 import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
 import { listOrders, listProjects } from '../../lib/db';
+import { formatDateTime } from '../../lib/format';
 
-const env = Astro.locals.runtime.env;
 const url = new URL(Astro.request.url);
 const status = url.searchParams.get('status') || 'all';
 const search = url.searchParams.get('search') || '';
@@ -12,6 +14,8 @@ const dateEnd = url.searchParams.get('dateEnd') || '';
 const view = url.searchParams.get('view') || 'orders';
 
 const projects = await listProjects(env.DB);
+const projectMap = new Map(projects.map((p) => [p.id, p.title]));
+
 const orders = await listOrders(env.DB, { 
   status: status === 'all' ? undefined : status, 
   search, 
@@ -21,15 +25,15 @@ const orders = await listOrders(env.DB, {
   limit: 1000 
 });
 
-let groupedCustomers = [];
+let groupedCustomers: { email: string; amount_inr: number; count: number }[] = [];
 if (view === 'customers') {
-  const customerMap = new Map();
+  const customerMap = new Map<string, { email: string; amount_inr: number; count: number }>();
   for (const order of orders) {
     if (!order.email) continue;
     if (!customerMap.has(order.email)) {
       customerMap.set(order.email, { email: order.email, amount_inr: 0, count: 0 });
     }
-    const c = customerMap.get(order.email);
+    const c = customerMap.get(order.email)!;
     c.amount_inr += (order.amount_inr || 0);
     c.count += 1;
   }
@@ -38,164 +42,548 @@ if (view === 'customers') {
 
 const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
 ---
-<Admin title="Orders">
-  <div class="px-4 sm:px-6 lg:px-8 py-8">
-    <div class="sm:flex sm:items-center">
-      <div class="sm:flex-auto">
-        <h1 class="text-2xl font-semibold text-gray-900">Orders</h1>
-      </div>
-      <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex gap-4 items-center">
-        <a href={`?${new URLSearchParams({ ...Object.fromEntries(url.searchParams), view: view === 'customers' ? 'orders' : 'customers' })}`} class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-          {view === 'customers' ? 'View as Orders' : 'View as Customers'}
-        </a>
-        <button id="exportCsvBtn" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
-          Export CSV
-        </button>
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <form class="mt-8 mb-4 grid grid-cols-1 gap-4 sm:grid-cols-5" method="get">
-      <input type="hidden" name="view" value={view} />
-      
-      <div>
-        <label for="search" class="block text-sm font-medium text-gray-700">Search</label>
-        <input type="text" name="search" id="search" value={search} placeholder="Email, Name..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-      </div>
-
-      <div>
-        <label for="projectId" class="block text-sm font-medium text-gray-700">Project</label>
-        <select name="projectId" id="projectId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-          <option value="">All Projects</option>
-          {projects.map(p => (
-            <option value={p.id} selected={p.id.toString() === projectId}>{p.title}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-        <select name="status" id="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-          {statuses.map(s => (
-            <option value={s} selected={s === status}>{s}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label for="dateStart" class="block text-sm font-medium text-gray-700">Date Start</label>
-        <input type="date" name="dateStart" id="dateStart" value={dateStart} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-      </div>
-
-      <div>
-        <label for="dateEnd" class="block text-sm font-medium text-gray-700">Date End</label>
-        <div class="flex gap-2 items-center mt-1">
-          <input type="date" name="dateEnd" id="dateEnd" value={dateEnd} class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-          <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm border border-gray-300 shadow-sm">Filter</button>
+<Admin title="Orders" active="orders">
+  <!-- ==============================================
+       DESKTOP ORDERS VIEW (Screen width >= 769px)
+       Unchanged desktop layout
+       ============================================== -->
+  <div class="orders-desktop">
+    <div class="px-4 sm:px-6 lg:px-8 py-8">
+      <div class="sm:flex sm:items-center">
+        <div class="sm:flex-auto">
+          <h1 class="text-2xl font-semibold text-gray-900">Orders</h1>
+        </div>
+        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex gap-4 items-center">
+          <a href={`?${new URLSearchParams({ ...Object.fromEntries(url.searchParams), view: view === 'customers' ? 'orders' : 'customers' })}`} class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+            {view === 'customers' ? 'View as Orders' : 'View as Customers'}
+          </a>
+          <button id="exportCsvBtn" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
+            Export CSV
+          </button>
         </div>
       </div>
-    </form>
 
-    <!-- Table -->
-    <div class="mt-4 flex flex-col">
-      <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-        <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-          <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-            
-            {view === 'customers' ? (
-              <table id="dataTable" class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Email</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Total Spent (INR)</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Order Count</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
-                  {groupedCustomers.map(c => (
+      <!-- Desktop Filters Form -->
+      <form class="mt-8 mb-4 grid grid-cols-1 gap-4 sm:grid-cols-5" method="get">
+        <input type="hidden" name="view" value={view} />
+        <div>
+          <label for="search" class="block text-sm font-medium text-gray-700">Search</label>
+          <input type="text" name="search" id="search" value={search} placeholder="Email, Name..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+        </div>
+        <div>
+          <label for="projectId" class="block text-sm font-medium text-gray-700">Project</label>
+          <select name="projectId" id="projectId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            <option value="">All Projects</option>
+            {projects.map(p => (
+              <option value={p.id} selected={p.id.toString() === projectId}>{p.title}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+          <select name="status" id="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            {statuses.map(s => (
+              <option value={s} selected={s === status}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label for="dateStart" class="block text-sm font-medium text-gray-700">Date Start</label>
+          <input type="date" name="dateStart" id="dateStart" value={dateStart} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+        </div>
+        <div>
+          <label for="dateEnd" class="block text-sm font-medium text-gray-700">Date End</label>
+          <div class="flex gap-2 items-center mt-1">
+            <input type="date" name="dateEnd" id="dateEnd" value={dateEnd} class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm border border-gray-300 shadow-sm">Filter</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Desktop Table -->
+      <div class="mt-4 flex flex-col">
+        <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              {view === 'customers' ? (
+                <table id="dataTable" class="min-w-full divide-y divide-gray-300">
+                  <thead class="bg-gray-50">
                     <tr>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">{c.email}</td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">₹{(c.amount_inr / 100).toFixed(2)}</td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{c.count}</td>
+                      <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Email</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Total Spent (INR)</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Order Count</th>
                     </tr>
-                  ))}
-                  {groupedCustomers.length === 0 && (
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 bg-white">
+                    {groupedCustomers.map(c => (
+                      <tr>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">{c.email}</td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">₹{(c.amount_inr / 100).toFixed(2)}</td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{c.count}</td>
+                      </tr>
+                    ))}
+                    {groupedCustomers.length === 0 && (
+                      <tr>
+                        <td colspan="3" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-center text-gray-500 sm:pl-6">No customers found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table id="dataTable" class="min-w-full divide-y divide-gray-300">
+                  <thead class="bg-gray-50">
                     <tr>
-                      <td colspan="3" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-center text-gray-500 sm:pl-6">No customers found.</td>
+                      <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">ID / Date</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Customer</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Project</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <table id="dataTable" class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">ID / Date</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Customer</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Project</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
-                  {orders.map(order => (
-                    <tr class="cursor-pointer hover:bg-gray-50 order-row" data-order={JSON.stringify(order)}>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">
-                        <div class="font-medium text-indigo-600">{order.id}</div>
-                        <div class="text-xs text-gray-500">{new Date(order.created_at).toLocaleString()}</div>
-                      </td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        <div>{order.name}</div>
-                        <div class="text-xs">{order.email}</div>
-                      </td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{order.project_id}</td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">₹{(order.amount_inr / 100).toFixed(2)}</td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {orders.length === 0 && (
-                    <tr>
-                      <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-center text-gray-500 sm:pl-6">No orders found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 bg-white">
+                    {orders.map(order => (
+                      <tr class="cursor-pointer hover:bg-gray-50 order-row" data-order={JSON.stringify(order)}>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">
+                          <div class="font-medium text-indigo-600">{order.id}</div>
+                          <div class="text-xs text-gray-500">{new Date(order.created_at).toLocaleString()}</div>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <div>{order.name}</div>
+                          <div class="text-xs">{order.email}</div>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{order.project_id}</td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">₹{(order.amount_inr / 100).toFixed(2)}</td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {order.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {orders.length === 0 && (
+                      <tr>
+                        <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-center text-gray-500 sm:pl-6">No orders found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Order Detail Drawer -->
-  <dialog id="orderDrawer" class="relative z-10 w-full max-w-md h-full max-h-screen bg-white shadow-xl ml-auto mr-0 p-0 m-0 backdrop:bg-gray-500/75 transition-all" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-    <div class="h-full flex flex-col py-6 shadow-xl">
-      <div class="px-4 sm:px-6 flex items-start justify-between">
-        <h2 class="text-lg font-medium text-gray-900" id="slide-over-title">Order Details</h2>
-        <div class="ml-3 flex h-7 items-center">
-          <button type="button" id="closeDrawer" class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-            <span class="sr-only">Close panel</span>
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+  <!-- ==============================================
+       MOBILE ORDERS VIEW (Screen width <= 768px)
+       Dedicated layout with card list and filter chips
+       ============================================== -->
+  <div class="orders-mobile">
+    <div class="mobile-orders-header">
+      <h1 class="mobile-orders-title">Orders</h1>
+      <a href={`?${new URLSearchParams({ ...Object.fromEntries(url.searchParams), view: view === 'customers' ? 'orders' : 'customers' })}`} class="mobile-view-toggle">
+        {view === 'customers' ? 'View Orders' : 'View Customers'}
+      </a>
+    </div>
+
+    <!-- Mobile Search Bar -->
+    <form class="mobile-search-form" method="get">
+      <input type="hidden" name="status" value={status} />
+      <input type="hidden" name="view" value={view} />
+      <div class="mobile-search-box">
+        <Icon name="search" size={20} class="mobile-search-icon" />
+        <input
+          type="search"
+          name="search"
+          value={search}
+          placeholder="Search customer, email..."
+          class="mobile-search-input"
+          autocomplete="off"
+        />
       </div>
-      <div class="relative mt-6 flex-1 px-4 sm:px-6 overflow-y-auto">
-        <div id="drawerContent" class="space-y-6">
+    </form>
+
+    <!-- Mobile Filter Chips -->
+    <div class="mobile-status-chips">
+      {statuses.map((s) => (
+        <a
+          href={`?${new URLSearchParams({ ...Object.fromEntries(url.searchParams), status: s })}`}
+          class:list={['mobile-status-chip-btn', { 'is-active': status === s }]}
+        >
+          {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+        </a>
+      ))}
+    </div>
+
+    <!-- Mobile Card List -->
+    {view === 'customers' ? (
+      <div class="mobile-orders-card-list">
+        {groupedCustomers.map((c) => (
+          <div class="mobile-customer-card">
+            <div class="customer-card-main">
+              <strong class="customer-email">{c.email}</strong>
+              <div class="customer-stats">
+                <span class="customer-spent">₹{(c.amount_inr / 100).toFixed(2)}</span>
+                <span class="customer-count">{c.count} {c.count === 1 ? 'order' : 'orders'}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+        {groupedCustomers.length === 0 && (
+          <div class="mobile-empty-orders">No customers found.</div>
+        )}
+      </div>
+    ) : (
+      <div class="mobile-orders-card-list">
+        {orders.map((order) => {
+          const projName = projectMap.get(order.project_id) || `Project #${order.project_id}`;
+          return (
+            <div class="mobile-order-card order-row" data-order={JSON.stringify(order)}>
+              <div class="mobile-order-card__top">
+                <span class="order-proj-name">{projName}</span>
+                <span class="order-price">₹{(order.amount_inr / 100).toFixed(2)}</span>
+              </div>
+              <div class="mobile-order-card__middle">
+                <span class="order-cust-name">{order.name || 'Anonymous Customer'}</span>
+                <span class="order-cust-email">{order.email}</span>
+              </div>
+              <div class="mobile-order-card__bottom">
+                <span class="order-date">{new Date(order.created_at).toLocaleDateString()}</span>
+                <span class:list={['mobile-order-badge', `is-${order.status}`]}>
+                  {order.status}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        {orders.length === 0 && (
+          <div class="mobile-empty-orders">No orders found.</div>
+        )}
+      </div>
+    )}
+  </div>
+
+  <!-- Order Detail Drawer (Enhanced for Mobile Full-Screen) -->
+  <dialog id="orderDrawer" class="mobile-order-dialog" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h2 class="dialog-title" id="slide-over-title">Order Details</h2>
+        <button type="button" id="closeDrawer" class="dialog-close-btn" aria-label="Close panel">
+          <Icon name="close" size={22} />
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div id="drawerContent" class="drawer-content-box">
           <!-- Content injected via JS -->
         </div>
       </div>
     </div>
   </dialog>
 
+  <style>
+    /* Desktop layout rules */
+    @media (min-width: 769px) {
+      .orders-mobile { display: none !important; }
+      .orders-desktop { display: block; }
+    }
+
+    /* Mobile layout rules (<= 768px) */
+    @media (max-width: 768px) {
+      .orders-desktop { display: none !important; }
+      .orders-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .mobile-orders-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.25rem;
+      }
+
+      .mobile-orders-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #14171C;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+
+      .mobile-view-toggle {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #D81F26;
+        text-decoration: none;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+      }
+
+      /* Search */
+      .mobile-search-form {
+        width: 100%;
+      }
+      .mobile-search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+      }
+      .mobile-search-icon {
+        position: absolute;
+        left: 1rem;
+        color: #5B6472;
+        pointer-events: none;
+      }
+      .mobile-search-input {
+        width: 100%;
+        height: 48px;
+        padding: 0 1rem 0 2.85rem;
+        font-size: 1rem;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        color: #14171C;
+        outline: none;
+        box-sizing: border-box;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+      }
+      .mobile-search-input:focus {
+        border-color: #D81F26;
+      }
+
+      /* Filter Chips */
+      .mobile-status-chips {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .mobile-status-chips::-webkit-scrollbar {
+        display: none;
+      }
+      .mobile-status-chip-btn {
+        padding: 0.5rem 1.15rem;
+        border-radius: 9999px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: #FFFFFF;
+        color: #14171C;
+        border: 1px solid #D1D5DB;
+        white-space: nowrap;
+        text-decoration: none;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .mobile-status-chip-btn.is-active {
+        background: #14171C;
+        color: #FFFFFF;
+        border-color: #14171C;
+      }
+
+      /* Card List */
+      .mobile-orders-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .mobile-order-card {
+        background: #FFFFFF;
+        border-radius: 16px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        padding: 1.15rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+      .mobile-order-card:active {
+        background: #F8FAFC;
+      }
+
+      .mobile-order-card__top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      .order-proj-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #14171C;
+        line-height: 1.3;
+      }
+      .order-price {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #14171C;
+        flex-shrink: 0;
+      }
+
+      .mobile-order-card__middle {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+      .order-cust-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #14171C;
+      }
+      .order-cust-email {
+        font-size: 0.8rem;
+        color: #5B6472;
+      }
+
+      .mobile-order-card__bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.25rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #F3F5F8;
+      }
+      .order-date {
+        font-size: 0.8rem;
+        color: #5B6472;
+      }
+
+      .mobile-order-badge {
+        padding: 0.2rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: capitalize;
+      }
+      .mobile-order-badge.is-paid {
+        background: #DCFCE7;
+        color: #15803D;
+      }
+      .mobile-order-badge.is-pending {
+        background: #FEF3C7;
+        color: #92400E;
+      }
+      .mobile-order-badge.is-refunded {
+        background: #F3E8FF;
+        color: #7E22CE;
+      }
+      .mobile-order-badge.is-failed,
+      .mobile-order-badge.is-abandoned {
+        background: #FEE2E2;
+        color: #B91C1C;
+      }
+
+      .mobile-customer-card {
+        background: #FFFFFF;
+        border-radius: 16px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        padding: 1.15rem;
+      }
+      .customer-email {
+        font-size: 0.95rem;
+        color: #14171C;
+        display: block;
+      }
+      .customer-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.4rem;
+      }
+      .customer-spent {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #14171C;
+      }
+      .customer-count {
+        font-size: 0.85rem;
+        color: #5B6472;
+      }
+
+      .mobile-empty-orders {
+        padding: 3rem 1rem;
+        text-align: center;
+        color: #5B6472;
+        font-size: 0.95rem;
+      }
+
+      /* Full-Screen Drawer / Dialog on Mobile */
+      .mobile-order-dialog {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: #FFFFFF;
+        z-index: 200;
+      }
+      .mobile-order-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.5);
+      }
+      .dialog-inner {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .dialog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #E5E7EB;
+      }
+      .dialog-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #14171C;
+        margin: 0;
+      }
+      .dialog-close-btn {
+        background: none;
+        border: none;
+        color: #14171C;
+        cursor: pointer;
+        padding: 0.5rem;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .dialog-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+      }
+    }
+  </style>
+
   <script>
     // CSV Export
-    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
       const table = document.getElementById('dataTable');
       if (!table) return;
       
@@ -205,8 +593,7 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
         const cols = row.querySelectorAll('th, td');
         const rowData = [];
         for (const col of cols) {
-          // clean text and escape quotes
-          let text = col.innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""');
+          let text = (col as HTMLElement).innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""');
           rowData.push(`"${text}"`);
         }
         csv.push(rowData.join(','));
@@ -224,70 +611,91 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
     });
 
     // Drawer Logic
-    const drawer = document.getElementById('orderDrawer');
+    const drawer = document.getElementById('orderDrawer') as HTMLDialogElement | null;
     const closeDrawerBtn = document.getElementById('closeDrawer');
     const drawerContent = document.getElementById('drawerContent');
 
     closeDrawerBtn?.addEventListener('click', () => {
-      drawer.close();
+      drawer?.close();
     });
 
     document.querySelectorAll('.order-row').forEach(row => {
       row.addEventListener('click', (e) => {
-        // don't open drawer if clicking on a button or link inside the row
-        if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'a') return;
+        if ((e.target as HTMLElement).tagName.toLowerCase() === 'button' || (e.target as HTMLElement).tagName.toLowerCase() === 'a') return;
         
-        const orderData = JSON.parse(row.dataset.order || '{}');
+        const orderData = JSON.parse((row as HTMLElement).dataset.order || '{}');
+        if (!drawerContent) return;
         
         drawerContent.innerHTML = `
-          <div>
-            <h3 class="text-sm font-medium text-gray-500">Order ID</h3>
-            <p class="mt-1 text-sm text-gray-900">${orderData.id}</p>
-          </div>
-          <div>
-            <h3 class="text-sm font-medium text-gray-500">Razorpay Order ID</h3>
-            <p class="mt-1 text-sm text-gray-900">${orderData.razorpay_order_id || 'N/A'}</p>
-          </div>
-          <div>
-            <h3 class="text-sm font-medium text-gray-500">Razorpay Payment ID</h3>
-            <p class="mt-1 text-sm text-gray-900">${orderData.razorpay_payment_id || 'N/A'}</p>
-          </div>
-          
-          <hr class="border-gray-200" />
-          
-          <div>
-            <h3 class="text-sm font-medium text-gray-500 mb-2">Actions</h3>
-            <div class="flex flex-col space-y-3">
-              <button onclick="postAction('/api/admin/order/resend', '${orderData.id}')" class="inline-flex justify-center items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none">
-                Resend Download Email
-              </button>
-              <button onclick="postAction('/api/admin/order/grant', '${orderData.id}')" class="inline-flex justify-center items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none">
-                Grant Manual Access
-              </button>
-              <button onclick="if(confirm('Are you sure you want to refund this via Razorpay API?')) postAction('/api/admin/order/refund', '${orderData.id}')" class="inline-flex justify-center items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none">
-                Refund via Razorpay API
-              </button>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="background: #F3F5F8; border-radius: 12px; padding: 1rem;">
+              <span style="font-size: 0.8rem; color: #5B6472; display: block;">Order ID</span>
+              <strong style="font-size: 1.1rem; color: #14171C;">#${orderData.id}</strong>
+              <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #5B6472;">
+                ${orderData.created_at ? new Date(orderData.created_at).toLocaleString() : ''}
+              </div>
             </div>
-          </div>
 
-          <hr class="border-gray-200" />
+            <div>
+              <span style="font-size: 0.8rem; color: #5B6472; display: block;">Customer</span>
+              <strong style="font-size: 1rem; color: #14171C;">${orderData.name || 'Anonymous'}</strong>
+              <div style="font-size: 0.85rem; color: #5B6472;">${orderData.email}</div>
+            </div>
 
-          <div>
-            <h3 class="text-sm font-medium text-gray-500">Internal Notes</h3>
-            <div class="mt-2">
-              <textarea id="orderNotes" rows="4" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">${orderData.notes || ''}</textarea>
-              <button onclick="saveNotes('${orderData.id}')" class="mt-2 inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 0.75rem 1rem;">
+                <span style="font-size: 0.8rem; color: #5B6472; display: block;">Amount</span>
+                <strong style="font-size: 1.15rem; color: #14171C;">₹${((orderData.amount_inr || 0) / 100).toFixed(2)}</strong>
+              </div>
+              <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 0.75rem 1rem;">
+                <span style="font-size: 0.8rem; color: #5B6472; display: block;">Status</span>
+                <strong style="font-size: 1.15rem; color: #14171C; text-transform: capitalize;">${orderData.status}</strong>
+              </div>
+            </div>
+
+            <div>
+              <span style="font-size: 0.8rem; color: #5B6472; display: block;">Razorpay Order ID</span>
+              <p class="mono" style="font-size: 0.85rem; color: #14171C; margin: 0.2rem 0;">${orderData.razorpay_order_id || 'N/A'}</p>
+            </div>
+            <div>
+              <span style="font-size: 0.8rem; color: #5B6472; display: block;">Razorpay Payment ID</span>
+              <p class="mono" style="font-size: 0.85rem; color: #14171C; margin: 0.2rem 0;">${orderData.razorpay_payment_id || 'N/A'}</p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 0.5rem 0;" />
+
+            <div>
+              <strong style="font-size: 0.95rem; color: #14171C; display: block; margin-bottom: 0.75rem;">Actions</strong>
+              <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                <button type="button" onclick="postAction('/api/admin/order/resend', '${orderData.id}')" style="min-height: 48px; border-radius: 12px; border: 1px solid #D1D5DB; background: #FFFFFF; color: #14171C; font-weight: 600; font-size: 0.95rem; cursor: pointer;">
+                  Resend Download Email
+                </button>
+                <button type="button" onclick="postAction('/api/admin/order/grant', '${orderData.id}')" style="min-height: 48px; border-radius: 12px; border: 1px solid #D1D5DB; background: #FFFFFF; color: #14171C; font-weight: 600; font-size: 0.95rem; cursor: pointer;">
+                  Grant Manual Access
+                </button>
+                <button type="button" onclick="if(confirm('Are you sure you want to refund this via Razorpay API?')) postAction('/api/admin/order/refund', '${orderData.id}')" style="min-height: 48px; border-radius: 12px; border: none; background: #D81F26; color: #FFFFFF; font-weight: 700; font-size: 0.95rem; cursor: pointer;">
+                  Refund via Razorpay API
+                </button>
+              </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 0.5rem 0;" />
+
+            <div>
+              <strong style="font-size: 0.95rem; color: #14171C; display: block; margin-bottom: 0.5rem;">Internal Notes</strong>
+              <textarea id="orderNotes" rows="3" style="width: 100%; border-radius: 12px; border: 1px solid #D1D5DB; padding: 0.75rem; font-size: 16px; box-sizing: border-box;">${orderData.notes || ''}</textarea>
+              <button type="button" onclick="saveNotes('${orderData.id}')" style="width: 100%; min-height: 48px; border-radius: 12px; border: none; background: #14171C; color: #FFFFFF; font-weight: 700; font-size: 0.95rem; margin-top: 0.5rem; cursor: pointer;">
                 Save Notes
               </button>
             </div>
           </div>
         `;
         
-        drawer.showModal();
+        drawer?.showModal();
       });
     });
 
-    window.postAction = async function(url, orderId) {
+    (window as any).postAction = async function(url: string, orderId: string) {
       try {
         const res = await fetch(url, {
           method: 'POST',
@@ -305,8 +713,9 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
       }
     };
 
-    window.saveNotes = async function(orderId) {
-      const notes = document.getElementById('orderNotes').value;
+    (window as any).saveNotes = async function(orderId: string) {
+      const notesEl = document.getElementById('orderNotes') as HTMLTextAreaElement | null;
+      const notes = notesEl ? notesEl.value : '';
       try {
         const res = await fetch('/api/admin/order/notes', {
           method: 'POST',
@@ -315,7 +724,6 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
         });
         if (res.ok) {
           alert('Notes saved');
-          // ideally reload page or update state
         } else {
           alert('Failed to save notes');
         }

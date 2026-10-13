@@ -344,4 +344,86 @@ const integrations = [
   .admin-table { width: 100%; border-collapse: collapse; }
   .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
   .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
+
+  /* Mobile styles (<= 768px) */
+  @media (max-width: 768px) {
+    .settings-layout {
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+    .settings-nav {
+      width: 100%;
+      flex-direction: row;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      background: transparent;
+      border: none;
+      padding: 0 0 0.5rem 0;
+      gap: 0.5rem;
+    }
+    .settings-nav::-webkit-scrollbar {
+      display: none;
+    }
+    .nav-btn {
+      padding: 0.5rem 1.15rem;
+      min-height: 44px;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      color: #14171C;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-btn.is-active {
+      background: #14171C !important;
+      color: #FFFFFF !important;
+      border-color: #14171C !important;
+    }
+    .panel {
+      border-radius: 16px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .panel-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .panel-head button[type="submit"] {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .grid-2 {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    input.input, select.select {
+      min-height: 48px;
+      font-size: 16px !important;
+      border-radius: 12px;
+    }
+    textarea.textarea {
+      font-size: 16px !important;
+      border-radius: 12px;
+    }
+    .integ-card {
+      border-radius: 16px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+  }
 </style>

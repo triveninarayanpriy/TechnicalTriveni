@@ -105,3 +105,40 @@ const csrf = Astro.locals.csrfToken;
     )}
   </div>
 </Admin>
+
+<style>
+  @media (max-width: 768px) {
+    .editor { width: 100%; max-width: 100%; }
+    .panel {
+      border-radius: 16px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .editor-form__head {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 1rem;
+    }
+    .editor-form__head > div {
+      width: 100%;
+      justify-content: space-between;
+    }
+    input.input, select.select {
+      min-height: 48px;
+      font-size: 16px !important;
+      border-radius: 12px;
+    }
+    textarea.textarea {
+      font-size: 16px !important;
+      border-radius: 12px;
+    }
+    .btn-primary {
+      min-height: 48px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+  }
+</style>

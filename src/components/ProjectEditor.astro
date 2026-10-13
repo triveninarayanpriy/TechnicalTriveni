@@ -61,7 +61,172 @@ const tabMissing = {
     {p && <input type="hidden" name="id" value={p.id} />}
   </form>
 
-  <!-- Sticky Save / Publish Action Bar -->
+  <!-- Mobile Editor Header (<= 768px) -->
+  <header class="mobile-editor-header">
+    <div class="mobile-editor-header__left">
+      <a href="/admin/projects" class="mobile-back-btn" aria-label="Back to projects">
+        <Icon name="chevron-left" size={24} />
+      </a>
+      <div class="mobile-editor-title-wrap">
+        <h1 class="mobile-editor-title">{isNew ? 'New project' : p?.title || 'Project editor'}</h1>
+        <span class:list={['mobile-editor-status', p?.published ? 'is-live' : 'is-draft']}>
+          {p?.published ? 'Live' : 'Draft'}
+        </span>
+      </div>
+    </div>
+    <div class="mobile-editor-header__right">
+      {p && (
+        <a href={`/projects/${p.slug}`} target="_blank" rel="noopener noreferrer" class="mobile-header-icon-btn" aria-label="Preview">
+          <Icon name="eye" size={22} />
+        </a>
+      )}
+      <div class="mobile-more-menu-wrap">
+        <button type="button" class="mobile-header-icon-btn" id="mobile-more-menu-btn" aria-label="More actions">
+          <Icon name="more-horizontal" size={22} />
+        </button>
+        <div class="mobile-more-dropdown" id="mobile-more-dropdown" style="display: none;">
+          <button type="button" class="more-dropdown-item"><Icon name="copy" size={16} /> Duplicate</button>
+          <button type="button" class="more-dropdown-item"><Icon name="archive" size={16} /> Archive</button>
+          <button type="button" class="more-dropdown-item"><Icon name="history" size={16} /> Version History</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Amber Issue Banner -->
+  {missingPublishChecks.length > 0 && (
+    <div class="mobile-issue-banner" id="mobile-issue-banner">
+      <div class="mobile-issue-banner__summary" id="mobile-issue-banner-toggle">
+        <div class="issue-banner-left">
+          <Icon name="alert-triangle" size={20} class="issue-banner-icon" />
+          <div class="issue-banner-text">
+            <strong class="issue-banner-title">{missingPublishChecks.length} issue{missingPublishChecks.length > 1 ? 's' : ''} block{missingPublishChecks.length === 1 ? 's' : ''} publishing</strong>
+            <span class="issue-banner-sub">Tap to see what to fix</span>
+          </div>
+        </div>
+        <Icon name="chevron-right" size={18} class="issue-banner-chevron" />
+      </div>
+      <ul class="mobile-issue-list" id="mobile-issue-list" style="display: none;">
+        {missingPublishChecks.map((issue) => (
+          <li>{issue}</li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  <!-- Mobile Drilldown Header (Visible when a section is open on mobile) -->
+  <div class="mobile-drilldown-header" id="mobile-drilldown-header" style="display: none;">
+    <button type="button" class="mobile-drilldown-back" id="mobile-drilldown-back-btn">
+      <Icon name="chevron-left" size={22} />
+      <span id="mobile-drilldown-title">Section</span>
+    </button>
+  </div>
+
+  <!-- Mobile Sections Menu (The main 10-row navigation card on mobile) -->
+  <div class="mobile-sections-menu" id="mobile-sections-menu">
+    <div class="mobile-sections-card">
+      <!-- 1. Basics -->
+      <button type="button" class="mobile-section-row" data-open-panel="basics" data-panel-title="Basics">
+        <div class="section-row-info">
+          <span class="section-row-title">Basics</span>
+          <span class="section-row-sub">Title, slug, summary, category</span>
+        </div>
+        <Icon name="chevron-right" size={18} class="section-row-arrow" />
+      </button>
+
+      <!-- 2. Media -->
+      <button type="button" class="mobile-section-row" data-open-panel="media" data-panel-title="Media">
+        <div class="section-row-info">
+          <span class="section-row-title">Media</span>
+          <span class="section-row-sub">Photos and 3D, first item is the cover</span>
+        </div>
+        <Icon name="chevron-right" size={18} class="section-row-arrow" />
+      </button>
+
+      <!-- 3. Description -->
+      <button type="button" class="mobile-section-row" data-open-panel="content" data-panel-title="Description">
+        <div class="section-row-info">
+          <span class="section-row-title">Description</span>
+          <span class="section-row-sub">Markdown, safety notice, credits</span>
+        </div>
+        <Icon name="chevron-right" size={18} class="section-row-arrow" />
+      </button>
+
+      <!-- 4. Steps -->
+      <button type="button" class="mobile-section-row" data-open-panel="steps" data-panel-title="Steps">
+        <div class="section-row-info">
+          <span class="section-row-title">Steps</span>
+          <span class="section-row-sub">{p?.steps?.length ? `${p.steps.length} steps` : 'No steps yet'}</span>
+        </div>
+        {p?.steps?.length ? <Icon name="chevron-right" size={18} class="section-row-arrow" /> : <span class="section-row-add">Add</span>}
+      </button>
+
+      <!-- 5. Wiring and connections -->
+      <button type="button" class="mobile-section-row" data-open-panel="wiring" data-panel-title="Wiring and connections">
+        <div class="section-row-info">
+          <span class="section-row-title">Wiring and connections</span>
+          <span class="section-row-sub">{p?.pins?.length ? `${p.pins.length} connections` : 'No connections yet'}</span>
+        </div>
+        {p?.pins?.length ? <Icon name="chevron-right" size={18} class="section-row-arrow" /> : <span class="section-row-add">Add</span>}
+      </button>
+
+      <!-- 6. Troubleshooting -->
+      <button type="button" class="mobile-section-row" data-open-panel="troubleshooting" data-panel-title="Troubleshooting">
+        <div class="section-row-info">
+          <span class="section-row-title">Troubleshooting</span>
+          <span class="section-row-sub">{p?.troubleshooting?.length ? `${p.troubleshooting.length} tips` : 'No tips yet'}</span>
+        </div>
+        {p?.troubleshooting?.length ? <Icon name="chevron-right" size={18} class="section-row-arrow" /> : <span class="section-row-add">Add</span>}
+      </button>
+
+      <!-- 7. Resource links -->
+      <button type="button" class="mobile-section-row" data-open-panel="files" data-panel-title="Resource links">
+        <div class="section-row-info">
+          <span class="section-row-title">Resource links</span>
+          <span class="section-row-sub">{p?.links?.length ? `${p.links.length} links` : 'No links yet'}</span>
+        </div>
+        {p?.links?.length ? <Icon name="chevron-right" size={18} class="section-row-arrow" /> : <span class="section-row-add">Add</span>}
+      </button>
+
+      <!-- 8. Pricing and visibility -->
+      <button type="button" class="mobile-section-row" data-open-panel="files" data-panel-title="Pricing and visibility">
+        <div class="section-row-info">
+          <span class="section-row-title">Pricing and visibility</span>
+          <span class="section-row-sub">{p?.combo_enabled ? `₹${p.price_inr || 0} combo, ${p?.published ? 'live on site' : 'draft'}` : `Free, ${p?.published ? 'live on site' : 'draft'}`}</span>
+        </div>
+        <Icon name="chevron-right" size={18} class="section-row-arrow" />
+      </button>
+
+      <!-- 9. Search and social -->
+      <button type="button" class="mobile-section-row" data-open-panel="seo" data-panel-title="Search and social">
+        <div class="section-row-info">
+          <span class="section-row-title">Search and social</span>
+          <span class="section-row-sub">Uses title and summary by default</span>
+        </div>
+        <Icon name="chevron-right" size={18} class="section-row-arrow" />
+      </button>
+
+      <!-- 10. Files -->
+      <button type="button" class="mobile-section-row" data-open-panel="files" data-panel-title="Files">
+        <div class="section-row-info">
+          <span class="section-row-title">Files</span>
+          <span class="section-row-sub">{p?.files?.length ? `${p.files.length} files` : 'Paid combo downloads'}</span>
+        </div>
+        <Icon name="chevron-right" size={18} class="section-row-arrow" />
+      </button>
+
+      <!-- 11. Parts (BOM) -->
+      <button type="button" class="mobile-section-row" data-open-panel="parts" data-panel-title="Parts (BOM)">
+        <div class="section-row-info">
+          <span class="section-row-title">Parts (BOM)</span>
+          <span class="section-row-sub">{p?.bom?.length ? `${p.bom.length} parts` : 'No parts yet'}</span>
+        </div>
+        {p?.bom?.length ? <Icon name="chevron-right" size={18} class="section-row-arrow" /> : <span class="section-row-add">Add</span>}
+      </button>
+    </div>
+  </div>
+
+  <!-- Sticky Save / Publish Action Bar (Desktop >= 769px) -->
   <header class="editor-save-bar">
     <div class="action-bar-left">
       <h2 class="editor-bar-title">{isNew ? 'New project' : p.title || 'Project details'}</h2>
@@ -1162,6 +1327,31 @@ const tabMissing = {
       <input type="hidden" name="action" value="makefree" />
     </form>
   )}
+
+  <!-- Mobile Sticky Save Bar (On sections menu view) -->
+  <div class="mobile-sticky-savebar" id="mobile-sticky-savebar">
+    <button type="submit" form="main-project-form" name="action" value="draft" class="btn-mobile-draft">
+      Save draft
+    </button>
+    <button
+      type="submit"
+      form="main-project-form"
+      name="action"
+      value="publish"
+      class:list={['btn-mobile-publish', { 'is-disabled': missingPublishChecks.length > 0 }]}
+      disabled={missingPublishChecks.length > 0}
+      title={missingPublishChecks.length > 0 ? missingPublishChecks.join(', ') : 'Publish'}
+    >
+      Publish
+    </button>
+  </div>
+
+  <!-- Mobile Drilldown Done Bar (Sticky bottom when a section is open) -->
+  <div class="mobile-drilldown-done-bar" id="mobile-drilldown-done-bar" style="display: none;">
+    <button type="button" class="mobile-done-btn" id="mobile-drilldown-done-btn">
+      Done
+    </button>
+  </div>
 </div>
 
 <style>
@@ -1582,6 +1772,426 @@ const tabMissing = {
       font-size: 0.68rem;
     }
   }
+
+  /* ============================================================
+     PROJECT EDITOR RESPONSIVE RULES (Mobile <= 768px, Desktop >= 769px)
+     ============================================================ */
+  @media (min-width: 769px) {
+    .mobile-editor-header,
+    .mobile-issue-banner,
+    .mobile-sections-menu,
+    .mobile-sticky-savebar,
+    .mobile-drilldown-header,
+    .mobile-drilldown-done-bar {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .editor-save-bar {
+      display: none !important;
+    }
+    .editor-tab-bar {
+      display: none !important;
+    }
+    .ai-draft-assistant-box {
+      margin: 0 0 1rem 0;
+    }
+
+    .editor {
+      padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+      gap: 0;
+    }
+
+    /* Mobile Header */
+    .mobile-editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+    }
+    .mobile-editor-header__left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+      flex: 1;
+    }
+    .mobile-back-btn {
+      color: #14171C;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+    .mobile-editor-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+      flex: 1;
+    }
+    .mobile-editor-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #14171C;
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mobile-editor-status {
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .mobile-editor-status.is-live {
+      background: #DCFCE7;
+      color: #15803D;
+    }
+    .mobile-editor-status.is-draft {
+      background: #F1F5F9;
+      color: #475569;
+    }
+    .mobile-editor-header__right {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .mobile-header-icon-btn {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: #14171C;
+      cursor: pointer;
+      border-radius: 50%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-more-menu-wrap {
+      position: relative;
+    }
+    .mobile-more-dropdown {
+      position: absolute;
+      right: 0;
+      top: 48px;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      padding: 0.35rem 0;
+      z-index: 100;
+      min-width: 170px;
+      display: flex;
+      flex-direction: column;
+    }
+    .more-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.65rem 1rem;
+      width: 100%;
+      border: none;
+      background: none;
+      text-align: left;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #14171C;
+      cursor: pointer;
+    }
+
+    /* Amber Issue Banner */
+    .mobile-issue-banner {
+      background: #FFF9E6;
+      border: 1px solid #FFE58F;
+      border-radius: 16px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .mobile-issue-banner__summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem;
+      min-height: 48px;
+    }
+    .issue-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+    }
+    .issue-banner-icon {
+      color: #B45309;
+      flex-shrink: 0;
+    }
+    .issue-banner-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .issue-banner-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #78350F;
+    }
+    .issue-banner-sub {
+      font-size: 0.8rem;
+      color: #92400E;
+    }
+    .issue-banner-chevron {
+      color: #78350F;
+      flex-shrink: 0;
+    }
+    .mobile-issue-list {
+      margin: 0;
+      padding: 0.5rem 1rem 0.85rem 2.5rem;
+      font-size: 0.85rem;
+      color: #78350F;
+      border-top: 1px solid rgba(245, 158, 11, 0.2);
+      list-style: disc;
+    }
+
+    /* Section Navigation Card */
+    .mobile-sections-menu {
+      display: block;
+      width: 100%;
+    }
+    .mobile-sections-card {
+      background: #FFFFFF;
+      border-radius: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .mobile-section-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.95rem 1.15rem;
+      background: none;
+      border: none;
+      border-bottom: 1px solid #F3F5F8;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      min-height: 60px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-section-row:last-child {
+      border-bottom: none;
+    }
+    .section-row-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1;
+      min-width: 0;
+    }
+    .section-row-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #14171C;
+    }
+    .section-row-sub {
+      font-size: 0.8rem;
+      color: #5B6472;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .section-row-arrow {
+      color: #14171C;
+      flex-shrink: 0;
+    }
+    .section-row-add {
+      color: #D81F26;
+      font-size: 0.9rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Sticky Save draft / Publish bar */
+    .mobile-sticky-savebar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #FFFFFF;
+      border-top: 1px solid #E5E7EB;
+      padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      gap: 0.75rem;
+      z-index: 95;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+    }
+    .btn-mobile-draft {
+      flex: 1;
+      height: 48px;
+      border-radius: 12px;
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      color: #14171C;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-mobile-publish {
+      flex: 1;
+      height: 48px;
+      border-radius: 12px;
+      background: #D81F26;
+      border: none;
+      color: #FFFFFF;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-mobile-publish.is-disabled {
+      background: #FCA5A5 !important;
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+
+    /* Drilldown view */
+    .mobile-drilldown-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .mobile-drilldown-back {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: none;
+      border: none;
+      color: #14171C;
+      font-size: 1.25rem;
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0.5rem 0;
+      min-height: 44px;
+    }
+    .mobile-drilldown-done-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #FFFFFF;
+      border-top: 1px solid #E5E7EB;
+      padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      z-index: 95;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+    }
+    .mobile-done-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 12px;
+      background: #D81F26;
+      border: none;
+      color: #FFFFFF;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Mobile Form Controls */
+    input.input, select.select, select {
+      min-height: 48px;
+      font-size: 16px !important;
+      border-radius: 12px;
+    }
+    textarea.textarea, textarea {
+      font-size: 16px !important;
+      border-radius: 12px;
+    }
+    label.label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #14171C;
+      margin-bottom: 0.35rem;
+      display: block;
+    }
+    .grid-2, .grid-3 {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .panel {
+      border-radius: 16px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .markdown-toolbar {
+      overflow-x: auto;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.25rem;
+      padding: 0.35rem 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .switch {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 48px;
+      padding: 0.65rem 0;
+      cursor: pointer;
+    }
+    .switch input[type="checkbox"] {
+      position: relative;
+      width: 52px;
+      height: 30px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #E2E8F0;
+      outline: none;
+      border-radius: 15px;
+      transition: background 0.2s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin: 0;
+    }
+    .switch input[type="checkbox"]:checked {
+      background: #14171C;
+    }
+    .switch input[type="checkbox"]::before {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      background: #FFFFFF;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease;
+    }
+    .switch input[type="checkbox"]:checked::before {
+      transform: translateX(22px);
+    }
+  }
 </style>
 
 <script>
@@ -1609,6 +2219,76 @@ const tabMissing = {
         sessionStorage.setItem(TAB_KEY, tabName);
       } catch {}
     }
+  }
+
+  // --- Mobile Section Sub-Page Navigation ---
+  const isMobile = () => window.innerWidth <= 768;
+  const mobileMenu = document.getElementById('mobile-sections-menu');
+  const mobileStickySavebar = document.getElementById('mobile-sticky-savebar');
+  const mobileDrilldownHeader = document.getElementById('mobile-drilldown-header');
+  const mobileDrilldownTitle = document.getElementById('mobile-drilldown-title');
+  const mobileDrilldownDoneBar = document.getElementById('mobile-drilldown-done-bar');
+  const mobileBackBtn = document.getElementById('mobile-drilldown-back-btn');
+  const mobileDoneBtn = document.getElementById('mobile-drilldown-done-btn');
+
+  function openMobileSection(panelName: string, title: string) {
+    if (mobileMenu) mobileMenu.style.display = 'none';
+    if (mobileStickySavebar) mobileStickySavebar.style.display = 'none';
+    if (mobileDrilldownHeader) {
+      mobileDrilldownHeader.style.display = 'flex';
+      if (mobileDrilldownTitle) mobileDrilldownTitle.textContent = title;
+    }
+    if (mobileDrilldownDoneBar) mobileDrilldownDoneBar.style.display = 'block';
+
+    activateTab(panelName);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  function closeMobileSection() {
+    if (mobileMenu) mobileMenu.style.display = 'block';
+    if (mobileStickySavebar) mobileStickySavebar.style.display = 'flex';
+    if (mobileDrilldownHeader) mobileDrilldownHeader.style.display = 'none';
+    if (mobileDrilldownDoneBar) mobileDrilldownDoneBar.style.display = 'none';
+
+    tabPanels.forEach((p) => p.setAttribute('hidden', ''));
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.mobile-section-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const panel = row.dataset.openPanel || 'basics';
+      const title = row.dataset.panelTitle || 'Section';
+      openMobileSection(panel, title);
+    });
+  });
+
+  mobileBackBtn?.addEventListener('click', closeMobileSection);
+  mobileDoneBtn?.addEventListener('click', closeMobileSection);
+
+  // Mobile issue banner toggle
+  const issueBannerToggle = document.getElementById('mobile-issue-banner-toggle');
+  const issueList = document.getElementById('mobile-issue-list');
+  issueBannerToggle?.addEventListener('click', () => {
+    if (issueList) {
+      issueList.style.display = issueList.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  // Mobile more menu dropdown toggle
+  const moreMenuBtn = document.getElementById('mobile-more-menu-btn');
+  const moreDropdown = document.getElementById('mobile-more-dropdown');
+  moreMenuBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (moreDropdown) {
+      moreDropdown.style.display = moreDropdown.style.display === 'none' ? 'flex' : 'none';
+    }
+  });
+  document.addEventListener('click', () => {
+    if (moreDropdown) moreDropdown.style.display = 'none';
+  });
+
+  // Initial state on mobile: hide panels so the section list is visible
+  if (isMobile()) {
+    tabPanels.forEach((p) => p.setAttribute('hidden', ''));
   }
 
   tabBtns.forEach((btn) => {

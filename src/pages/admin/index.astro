@@ -5,6 +5,7 @@ import { env } from 'cloudflare:workers';
 import { getDashboardStats } from '../../lib/db';
 import { formatINR, formatDateTime } from '../../lib/format';
 import { turnstileEnabled } from '../../lib/turnstile';
+import { razorpayConfigured } from '../../lib/razorpay';
 
 const days = parseInt(Astro.url.searchParams.get('days') || '30', 10);
 const stats = await getDashboardStats(env.DB, days);
@@ -14,90 +15,229 @@ const cards = [
   { label: 'Paid Orders', value: stats.orders, sub: 'completed', icon: 'cart', href: '/admin/orders?status=paid' },
   { label: 'Conversion', value: stats.conversion.toFixed(1) + '%', sub: 'pending to paid', icon: 'bar-chart-2', href: '/admin/orders' },
 ];
+
+const maxRevenue = stats.topProjects.length > 0 
+  ? Math.max(...stats.topProjects.map((p) => p.revenue), 1) 
+  : 1;
+
+const hasPayments = razorpayConfigured(env);
 ---
 
 <Admin title="Dashboard" active="dashboard">
-  <div class="orders-head" style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-    <h2>Dashboard</h2>
-    <div class="filter-tabs">
-      {[7, 30, 0].map((d) => (
-        <a href={`/admin?days=${d}`} class:list={['filter-tab', { 'is-active': days === d }]}>
-          {d === 0 ? 'All-Time' : `${d}D`}
+  <!-- ==============================================
+       DESKTOP DASHBOARD (Screen width >= 769px)
+       Unchanged desktop layout
+       ============================================== -->
+  <div class="dash-desktop">
+    <div class="orders-head" style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+      <h2>Dashboard</h2>
+      <div class="filter-tabs">
+        {[7, 30, 0].map((d) => (
+          <a href={`/admin?days=${d}`} class:list={['filter-tab', { 'is-active': days === d }]}>
+            {d === 0 ? 'All-Time' : `${d}D`}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      {cards.map((c) => (
+        <a href={c.href} class="stat-card">
+          <div class="stat-card__icon"><Icon name={c.icon} size={20} /></div>
+          <div class="stat-card__value">{c.value}</div>
+          <div class="stat-card__label">{c.label}</div>
+          <div class="stat-card__sub dim">{c.sub}</div>
         </a>
       ))}
     </div>
-  </div>
 
-  <div class="stat-grid">
-    {cards.map((c) => (
-      <a href={c.href} class="stat-card">
-        <div class="stat-card__icon"><Icon name={c.icon} size={20} /></div>
-        <div class="stat-card__value">{c.value}</div>
-        <div class="stat-card__label">{c.label}</div>
-        <div class="stat-card__sub dim">{c.sub}</div>
-      </a>
-    ))}
-  </div>
+    <div class="dash-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+      <!-- Left Column -->
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <section class="dash-panel card-table">
+          <div class="dash-panel__head" style="padding: 1rem; border-bottom: 1px solid var(--border);">
+            <h3 style="font-size: 1.1rem;"><Icon name="star" size={16} /> Top Projects</h3>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Project</th><th>Sales</th><th>Revenue</th></tr></thead>
+            <tbody>
+              {stats.topProjects.map((p) => (
+                <tr>
+                  <td style="font-weight: 500;">{p.title}</td>
+                  <td>{p.sales}</td>
+                  <td style="color: var(--success);">{formatINR(p.revenue)}</td>
+                </tr>
+              ))}
+              {stats.topProjects.length === 0 && <tr><td colspan="3" class="dim" style="text-align: center;">No data for this period.</td></tr>}
+            </tbody>
+          </table>
+        </section>
 
-  <div class="dash-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
-    
-    <!-- Left Column -->
-    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <section class="dash-panel card-table">
-        <div class="dash-panel__head" style="padding: 1rem; border-bottom: 1px solid var(--border);">
-          <h3 style="font-size: 1.1rem;"><Icon name="star" size={16} /> Top Projects</h3>
-        </div>
-        <table class="admin-table">
-          <thead><tr><th>Project</th><th>Sales</th><th>Revenue</th></tr></thead>
-          <tbody>
-            {stats.topProjects.map((p) => (
-              <tr>
-                <td style="font-weight: 500;">{p.title}</td>
-                <td>{p.sales}</td>
-                <td style="color: var(--success);">{formatINR(p.revenue)}</td>
-              </tr>
+        <section class="dash-panel card-table" style="background: var(--surface-2); padding: 1.5rem; border-radius: var(--r-md); border: 1px solid var(--border);">
+          <h3 style="font-size: 1.1rem; margin-bottom: 1rem;"><Icon name="activity" size={16} /> System Health</h3>
+          <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+            <li><strong>Payments:</strong> {hasPayments ? <span style="color: var(--success);">Active</span> : <span class="dim">Disabled</span>}</li>
+            <li><strong>Turnstile:</strong> {turnstileEnabled(env) ? <span style="color: var(--success);">Active</span> : <span class="dim">Disabled</span>}</li>
+            <li><strong>Last Webhook:</strong> {stats.health.webhook}</li>
+            <li><strong>Last Email:</strong> {stats.health.email}</li>
+          </ul>
+        </section>
+      </div>
+
+      <!-- Right Column -->
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <section class="dash-panel card-table">
+          <div class="dash-panel__head" style="padding: 1rem; border-bottom: 1px solid var(--border); background: rgba(245, 158, 11, 0.05);">
+            <h3 style="font-size: 1.1rem; color: #d97706;"><Icon name="alert-circle" size={16} /> Needs Attention</h3>
+          </div>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            {stats.attention.map((a) => (
+              <li style="border-bottom: 1px solid var(--hairline); padding: 0.75rem 1rem;">
+                <a href={a.link} style="display: flex; justify-content: space-between; align-items: center; color: var(--text); text-decoration: none;">
+                  <div>
+                    <span class="status" style="margin-right: 0.5rem; background: var(--surface-3);">{a.type}</span>
+                    <span>{a.title}</span>
+                  </div>
+                  <Icon name="chevron-right" size={16} class="dim" />
+                </a>
+              </li>
             ))}
-            {stats.topProjects.length === 0 && <tr><td colspan="3" class="dim" style="text-align: center;">No data for this period.</td></tr>}
-          </tbody>
-        </table>
-      </section>
+            {stats.attention.length === 0 && <li style="padding: 1rem; text-align: center;" class="dim">All good! Nothing needs attention.</li>}
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
 
-      <section class="dash-panel card-table" style="background: var(--surface-2); padding: 1.5rem; border-radius: var(--r-md); border: 1px solid var(--border);">
-        <h3 style="font-size: 1.1rem; margin-bottom: 1rem;"><Icon name="activity" size={16} /> System Health</h3>
-        <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-          <li><strong>Turnstile:</strong> {turnstileEnabled(env) ? <span style="color: var(--success);">Active</span> : <span class="dim">Disabled</span>}</li>
-          <li><strong>Last Webhook:</strong> {stats.health.webhook}</li>
-          <li><strong>Last Email:</strong> {stats.health.email}</li>
-        </ul>
-      </section>
+  <!-- ==============================================
+       MOBILE DASHBOARD (Screen width <= 768px)
+       Dedicated layout matching mobile mockup
+       ============================================== -->
+  <div class="dash-mobile">
+    <!-- Top Mobile Title Bar -->
+    <div class="mobile-dash-header">
+      <h1 class="mobile-dash-title">Dashboard</h1>
+      <a href="/" target="_blank" rel="noopener noreferrer" class="mobile-dash-external" aria-label="View public site">
+        <Icon name="external" size={22} />
+      </a>
     </div>
 
-    <!-- Right Column -->
-    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <section class="dash-panel card-table">
-        <div class="dash-panel__head" style="padding: 1rem; border-bottom: 1px solid var(--border); background: rgba(245, 158, 11, 0.05);">
-          <h3 style="font-size: 1.1rem; color: #d97706;"><Icon name="alert-circle" size={16} /> Needs Attention</h3>
+    <!-- Segmented Control (7D / 30D / All time) -->
+    <div class="mobile-segmented">
+      <a href="/admin?days=7" class:list={['mobile-segment-btn', { 'is-active': days === 7 }]}>
+        7D
+      </a>
+      <a href="/admin?days=30" class:list={['mobile-segment-btn', { 'is-active': days === 30 }]}>
+        30D
+      </a>
+      <a href="/admin?days=0" class:list={['mobile-segment-btn', { 'is-active': days === 0 }]}>
+        All time
+      </a>
+    </div>
+
+    <!-- Needs attention Card (Placed FIRST per spec) -->
+    <div class="mobile-card attention-card">
+      <h2 class="attention-card__title">Needs attention</h2>
+      <div class="attention-list">
+        {stats.attention.map((a) => (
+          <a href={a.link} class="attention-row">
+            <span class="attention-badge">{a.type}</span>
+            <span class="attention-label">{a.title}</span>
+            <Icon name="chevron-right" size={18} class="attention-arrow" />
+          </a>
+        ))}
+        {stats.attention.length === 0 && (
+          <p class="attention-empty">All good! Nothing needs attention.</p>
+        )}
+      </div>
+      <a href="/admin/projects" class="attention-show-all">Show all</a>
+    </div>
+
+    <!-- Net revenue Card -->
+    <div class="mobile-card rev-card">
+      <span class="rev-card__label">Net revenue</span>
+      <div class="rev-card__amount">{formatINR(stats.revenue)}</div>
+      <span class="rev-card__sub">Excludes test orders and refunds</span>
+
+      <div class="rev-card__tiles">
+        <div class="rev-tile">
+          <div class="rev-tile__num">{stats.orders}</div>
+          <div class="rev-tile__label">Paid orders</div>
         </div>
-        <ul style="list-style: none; padding: 0; margin: 0;">
-          {stats.attention.map((a) => (
-            <li style="border-bottom: 1px solid var(--hairline); padding: 0.75rem 1rem;">
-              <a href={a.link} style="display: flex; justify-content: space-between; align-items: center; color: var(--text); text-decoration: none;">
-                <div>
-                  <span class="status" style="margin-right: 0.5rem; background: var(--surface-3);">{a.type}</span>
-                  <span>{a.title}</span>
-                </div>
-                <Icon name="chevron-right" size={16} class="dim" />
-              </a>
-            </li>
-          ))}
-          {stats.attention.length === 0 && <li style="padding: 1rem; text-align: center;" class="dim">All good! Nothing needs attention.</li>}
-        </ul>
-      </section>
+        <div class="rev-tile">
+          <div class="rev-tile__num">{stats.conversion.toFixed(1)}%</div>
+          <div class="rev-tile__label">Pending to paid</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top projects Card (Ranked rows with red revenue bar) -->
+    <div class="mobile-card top-proj-card">
+      <h2 class="top-proj-card__title">Top projects</h2>
+      <div class="top-proj-list">
+        {stats.topProjects.map((p) => {
+          const pct = Math.max(8, Math.round((p.revenue / maxRevenue) * 100));
+          return (
+            <div class="top-proj-item">
+              <div class="top-proj-item__top">
+                <span class="top-proj-item__name">{p.title}</span>
+                <span class="top-proj-item__rev">{formatINR(p.revenue)}</span>
+              </div>
+              <div class="top-proj-bar-track">
+                <div class="top-proj-bar-fill" style={`width: ${pct}%`}></div>
+              </div>
+              <div class="top-proj-item__sales">{p.sales} {p.sales === 1 ? 'sale' : 'sales'}</div>
+            </div>
+          );
+        })}
+        {stats.topProjects.length === 0 && (
+          <p class="top-proj-empty">No sales data for this period.</p>
+        )}
+      </div>
+      <a href="/admin/projects" class="top-proj-footer-link">Open all projects</a>
+    </div>
+
+    <!-- System health Card -->
+    <div class="mobile-card health-card">
+      <h2 class="health-card__title">System health</h2>
+      <div class="health-list">
+        <div class="health-row">
+          <div class="health-row__left">
+            <span class:list={['health-dot', hasPayments ? 'is-active' : 'is-disabled']}></span>
+            <span class="health-label">Payments</span>
+          </div>
+          <span class="health-value">{hasPayments ? 'Active' : 'Disabled'}</span>
+        </div>
+
+        <div class="health-row">
+          <div class="health-row__left">
+            <span class="health-dot is-disabled"></span>
+            <span class="health-label">Payment webhook</span>
+          </div>
+          <span class="health-value">{stats.health.webhook || 'Never received'}</span>
+        </div>
+
+        <div class="health-row">
+          <div class="health-row__left">
+            <span class="health-dot is-disabled"></span>
+            <span class="health-label">Email</span>
+          </div>
+          <span class="health-value">{stats.health.email || 'Never sent'}</span>
+        </div>
+      </div>
     </div>
   </div>
 </Admin>
 
 <style>
+  /* ============================================================
+     DESKTOP STYLES (>= 769px) - Preserved exactly
+     ============================================================ */
+  @media (min-width: 769px) {
+    .dash-mobile { display: none !important; }
+    .dash-desktop { display: block; }
+  }
+
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
   .stat-card { display: flex; flex-direction: column; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s; }
   .stat-card:hover { border-color: var(--brand-red); transform: translateY(-2px); }
@@ -112,4 +252,346 @@ const cards = [
   .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
   .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
   .status { padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); text-transform: uppercase; }
+
+  /* ============================================================
+     MOBILE STYLES (<= 768px) - Separate dedicated layout
+     ============================================================ */
+  @media (max-width: 768px) {
+    .dash-desktop { display: none !important; }
+    .dash-mobile {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .mobile-dash-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+    }
+
+    .mobile-dash-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #14171C;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .mobile-dash-external {
+      color: #14171C;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      text-decoration: none;
+    }
+
+    /* Segmented pill control */
+    .mobile-segmented {
+      display: flex;
+      background: #E6E9F0;
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .mobile-segment-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.6rem 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #5B6472;
+      text-decoration: none;
+      border-radius: 9px;
+      transition: background 0.15s ease, color 0.15s ease;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mobile-segment-btn.is-active {
+      background: #FFFFFF;
+      color: #14171C;
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Common mobile white card */
+    .mobile-card {
+      background: #FFFFFF;
+      border-radius: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      padding: 1.25rem;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    /* 1. Needs attention card */
+    .attention-card {
+      background: #FFF9E6;
+      border: 1px solid #FFE58F;
+    }
+
+    .attention-card__title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #14171C;
+      margin: 0 0 0.85rem 0;
+    }
+
+    .attention-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .attention-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      text-decoration: none;
+      color: #14171C;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+      min-height: 44px;
+    }
+
+    .attention-row:last-child {
+      border-bottom: none;
+    }
+
+    .attention-badge {
+      background: #FCE8B2;
+      color: #78350F;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      flex-shrink: 0;
+    }
+
+    .attention-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #14171C;
+      flex: 1;
+      line-height: 1.3;
+    }
+
+    .attention-arrow {
+      color: #14171C;
+      flex-shrink: 0;
+    }
+
+    .attention-empty {
+      font-size: 0.85rem;
+      color: #5B6472;
+      margin: 0.5rem 0;
+    }
+
+    .attention-show-all {
+      display: block;
+      text-align: center;
+      color: #D81F26;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      padding-top: 0.85rem;
+      margin-top: 0.5rem;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 2. Net revenue card */
+    .rev-card__label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #5B6472;
+      display: block;
+    }
+
+    .rev-card__amount {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: #14171C;
+      letter-spacing: -0.02em;
+      margin: 0.2rem 0;
+      line-height: 1.1;
+    }
+
+    .rev-card__sub {
+      font-size: 0.8rem;
+      color: #5B6472;
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .rev-card__tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .rev-tile {
+      background: #F3F5F8;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+    }
+
+    .rev-tile__num {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #14171C;
+      line-height: 1.2;
+    }
+
+    .rev-tile__label {
+      font-size: 0.8rem;
+      color: #5B6472;
+      margin-top: 0.2rem;
+    }
+
+    /* 3. Top projects card */
+    .top-proj-card__title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #14171C;
+      margin: 0 0 1rem 0;
+    }
+
+    .top-proj-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .top-proj-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-proj-item__top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .top-proj-item__name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #14171C;
+      line-height: 1.3;
+      flex: 1;
+    }
+
+    .top-proj-item__rev {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #14171C;
+      flex-shrink: 0;
+    }
+
+    .top-proj-bar-track {
+      width: 100%;
+      height: 4px;
+      background: #F3F5F8;
+      border-radius: 2px;
+      margin: 0.5rem 0 0.35rem 0;
+      overflow: hidden;
+    }
+
+    .top-proj-bar-fill {
+      height: 100%;
+      background: #D81F26;
+      border-radius: 2px;
+    }
+
+    .top-proj-item__sales {
+      font-size: 0.8rem;
+      color: #5B6472;
+    }
+
+    .top-proj-empty {
+      font-size: 0.85rem;
+      color: #5B6472;
+    }
+
+    .top-proj-footer-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #D81F26;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      margin-top: 1rem;
+      min-height: 44px;
+    }
+
+    /* 4. System health card */
+    .health-card__title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #14171C;
+      margin: 0 0 1rem 0;
+    }
+
+    .health-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .health-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 36px;
+    }
+
+    .health-row__left {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .health-dot.is-active {
+      background: #10B981;
+    }
+
+    .health-dot.is-disabled {
+      background: #5B6472;
+    }
+
+    .health-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #14171C;
+    }
+
+    .health-value {
+      font-size: 0.85rem;
+      color: #5B6472;
+    }
+  }
 </style>
