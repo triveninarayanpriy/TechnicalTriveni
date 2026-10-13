@@ -8,8 +8,10 @@ interface Props {
   project: ProjectFull | null;
   csrf: string;
   components?: Component[];
+  categories?: string[];
+  tags?: string[];
 }
-const { project, csrf, components = [] } = Astro.props;
+const { project, csrf, components = [], categories = [], tags = [] } = Astro.props;
 const p = project;
 const isNew = !p;
 const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
@@ -19,7 +21,7 @@ const hasCover = p?.images && p.images.length > 0;
 const hasPrice = p?.price_inr && p.price_inr > 0;
 const hasBom = p?.bom && p.bom.length > 0;
 
-const missingPublishChecks = [];
+const missingPublishChecks: string[] = [];
 if (!isNew) {
   if (!hasCover) missingPublishChecks.push('Cover image missing');
   if (isPaid && !hasPrice) missingPublishChecks.push('Price missing for paid combo');
@@ -36,52 +38,214 @@ if (p?.cost_checked) {
     }
   }
 }
+
+// Indicator dots: compute initial state for empty required fields
+const tabMissing = {
+  basics: !p?.title || !p?.summary,
+  content: !p?.description,
+  safety: !p?.safety_note,
+  media: !p?.images || p.images.length === 0,
+  parts: isPaid ? (!p?.bom || p.bom.length === 0) : false,
+  wiring: false, // Optional text pin-map
+  steps: !p?.steps || p.steps.length === 0,
+  troubleshooting: false, // Optional
+  files: isPaid ? (!p?.price_inr || !p?.files?.some((f) => f.in_combo)) : false,
+  seo: !p?.meta_title && !p?.title,
+};
 ---
 
 <div class="editor">
-  <!-- ===== Main details ===== -->
-  <form method="post" action="/api/admin/project/save" class="editor-form panel">
+  <!-- Hidden main project form anchor for all tab inputs -->
+  <form id="main-project-form" method="post" action="/api/admin/project/save" class="editor-main-form">
     <input type="hidden" name="csrf" value={csrf} />
     {p && <input type="hidden" name="id" value={p.id} />}
+  </form>
 
-    <div class="editor-save-bar" style="position: sticky; top: 0; z-index: 100; background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 1rem; display: flex; justify-content: space-between; align-items: center; margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-radius: var(--r-md) var(--r-md) 0 0;">
-      <div class="action-bar-left" style="display: flex; gap: 0.5rem; align-items: center;">
-        <h2 style="font-size: var(--fs-md); margin-right: 1rem;">{isNew ? 'New project' : 'Project details'}</h2>
-        {!isNew && <button type="button" class="btn btn-ghost btn-xs"><Icon name="copy" size={14} /> Duplicate</button>}
-        {!isNew && <button type="button" class="btn btn-ghost btn-xs"><Icon name="archive" size={14} /> Archive</button>}
-        {!isNew && <button type="button" class="btn btn-ghost btn-xs"><Icon name="history" size={14} /> History</button>}
-      </div>
-      <div class="action-bar-right" style="display: flex; gap: 0.75rem; align-items: center;">
-        {missingPublishChecks.length > 0 && (
-          <div class="publish-checks" style="font-size: 0.8rem; color: var(--danger); display: flex; align-items: center; gap: 0.25rem;" title={missingPublishChecks.join(', ')}>
-            <Icon name="alert-circle" size={14} /> Cannot Publish ({missingPublishChecks.length})
-          </div>
-        )}
-        <button type="submit" name="action" value="draft" class="btn btn-ghost"><Icon name="save" size={16} /> Save Draft</button>
-        {p && <a href={`/projects/${p.slug}`} target="_blank" class="btn btn-ghost"><Icon name="external" size={14} /> Preview</a>}
-        <button type="submit" name="action" value="publish" class="btn btn-primary" disabled={missingPublishChecks.length > 0} title={missingPublishChecks.join(', ')}><Icon name="send" size={16} /> Publish</button>
-      </div>
+  <!-- Sticky Save / Publish Action Bar -->
+  <header class="editor-save-bar">
+    <div class="action-bar-left">
+      <h2 class="editor-bar-title">{isNew ? 'New project' : p.title || 'Project details'}</h2>
+      {!isNew && (
+        <div class="action-bar-quick">
+          <button type="button" class="btn btn-ghost btn-xs" title="Duplicate project"><Icon name="copy" size={14} /> Duplicate</button>
+          <button type="button" class="btn btn-ghost btn-xs" title="Archive project"><Icon name="archive" size={14} /> Archive</button>
+          <button type="button" class="btn btn-ghost btn-xs" title="View version history"><Icon name="history" size={14} /> History</button>
+        </div>
+      )}
     </div>
+    <div class="action-bar-right">
+      {missingPublishChecks.length > 0 && (
+        <div class="publish-checks" title={missingPublishChecks.join(', ')}>
+          <Icon name="alert-circle" size={14} />
+          <span>Cannot Publish ({missingPublishChecks.length})</span>
+        </div>
+      )}
+      <button type="submit" form="main-project-form" name="action" value="draft" class="btn btn-ghost">
+        <Icon name="save" size={16} /> Save Draft
+      </button>
+      {p && (
+        <a href={`/projects/${p.slug}`} target="_blank" rel="noopener noreferrer" class="btn btn-ghost">
+          <Icon name="external" size={14} /> Preview
+        </a>
+      )}
+      <button
+        type="submit"
+        form="main-project-form"
+        name="action"
+        value="publish"
+        class="btn btn-primary"
+        disabled={missingPublishChecks.length > 0}
+        title={missingPublishChecks.length > 0 ? missingPublishChecks.join(', ') : 'Publish live to store'}
+      >
+        <Icon name="send" size={16} /> Publish
+      </button>
+    </div>
+  </header>
 
-    <div class="grid-2">
+  <!-- 10-Tab Navigation Bar -->
+  <nav class="editor-tab-bar" role="tablist" aria-label="Project Editor Tabs">
+    <button class="editor-tab-btn is-active" type="button" data-tab="basics" role="tab">
+      <Icon name="layers" size={15} />
+      <span>Basics</span>
+      <span class:list={['tab-dot', tabMissing.basics ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="basics" title={tabMissing.basics ? 'Required fields missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="content" role="tab">
+      <Icon name="file" size={15} />
+      <span>Content</span>
+      <span class:list={['tab-dot', tabMissing.content ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="content" title={tabMissing.content ? 'Required fields missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="safety" role="tab">
+      <Icon name="shield" size={15} />
+      <span>Safety &amp; Credits</span>
+      <span class:list={['tab-dot', tabMissing.safety ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="safety" title={tabMissing.safety ? 'Required fields missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="media" role="tab">
+      <Icon name="image" size={15} />
+      <span>Media</span>
+      <span class:list={['tab-dot', tabMissing.media ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="media" title={tabMissing.media ? 'Cover image missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="parts" role="tab">
+      <Icon name="cart" size={15} />
+      <span>Parts (BOM)</span>
+      <span class:list={['tab-dot', tabMissing.parts ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="parts" title={tabMissing.parts ? 'BOM items missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="wiring" role="tab">
+      <Icon name="cpu" size={15} />
+      <span>Wiring</span>
+      <span class:list={['tab-dot', tabMissing.wiring ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="wiring" title="Wiring connections"></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="steps" role="tab">
+      <Icon name="check-circle" size={15} />
+      <span>Build Steps</span>
+      <span class:list={['tab-dot', tabMissing.steps ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="steps" title={tabMissing.steps ? 'Build steps missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="troubleshooting" role="tab">
+      <Icon name="spark" size={15} />
+      <span>Troubleshooting</span>
+      <span class:list={['tab-dot', tabMissing.troubleshooting ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="troubleshooting" title="Troubleshooting tips"></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="files" role="tab">
+      <Icon name="download" size={15} />
+      <span>Files &amp; Pricing</span>
+      <span class:list={['tab-dot', tabMissing.files ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="files" title={tabMissing.files ? 'Paid files/price missing' : 'Complete'}></span>
+    </button>
+    <button class="editor-tab-btn" type="button" data-tab="seo" role="tab">
+      <Icon name="search" size={15} />
+      <span>SEO</span>
+      <span class:list={['tab-dot', tabMissing.seo ? 'tab-dot--warn' : 'tab-dot--ok']} data-tab-dot="seo" title={tabMissing.seo ? 'SEO title/description missing' : 'Complete'}></span>
+    </button>
+  </nav>
+
+  <!-- ==================== TAB 1: BASICS ==================== -->
+  <section class="editor-tab-panel" data-panel="basics">
+    <div class="panel">
+      <h3 class="panel-section-title"><Icon name="layers" size={18} /> Project Basics</h3>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="title">Title *</label>
+          <input class="input" id="title" name="title" form="main-project-form" required maxlength="140" value={val(p?.title)} data-title placeholder="e.g. ESP32 Autonomous Flight Controller" />
+        </div>
+        <div class="field">
+          <label class="label" for="slug">Slug (URL)</label>
+          <input class="input mono" id="slug" name="slug" form="main-project-form" maxlength="80" placeholder="auto-from-title" value={val(p?.slug)} data-slug />
+          <span class="field-hint">Leave blank to auto-generate from the title.</span>
+        </div>
+      </div>
+
       <div class="field">
-        <label class="label" for="title">Title *</label>
-        <input class="input" id="title" name="title" required maxlength="140" value={val(p?.title)} data-title />
+        <label class="label" for="summary">Summary *</label>
+        <input class="input" id="summary" name="summary" form="main-project-form" required maxlength="500" placeholder="One-line hook shown on cards & search results" value={val(p?.summary)} />
       </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label class="label" for="category">Category</label>
+          <input class="input" id="category" name="category" form="main-project-form" list="cat-list" value={val(p?.category) || 'Electronics'} />
+          <datalist id="cat-list">
+            <option value="Electronics"></option>
+            <option value="Robotics"></option>
+            <option value="AI"></option>
+            <option value="IoT"></option>
+            <option value="Software"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label class="label" for="difficulty">Difficulty</label>
+          <select class="select" id="difficulty" name="difficulty" form="main-project-form">
+            {DIFFICULTIES.map((d) => <option value={d} selected={p?.difficulty === d}>{d}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="build_time">Build time</label>
+          <input class="input" id="build_time" name="build_time" form="main-project-form" placeholder="2–3 hours" value={val(p?.build_time)} />
+        </div>
+      </div>
+
       <div class="field">
-        <label class="label" for="slug">Slug (URL)</label>
-        <input class="input mono" id="slug" name="slug" maxlength="80" placeholder="auto-from-title" value={val(p?.slug)} data-slug />
-        <span class="field-hint">Leave blank to auto-generate from the title.</span>
+        <label class="label" for="outcome_line">Outcome line</label>
+        <input class="input" id="outcome_line" name="outcome_line" form="main-project-form" maxlength="240" placeholder="₹800 me phone se chalne wala home automation system" value={val(p?.outcome_line)} />
+        <span class="field-hint">One concrete result shown right below the title on the public page.</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="tags">Tags (comma-separated)</label>
+        <input class="input" id="tags" name="tags" form="main-project-form" placeholder="ESP32, Drone, Sensors, Robotics" value={val(p?.tags)} />
+      </div>
+
+      <div class="field">
+        <label class="label" for="video_url">Video URL (YouTube)</label>
+        <input class="input mono" id="video_url" name="video_url" form="main-project-form" placeholder="https://youtube.com/watch?v=…" value={val(p?.video_url)} />
+      </div>
+
+      <div class="editor-toggles">
+        <label class="switch"><input type="checkbox" name="published" form="main-project-form" checked={p?.published === 1} /> <span>Published (live on store)</span></label>
+        <label class="switch"><input type="checkbox" name="featured" form="main-project-form" checked={p?.featured === 1} /> <span>Featured on homepage</span></label>
+        <label class="switch"><input type="checkbox" name="is_new" form="main-project-form" checked={p?.is_new === 1} /> <span>Show “NEW” badge</span></label>
+        <div class="field field--inline">
+          <label class="label" for="sort">Sort weight</label>
+          <input class="input input--sm" id="sort" name="sort" form="main-project-form" type="number" value={val(p?.sort ?? 0)} />
+        </div>
       </div>
     </div>
+  </section>
 
-    <div class="field">
-      <label class="label" for="summary">Summary *</label>
-      <input class="input" id="summary" name="summary" required maxlength="500" placeholder="One-line hook shown on cards & search" value={val(p?.summary)} />
-    </div>
+  <!-- ==================== TAB 2: CONTENT ==================== -->
+  <section class="editor-tab-panel" data-panel="content" hidden>
+    <div class="panel">
+      <h3 class="panel-section-title"><Icon name="file" size={18} /> Description &amp; Core Content</h3>
 
-    <div class="field">
-      
+      <div class="field">
+        <label class="label" for="description">Overview &amp; Description (Markdown) *</label>
+        <textarea class="textarea editor-desc" id="description" name="description" form="main-project-form" placeholder="## What you'll build…" data-markdown>{val(p?.description)}</textarea>
+        <span class="field-hint">Primary overview text rendered above the steps and learning outcomes. Supports Markdown headings, bold, code chips, and links.</span>
+      </div>
+
+      <div class="field">
+        <label class="label">What you will learn / Outcomes</label>
+        <div class="list-editor" data-name="outcomes_json" data-type="string" data-value={val(p?.outcomes_json) || '[]'}></div>
+      </div>
+
       <div class="field">
         <label class="label">Prerequisites</label>
         <div class="list-editor" data-name="prereqs_json" data-type="string" data-value={val(p?.prereqs_json) || '[]'}></div>
@@ -93,238 +257,116 @@ if (p?.cost_checked) {
       </div>
 
       <div class="field">
-        <label class="label">What you will learn / Outcomes</label>
-        <div class="list-editor" data-name="outcomes_json" data-type="string" data-value={val(p?.outcomes_json) || '[]'}></div>
-      </div>
-
-      <div class="field">
-        <label class="label">FAQ</label>
+        <label class="label">Frequently Asked Questions (FAQ)</label>
         <div class="list-editor" data-name="faq_json" data-type="faq" data-value={val(p?.faq_json) || '[]'}></div>
       </div>
-
-      <label class="label" for="description">Description (Markdown) - Used for v1 or as intro for v2</label>
-      <textarea class="textarea editor-desc" id="description" name="description" placeholder="## What you'll build…" data-markdown>{val(p?.description)}</textarea>
-      <span class="field-hint">Supports Markdown: ## headings, **bold**, lists, `code`, links.</span>
     </div>
+  </section>
 
-    <div class="grid-3">
-      <div class="field">
-        <label class="label" for="category">Category</label>
-        <input class="input" id="category" name="category" list="cat-list" value={val(p?.category) || 'Electronics'} />
-        <datalist id="cat-list">
-          <option value="Electronics"></option><option value="Robotics"></option>
-          <option value="AI"></option><option value="IoT"></option><option value="Software"></option>
-        </datalist>
-      </div>
-      <div class="field">
-        <label class="label" for="difficulty">Difficulty</label>
-        <select class="select" id="difficulty" name="difficulty">
-          {DIFFICULTIES.map((d) => <option value={d} selected={p?.difficulty === d}>{d}</option>)}
-        </select>
-      </div>
-      <div class="field">
-        <label class="label" for="build_time">Build time</label>
-        <input class="input" id="build_time" name="build_time" placeholder="2–3 hours" value={val(p?.build_time)} />
-      </div>
-    </div>
+  <!-- ==================== TAB 3: SAFETY & CREDITS ==================== -->
+  <section class="editor-tab-panel" data-panel="safety" hidden>
+    <div class="panel">
+      <h3 class="panel-section-title"><Icon name="shield" size={18} /> Safety &amp; Legal Notices</h3>
 
-    <div class="field">
-      <label class="label" for="video_url">Video URL (YouTube)</label>
-      <input class="input mono" id="video_url" name="video_url" placeholder="https://youtube.com/…" value={val(p?.video_url)} />
-    </div>
-
-    <div class="field-hint field-hint--block">
-      <Icon name="layers" size={14} /> The cover thumbnail and the 3D showcase are set automatically from the <strong>Media</strong> section below — whatever you drag to the front becomes the lead. Add images and <span class="mono">.glb</span> 3D files there.
-    </div>
-
-    <div class="field">
-      <label class="label" for="tags">Tags (comma-separated)</label>
-      <input class="input" id="tags" name="tags" placeholder="ESP32, IoT, Sensors" value={val(p?.tags)} />
-    </div>
-
-    <fieldset class="editor-fieldset">
-      <legend>Project page details</legend>
-      <div class="field">
-        <label class="label" for="outcome_line">Outcome line</label>
-        <input class="input" id="outcome_line" name="outcome_line" maxlength="240" placeholder="₹800 me phone se chalne wala home automation system" value={val(p?.outcome_line)} />
-        <span class="field-hint">One concrete result shown under the title.</span>
-      </div>
-      {showStalePriceWarning && (
-        <div class="stale-warning" style="background: rgba(245, 158, 11, 0.1); color: #d97706; padding: 0.75rem; border: 1px solid #d97706; border-radius: var(--r-sm); margin-bottom: 1rem;">
-          <Icon name="alert-triangle" size={16} /> <strong>Stale Price Warning:</strong> Cost checked date is older than 60 days. Please verify prices.
-        </div>
-      )}
-      <div class="grid-3">
-        <div class="field">
-          <label class="label" for="est_cost">Approx build cost</label>
-          <input class="input" id="est_cost" name="est_cost" placeholder="₹800" value={val(p?.est_cost)} />
-        </div>
-        <div class="field">
-          <label class="label" for="cost_checked">Cost checked on</label>
-          <input class="input" id="cost_checked" name="cost_checked" placeholder="Sep 2026" value={val(p?.cost_checked)} />
-        </div>
-        <div class="field">
-          <label class="label" for="license">Code license</label>
-          <input class="input" id="license" name="license" placeholder="MIT" value={val(p?.license) || 'MIT'} />
-        </div>
-      </div>
-      <div class="field">
-        <label class="label" for="code_repo_url">GitHub repo URL</label>
-        <input class="input mono" id="code_repo_url" name="code_repo_url" placeholder="https://github.com/…" value={val(p?.code_repo_url)} />
-      </div>
       <div class="field">
         <label class="label" for="safety_note">Safety note (Markdown) — required for mains / battery / motor builds</label>
-        <textarea class="textarea" id="safety_note" name="safety_note" placeholder="This project uses 230V AC mains. Work with power off…" data-markdown data-templates="safety">{val(p?.safety_note)}</textarea>
-        <span class="field-hint">Shown as a red safety callout at the top of the build.</span>
+        <textarea class="textarea" id="safety_note" name="safety_note" form="main-project-form" placeholder="This project uses 230V AC mains. Work with power off…" data-markdown data-templates="safety">{val(p?.safety_note)}</textarea>
+        <span class="field-hint">Rendered as a prominent red safety callout banner at the top of the project build.</span>
       </div>
-      <div class="field">
-        <label class="label" for="credits">Credits &amp; attributions (Markdown)</label>
-        <textarea class="textarea" id="credits" name="credits" placeholder="Library X by … (MIT). Wiring based on …" data-markdown>{val(p?.credits)}</textarea>
-      </div>
-    </fieldset>
 
-    <fieldset class="editor-fieldset">
-      <legend>Search &amp; social (SEO)</legend>
-      <p class="field-hint" style="margin-top:-0.25rem">Leave blank to auto-use the title, summary and cover image.</p>
-      <div class="field">
-        <label class="label" for="meta_title">Meta title <span id="meta-title-count" class="dim mono" style="float:right">(0/60)</span></label>
-        <input class="input" id="meta_title" name="meta_title" maxlength="70" placeholder={val(p?.title) || 'Defaults to the project title'} value={val(p?.meta_title)} />
-        <span class="field-hint">~60 characters shows best in Google.</span>
-      </div>
-      <div class="field">
-        <label class="label" for="meta_description">Meta description <span id="meta-desc-count" class="dim mono" style="float:right">(0/160)</span></label>
-        <textarea class="textarea" id="meta_description" name="meta_description" maxlength="180" placeholder="Defaults to the summary">{val(p?.meta_description)}</textarea>
-        <span class="field-hint">~155 characters. This is the snippet under your link in search results.</span>
-      </div>
-      <div class="field">
-        <label class="label" for="og_image">Social share image URL</label>
-        <input class="input mono" id="og_image" name="og_image" placeholder="/media/… (defaults to the cover)" value={val(p?.og_image)} />
-      </div>
-    </fieldset>
-
-    <fieldset class="editor-fieldset">
-      <legend>Paid combo</legend>
-      <div class="grid-2">
-        <div class="field">
-          <label class="label" for="price_inr">Price (₹)</label>
-          <input class="input" id="price_inr" name="price_inr" type="number" min="0" step="1" value={p?.price_inr > 0 ? p.price_inr : ''} />
+      <!-- Closed-by-default accordion for Credits -->
+      <details class="editor-accordion">
+        <summary class="editor-accordion__summary">
+          <span class="editor-accordion__title"><Icon name="user" size={16} /> Credits &amp; Attributions</span>
+          <span class="dim" style="font-size: var(--fs-xs);">Third-party libraries, schematics &amp; original creators</span>
+        </summary>
+        <div class="editor-accordion__content">
+          <div class="field">
+            <label class="label" for="credits">Credits &amp; attributions (Markdown)</label>
+            <textarea class="textarea" id="credits" name="credits" form="main-project-form" placeholder="Library X by … (MIT). Wiring based on …" data-markdown>{val(p?.credits)}</textarea>
+            <span class="field-hint">Credit open-source authors, hardware contributors, and reference schematics.</span>
+          </div>
         </div>
-        <div class="field">
-          <label class="label" for="combo_title">Combo title</label>
-          <input class="input" id="combo_title" name="combo_title" value={val(p?.combo_title) || 'Complete Project Combo'} />
-        </div>
-      </div>
-      <div class="field">
-        <label class="label" for="combo_description">What the buyer gets</label>
-        <textarea class="textarea" id="combo_description" name="combo_description" placeholder="Source code, schematic (PDF), 3D files (STL), build guide…">{val(p?.combo_description)}</textarea>
-      </div>
-      <div class="combo-foot">
-        <label class="switch"><input type="checkbox" name="combo_enabled" checked={p?.combo_enabled === 1} /> <span>Combo is purchasable</span></label>
-        {p && (
-          <button
-            type="submit"
-            form={`free-${p.id}`}
-            class="btn btn-free"
-            title="Set price to ₹0 and turn off the paid combo"
-          ><Icon name="spark" size={15} /> Make it completely free</button>
-        )}
-      </div>
-    </fieldset>
-
-    <div class="editor-toggles">
-      <label class="switch"><input type="checkbox" name="published" checked={p?.published === 1} /> <span>Published (live on site)</span></label>
-      <label class="switch"><input type="checkbox" name="featured" checked={p?.featured === 1} /> <span>Featured on home</span></label>
-      <label class="switch"><input type="checkbox" name="is_new" checked={p?.is_new === 1} /> <span>Show “NEW” badge</span></label>
-      <div class="field field--inline">
-        <label class="label" for="sort">Sort</label>
-        <input class="input input--sm" id="sort" name="sort" type="number" value={val(p?.sort ?? 0)} />
-      </div>
+      </details>
     </div>
+  </section>
 
-    <!-- bottom buttons removed in favor of sticky action bar -->
-  </form>
-
-  {p && (
-    <form id={`free-${p.id}`} method="post" action="/api/admin/project/action" hidden>
-      <input type="hidden" name="csrf" value={csrf} />
-      <input type="hidden" name="id" value={p.id} />
-      <input type="hidden" name="action" value="makefree" />
-    </form>
-  )}
-
-  {isNew && (
-    <p class="editor-note dim"><Icon name="spark" size={14} /> Save the project first — then you can add media, resource files, the parts list and links.</p>
-  )}
-
-  {p && (
-    <div class="editor-children">
-      <!-- ===== Media (photos + 3D) ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="layers" size={18} /> Media — photos & 3D</h3>
-        <p class="dim child-lead">Upload photos and <span class="mono">.glb / .gltf</span> 3D files together. Reorder with the arrows — the <strong>first item is the cover thumbnail</strong>, and if it’s a 3D file it shows as the rotatable showcase.</p>
+  <!-- ==================== TAB 4: MEDIA ==================== -->
+  <section class="editor-tab-panel" data-panel="media" hidden>
+    {isNew ? (
+      <div class="panel empty-state">
+        <Icon name="spark" size={24} />
+        <h4>Save the project first</h4>
+        <p class="dim">Click "Save Draft" in the top bar to initialize this project, then you can upload photos, cover thumbnails, and 3D models.</p>
+      </div>
+    ) : (
+      <div class="panel">
+        <h3 class="panel-section-title"><Icon name="layers" size={18} /> Media — Photos &amp; 3D Models</h3>
+        <p class="dim child-lead">Upload photos and <span class="mono">.glb / .gltf</span> 3D files together. The <strong>first item is the cover thumbnail</strong>. If the lead item is a 3D file, it displays as an interactive rotatable showcase.</p>
 
         <div class="media-list">
           {p.images.map((img, i) => {
             const isUnused = img.kind !== 'cover' && img.kind !== 'model' && !(p.description?.includes(img.url)) && !(p.safety_note?.includes(img.url));
             const displayName = img.url.split('/').pop()?.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-/, '') || '';
             return (
-            <div class:list={['media-item', { 'media-item--lead': i === 0 }]}>
-              <div class="media-item__preview">
-                {img.kind === 'model' ? (
-                  <div class="media-item__model"><Icon name="layers" size={20} /><span>3D</span></div>
-                ) : (
-                  <img src={img.url} alt={img.caption} loading="lazy" />
-                )}
-                {i === 0 && <span class="media-item__lead-tag">{img.kind === 'model' ? '3D showcase' : 'Thumbnail'}</span>}
-              </div>
-              <div class="media-item__body">
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                  <span class:list={['kind-badge', img.kind === 'model' ? 'kind-badge--3d' : (img.kind === 'cover' ? 'kind-badge--cover' : 'kind-badge--img')]}>
-                    {img.kind === 'model' ? '3D model' : (img.kind === 'cover' ? 'Cover' : 'Photo')}
-                  </span>
-                  {isUnused && <span class="mini-tag" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger);">Unused</span>}
+              <div class:list={['media-item', { 'media-item--lead': i === 0 }]}>
+                <div class="media-item__preview">
+                  {img.kind === 'model' ? (
+                    <div class="media-item__model"><Icon name="layers" size={20} /><span>3D</span></div>
+                  ) : (
+                    <img src={img.url} alt={img.caption || displayName} loading="lazy" />
+                  )}
+                  {i === 0 && <span class="media-item__lead-tag">{img.kind === 'model' ? '3D showcase' : 'Thumbnail'}</span>}
                 </div>
-                <span class="dim mono media-item__name" title={img.url}>{displayName}</span>
-                <form method="post" action="/api/admin/media/update" style="margin-top: 0.25rem;">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={img.id} />
-                  <input type="hidden" name="project_id" value={p.id} />
-                  <input class="input input--sm" style="width: 100%; font-size: var(--fs-xs); padding: 0.2rem 0.4rem;" name="caption" value={img.caption || ''} placeholder="Alt text / caption..." onchange="this.form.submit()" />
-                </form>
-              </div>
-              <div class="media-item__ctrl">
-                {img.kind !== 'cover' && img.kind !== 'model' && (
-                  <form method="post" action="/api/admin/media/update" class="inline-form">
+                <div class="media-item__body">
+                  <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span class:list={['kind-badge', img.kind === 'model' ? 'kind-badge--3d' : (img.kind === 'cover' ? 'kind-badge--cover' : 'kind-badge--img')]}>
+                      {img.kind === 'model' ? '3D model' : (img.kind === 'cover' ? 'Cover' : 'Photo')}
+                    </span>
+                    {isUnused && <span class="mini-tag" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger);">Unused</span>}
+                  </div>
+                  <span class="dim mono media-item__name" title={img.url}>{displayName}</span>
+                  <form method="post" action="/api/admin/media/update" style="margin-top: 0.25rem;">
                     <input type="hidden" name="csrf" value={csrf} />
                     <input type="hidden" name="id" value={img.id} />
                     <input type="hidden" name="project_id" value={p.id} />
-                    <input type="hidden" name="kind" value="cover" />
-                    <button class="ctrl-btn" style="color: var(--brand-red);" type="submit" title="Set as Cover"><Icon name="image" size={15} /></button>
+                    <input class="input input--sm" style="width: 100%; font-size: var(--fs-xs); padding: 0.2rem 0.4rem;" name="caption" value={img.caption || ''} placeholder="Alt text / caption..." onchange="this.form.submit()" />
                   </form>
-                )}
-                <form method="post" action="/api/admin/project/action" class="inline-form">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={p.id} />
-                  <input type="hidden" name="media_id" value={img.id} />
-                  <input type="hidden" name="action" value="moveup" />
-                  <button class="ctrl-btn" type="submit" title="Move earlier" disabled={i === 0}><Icon name="chevron-up" size={15} /></button>
-                </form>
-                <form method="post" action="/api/admin/project/action" class="inline-form">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={p.id} />
-                  <input type="hidden" name="media_id" value={img.id} />
-                  <input type="hidden" name="action" value="movedown" />
-                  <button class="ctrl-btn" type="submit" title="Move later" disabled={i === p.images.length - 1}><Icon name="chevron-down" size={15} /></button>
-                </form>
-                <form method="post" action="/api/admin/media/delete" class="inline-form">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={img.id} />
-                  <input type="hidden" name="project_id" value={p.id} />
-                  <button class="ctrl-btn ctrl-btn--del" type="submit" title="Delete"><Icon name="close" size={14} /></button>
-                </form>
+                </div>
+                <div class="media-item__ctrl">
+                  {img.kind !== 'cover' && img.kind !== 'model' && (
+                    <form method="post" action="/api/admin/media/update" class="inline-form">
+                      <input type="hidden" name="csrf" value={csrf} />
+                      <input type="hidden" name="id" value={img.id} />
+                      <input type="hidden" name="project_id" value={p.id} />
+                      <input type="hidden" name="kind" value="cover" />
+                      <button class="ctrl-btn" style="color: var(--brand-red);" type="submit" title="Set as Cover"><Icon name="image" size={15} /></button>
+                    </form>
+                  )}
+                  <form method="post" action="/api/admin/project/action" class="inline-form">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={p.id} />
+                    <input type="hidden" name="media_id" value={img.id} />
+                    <input type="hidden" name="action" value="moveup" />
+                    <button class="ctrl-btn" type="submit" title="Move earlier" disabled={i === 0}><Icon name="chevron-up" size={15} /></button>
+                  </form>
+                  <form method="post" action="/api/admin/project/action" class="inline-form">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={p.id} />
+                    <input type="hidden" name="media_id" value={img.id} />
+                    <input type="hidden" name="action" value="movedown" />
+                    <button class="ctrl-btn" type="submit" title="Move later" disabled={i === p.images.length - 1}><Icon name="chevron-down" size={15} /></button>
+                  </form>
+                  <form method="post" action="/api/admin/media/delete" class="inline-form">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={img.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <button class="ctrl-btn ctrl-btn--del" type="submit" title="Delete" onclick="return confirm('Delete this media item?');"><Icon name="close" size={14} /></button>
+                  </form>
+                </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
           {p.images.length === 0 && <p class="dim">No media yet — add photos or 3D files below.</p>}
         </div>
 
@@ -344,6 +386,7 @@ if (p?.cost_checked) {
             <span class="upload-progress__pct mono" data-progress-pct>0%</span>
           </div>
         </form>
+
         <details class="url-add">
           <summary class="dim">…or add by URL</summary>
           <form method="post" action="/api/admin/media/add" class="add-row" style="margin-top:0.75rem">
@@ -354,12 +397,363 @@ if (p?.cost_checked) {
             <button class="btn btn-ghost" type="submit">Add</button>
           </form>
         </details>
-      </section>
+      </div>
+    )}
+  </section>
 
-            <!-- ===== Resource files ===== -->
-      <section class="child-panel panel" id="resource-files">
-        <h3><Icon name="download" size={18} /> Resource Documents & Files</h3>
-        <p class="dim child-lead">Manage all downloadable files for this project (Code, PDFs, 3D files). You can set files as completely free for anyone to download, or restrict them to only buyers of the Combo Pack.</p>
+  <!-- ==================== TAB 5: PARTS (BOM) [FULLY EXPANDED] ==================== -->
+  <section class="editor-tab-panel" data-panel="parts" hidden>
+    {isNew ? (
+      <div class="panel empty-state">
+        <Icon name="spark" size={24} />
+        <h4>Save the project first</h4>
+        <p class="dim">Click "Save Draft" in the top bar to initialize this project, then you can build the Bill of Materials.</p>
+      </div>
+    ) : (
+      <div class="panel">
+        <h3 class="panel-section-title"><Icon name="cart" size={18} /> Components &amp; Bill of Materials (BOM)</h3>
+        
+        <!-- Cost summary -->
+        <div class="grid-3" style="margin-bottom: 1.25rem;">
+          <div class="field">
+            <label class="label" for="est_cost">Approx build cost <span id="computed-cost" class="dim mono"></span></label>
+            <input class="input" id="est_cost" name="est_cost" form="main-project-form" placeholder="₹800" value={val(p?.est_cost)} />
+          </div>
+          <div class="field">
+            <label class="label" for="cost_checked">Cost checked on</label>
+            <input class="input" id="cost_checked" name="cost_checked" form="main-project-form" placeholder="Sep 2026" value={val(p?.cost_checked)} />
+          </div>
+        </div>
+
+        {showStalePriceWarning && (
+          <div class="stale-warning" style="background: rgba(245, 158, 11, 0.1); color: #d97706; padding: 0.75rem 1rem; border: 1px solid #d97706; border-radius: var(--r-sm); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+            <Icon name="alert-triangle" size={16} />
+            <span><strong>Stale Price Warning:</strong> Cost checked date is older than 60 days. Please verify component pricing.</span>
+          </div>
+        )}
+
+        <!-- Fully expanded BOM list -->
+        <div class="rows">
+          {p.bom.map((b) => (
+            <details class="data-row-edit bom-row" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
+              <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+                <div class="data-row__main" style="flex: 1;">
+                  <strong>{b.name} <span class="dim mono">x{b.qty}</span>{b.unit_price_inr > 0 && <span class="dim mono"> • ₹{b.unit_price_inr}</span>}</strong>
+                  <span class="dim" style="font-size: 0.8rem; margin-top: 0.2rem;">{b.store || '—'}{b.affiliate_url ? ' • link set' : ' • no link'}{b.is_affiliate === 1 ? ' • affiliate' : ''}</span>
+                </div>
+                <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
+                  <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
+                  <form method="post" action="/api/admin/bom/delete" class="inline-form" onsubmit="return confirm('Delete this part?');">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={b.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
+                  </form>
+                </div>
+              </summary>
+              <form method="post" action="/api/admin/bom/update" class="bom-add" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={b.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                
+                <div class="grid-bom">
+                  <input class="input" name="name" value={b.name} placeholder="Component" required />
+                  <input class="input" name="qty" value={b.qty} placeholder="Qty" />
+                  <input class="input" name="unit_price_inr" value={b.unit_price_inr || ''} type="number" min="0" placeholder="₹ price" />
+                </div>
+                <div class="grid-3">
+                  <input class="input" name="store" value={b.store || ''} placeholder="Store (Amazon, Robu…)" />
+                  <input class="input" name="price_checked" value={b.price_checked || ''} placeholder="Checked (Sep 2026)" />
+                  <input class="input mono" name="affiliate_url" value={b.affiliate_url || ''} placeholder="Buy / affiliate URL" />
+                </div>
+                <div class="grid-2">
+                  <input class="input" name="notes" value={b.notes || ''} placeholder="Notes / substitutes (optional)" />
+                  <div class="bom-add__foot">
+                    <label class="switch"><input type="checkbox" name="is_affiliate" checked={b.is_affiliate === 1} /> <span>Affiliate link</span></label>
+                    <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Changes</button>
+                  </div>
+                </div>
+              </form>
+            </details>
+          ))}
+          {p.bom.length === 0 && <p class="dim">No components yet.</p>}
+        </div>
+
+        <!-- Fully expanded Add BOM Item Form -->
+        <form method="post" action="/api/admin/bom/add" class="bom-add" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
+          <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Component</h4>
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          {components.length > 0 && (
+            <div class="field">
+              <label class="label">From library <span class="dim">(optional — keeps price live)</span></label>
+              <select class="select" name="component_id" data-comp-pick>
+                <option value="0">— Custom component (fill fields below) —</option>
+                {components.map((c) => (
+                  <option value={c.id}>{c.name}{c.unit_price_inr > 0 ? ` · ₹${c.unit_price_inr}` : ''}{c.store ? ` · ${c.store}` : ''}</option>
+                ))}
+              </select>
+              <span class="field-hint">Pick a saved part and the fields below are ignored — its live price/link are used everywhere.</span>
+            </div>
+          )}
+          <div class="grid-bom" data-comp-fields>
+            <input class="input" name="name" placeholder="Component" />
+            <input class="input" name="qty" placeholder="Qty" value="1" />
+            <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
+          </div>
+          <div class="grid-3" data-comp-fields>
+            <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
+            <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
+            <input class="input mono" name="affiliate_url" placeholder="Buy / affiliate URL" />
+          </div>
+          <div class="grid-2" data-comp-fields>
+            <input class="input" name="notes" placeholder="Notes / substitutes (optional)" />
+            <div class="bom-add__foot">
+              <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
+              <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add to BOM</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    )}
+  </section>
+
+  <!-- ==================== TAB 6: WIRING [FULLY EXPANDED] ==================== -->
+  <section class="editor-tab-panel" data-panel="wiring" hidden>
+    {isNew ? (
+      <div class="panel empty-state">
+        <Icon name="spark" size={24} />
+        <h4>Save the project first</h4>
+        <p class="dim">Click "Save Draft" in the top bar to initialize this project, then you can configure pin connections.</p>
+      </div>
+    ) : (
+      <div class="panel">
+        <h3 class="panel-section-title"><Icon name="cpu" size={18} /> Wiring &amp; Pin Connections</h3>
+        <p class="dim child-lead">A text pin-map (from → to). Searchable, accessible, and essential alongside schematic diagrams.</p>
+
+        <!-- Fully expanded connections list -->
+        <div class="rows">
+          {p.pins.map((pin) => (
+            <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
+              <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+                <div class="data-row__main" style="flex: 1;">
+                  <strong class="mono">{pin.from_pin} → {pin.to_pin}</strong>
+                  {pin.module && <span class="mini-tag" style="margin-left: 0.5rem;">{pin.module}</span>}
+                  {pin.note && <span class="dim" style="display: block; margin-top: 0.2rem;">{pin.note}</span>}
+                </div>
+                <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
+                  <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
+                  <form method="post" action="/api/admin/pin/delete" class="inline-form" onsubmit="return confirm('Delete connection?');">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={pin.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
+                  </form>
+                </div>
+              </summary>
+              <form method="post" action="/api/admin/pin/update" class="add-row" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={pin.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <input class="input mono" name="from_pin" value={pin.from_pin} placeholder="From (ESP32 D5)" required />
+                <input class="input mono" name="to_pin" value={pin.to_pin} placeholder="To (Relay IN1)" required />
+                <input class="input" name="module" value={pin.module || ''} placeholder="Module / Board (optional)" />
+                <input class="input" name="note" value={pin.note || ''} placeholder="Note (optional)" />
+                <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save</button>
+              </form>
+            </details>
+          ))}
+          {p.pins.length === 0 && <p class="dim">No pin connections configured yet.</p>}
+        </div>
+
+        <!-- Fully expanded Add Pin Form -->
+        <form method="post" action="/api/admin/pin/add" class="add-row" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          <input class="input mono" name="from_pin" placeholder="From (e.g. ESP32 D5)" required />
+          <input class="input mono" name="to_pin" placeholder="To (e.g. Relay IN1)" required />
+          <input class="input" name="note" placeholder="Note (optional e.g. 10k Pull-up)" />
+          <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Pin</button>
+        </form>
+      </div>
+    )}
+  </section>
+
+  <!-- ==================== TAB 7: BUILD STEPS [FULLY EXPANDED] ==================== -->
+  <section class="editor-tab-panel" data-panel="steps" hidden>
+    {isNew ? (
+      <div class="panel empty-state">
+        <Icon name="spark" size={24} />
+        <h4>Save the project first</h4>
+        <p class="dim">Click "Save Draft" in the top bar to initialize this project, then you can write build instructions.</p>
+      </div>
+    ) : (
+      <div class="panel">
+        <h3 class="panel-section-title"><Icon name="check-circle" size={18} /> Step-by-Step Instructions</h3>
+        <p class="dim child-lead">Numbered build instructions with an optional rationale ("Why"). Reorder steps using the arrows.</p>
+
+        <!-- Fully expanded Steps list -->
+        <div class="rows">
+          {p.steps.map((s, i) => (
+            <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
+              <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+                <span class="data-row__icon step-badge">{i + 1}</span>
+                <div class="data-row__main" style="flex: 1;">
+                  <strong>{s.title || s.body.slice(0, 60) || 'Step'}</strong>
+                  {s.why && <span class="dim">Why: {s.why}</span>}
+                </div>
+                <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
+                  <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
+                  {['up', 'down'].map((dir) => (
+                    <form method="post" action="/api/admin/step/move" class="inline-form">
+                      <input type="hidden" name="csrf" value={csrf} />
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="project_id" value={p.id} />
+                      <input type="hidden" name="dir" value={dir} />
+                      <button class="btn btn-ghost btn-xs" type="submit" onclick="event.stopPropagation();" disabled={dir === 'up' ? i === 0 : i === p.steps.length - 1}>
+                        <Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} />
+                      </button>
+                    </form>
+                  ))}
+                  <form method="post" action="/api/admin/step/delete" class="inline-form" onsubmit="return confirm('Delete step?');">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={s.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
+                  </form>
+                </div>
+              </summary>
+              <form method="post" action="/api/admin/step/update" class="stack-add" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={s.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <input class="input" name="title" value={s.title || ''} placeholder="Title (optional)" />
+                <textarea class="textarea" name="body" placeholder="Step instructions (Markdown)…" required data-markdown>{s.body}</textarea>
+                <input class="input" name="why" value={s.why || ''} placeholder="Why are we doing this? (optional)" />
+                <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Step</button>
+              </form>
+            </details>
+          ))}
+          {p.steps.length === 0 && <p class="dim">No steps added yet.</p>}
+        </div>
+
+        <!-- Fully expanded Add Step Form -->
+        <form method="post" action="/api/admin/step/add" class="stack-add" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
+          <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Build Step</h4>
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          <input class="input" name="title" placeholder="Step title (e.g. Flash the Microcontroller)" />
+          <textarea class="textarea" name="body" placeholder="Step instruction details (supports Markdown, code chips, bullet points)…" required data-markdown></textarea>
+          <div class="grid-2">
+            <input class="input" name="why" placeholder="Why / gotcha note (optional)" />
+            <input class="input mono" name="image_url" placeholder="Diagram or photo /media URL (optional)" />
+          </div>
+          <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Step</button>
+        </form>
+      </div>
+    )}
+  </section>
+
+  <!-- ==================== TAB 8: TROUBLESHOOTING ==================== -->
+  <section class="editor-tab-panel" data-panel="troubleshooting" hidden>
+    {isNew ? (
+      <div class="panel empty-state">
+        <Icon name="spark" size={24} />
+        <h4>Save the project first</h4>
+        <p class="dim">Click "Save Draft" in the top bar to initialize this project, then you can add troubleshooting tips.</p>
+      </div>
+    ) : (
+      <div class="panel">
+        <h3 class="panel-section-title"><Icon name="spark" size={18} /> Troubleshooting &amp; Common Pitfalls</h3>
+        <p class="dim child-lead">Symptom → fix mapping. These rank exceptionally well in search when makers paste terminal errors.</p>
+
+        <div class="rows">
+          {p.troubleshooting.map((t) => (
+            <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
+              <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+                <div class="data-row__main" style="flex: 1;">
+                  <strong>{t.symptom}</strong>
+                  <span class="dim" style="display: block; margin-top: 0.2rem;">{t.fix}</span>
+                </div>
+                <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
+                  <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
+                  <form method="post" action="/api/admin/trouble/delete" class="inline-form" onsubmit="return confirm('Delete tip?');">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={t.id} />
+                    <input type="hidden" name="project_id" value={p.id} />
+                    <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
+                  </form>
+                </div>
+              </summary>
+              <form method="post" action="/api/admin/trouble/update" class="stack-add" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={t.id} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <input class="input" name="symptom" value={t.symptom} placeholder="Symptom e.g. LED not lighting up" required />
+                <textarea class="textarea" name="fix" placeholder="The fix (Markdown)…" required data-markdown>{t.fix}</textarea>
+                <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Tip</button>
+              </form>
+            </details>
+          ))}
+          {p.troubleshooting.length === 0 && <p class="dim">No troubleshooting tips added yet.</p>}
+        </div>
+
+        <form method="post" action="/api/admin/trouble/add" class="stack-add" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
+          <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Troubleshooting Tip</h4>
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="project_id" value={p.id} />
+          <input class="input" name="symptom" placeholder="Symptom e.g. 'Failed to connect to ESP32: Timed out waiting for packet header'" required />
+          <textarea class="textarea" name="fix" placeholder="The fix (Markdown: hold Boot button while plugging in USB, check baud rate)…" required data-markdown></textarea>
+          <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Tip</button>
+        </form>
+      </div>
+    )}
+  </section>
+
+  <!-- ==================== TAB 9: FILES & PRICING ==================== -->
+  <section class="editor-tab-panel" data-panel="files" hidden>
+    <!-- Paid Combo Settings -->
+    <div class="panel">
+      <h3 class="panel-section-title"><Icon name="cart" size={18} /> Pricing &amp; Digital Goods Combo Pack</h3>
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="price_inr">Price (₹)</label>
+          <input class="input" id="price_inr" name="price_inr" form="main-project-form" type="number" min="0" step="1" value={p?.price_inr && p.price_inr > 0 ? p.price_inr : ''} placeholder="e.g. 499" />
+        </div>
+        <div class="field">
+          <label class="label" for="combo_title">Combo title</label>
+          <input class="input" id="combo_title" name="combo_title" form="main-project-form" value={val(p?.combo_title) || 'Complete Project Combo'} />
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="combo_description">What the buyer gets</label>
+        <textarea class="textarea" id="combo_description" name="combo_description" form="main-project-form" placeholder="Source code, schematic (PDF), 3D files (STL), build guide…">{val(p?.combo_description)}</textarea>
+      </div>
+      <div class="combo-foot">
+        <label class="switch"><input type="checkbox" name="combo_enabled" form="main-project-form" checked={p?.combo_enabled === 1} /> <span>Combo is purchasable on store</span></label>
+        {p && (
+          <button
+            type="submit"
+            form={`free-${p.id}`}
+            class="btn btn-free"
+            title="Set price to ₹0 and turn off the paid combo"
+          ><Icon name="spark" size={15} /> Make it completely free</button>
+        )}
+      </div>
+    </div>
+
+    <!-- Resource Files Section -->
+    {isNew ? (
+      <div class="panel empty-state">
+        <Icon name="download" size={24} />
+        <h4>Save the project first</h4>
+        <p class="dim">Click "Save Draft" in the top bar to initialize this project, then you can upload downloadable resource files.</p>
+      </div>
+    ) : (
+      <div class="panel" id="resource-files">
+        <h3 class="panel-section-title"><Icon name="download" size={18} /> Downloadable Resource Files</h3>
+        <p class="dim child-lead">Manage all downloadable files for this project (Code, PDFs, 3D STLs). Set files as completely free for anyone to download, or restrict them to verified buyers of the Combo Pack.</p>
+
         <div class="rows">
           {p.files.map((f) => (
             <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
@@ -434,6 +828,7 @@ if (p?.cost_checked) {
           {p.files.length === 0 && <div class="dim" style="padding: 1.5rem; text-align: center; border: 1px dashed var(--border); border-radius: var(--r-md);">No files uploaded yet. Add your first file below!</div>}
         </div>
         
+        <!-- Upload file form -->
         <form method="post" action="/api/admin/file/add" enctype="multipart/form-data" class="file-add panel" style="background: var(--surface-2); padding: 1.5rem; border: 1px solid var(--border); margin-top: 1rem;">
           <h4 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={18} /> Upload a new file</h4>
           <input type="hidden" name="csrf" value={csrf} />
@@ -479,302 +874,290 @@ if (p?.cost_checked) {
             </div>
             
             <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
-              <button class="btn btn-primary" type="submit" style="font-size: 1.05rem; padding: 0.75rem 1.5rem;"><Icon name="upload-cloud" size={18} /> Upload & Save File</button>
+              <button class="btn btn-primary" type="submit" style="font-size: 1.05rem; padding: 0.75rem 1.5rem;"><Icon name="upload-cloud" size={18} /> Upload &amp; Save File</button>
             </div>
           </div>
         </form>
-      </section>
+      </div>
+    )}
 
-      <!-- ===== BOM ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="cart" size={18} /> Parts list (BOM)</h3>
-        <div class="rows">
-          {p.bom.map((b) => (
-              <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
-                <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
-                  <div class="data-row__main" style="flex: 1;">
-                    <strong>{b.name} <span class="dim mono">x{b.qty}</span>{b.unit_price_inr > 0 && <span class="dim mono"> • ₹{b.unit_price_inr}</span>}</strong>
-                    <span class="dim" style="font-size: 0.8rem; margin-top: 0.2rem;">{b.store || '—'}{b.affiliate_url ? ' • link set' : ' • no link'}{b.is_affiliate === 1 ? ' • affiliate' : ''}</span>
-                  </div>
-                  <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
-                    <form method="post" action="/api/admin/bom/delete" class="inline-form" onsubmit="return confirm('Delete this part?');">
-                      <input type="hidden" name="csrf" value={csrf} />
-                      <input type="hidden" name="id" value={b.id} />
-                      <input type="hidden" name="project_id" value={p.id} />
-                      <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
-                    </form>
-                  </div>
-                </summary>
-                <form method="post" action="/api/admin/bom/update" class="bom-add" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
+    <!-- Closed-by-default accordion for Resource Links -->
+    {p && (
+      <details class="editor-accordion" style="margin-top: 1.25rem;">
+        <summary class="editor-accordion__summary">
+          <span class="editor-accordion__title"><Icon name="external" size={16} /> Resource Links ({p.links?.length || 0})</span>
+          <span class="dim" style="font-size: var(--fs-xs);">External video, GitHub repository &amp; reference documentation links</span>
+        </summary>
+        <div class="editor-accordion__content">
+          <div class="rows">
+            {p.links.map((l) => (
+              <div class="data-row">
+                <div class="data-row__main"><strong>{l.label}</strong><span class="dim mono">{l.url}</span></div>
+                <form method="post" action="/api/admin/link/delete" class="inline-form" onsubmit="return confirm('Delete this link?');">
                   <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={b.id} />
+                  <input type="hidden" name="id" value={l.id} />
                   <input type="hidden" name="project_id" value={p.id} />
-                  
-                  <div class="grid-bom">
-                    <input class="input" name="name" value={b.name} placeholder="Component" required />
-                    <input class="input" name="qty" value={b.qty} placeholder="Qty" />
-                    <input class="input" name="unit_price_inr" value={b.unit_price_inr || ''} type="number" min="0" placeholder="₹ price" />
-                  </div>
-                  <div class="grid-3">
-                    <input class="input" name="store" value={b.store || ''} placeholder="Store (Amazon, Robu…)" />
-                    <input class="input" name="price_checked" value={b.price_checked || ''} placeholder="Checked (Sep 2026)" />
-                    <input class="input mono" name="affiliate_url" value={b.affiliate_url || ''} placeholder="Buy / affiliate URL" />
-                  </div>
-                  <div class="grid-2">
-                    <input class="input" name="notes" value={b.notes || ''} placeholder="Notes / substitutes (optional)" />
-                    <div class="bom-add__foot">
-                      <label class="switch"><input type="checkbox" name="is_affiliate" checked={b.is_affiliate === 1} /> <span>Affiliate link</span></label>
-                      <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Changes</button>
-                    </div>
-                  </div>
+                  <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
                 </form>
-              </details>
+              </div>
             ))}
-            {p.bom.length === 0 && <p class="dim">No components yet.</p>}
+            {p.links.length === 0 && <p class="dim">No external links added yet.</p>}
+          </div>
+          <form method="post" action="/api/admin/link/add" class="add-row">
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="project_id" value={p.id} />
+            <input class="input" name="label" placeholder="Label e.g. GitHub repo" required />
+            <input class="input mono" name="url" placeholder="https://…" required />
+            <select class="select select--sm" name="kind">
+              <option value="video">Video</option>
+              <option value="github">GitHub</option>
+              <option value="doc">Doc</option>
+              <option value="demo">Demo</option>
+              <option value="other">Other</option>
+            </select>
+            <button class="btn btn-ghost" type="submit">Add Link</button>
+          </form>
         </div>
-        <form method="post" action="/api/admin/bom/add" class="bom-add">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          {components.length > 0 && (
+      </details>
+    )}
+  </section>
+
+  <!-- ==================== TAB 10: SEO ==================== -->
+  <section class="editor-tab-panel" data-panel="seo" hidden>
+    <div class="panel">
+      <h3 class="panel-section-title"><Icon name="search" size={18} /> Search Engine Optimization &amp; Social Meta</h3>
+
+      <!-- Closed-by-default accordion for SEO -->
+      <details class="editor-accordion" open={false}>
+        <summary class="editor-accordion__summary">
+          <span class="editor-accordion__title"><Icon name="search" size={16} /> SEO &amp; Social Snippet Settings</span>
+          <span class="dim" style="font-size: var(--fs-xs);">Meta titles, snippet descriptions, OG card image, repository URL</span>
+        </summary>
+        <div class="editor-accordion__content">
+          <p class="field-hint" style="margin-top:-0.25rem">Leave blank to auto-use the project title, summary, and primary cover image.</p>
+          <div class="field">
+            <label class="label" for="meta_title">Meta title <span id="meta-title-count" class="dim mono" style="float:right">(0/60)</span></label>
+            <input class="input" id="meta_title" name="meta_title" form="main-project-form" maxlength="70" placeholder={val(p?.title) || 'Defaults to the project title'} value={val(p?.meta_title)} />
+            <span class="field-hint">~60 characters shows best in Google search snippets.</span>
+          </div>
+          <div class="field">
+            <label class="label" for="meta_description">Meta description <span id="meta-desc-count" class="dim mono" style="float:right">(0/160)</span></label>
+            <textarea class="textarea" id="meta_description" name="meta_description" form="main-project-form" maxlength="180" placeholder="Defaults to the project summary">{val(p?.meta_description)}</textarea>
+            <span class="field-hint">~155 characters. Snippet text shown under your title in Google search results.</span>
+          </div>
+          <div class="field">
+            <label class="label" for="og_image">Social share image URL</label>
+            <input class="input mono" id="og_image" name="og_image" form="main-project-form" placeholder="/media/… (defaults to the cover thumbnail)" value={val(p?.og_image)} />
+          </div>
+          <div class="grid-2">
             <div class="field">
-              <label class="label">From library <span class="dim">(optional — keeps price live)</span></label>
-              <select class="select" name="component_id" data-comp-pick>
-                <option value="0">— Custom component (fill fields below) —</option>
-                {components.map((c) => (
-                  <option value={c.id}>{c.name}{c.unit_price_inr > 0 ? ` · ₹${c.unit_price_inr}` : ''}{c.store ? ` · ${c.store}` : ''}</option>
-                ))}
-              </select>
-              <span class="field-hint">Pick a saved part and the fields below are ignored — its live price/link are used everywhere.</span>
+              <label class="label" for="code_repo_url">GitHub repo URL</label>
+              <input class="input mono" id="code_repo_url" name="code_repo_url" form="main-project-form" placeholder="https://github.com/…" value={val(p?.code_repo_url)} />
             </div>
-          )}
-          <div class="grid-bom" data-comp-fields>
-            <input class="input" name="name" placeholder="Component" />
-            <input class="input" name="qty" placeholder="Qty" value="1" />
-            <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
-          </div>
-          <div class="grid-3">
-            <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
-            <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
-            <input class="input mono" name="affiliate_url" placeholder="Buy / affiliate URL" />
-          </div>
-          <div class="grid-2">
-            <input class="input" name="notes" placeholder="Notes / substitutes (optional)" />
-            <div class="bom-add__foot">
-              <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
-              <button class="btn btn-primary" type="submit"><Icon name="cart" size={15} /> Add</button>
+            <div class="field">
+              <label class="label" for="license">Code license</label>
+              <input class="input" id="license" name="license" form="main-project-form" placeholder="MIT" value={val(p?.license) || 'MIT'} />
             </div>
           </div>
-        </form>
-      </section>
-
-      <!-- ===== Build steps ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="check-circle" size={18} /> Build steps</h3>
-        <p class="dim child-lead">Numbered instructions with an optional “why”. Use the arrows to reorder.</p>
-        <div class="rows">
-          {p.steps.map((s, i) => (
-              <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
-                <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
-                  <span class="data-row__icon step-badge">{i + 1}</span>
-                  <div class="data-row__main" style="flex: 1;">
-                    <strong>{s.title || s.body.slice(0, 60) || 'Step'}</strong>
-                    {s.why && <span class="dim">Why: {s.why}</span>}
-                  </div>
-                  <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
-                    {['up', 'down'].map((dir) => (
-                      <form method="post" action="/api/admin/step/move" class="inline-form">
-                        <input type="hidden" name="csrf" value={csrf} />
-                        <input type="hidden" name="id" value={s.id} />
-                        <input type="hidden" name="project_id" value={p.id} />
-                        <input type="hidden" name="dir" value={dir} />
-                        <button class="btn btn-ghost btn-xs" type="submit" onclick="event.stopPropagation();" disabled={dir === 'up' ? i === 0 : i === p.steps.length - 1}><Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} /></button>
-                      </form>
-                    ))}
-                    <form method="post" action="/api/admin/step/delete" class="inline-form" onsubmit="return confirm('Delete step?');">
-                      <input type="hidden" name="csrf" value={csrf} />
-                      <input type="hidden" name="id" value={s.id} />
-                      <input type="hidden" name="project_id" value={p.id} />
-                      <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
-                    </form>
-                  </div>
-                </summary>
-                <form method="post" action="/api/admin/step/update" class="stack-add" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={s.id} />
-                  <input type="hidden" name="project_id" value={p.id} />
-                  <input class="input" name="title" value={s.title || ''} placeholder="Title (optional)" />
-                  <textarea class="textarea" name="body" placeholder="Step instructions (Markdown)…" required>{s.body}</textarea>
-                  <input class="input" name="why" value={s.why || ''} placeholder="Why are we doing this? (optional)" />
-                  <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Step</button>
-                </form>
-              </details>
-            ))}
-            {p.steps.length === 0 && <p class="dim">No steps yet.</p>}
         </div>
-        <form method="post" action="/api/admin/step/add" class="stack-add">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          <input class="input" name="title" placeholder="Step title (optional)" />
-          <textarea class="textarea" name="body" placeholder="Instruction (Markdown)…" required></textarea>
-          <div class="grid-2">
-            <input class="input" name="why" placeholder="Why / gotcha (optional)" />
-            <input class="input mono" name="image_url" placeholder="Photo /media URL (optional)" />
-          </div>
-          <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add step</button>
-        </form>
-      </section>
-
-      <!-- ===== Wiring / pins ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="layers" size={18} /> Wiring &amp; connections</h3>
-        <p class="dim child-lead">A text pin-map (from → to). Searchable and accessible — always add this alongside the diagram image.</p>
-        <div class="rows">
-          {p.pins.map((pin) => (
-              <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
-                <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
-                  <div class="data-row__main" style="flex: 1;">
-                    <strong class="mono">{pin.from_pin} → {pin.to_pin}</strong>
-                    {pin.module && <span class="mini-tag" style="margin-left: 0.5rem;">{pin.module}</span>}
-                    {pin.note && <span class="dim" style="display: block; margin-top: 0.2rem;">{pin.note}</span>}
-                  </div>
-                  <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
-                    <form method="post" action="/api/admin/pin/delete" class="inline-form" onsubmit="return confirm('Delete connection?');">
-                      <input type="hidden" name="csrf" value={csrf} />
-                      <input type="hidden" name="id" value={pin.id} />
-                      <input type="hidden" name="project_id" value={p.id} />
-                      <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
-                    </form>
-                  </div>
-                </summary>
-                <form method="post" action="/api/admin/pin/update" class="add-row" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={pin.id} />
-                  <input type="hidden" name="project_id" value={p.id} />
-                  <input class="input mono" name="from_pin" value={pin.from_pin} placeholder="From (ESP32 D5)" required />
-                  <input class="input mono" name="to_pin" value={pin.to_pin} placeholder="To (Relay IN1)" required />
-                  <input class="input" name="module" value={pin.module || ''} placeholder="Module / Board (optional)" />
-                  <input class="input" name="note" value={pin.note || ''} placeholder="Note (optional)" />
-                  <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save</button>
-                </form>
-              </details>
-            ))}
-            {p.pins.length === 0 && <p class="dim">No connections yet.</p>}
-        </div>
-        <form method="post" action="/api/admin/pin/add" class="add-row">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          <input class="input mono" name="from_pin" placeholder="From (ESP32 D5)" required />
-          <input class="input mono" name="to_pin" placeholder="To (Relay IN1)" required />
-          <input class="input" name="note" placeholder="Note (optional)" />
-          <button class="btn btn-ghost" type="submit">Add</button>
-        </form>
-      </section>
-
-      <!-- ===== Troubleshooting ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="spark" size={18} /> Troubleshooting</h3>
-        <p class="dim child-lead">Symptom → fix. These rank well in search when people paste error messages.</p>
-        <div class="rows">
-          {p.troubleshooting.map((t) => (
-              <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
-                <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
-                  <div class="data-row__main" style="flex: 1;">
-                    <strong>{t.symptom}</strong>
-                    <span class="dim" style="display: block; margin-top: 0.2rem;">{t.fix}</span>
-                  </div>
-                  <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
-                    <form method="post" action="/api/admin/trouble/delete" class="inline-form" onsubmit="return confirm('Delete tip?');">
-                      <input type="hidden" name="csrf" value={csrf} />
-                      <input type="hidden" name="id" value={t.id} />
-                      <input type="hidden" name="project_id" value={p.id} />
-                      <button class="btn btn-ghost btn-xs btn-danger" type="submit" onclick="event.stopPropagation();"><Icon name="trash" size={14} /></button>
-                    </form>
-                  </div>
-                </summary>
-                <form method="post" action="/api/admin/trouble/update" class="stack-add" style="padding: 1rem; border-top: 1px dashed var(--border); background: var(--surface-2); margin-top: 0;">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={t.id} />
-                  <input type="hidden" name="project_id" value={p.id} />
-                  <input class="input" name="symptom" value={t.symptom} placeholder="Symptom e.g. LED not lighting up" required />
-                  <textarea class="textarea" name="fix" placeholder="The fix (Markdown)…" required>{t.fix}</textarea>
-                  <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Tip</button>
-                </form>
-              </details>
-            ))}
-            {p.troubleshooting.length === 0 && <p class="dim">No tips yet.</p>}
-        </div>
-        <form method="post" action="/api/admin/trouble/add" class="stack-add">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          <input class="input" name="symptom" placeholder="Symptom e.g. LED not lighting up" required />
-          <textarea class="textarea" name="fix" placeholder="The fix (Markdown)…" required></textarea>
-          <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add tip</button>
-        </form>
-      </section>
-
-      <!-- ===== Links ===== -->
-      <section class="child-panel panel">
-        <h3><Icon name="external" size={18} /> Resource links</h3>
-        <div class="rows">
-          {p.links.map((l) => (
-            <div class="data-row">
-              <div class="data-row__main"><strong>{l.label}</strong><span class="dim mono">{l.url}</span></div>
-              <form method="post" action="/api/admin/link/delete" class="inline-form">
-                <input type="hidden" name="csrf" value={csrf} />
-                <input type="hidden" name="id" value={l.id} />
-                <input type="hidden" name="project_id" value={p.id} />
-                <button class="btn btn-ghost btn-xs btn-danger" type="submit"><Icon name="close" size={13} /></button>
-              </form>
-            </div>
-          ))}
-          {p.links.length === 0 && <p class="dim">No links yet.</p>}
-        </div>
-        <form method="post" action="/api/admin/link/add" class="add-row">
-          <input type="hidden" name="csrf" value={csrf} />
-          <input type="hidden" name="project_id" value={p.id} />
-          <input class="input" name="label" placeholder="Label e.g. GitHub repo" required />
-          <input class="input mono" name="url" placeholder="https://…" required />
-          <select class="select select--sm" name="kind">
-            <option value="video">Video</option><option value="github">GitHub</option>
-            <option value="doc">Doc</option><option value="demo">Demo</option><option value="other">Other</option>
-          </select>
-          <button class="btn btn-ghost" type="submit">Add</button>
-        </form>
-      </section>
+      </details>
     </div>
+  </section>
+
+  <!-- Make free fallback form -->
+  {p && (
+    <form id={`free-${p.id}`} method="post" action="/api/admin/project/action" hidden>
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="id" value={p.id} />
+      <input type="hidden" name="action" value="makefree" />
+    </form>
   )}
 </div>
 
 <style>
-  .editor { display: flex; flex-direction: column; gap: 1.25rem; max-width: 900px; }
-  .editor-form { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
-  .editor-form__head { display: flex; align-items: center; justify-content: space-between; }
-  .editor-form__head h2 { font-size: var(--fs-md); }
+  .editor { display: flex; flex-direction: column; gap: 1.25rem; max-width: 960px; }
+  
+  /* Save Bar */
+  .editor-save-bar {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    backdrop-filter: blur(8px);
+  }
+  .action-bar-left { display: flex; gap: 0.75rem; align-items: center; min-width: 0; }
+  .editor-bar-title {
+    font-size: var(--fs-md);
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+  }
+  .action-bar-quick { display: flex; gap: 0.35rem; }
+  .action-bar-right { display: flex; gap: 0.6rem; align-items: center; flex-shrink: 0; }
+  .publish-checks {
+    font-size: 0.8rem;
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: var(--r-sm);
+  }
+
+  /* 10-Tab Navigation Bar */
+  .editor-tab-bar {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    border-bottom: 2px solid var(--border);
+    padding: 0 0.25rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .editor-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 0.85rem;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  .editor-tab-btn:hover { color: var(--text); }
+  .editor-tab-btn.is-active {
+    color: var(--brand-red);
+    border-bottom-color: var(--brand-red);
+  }
+  .editor-tab-btn :global(svg) { flex-shrink: 0; opacity: 0.85; }
+
+  /* Completeness Indicator Dots */
+  .tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+    transition: background-color 0.2s, box-shadow 0.2s;
+  }
+  .tab-dot--ok {
+    background-color: var(--success, #10b981);
+  }
+  .tab-dot--warn {
+    background-color: var(--danger, #ef4444);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  }
+
+  /* Panels & Sections */
+  .editor-tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .editor-tab-panel[hidden] { display: none !important; }
+  .panel {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+  }
+  .panel-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--fs-md);
+    margin: 0;
+    font-weight: 700;
+  }
+  .panel-section-title :global(svg) { color: var(--brand-red); }
+
+  /* Accordions */
+  .editor-accordion {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .editor-accordion__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.15rem;
+    cursor: pointer;
+    background: var(--surface-2);
+    user-select: none;
+    font-weight: 600;
+    font-size: var(--fs-sm);
+    color: var(--text);
+    transition: background 0.15s;
+  }
+  .editor-accordion__summary:hover { background: var(--border); }
+  .editor-accordion__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .editor-accordion__title :global(svg) { color: var(--brand-red); }
+  .editor-accordion__content {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--surface);
+  }
+
+  /* Empty state for new projects in child tabs */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .empty-state :global(svg) { color: var(--brand-red); }
+  .empty-state h4 { font-size: 1.1rem; margin: 0; }
+  .empty-state p { max-width: 440px; margin: 0; font-size: var(--fs-sm); }
+
+  /* Form Elements */
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
   .grid-bom { display: grid; grid-template-columns: 2fr 0.7fr 1fr; gap: 0.6rem; }
-  .editor-desc { min-height: 200px; font-family: var(--font-mono); font-size: var(--fs-sm); }
-  .editor-fieldset { border: 1px solid var(--border); border-radius: var(--r-md); padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
-  .editor-fieldset legend { padding: 0 0.5rem; font-family: var(--font-display); font-weight: 600; color: var(--brand-red); font-size: var(--fs-sm); }
+  .editor-desc { min-height: 220px; font-family: var(--font-mono); font-size: var(--fs-sm); }
   .switch { display: inline-flex; align-items: center; gap: 0.5rem; font-size: var(--fs-sm); cursor: pointer; }
   .switch input { width: 18px; height: 18px; accent-color: var(--brand-red); }
-  .editor-toggles { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; padding: 1rem; background: var(--bg-2); border-radius: var(--r-md); }
+  .editor-toggles { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; padding: 1rem; background: var(--bg-2); border-radius: var(--r-md); border: 1px solid var(--border); }
   .field--inline { flex-direction: row; align-items: center; gap: 0.5rem; }
   .input--sm { width: 80px; }
   .select--sm { width: auto; }
-  .editor-form__foot { display: flex; gap: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--hairline); }
-  .editor-note { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-sm); }
 
-  .editor-children { display: flex; flex-direction: column; gap: 1.25rem; }
-  .child-panel { padding: 1.5rem; }
-  .child-panel h3 { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-md); margin-bottom: 1rem; }
-  .child-panel h3 :global(svg) { color: var(--brand-red); }
-  .child-lead { font-size: var(--fs-sm); margin-bottom: 1rem; margin-top: -0.5rem; }
-  .rows { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+  /* Rows & Lists */
+  .child-lead { font-size: var(--fs-sm); margin-bottom: 0.5rem; margin-top: -0.5rem; }
+  .rows { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
   .data-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0.85rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); }
   .data-row__icon { color: var(--brand-red); }
   .data-row__main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -782,22 +1165,18 @@ if (p?.cost_checked) {
   .data-row__main span { font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .data-row__tags { display: flex; gap: 0.3rem; }
   .mini-tag { font-family: var(--font-mono); font-size: 0.65rem; padding: 0.15rem 0.4rem; border-radius: var(--r-full); background: var(--surface-3); color: var(--text-muted); }
-  .mini-tag--free { background: rgba(52,211,153,0.15); color: var(--success); }
   .add-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
   .add-row .input { flex: 1; min-width: 140px; }
-  .file-add, .bom-add, .stack-add { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--hairline); }
+  .file-add, .bom-add, .stack-add { display: flex; flex-direction: column; gap: 0.75rem; }
   .stack-add .textarea { min-height: 90px; }
   .bom-add__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
   .step-badge { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--brand-red); color: #fff; font-size: var(--fs-xs); font-weight: 700; flex-shrink: 0; }
-  .row-ctrl { display: flex; gap: 3px; flex-shrink: 0; }
-  .file-add__opts { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
-  .url-add { margin-top: 1rem; }
+  .row-ctrl { display: flex; gap: 4px; flex-shrink: 0; }
+  .url-add { margin-top: 0.5rem; }
   .url-add summary { cursor: pointer; font-size: var(--fs-sm); }
 
-  /* ----- unified media list ----- */
-  .field-hint--block { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.7rem 0.85rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); line-height: 1.5; }
-  .field-hint--block :global(svg) { color: var(--brand-red); flex-shrink: 0; margin-top: 2px; }
-  .media-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+  /* Media list */
+  .media-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
   .media-item { display: flex; align-items: center; gap: 0.85rem; padding: 0.6rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); }
   .media-item--lead { border-color: var(--brand-red); box-shadow: 0 0 0 1px var(--brand-red) inset; }
   .media-item__preview { position: relative; width: 92px; height: 66px; flex-shrink: 0; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border); background: var(--surface-3); }
@@ -806,7 +1185,6 @@ if (p?.cost_checked) {
   .media-item__lead-tag { position: absolute; left: 0; bottom: 0; right: 0; text-align: center; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px; background: var(--brand-red); color: #fff; }
   .media-item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
   .media-item__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); }
-  .media-item__cap { font-size: var(--fs-xs); }
   .kind-badge { align-self: flex-start; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.45rem; border-radius: var(--r-full); }
   .kind-badge--img { background: var(--surface-3); color: var(--text-muted); }
   .kind-badge--cover { background: rgba(52,211,153,0.15); color: var(--success); }
@@ -828,21 +1206,120 @@ if (p?.cost_checked) {
   .upload-progress__bar span { display: block; height: 100%; width: 0%; background: var(--brand-red); transition: width 0.15s ease; }
   .upload-progress__pct { font-size: var(--fs-xs); color: var(--text-muted); min-width: 3.5ch; text-align: right; }
 
-  .combo-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  /* Combo & buttons */
+  .combo-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; }
   .btn-free { background: rgba(52,211,153,0.12); color: var(--success); border: 1px solid rgba(52,211,153,0.4); }
   .btn-free:hover { background: rgba(52,211,153,0.2); }
   .btn-xs { padding: 0.3rem 0.5rem; font-size: var(--fs-xs); }
   .btn-danger { color: var(--danger); }
   .inline-form { display: inline; }
 
-  @media (max-width: 640px) { .grid-2, .grid-3, .grid-bom { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) {
+    .editor-save-bar { flex-direction: column; gap: 0.75rem; align-items: stretch; }
+    .action-bar-left { justify-content: space-between; }
+    .action-bar-right { justify-content: flex-end; flex-wrap: wrap; }
+    .editor-bar-title { max-width: 100%; }
+  }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3, .grid-bom { grid-template-columns: 1fr; }
+  }
 </style>
 
 <script>
+  // --- Tab switching and persistence ---
+  const TAB_KEY = 'tt-editor-tab';
+  const tabBtns = document.querySelectorAll<HTMLButtonElement>('.editor-tab-btn');
+  const tabPanels = document.querySelectorAll<HTMLElement>('.editor-tab-panel');
+
+  function activateTab(tabName: string) {
+    let matched = false;
+    tabBtns.forEach((b) => {
+      const isTarget = b.getAttribute('data-tab') === tabName;
+      b.classList.toggle('is-active', isTarget);
+      if (isTarget) matched = true;
+    });
+    tabPanels.forEach((p) => {
+      if (p.getAttribute('data-panel') === tabName) {
+        p.removeAttribute('hidden');
+      } else {
+        p.setAttribute('hidden', '');
+      }
+    });
+    if (matched) {
+      try {
+        sessionStorage.setItem(TAB_KEY, tabName);
+      } catch {}
+    }
+  }
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-tab');
+      if (tabName) {
+        activateTab(tabName);
+        history.replaceState(null, '', '#' + tabName);
+      }
+    });
+  });
+
+  // Restore active tab from URL hash or sessionStorage
+  const hashTab = window.location.hash ? window.location.hash.substring(1) : null;
+  let savedTab: string | null = null;
+  try {
+    savedTab = sessionStorage.getItem(TAB_KEY);
+  } catch {}
+
+  const initialTab =
+    hashTab && document.querySelector(`.editor-tab-panel[data-panel="${hashTab}"]`)
+      ? hashTab
+      : savedTab && document.querySelector(`.editor-tab-panel[data-panel="${savedTab}"]`)
+        ? savedTab
+        : 'basics';
+
+  activateTab(initialTab);
+
+  // --- Dynamic Tab Indicator Dots ---
+  function updateTabDots() {
+    const titleInput = document.getElementById('title') as HTMLInputElement | null;
+    const summaryInput = document.getElementById('summary') as HTMLInputElement | null;
+    const descInput = document.getElementById('description') as HTMLTextAreaElement | null;
+    const safetyInput = document.getElementById('safety_note') as HTMLTextAreaElement | null;
+    const metaTitleInput = document.getElementById('meta_title') as HTMLInputElement | null;
+    const metaDescInput = document.getElementById('meta_description') as HTMLTextAreaElement | null;
+
+    const setDot = (tabName: string, isMissing: boolean) => {
+      const dot = document.querySelector(`[data-tab-dot="${tabName}"]`);
+      if (dot) {
+        dot.className = `tab-dot ${isMissing ? 'tab-dot--warn' : 'tab-dot--ok'}`;
+        dot.setAttribute('title', isMissing ? 'Required fields missing' : 'Complete');
+      }
+    };
+
+    if (titleInput && summaryInput) {
+      setDot('basics', !titleInput.value.trim() || !summaryInput.value.trim());
+    }
+    if (descInput) {
+      setDot('content', !descInput.value.trim());
+    }
+    if (safetyInput) {
+      setDot('safety', !safetyInput.value.trim());
+    }
+    if (metaTitleInput && metaDescInput && titleInput && summaryInput) {
+      const hasTitle = metaTitleInput.value.trim() || titleInput.value.trim();
+      const hasDesc = metaDescInput.value.trim() || summaryInput.value.trim();
+      setDot('seo', !hasTitle || !hasDesc);
+    }
+  }
+
+  document.querySelectorAll('#title, #summary, #description, #safety_note, #meta_title, #meta_description').forEach((input) => {
+    input.addEventListener('input', updateTabDots);
+  });
+
   // Unsaved changes guard
   let formChanged = false;
-  document.querySelectorAll('.editor-form input, .editor-form textarea, .editor-form select').forEach(el => {
-    el.addEventListener('change', () => formChanged = true);
+  document.querySelectorAll('input[form="main-project-form"], textarea[form="main-project-form"], select[form="main-project-form"]').forEach((el) => {
+    el.addEventListener('change', () => (formChanged = true));
   });
   window.addEventListener('beforeunload', (e) => {
     if (formChanged) {
@@ -850,46 +1327,72 @@ if (p?.cost_checked) {
       e.returnValue = '';
     }
   });
-  const mainForm = document.querySelector('.editor-form');
+
+  const mainForm = document.getElementById('main-project-form') as HTMLFormElement | null;
   if (mainForm) {
-    mainForm.addEventListener('submit', () => formChanged = false);
+    mainForm.addEventListener('submit', () => (formChanged = false));
   }
 
-  // SEO Tab counters
-  const metaTitle = document.getElementById('meta_title');
+  // Publish button triggers published switch
+  const publishBtn = document.querySelector('button[value="publish"]');
+  if (publishBtn) {
+    publishBtn.addEventListener('click', () => {
+      const publishedInput = document.querySelector('input[name="published"]') as HTMLInputElement | null;
+      if (publishedInput) publishedInput.checked = true;
+    });
+  }
+
+  // SEO Tab live counters
+  const metaTitle = document.getElementById('meta_title') as HTMLInputElement | null;
   const metaTitleCount = document.getElementById('meta-title-count');
   if (metaTitle && metaTitleCount) {
-    const updateTitleCount = () => { metaTitleCount.textContent = `(${metaTitle.value.length}/60)`; };
+    const updateTitleCount = () => {
+      metaTitleCount.textContent = `(${metaTitle.value.length}/60)`;
+    };
     metaTitle.addEventListener('input', updateTitleCount);
     updateTitleCount();
   }
 
-  const metaDesc = document.getElementById('meta_description');
+  const metaDesc = document.getElementById('meta_description') as HTMLTextAreaElement | null;
   const metaDescCount = document.getElementById('meta-desc-count');
   if (metaDesc && metaDescCount) {
-    const updateDescCount = () => { metaDescCount.textContent = `(${metaDesc.value.length}/160)`; };
+    const updateDescCount = () => {
+      metaDescCount.textContent = `(${metaDesc.value.length}/160)`;
+    };
     metaDesc.addEventListener('input', updateDescCount);
     updateDescCount();
   }
 
-  // Auto-suggest slug from title for new projects (only if slug is empty).
+  // Auto-suggest slug from title for new projects
   const title = document.querySelector('[data-title]') as HTMLInputElement | null;
   const slug = document.querySelector('[data-slug]') as HTMLInputElement | null;
   if (title && slug && !slug.value) {
     title.addEventListener('input', () => {
-      slug.value = title.value.toLowerCase().trim()
-        .replace(/[^a-z0-9\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+      slug.value = title.value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/[\s_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 80);
     });
   }
 
-  // --- Keep the scroll position across editor POSTs (reorder / delete / upload)
-  //     so the page never jumps back to the top after an action. ---
+  // --- Keep the scroll position across editor POSTs ---
   const SCROLL_KEY = 'tt-editor-scroll';
   try {
     const y = sessionStorage.getItem(SCROLL_KEY);
-    if (y !== null) { sessionStorage.removeItem(SCROLL_KEY); window.scrollTo(0, parseInt(y, 10) || 0); }
-  } catch { /* ignore */ }
-  const saveScroll = () => { try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY)); } catch { /* ignore */ } };
+    if (y !== null) {
+      sessionStorage.removeItem(SCROLL_KEY);
+      window.scrollTo(0, parseInt(y, 10) || 0);
+    }
+  } catch {}
+  const saveScroll = () => {
+    try {
+      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    } catch {}
+  };
   document.querySelectorAll('.editor form').forEach((f) => f.addEventListener('submit', saveScroll));
 
   // --- Media upload: real progress bar + no full-page redirect ---
@@ -904,7 +1407,6 @@ if (p?.cost_checked) {
     const pct = mediaForm.querySelector('[data-progress-pct]') as HTMLElement | null;
     const labelDefault = label?.innerHTML || '';
 
-    // Show how many files were picked.
     input?.addEventListener('change', () => {
       if (!label) return;
       const n = input.files?.length || 0;
@@ -914,7 +1416,7 @@ if (p?.cost_checked) {
 
     mediaForm.addEventListener('submit', (e) => {
       const hasFiles = (input?.files?.length || 0) > 0;
-      if (!hasFiles) return; // URL-only / empty → let it post normally
+      if (!hasFiles) return;
       e.preventDefault();
       const xhr = new XMLHttpRequest();
       const fd = new FormData(mediaForm);
@@ -931,7 +1433,9 @@ if (p?.cost_checked) {
       });
       xhr.addEventListener('load', () => {
         let body: any = {};
-        try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+        try {
+          body = JSON.parse(xhr.responseText);
+        } catch {}
         if (xhr.status >= 200 && xhr.status < 300) {
           if (pct) pct.textContent = 'Done';
           saveScroll();
@@ -954,172 +1458,190 @@ if (p?.cost_checked) {
 
   // --- BOM: dim custom fields when a library component is picked ---
   const compPick = document.querySelector('[data-comp-pick]') as HTMLSelectElement | null;
-  const compFields = document.querySelector('[data-comp-fields]') as HTMLElement | null;
+  const compFields = document.querySelectorAll('[data-comp-fields]');
   const syncComp = () => {
-    if (!compFields) return;
+    if (!compFields.length) return;
     const usingLib = compPick && compPick.value !== '0';
-    compFields.style.opacity = usingLib ? '0.4' : '1';
-    compFields.querySelectorAll('input').forEach((el) => { (el as HTMLInputElement).disabled = !!usingLib; });
+    compFields.forEach((el) => {
+      (el as HTMLElement).style.opacity = usingLib ? '0.4' : '1';
+      el.querySelectorAll('input').forEach((inp) => {
+        (inp as HTMLInputElement).disabled = !!usingLib;
+      });
+    });
   };
   compPick?.addEventListener('change', syncComp);
 
-// Auto-fill file label from filename
-const fileUploadInput = document.getElementById('file-upload-input');
-const fileLabelInput = document.getElementById('file-label-input');
-if (fileUploadInput && fileLabelInput) {
-  fileUploadInput.addEventListener('change', (e) => {
-    if (fileLabelInput.value === '') {
-      const file = e.target.files[0];
-      if (file) {
-        let name = file.name;
-        // Remove extension
+  // Auto-fill file label from filename
+  const fileUploadInput = document.getElementById('file-upload-input') as HTMLInputElement | null;
+  const fileLabelInput = document.getElementById('file-label-input') as HTMLInputElement | null;
+  if (fileUploadInput && fileLabelInput) {
+    fileUploadInput.addEventListener('change', (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (fileLabelInput.value === '' && target.files && target.files[0]) {
+        let name = target.files[0].name;
         const dotIndex = name.lastIndexOf('.');
         if (dotIndex > 0) name = name.substring(0, dotIndex);
-        // Replace dashes and underscores with spaces
         name = name.replace(/[-_]/g, ' ');
-        // Capitalize first letter of each word
-        name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        name = name.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
         fileLabelInput.value = name;
       }
-    }
-  });
-}
+    });
+  }
 
   // --- Compute BOM Total ---
   const bomRows = document.querySelectorAll('.bom-row');
   let computedTotal = 0;
-  bomRows.forEach(row => {
-    const qtyInput = row.querySelector('input[name="qty"]');
-    const priceInput = row.querySelector('input[name="unit_price_inr"]');
+  bomRows.forEach((row) => {
+    const qtyInput = row.querySelector('input[name="qty"]') as HTMLInputElement | null;
+    const priceInput = row.querySelector('input[name="unit_price_inr"]') as HTMLInputElement | null;
     if (qtyInput && priceInput) {
       const qtyStr = qtyInput.value;
       let qty = 1;
       const m = qtyStr.match(/\d+/);
       if (m) qty = parseInt(m[0], 10);
       const price = parseInt(priceInput.value || '0', 10);
-      if (!isNaN(price) && price > 0) computedTotal += (price * qty);
+      if (!isNaN(price) && price > 0) computedTotal += price * qty;
     }
   });
   const compLabel = document.getElementById('computed-cost');
   if (compLabel && computedTotal > 0) {
-    compLabel.textContent = '(Auto sum: ₹' + computedTotal + ')';
+    compLabel.textContent = `(Calculated sum: ₹${computedTotal})`;
   }
 
-  // --- List Editor ---
-  document.querySelectorAll(".list-editor").forEach(el => {
+  // --- List Editor for JSON fields ---
+  document.querySelectorAll<HTMLElement>('.list-editor').forEach((el) => {
     const name = el.dataset.name;
     const type = el.dataset.type;
-    let items = [];
-    try { items = JSON.parse(el.dataset.value || "[]"); } catch { items = []; }
+    let items: any[] = [];
+    try {
+      items = JSON.parse(el.dataset.value || '[]');
+    } catch {
+      items = [];
+    }
     if (!Array.isArray(items)) items = [];
-    
-    const hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = name;
+
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    if (name) hidden.name = name;
+    hidden.setAttribute('form', 'main-project-form');
     el.appendChild(hidden);
-    
-    const container = document.createElement("div");
-    container.className = "list-editor-items";
-    container.style.display = "flex";
-    container.style.flexDirection = "column";
-    container.style.gap = "0.5rem";
-    container.style.marginBottom = "0.75rem";
+
+    const container = document.createElement('div');
+    container.className = 'list-editor-items';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '0.5rem';
+    container.style.marginBottom = '0.75rem';
     el.appendChild(container);
-    
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "btn btn-ghost btn-xs";
-    addBtn.textContent = "+ Add Item";
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-ghost btn-xs';
+    addBtn.textContent = '+ Add Item';
     el.appendChild(addBtn);
-    
-    const updateHidden = () => { hidden.value = JSON.stringify(items); };
-    
+
+    const updateHidden = () => {
+      hidden.value = JSON.stringify(items);
+    };
+
     const render = () => {
-      container.innerHTML = "";
+      container.innerHTML = '';
       items.forEach((item, i) => {
-        const row = document.createElement("div");
-        row.style.display = "flex";
-        row.style.gap = "0.5rem";
-        row.style.alignItems = "flex-start";
-        
-        if (type === "faq") {
-          const col = document.createElement("div");
-          col.style.flex = "1";
-          col.style.display = "flex";
-          col.style.flexDirection = "column";
-          col.style.gap = "0.25rem";
-          
-          const qInput = document.createElement("input");
-          qInput.className = "input";
-          qInput.placeholder = "Question";
-          qInput.value = item.q || "";
-          qInput.oninput = (e) => { items[i].q = e.target.value; updateHidden(); };
-          
-          const aInput = document.createElement("textarea");
-          aInput.className = "textarea";
-          aInput.placeholder = "Answer";
-          aInput.value = item.a || "";
-          aInput.style.minHeight = "60px";
-          aInput.oninput = (e) => { items[i].a = e.target.value; updateHidden(); };
-          
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '0.5rem';
+        row.style.alignItems = 'flex-start';
+
+        if (type === 'faq') {
+          const col = document.createElement('div');
+          col.style.flex = '1';
+          col.style.display = 'flex';
+          col.style.flexDirection = 'column';
+          col.style.gap = '0.25rem';
+
+          const qInput = document.createElement('input');
+          qInput.className = 'input';
+          qInput.placeholder = 'Question';
+          qInput.value = item.q || '';
+          qInput.oninput = (e) => {
+            items[i].q = (e.target as HTMLInputElement).value;
+            updateHidden();
+          };
+
+          const aInput = document.createElement('textarea');
+          aInput.className = 'textarea';
+          aInput.placeholder = 'Answer';
+          aInput.value = item.a || '';
+          aInput.style.minHeight = '60px';
+          aInput.oninput = (e) => {
+            items[i].a = (e.target as HTMLTextAreaElement).value;
+            updateHidden();
+          };
+
           col.appendChild(qInput);
           col.appendChild(aInput);
           row.appendChild(col);
         } else {
-          const input = document.createElement("input");
-          input.className = "input";
-          input.style.flex = "1";
-          input.value = item || "";
-          input.oninput = (e) => { items[i] = e.target.value; updateHidden(); };
+          const input = document.createElement('input');
+          input.className = 'input';
+          input.style.flex = '1';
+          input.value = item || '';
+          input.oninput = (e) => {
+            items[i] = (e.target as HTMLInputElement).value;
+            updateHidden();
+          };
           row.appendChild(input);
         }
-        
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "btn btn-ghost btn-xs btn-danger";
-        delBtn.textContent = "x";
-        delBtn.onclick = () => { items.splice(i, 1); updateHidden(); render(); };
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-ghost btn-xs btn-danger';
+        delBtn.textContent = '×';
+        delBtn.onclick = () => {
+          items.splice(i, 1);
+          updateHidden();
+          render();
+        };
         row.appendChild(delBtn);
-        
+
         container.appendChild(row);
       });
       updateHidden();
     };
-    
+
     addBtn.onclick = () => {
-      items.push(type === "faq" ? {q:"", a:""} : "");
+      items.push(type === 'faq' ? { q: '', a: '' } : '');
       updateHidden();
       render();
     };
-    
+
     render();
   });
 
   // --- Markdown Toolbar ---
-  document.querySelectorAll("textarea[data-markdown]").forEach(textarea => {
-    const wrap = document.createElement("div");
-    wrap.style.display = "flex";
-    wrap.style.flexDirection = "column";
-    wrap.style.gap = "0.25rem";
-    textarea.parentNode.insertBefore(wrap, textarea);
+  document.querySelectorAll<HTMLTextAreaElement>('textarea[data-markdown]').forEach((textarea) => {
+    const wrap = document.createElement('div');
+    wrap.style.display = 'flex';
+    wrap.style.flexDirection = 'column';
+    wrap.style.gap = '0.25rem';
+    textarea.parentNode?.insertBefore(wrap, textarea);
     wrap.appendChild(textarea);
-    
-    const tb = document.createElement("div");
-    tb.className = "markdown-toolbar";
-    tb.style.display = "flex";
-    tb.style.gap = "0.25rem";
-    tb.style.padding = "0.25rem";
-    tb.style.background = "var(--bg-2)";
-    tb.style.border = "1px solid var(--border)";
-    tb.style.borderBottom = "none";
-    tb.style.borderTopLeftRadius = "var(--r-sm)";
-    tb.style.borderTopRightRadius = "var(--r-sm)";
-    
-    // adjust textarea styles
-    textarea.style.borderTopLeftRadius = "0";
-    textarea.style.borderTopRightRadius = "0";
-    
-    const insert = (prefix, suffix) => {
+
+    const tb = document.createElement('div');
+    tb.className = 'markdown-toolbar';
+    tb.style.display = 'flex';
+    tb.style.gap = '0.25rem';
+    tb.style.padding = '0.25rem';
+    tb.style.background = 'var(--bg-2)';
+    tb.style.border = '1px solid var(--border)';
+    tb.style.borderBottom = 'none';
+    tb.style.borderTopLeftRadius = 'var(--r-sm)';
+    tb.style.borderTopRightRadius = 'var(--r-sm)';
+
+    textarea.style.borderTopLeftRadius = '0';
+    textarea.style.borderTopRightRadius = '0';
+
+    const insert = (prefix: string, suffix: string) => {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const text = textarea.value;
@@ -1131,43 +1653,43 @@ if (fileUploadInput && fileLabelInput) {
       textarea.selectionEnd = start + prefix.length + sel.length;
       textarea.focus();
     };
-    
-    const mkBtn = (label, pref, suf) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn btn-ghost btn-xs";
+
+    const mkBtn = (label: string, pref: string, suf: string) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-ghost btn-xs';
       b.textContent = label;
       b.onclick = () => insert(pref, suf);
       tb.appendChild(b);
     };
-    
-    mkBtn("B", "**", "**");
-    mkBtn("I", "*", "*");
-    mkBtn("Link", "[", "](url)");
-    mkBtn("Code", "`", "`");
-    mkBtn("List", "- ", "");
-    
-    if (textarea.dataset.templates === "safety") {
-      const sel = document.createElement("select");
-      sel.className = "select select--sm";
-      sel.style.marginLeft = "auto";
-      sel.innerHTML = `<option value="">+ Template</option>
+
+    mkBtn('B', '**', '**');
+    mkBtn('I', '*', '*');
+    mkBtn('Link', '[', '](url)');
+    mkBtn('Code', '`', '`');
+    mkBtn('List', '- ', '');
+
+    if (textarea.dataset.templates === 'safety') {
+      const sel = document.createElement('select');
+      sel.className = 'select select--sm';
+      sel.style.marginLeft = 'auto';
+      sel.innerHTML = `<option value="">+ Quick Template</option>
         <option value="lipo">LiPo Warning</option>
-        <option value="mains">Mains Voltage</option>
-        <option value="motor">Motor/Propeller</option>`;
+        <option value="mains">Mains Voltage (230V)</option>
+        <option value="motor">Motor / Propeller Warning</option>`;
       sel.onchange = (e) => {
-        const v = e.target.value;
+        const v = (e.target as HTMLSelectElement).value;
         if (!v) return;
-        let t = "";
-        if (v==="lipo") t = "**⚠️ LiPo Warning:** Use a proper balance charger and never leave charging batteries unattended.";
-        if (v==="mains") t = "**⚡ DANGER: HIGH VOLTAGE.** This project uses 230V AC mains. Ensure power is completely disconnected before touching any wiring.";
-        if (v==="motor") t = "**⚠️ SAFETY FIRST:** Always remove propellers before testing motors on the bench.";
-        insert(t, "");
-        sel.value = "";
+        let t = '';
+        if (v === 'lipo') t = '**⚠️ LiPo Battery Warning:** Use a dedicated balance charger and never leave lithium batteries charging unattended.';
+        if (v === 'mains') t = '**⚡ DANGER: HIGH VOLTAGE.** This project connects to 230V AC mains electricity. Ensure power is completely disconnected from the breaker before servicing.';
+        if (v === 'motor') t = '**⚠️ ROTATING PARTS:** Always remove drone propellers before testing motors on the workbench.';
+        insert(t, '');
+        sel.value = '';
       };
       tb.appendChild(sel);
     }
-    
+
     wrap.insertBefore(tb, textarea);
   });
 </script>

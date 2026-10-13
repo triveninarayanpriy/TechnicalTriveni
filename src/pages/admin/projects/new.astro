@@ -1,11 +1,17 @@
 ---
 import Admin from '../../../layouts/Admin.astro';
 import ProjectEditor from '../../../components/ProjectEditor.astro';
+import { env } from 'cloudflare:workers';
+import { listComponents, listCategories, listTags } from '../../../lib/db';
+
+const components = await listComponents(env.DB);
+const categories = await listCategories(env.DB);
+const tags = await listTags(env.DB);
 const csrf = Astro.locals.csrfToken;
 ---
 <Admin title="New project" active="projects">
   <a href="/admin/projects" class="back-link">← All projects</a>
-  <ProjectEditor project={null} csrf={csrf} />
+  <ProjectEditor project={null} csrf={csrf} components={components} categories={categories} tags={tags} />
 </Admin>
 
 <style>
