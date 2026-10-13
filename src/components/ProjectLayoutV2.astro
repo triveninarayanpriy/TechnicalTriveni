@@ -85,6 +85,24 @@ const mediaList = [...rawImages];
 const hasModel = mediaList.some((m) => m.type === 'model');
 const firstMedia = mediaList[0] || { type: 'image', url: project.cover_image || '/og-default.png', caption: project.title };
 
+const mobileSlides = [
+  ...mediaList.map((m) => ({
+    type: m.type,
+    url: m.url,
+    caption: m.caption,
+    ytId: '',
+  })),
+  ...(yt ? [{ type: 'yt', ytId: yt, caption: 'Video Tutorial', url: '' }] : []),
+];
+if (mobileSlides.length === 0 && project.cover_image) {
+  mobileSlides.push({
+    type: 'image',
+    url: project.cover_image,
+    caption: project.title,
+    ytId: '',
+  });
+}
+
 // Deduplicate files by cleaned label and url
 const uniqueFiles = filesList.reduce((acc, f) => {
   const clean = cleanFileName(f.label, f.kind);
@@ -124,7 +142,7 @@ const lastUpdated = formatDate(project.updated_at);
 
 <div class="project-layout">
   <!-- BREADCRUMBS -->
-  <nav class="p-crumbs container" aria-label="Breadcrumb">
+  <nav class="p-crumbs container desktop-pack-only" aria-label="Breadcrumb">
     <a href="/">Home</a>
     <span class="p-crumbs__sep">/</span>
     <a href="/projects">Projects</a>
@@ -135,7 +153,7 @@ const lastUpdated = formatDate(project.updated_at);
   </nav>
 
   <!-- TITLE BLOCK -->
-  <header class="p-header container">
+  <header class="p-header container desktop-pack-only">
     <span class="p-eyebrow">{project.category || 'PROJECT PACK'}</span>
     <h1 class="p-title">{project.title}</h1>
     {project.summary && <p class="p-summary">{project.summary}</p>}
@@ -155,7 +173,7 @@ const lastUpdated = formatDate(project.updated_at);
   </header>
 
   <!-- HERO 7/5 GRID -->
-  <section class="p-hero-grid container">
+  <section class="p-hero-grid container desktop-pack-only">
     <!-- LEFT COLUMN: Media Viewer (7 cols) -->
     <div class="p-viewer">
       <div class="p-stage" id="media-stage">
@@ -339,8 +357,8 @@ const lastUpdated = formatDate(project.updated_at);
     </aside>
   </section>
 
-  <!-- STICKY SECTION NAV PILLS -->
-  <nav class="p-secnav" id="sticky-secnav" aria-label="Page sections">
+  <!-- STICKY SECTION NAV PILLS (Desktop Only) -->
+  <nav class="p-secnav desktop-pack-only" id="sticky-secnav" aria-label="Page sections">
     <div class="container p-secnav__inner">
       <a href="#overview" class="p-secnav__link is-active">Overview</a>
       {hasBom && <a href="#parts" class="p-secnav__link">Parts list</a>}
@@ -355,6 +373,92 @@ const lastUpdated = formatDate(project.updated_at);
       {faqs.length > 0 && <a href="#faq" class="p-secnav__link">FAQ</a>}
     </div>
   </nav>
+
+  <!-- MOBILE PACK CHROME (<= 768px, media_1791876192118_f7595c00.png) -->
+  <div class="m-pack-header m-pack-only">
+    <!-- Top Bar: Back to Category + Share Button -->
+    <div class="m-pack-topbar">
+      <a href={`/projects?cat=${encodeURIComponent(project.category || 'All')}`} class="m-pack-back">
+        <Icon name="chevron-left" size={20} />
+        <span>{project.category || 'Projects'}</span>
+      </a>
+      <button type="button" class="m-pack-share-btn" id="btn-pack-share" aria-label="Share project">
+        <Icon name="share" size={20} />
+      </button>
+    </div>
+
+    <!-- Full-bleed Swipe Gallery with 1 / N Counter -->
+    <div class="m-pack-gallery-wrap">
+      <div class="m-pack-gallery" id="m-pack-gallery">
+        {mobileSlides.map((slide, idx) => (
+          <div class="m-pack-slide">
+            {slide.type === 'yt' ? (
+              <div class="m-pack-yt-wrap">
+                <lite-youtube videoid={slide.ytId}></lite-youtube>
+              </div>
+            ) : slide.type === 'model' ? (
+              <model-viewer
+                src={slide.url}
+                camera-controls
+                auto-rotate
+                shadow-intensity="1"
+                exposure="1.2"
+                class="m-pack-model"
+                alt={`3D model of ${project.title}`}
+              ></model-viewer>
+            ) : (
+              <img
+                src={slide.url}
+                alt={slide.caption || project.title}
+                width="800"
+                height="500"
+                loading={idx === 0 ? 'eager' : 'lazy'}
+                class="m-pack-img"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      {mobileSlides.length > 1 && (
+        <div class="m-pack-gallery-counter" id="m-pack-gallery-counter">
+          1 / {mobileSlides.length}
+        </div>
+      )}
+    </div>
+
+    <!-- Title, Chips & Summary -->
+    <div class="m-pack-meta-block">
+      <h1 class="m-pack-title">{project.title}</h1>
+
+      <div class="m-pack-chips-row">
+        {project.difficulty && (
+          <span class="m-pack-chip">{project.difficulty}</span>
+        )}
+        <span class="m-pack-chip">{project.build_time || '2 hrs'}</span>
+        {estCost > 0 && (
+          <span class="m-pack-chip m-pack-chip--cost">Core cost &asymp; {formatINR(estCost)}</span>
+        )}
+      </div>
+
+      {project.summary && (
+        <p class="m-pack-summary">{project.summary}</p>
+      )}
+    </div>
+
+    <!-- Sticky Tab Chips: Overview, Parts list, Wiring, Build steps -->
+    <nav class="m-pack-tabs-nav" id="m-sticky-tabs" aria-label="Page sections">
+      <div class="m-pack-tabs-track">
+        <a href="#overview" class="m-pack-tab-chip is-active" data-sec="overview">Overview</a>
+        {hasBom && <a href="#parts" class="m-pack-tab-chip" data-sec="parts">Parts list</a>}
+        {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
+          <a href="#wiring" class="m-pack-tab-chip" data-sec="wiring">Wiring</a>
+        )}
+        {project.steps?.length > 0 && (
+          <a href="#steps" class="m-pack-tab-chip" data-sec="steps">Build steps</a>
+        )}
+      </div>
+    </nav>
+  </div>
 
   <!-- MAIN CONTENT CONTAINER -->
   <main class="p-content container">
@@ -489,10 +593,22 @@ const lastUpdated = formatDate(project.updated_at);
     {project.steps?.length > 0 && (
       <section class="p-sec" id="steps">
         <h2 class="p-sec__title">Build steps</h2>
+
+        <!-- Mobile Steps Progress Card (<= 768px) -->
+        <div class="m-steps-progress-card m-pack-only">
+          <div class="m-steps-progress-header">
+            <span class="m-steps-progress-title" id="m-steps-prog-title">0 of {project.steps.length} steps completed</span>
+            <span class="m-steps-progress-pct" id="m-steps-prog-pct">0%</span>
+          </div>
+          <div class="m-steps-progress-track">
+            <div class="m-steps-progress-fill" id="m-steps-prog-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
         <div class="p-steps-list">
           {project.steps.map((s, i) => (
-            <article class="p-step-card" data-step-index={i}>
-              <div class="p-step-card__header">
+            <article class:list={['p-step-card', { 'is-open': i === 0 }]} data-step-index={i}>
+              <div class="p-step-card__header" data-step-toggle={i}>
                 <span class="p-step-badge">{i + 1}</span>
                 <div class="p-step-card__title-wrap">
                   <h3 class="p-step-card__title">{s.title}</h3>
@@ -501,6 +617,9 @@ const lastUpdated = formatDate(project.updated_at);
                 {s.time_est && (
                   <span class="p-step-time"><Icon name="clock" size={13} /> {s.time_est}</span>
                 )}
+                <span class="m-step-chevron m-pack-only">
+                  <Icon name="chevron-down" size={18} />
+                </span>
               </div>
 
               <div class="p-step-card__body">
@@ -686,24 +805,110 @@ const lastUpdated = formatDate(project.updated_at);
     )}
   </main>
 
-  <!-- MOBILE STICKY BUY BAR (Height 60px) -->
-  <div class="mobile-sticky-bar" id="mobile-sticky-bar">
-    <div class="mobile-sticky-bar__info">
-      <span class="mobile-sticky-bar__title">{project.title}</span>
-      <span class="mobile-sticky-bar__price">
-        {paid ? formatINR(project.price_inr) : <strong class="text-success">Free</strong>}
+  <!-- MOBILE STICKY BOTTOM BAR (media_1791876192118_f7595c00.png) -->
+  <div class="m-sticky-bar m-pack-only" id="m-sticky-bar">
+    <div class="m-sticky-bar__info">
+      <span class="m-sticky-bar__price">
+        {paid ? formatINR(project.price_inr) : 'Free'}
       </span>
+      <span class="m-sticky-bar__sub">One-time, instant access</span>
     </div>
-    <button type="button" class="btn-mobile-buy" id="btn-mobile-scroll">
-      {paid ? `Buy pack — ${formatINR(project.price_inr)}` : 'Get free files'}
+    <button type="button" class="btn-m-sheet-open" id="btn-open-buy-sheet">
+      {paid ? 'Buy pack' : 'Get free files'}
     </button>
+  </div>
+
+  <!-- MOBILE BUY PACK BOTTOM SHEET MODAL (media_1791876192114_cad8732e.png) -->
+  <div class="m-sheet-backdrop m-pack-only" id="m-sheet-backdrop" aria-hidden="true">
+    <div class="m-sheet-modal" id="m-sheet-modal" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="m-sheet-handle-bar">
+        <div class="m-sheet-handle"></div>
+      </div>
+
+      <div class="m-sheet-header">
+        <div class="m-sheet-header__info">
+          <span class="m-sheet-tag">{paid ? 'Digital project pack' : 'Free digital resource'}</span>
+          <div class="m-sheet-price-row">
+            <span class="m-sheet-price" id="sheet-title">{paid ? formatINR(project.price_inr) : 'Free'}</span>
+            <span class="m-sheet-price-sub">one-time, instant access</span>
+          </div>
+        </div>
+        <button type="button" class="m-sheet-close" id="btn-close-buy-sheet" aria-label="Close modal">
+          <Icon name="close" size={18} />
+        </button>
+      </div>
+
+      <!-- Feature highlights with red icons -->
+      <div class="m-sheet-highlights">
+        <div class="m-sheet-highlight">
+          <span class="m-sheet-hl-icon"><Icon name="code" size={16} /></span>
+          <span class="m-sheet-hl-text">{codeCount > 0 ? codeCount : (uniqueFiles.length || 2)} tested source code {codeCount === 1 ? 'file' : 'files'}</span>
+        </div>
+        <div class="m-sheet-highlight">
+          <span class="m-sheet-hl-icon"><Icon name="cart" size={16} /></span>
+          <span class="m-sheet-hl-text">Verified parts list with direct buy links</span>
+        </div>
+      </div>
+
+      <!-- Checkout Form -->
+      <form class="m-sheet-form" id="m-sheet-form" onsubmit="return false;">
+        <div class="m-sheet-field">
+          <label for="m-sheet-email" class="m-sheet-label">Your email address</label>
+          <input
+            type="email"
+            id="m-sheet-email"
+            class="m-sheet-input"
+            placeholder="name@example.com"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        {paid && (
+          <div class="m-sheet-coupon-section">
+            <button type="button" class="m-sheet-coupon-toggle" id="btn-toggle-coupon">
+              Have a discount code?
+            </button>
+            <div class="m-sheet-coupon-box" id="m-sheet-coupon-box" hidden>
+              <input
+                type="text"
+                id="m-sheet-coupon-input"
+                class="m-sheet-input m-sheet-input--sm"
+                placeholder="Discount code"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+        )}
+
+        <button type="button" class="btn-m-sheet-submit" id="btn-m-sheet-submit">
+          {paid ? (
+            <><Icon name="lock" size={16} /> Pay {formatINR(project.price_inr)}</>
+          ) : (
+            <><Icon name="download" size={16} /> Get free files &rarr;</>
+          )}
+        </button>
+      </form>
+
+      <!-- Trust lines -->
+      <div class="m-sheet-trust">
+        <div class="m-sheet-trust-line">
+          Secure checkout via Razorpay: UPI, cards, net banking
+        </div>
+        <div class="m-sheet-trust-line">
+          7-day build guarantee, direct email support
+        </div>
+        <div class="m-sheet-trust-line">
+          Download link sent to your email right away
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-  // Media Viewer thumbnail switcher
+  // Desktop Media Viewer thumbnail switcher
   const stage = document.getElementById('media-stage');
-  const stageImg = document.getElementById('stage-img') as HTMLImageElement;
   const thumbBtns = document.querySelectorAll<HTMLButtonElement>('.p-thumb-btn');
 
   thumbBtns.forEach((btn) => {
@@ -727,58 +932,151 @@ const lastUpdated = formatDate(project.updated_at);
     });
   });
 
-  // Mobile Sticky Buy Bar trigger & scroll
-  const buyBox = document.getElementById('main-buy-box');
-  const stickyBar = document.getElementById('mobile-sticky-bar');
-  const mobileScrollBtn = document.getElementById('btn-mobile-scroll');
-
-  if (buyBox && stickyBar) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting && window.innerWidth <= 900) {
-            stickyBar.classList.add('is-visible');
-          } else {
-            stickyBar.classList.remove('is-visible');
-          }
-        });
+  // Mobile Gallery Counter
+  const mGallery = document.getElementById('m-pack-gallery');
+  const mCounter = document.getElementById('m-pack-gallery-counter');
+  if (mGallery && mCounter) {
+    const slides = mGallery.querySelectorAll('.m-pack-slide');
+    const total = slides.length;
+    mGallery.addEventListener(
+      'scroll',
+      () => {
+        const slideW = mGallery.clientWidth || 1;
+        const idx = Math.min(total, Math.max(1, Math.round(mGallery.scrollLeft / slideW) + 1));
+        mCounter.textContent = `${idx} / ${total}`;
       },
-      { threshold: 0.1 }
+      { passive: true }
     );
-    observer.observe(buyBox);
+  }
 
-    mobileScrollBtn?.addEventListener('click', () => {
-      buyBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
-      if (emailInput) setTimeout(() => emailInput.focus(), 400);
+  // Mobile Topbar Share
+  const shareBtn = document.getElementById('btn-pack-share');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: document.title,
+            url: window.location.href,
+          });
+        } catch {}
+      } else {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          const toast = document.createElement('div');
+          toast.className = 'm-share-toast';
+          toast.textContent = 'Link copied to clipboard!';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 2500);
+        } catch {
+          prompt('Copy link to share:', window.location.href);
+        }
+      }
     });
   }
 
-  // Section Nav active pill highlighting on scroll
-  const secLinks = document.querySelectorAll<HTMLAnchorElement>('.p-secnav__link');
+  // Section Nav active pill highlighting on scroll (both desktop and mobile)
+  const desktopSecLinks = document.querySelectorAll<HTMLAnchorElement>('.p-secnav__link');
+  const mobileTabChips = document.querySelectorAll<HTMLAnchorElement>('.m-pack-tab-chip');
   const sections = document.querySelectorAll<HTMLElement>('.p-sec');
 
-  window.addEventListener(
-    'scroll',
-    () => {
-      let currentId = '';
-      sections.forEach((sec) => {
-        const top = sec.offsetTop - 140;
-        if (window.scrollY >= top) {
-          currentId = sec.getAttribute('id') || '';
+  const highlightTabs = () => {
+    let currentId = '';
+    sections.forEach((sec) => {
+      const top = sec.offsetTop - 140;
+      if (window.scrollY >= top) {
+        currentId = sec.getAttribute('id') || '';
+      }
+    });
+    if (currentId) {
+      desktopSecLinks.forEach((link) => {
+        link.classList.toggle('is-active', link.getAttribute('href') === `#${currentId}`);
+      });
+      mobileTabChips.forEach((chip) => {
+        const isActive = chip.getAttribute('href') === `#${currentId}`;
+        chip.classList.toggle('is-active', isActive);
+        if (isActive && window.innerWidth <= 768) {
+          const track = chip.parentElement;
+          if (track) {
+            const scrollLeft = chip.offsetLeft - (track.clientWidth - chip.clientWidth) / 2;
+            track.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+          }
         }
       });
-      if (currentId) {
-        secLinks.forEach((link) => {
-          link.classList.toggle('is-active', link.getAttribute('href') === `#${currentId}`);
-        });
+    }
+  };
+  window.addEventListener('scroll', highlightTabs, { passive: true });
+
+  // Mobile Tab Chips Click -> Smooth Scroll
+  mobileTabChips.forEach((chip) => {
+    chip.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetId = chip.getAttribute('href')?.replace('#', '');
+      const targetEl = targetId ? document.getElementById(targetId) : null;
+      if (targetEl) {
+        const yOffset = -110;
+        const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
       }
-    },
-    { passive: true }
-  );
+    });
+  });
+
+  // Mobile Bottom Sheet Modal
+  const sheetBackdrop = document.getElementById('m-sheet-backdrop');
+  const openSheetBtn = document.getElementById('btn-open-buy-sheet');
+  const closeSheetBtn = document.getElementById('btn-close-buy-sheet');
+  const couponToggleBtn = document.getElementById('btn-toggle-coupon');
+  const couponBox = document.getElementById('m-sheet-coupon-box');
+
+  const openSheet = () => {
+    if (sheetBackdrop) {
+      sheetBackdrop.classList.add('is-open');
+      sheetBackdrop.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      const email = document.getElementById('m-sheet-email') as HTMLInputElement;
+      if (email && !email.value) setTimeout(() => email.focus(), 300);
+    }
+  };
+
+  const closeSheet = () => {
+    if (sheetBackdrop) {
+      sheetBackdrop.classList.remove('is-open');
+      sheetBackdrop.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+  };
+
+  openSheetBtn?.addEventListener('click', openSheet);
+  closeSheetBtn?.addEventListener('click', closeSheet);
+  sheetBackdrop?.addEventListener('click', (e) => {
+    if (e.target === sheetBackdrop) closeSheet();
+  });
+
+  couponToggleBtn?.addEventListener('click', () => {
+    if (couponBox) {
+      const isHidden = couponBox.hasAttribute('hidden');
+      if (isHidden) couponBox.removeAttribute('hidden');
+      else couponBox.setAttribute('hidden', '');
+    }
+  });
 
   // Step Completion Progress (persisted in localStorage)
   const projBox = document.getElementById('main-buy-box');
+  const totalSteps = document.querySelectorAll('.p-step-card').length;
+  const mProgTitle = document.getElementById('m-steps-prog-title');
+  const mProgPct = document.getElementById('m-steps-prog-pct');
+  const mProgFill = document.getElementById('m-steps-prog-fill');
+
+  const updateProgressUI = (saved: string[]) => {
+    if (totalSteps > 0) {
+      const count = saved.length;
+      const pct = Math.round((count / totalSteps) * 100);
+      if (mProgTitle) mProgTitle.textContent = `${count} of ${totalSteps} steps completed`;
+      if (mProgPct) mProgPct.textContent = `${pct}%`;
+      if (mProgFill) mProgFill.style.width = `${pct}%`;
+    }
+  };
+
   if (projBox && projBox.dataset.projectId) {
     const storageKey = `tt-step-prog-${projBox.dataset.projectId}`;
     let savedSteps: string[] = [];
@@ -806,137 +1104,169 @@ const lastUpdated = formatDate(project.updated_at);
         try {
           localStorage.setItem(storageKey, JSON.stringify(savedSteps));
         } catch {}
+        updateProgressUI(savedSteps);
       });
     });
+
+    updateProgressUI(savedSteps);
   }
 
-  // Checkout and Free Claim logic
-  const buyBtn = document.getElementById('btn-buy-submit') as HTMLButtonElement;
-  const freeBtn = document.getElementById('btn-free-submit') as HTMLButtonElement;
-  const buyBoxContainer = document.getElementById('main-buy-box');
+  // Mobile Step Header Collapsible Accordion
+  const stepHeaders = document.querySelectorAll<HTMLElement>('[data-step-toggle]');
+  stepHeaders.forEach((hdr) => {
+    hdr.addEventListener('click', (e) => {
+      if (window.innerWidth <= 768) {
+        // Prevent toggle if clicking checkbox directly
+        if ((e.target as HTMLElement).closest('.p-step-check')) return;
+        const card = hdr.closest('.p-step-card');
+        card?.classList.toggle('is-open');
+      }
+    });
+  });
 
-  // Handle Free Claim
-  if (freeBtn && buyBoxContainer) {
-    freeBtn.addEventListener('click', async () => {
-      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
-      if (!emailInput || !emailInput.value || !emailInput.checkValidity()) {
-        emailInput?.reportValidity();
+  // Unified Checkout & Free Claim Engine
+  const buyBoxContainer = document.getElementById('main-buy-box');
+  const isPaid = buyBoxContainer?.dataset.paid === '1';
+  const projectId = parseInt(buyBoxContainer?.dataset.projectId || '0', 10);
+  const projectSlug = buyBoxContainer?.dataset.slug || 'Project Pack';
+
+  async function handleFreeClaim(emailVal: string, btn: HTMLButtonElement, container: HTMLElement) {
+    if (!emailVal || !emailVal.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    btn.disabled = true;
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = 'Preparing free files...';
+
+    try {
+      const res = await fetch('/api/download/free-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, email: emailVal }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to claim download');
+
+      container.innerHTML = `
+        <div class="buy-success">
+          <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+          <h3 class="buy-success__title">Free files ready!</h3>
+          <p class="buy-success__text">We just emailed the download link to <strong>${emailVal}</strong>.</p>
+          <a href="${data.redirect || '/account/downloads'}" class="btn-buy-action btn-buy-action--free">Download files now</a>
+        </div>
+      `;
+    } catch (err: any) {
+      alert(err.message || 'Error claiming files');
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  }
+
+  async function handlePaidCheckout(emailVal: string, couponVal: string, btn: HTMLButtonElement, container: HTMLElement) {
+    if (!emailVal || !emailVal.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    btn.disabled = true;
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = 'Connecting to checkout...';
+
+    try {
+      const res = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, email: emailVal, couponCode: couponVal }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
+
+      if (data.alreadyPaid) {
+        container.innerHTML = `
+          <div class="buy-success">
+            <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+            <h3 class="buy-success__title">You already own this pack!</h3>
+            <p class="buy-success__text">We emailed the fresh download link to <strong>${emailVal}</strong>.</p>
+            <a href="/account/downloads" class="btn-buy-action">View my downloads</a>
+          </div>
+        `;
         return;
       }
 
-      freeBtn.disabled = true;
-      freeBtn.innerHTML = `Preparing free files...`;
+      const rzp = new (window as any).Razorpay({
+        key: data.keyId,
+        amount: data.amount,
+        currency: 'INR',
+        name: 'Technical Triveni',
+        description: projectSlug,
+        order_id: data.razorpayOrderId,
+        handler: async function (response: any) {
+          btn.innerHTML = 'Verifying payment...';
+          try {
+            const vres = await fetch('/api/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId: data.orderId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const vdata = await vres.json();
+            if (!vres.ok) throw new Error(vdata.error || 'Verification failed');
+            window.location.href = vdata.redirect || '/account/downloads';
+          } catch (err: any) {
+            alert('Payment confirmed, but session verification failed: ' + err.message);
+            window.location.href = '/account/downloads';
+          }
+        },
+        prefill: { email: emailVal },
+        theme: { color: '#E92424' },
+      });
 
-      try {
-        const res = await fetch('/api/download/free-claim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: parseInt(buyBoxContainer.dataset.projectId || '0', 10),
-            email: emailInput.value.trim(),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to claim download');
+      rzp.on('payment.failed', function () {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+        alert('Payment was cancelled or failed. Please try again.');
+      });
 
-        buyBoxContainer.innerHTML = `
-          <div class="buy-success">
-            <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
-            <h3 class="buy-success__title">Free files ready!</h3>
-            <p class="buy-success__text">We just emailed the download link to <strong>${emailInput.value}</strong>.</p>
-            <a href="${data.redirect || '/account/downloads'}" class="btn-buy-action btn-buy-action--free">Download files now</a>
-          </div>
-        `;
-      } catch (err: any) {
-        alert(err.message || 'Error claiming files');
-        freeBtn.disabled = false;
-        freeBtn.innerHTML = `Get free files &rarr;`;
-      }
+      rzp.open();
+    } catch (err: any) {
+      alert(err.message || 'Error starting payment');
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  }
+
+  // Desktop Form Listeners
+  const desktopBuyBtn = document.getElementById('btn-buy-submit') as HTMLButtonElement;
+  const desktopFreeBtn = document.getElementById('btn-free-submit') as HTMLButtonElement;
+  if (desktopBuyBtn && buyBoxContainer) {
+    desktopBuyBtn.addEventListener('click', () => {
+      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
+      const couponInput = document.getElementById('coupon_code') as HTMLInputElement;
+      handlePaidCheckout(emailInput?.value?.trim() || '', couponInput?.value?.trim() || '', desktopBuyBtn, buyBoxContainer);
+    });
+  }
+  if (desktopFreeBtn && buyBoxContainer) {
+    desktopFreeBtn.addEventListener('click', () => {
+      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
+      handleFreeClaim(emailInput?.value?.trim() || '', desktopFreeBtn, buyBoxContainer);
     });
   }
 
-  // Handle Paid Razorpay Checkout
-  if (buyBtn && buyBoxContainer) {
-    buyBtn.addEventListener('click', async () => {
-      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
-      const couponInput = document.getElementById('coupon_code') as HTMLInputElement;
-
-      if (!emailInput || !emailInput.value || !emailInput.checkValidity()) {
-        emailInput?.reportValidity();
-        return;
-      }
-
-      buyBtn.disabled = true;
-      buyBtn.innerHTML = `Connecting to checkout...`;
-
-      try {
-        const res = await fetch('/api/razorpay/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: parseInt(buyBoxContainer.dataset.projectId || '0', 10),
-            email: emailInput.value.trim(),
-            couponCode: couponInput ? couponInput.value.trim() : '',
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
-
-        if (data.alreadyPaid) {
-          buyBoxContainer.innerHTML = `
-            <div class="buy-success">
-              <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
-              <h3 class="buy-success__title">You already own this pack!</h3>
-              <p class="buy-success__text">We emailed the fresh download link to <strong>${emailInput.value}</strong>.</p>
-              <a href="/account/downloads" class="btn-buy-action">View my downloads</a>
-            </div>
-          `;
-          return;
-        }
-
-        const rzp = new (window as any).Razorpay({
-          key: data.keyId,
-          amount: data.amount,
-          currency: 'INR',
-          name: 'Technical Triveni',
-          description: buyBoxContainer.dataset.slug || 'Project Pack',
-          order_id: data.razorpayOrderId,
-          handler: async function (response: any) {
-            buyBtn.innerHTML = `Verifying payment...`;
-            try {
-              const vres = await fetch('/api/razorpay/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderId: data.orderId,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                }),
-              });
-              const vdata = await vres.json();
-              if (!vres.ok) throw new Error(vdata.error || 'Verification failed');
-              window.location.href = vdata.redirect || '/account/downloads';
-            } catch (err: any) {
-              alert('Payment confirmed, but session verification failed: ' + err.message);
-              window.location.href = '/account/downloads';
-            }
-          },
-          prefill: { email: emailInput.value.trim() },
-          theme: { color: '#E92424' },
-        });
-
-        rzp.on('payment.failed', function () {
-          buyBtn.disabled = false;
-          buyBtn.innerHTML = `Buy pack &mdash; ₹${buyBoxContainer.dataset.price}`;
-          alert('Payment was cancelled or failed. Please try again.');
-        });
-
-        rzp.open();
-      } catch (err: any) {
-        alert(err.message || 'Error starting payment');
-        buyBtn.disabled = false;
-        buyBtn.innerHTML = `Buy pack &mdash; ₹${buyBoxContainer.dataset.price}`;
+  // Mobile Bottom Sheet Listeners
+  const sheetSubmitBtn = document.getElementById('btn-m-sheet-submit') as HTMLButtonElement;
+  const sheetModal = document.getElementById('m-sheet-modal');
+  if (sheetSubmitBtn && sheetModal) {
+    sheetSubmitBtn.addEventListener('click', () => {
+      const emailInput = document.getElementById('m-sheet-email') as HTMLInputElement;
+      const couponInput = document.getElementById('m-sheet-coupon-input') as HTMLInputElement;
+      if (isPaid) {
+        handlePaidCheckout(emailInput?.value?.trim() || '', couponInput?.value?.trim() || '', sheetSubmitBtn, sheetModal);
+      } else {
+        handleFreeClaim(emailInput?.value?.trim() || '', sheetSubmitBtn, sheetModal);
       }
     });
   }
@@ -2043,60 +2373,666 @@ const lastUpdated = formatDate(project.updated_at);
     }
   }
 
-  /* Mobile Sticky Bottom Bar (Height 60px) */
-  .mobile-sticky-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(8px);
-    border-top: 1px solid var(--line);
-    padding: 0 16px;
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 90;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateY(100%);
-    transition: transform 200ms ease;
+  /* ============================================================
+     MOBILE NATIVE PACK REDESIGN (<= 768px)
+     Matches Figma / mockups (media_1791876192118_f7595c00.png,
+     media_1791876192114_cad8732e.png, media_1791876192124_8bdf7be7.png)
+     ============================================================ */
+  .m-pack-only {
+    display: none !important;
   }
-  .mobile-sticky-bar.is-visible {
-    display: flex;
-    transform: translateY(0);
+  .desktop-pack-only {
+    display: block;
   }
-  .mobile-sticky-bar__info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding-right: 12px;
-  }
-  .mobile-sticky-bar__title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ink);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 170px;
-  }
-  .mobile-sticky-bar__price {
-    font-size: 14px;
-    font-family: var(--font-display);
-    font-weight: 700;
-    color: var(--ink);
-  }
-  .btn-mobile-buy {
-    height: 42px;
-    padding: 0 16px;
-    background: var(--red);
-    color: #ffffff;
-    border: none;
-    border-radius: var(--r-btn);
-    font-size: 14px;
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
+
+  @media (max-width: 768px) {
+    .m-pack-only {
+      display: block !important;
+    }
+    .desktop-pack-only {
+      display: none !important;
+    }
+
+    .project-layout {
+      padding-bottom: 96px; /* clearance for sticky bar */
+    }
+
+    /* 1. Mobile Topbar (< Category + Share) */
+    .m-pack-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      padding: 0 16px;
+      background: #ffffff;
+      border-bottom: 1px solid #ECEFF2;
+    }
+    .m-pack-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0F1115;
+      text-decoration: none;
+    }
+    .m-pack-share-btn {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      background: none;
+      border: none;
+      color: #0F1115;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    /* 2. Full-bleed Swipe Gallery with 1 / N Counter */
+    .m-pack-gallery-wrap {
+      position: relative;
+      width: 100%;
+      background: #E8ECEF;
+      overflow: hidden;
+    }
+    .m-pack-gallery {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+    }
+    .m-pack-gallery::-webkit-scrollbar {
+      display: none;
+    }
+    .m-pack-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      scroll-snap-align: start;
+      position: relative;
+      background: #E8ECEF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .m-pack-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .m-pack-model {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .m-pack-yt-wrap {
+      width: 100%;
+      height: 100%;
+    }
+    .m-pack-yt-wrap lite-youtube {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+    }
+    .m-pack-gallery-counter {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: #0F1115;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      z-index: 5;
+      letter-spacing: 0.04em;
+    }
+
+    /* 3. Title, Chips & Summary */
+    .m-pack-meta-block {
+      padding: 16px 16px 12px;
+      background: #ffffff;
+    }
+    .m-pack-title {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.015em;
+      color: #0F1115;
+      margin: 0 0 12px;
+    }
+    .m-pack-chips-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .m-pack-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F1115;
+      background: #F4F6F8;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+    .m-pack-chip--cost {
+      background: #F4F6F8;
+      font-weight: 600;
+    }
+    .m-pack-summary {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #5A6270;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* 4. Sticky Tab Chips */
+    .m-pack-tabs-nav {
+      position: sticky;
+      top: 56px; /* below mobile site header */
+      z-index: 40;
+      background: #ffffff;
+      padding: 10px 16px;
+      border-top: 1px solid #ECEFF2;
+      border-bottom: 1px solid #ECEFF2;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .m-pack-tabs-track {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .m-pack-tabs-track::-webkit-scrollbar {
+      display: none;
+    }
+    .m-pack-tab-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0F1115;
+      background: #ffffff;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 999px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 150ms ease;
+    }
+    .m-pack-tab-chip.is-active {
+      background: #0F1115;
+      color: #ffffff;
+      border-color: #0F1115;
+    }
+
+    /* 5. Safety Alert Box (warm card) */
+    .p-safety-box {
+      background: #FEF7E6 !important;
+      border: 1.5px solid #FDE3B2 !important;
+      border-left: 1.5px solid #FDE3B2 !important;
+      border-radius: 14px !important;
+      padding: 14px 16px !important;
+      margin-bottom: 20px !important;
+      box-shadow: none !important;
+    }
+    .p-safety-box__header {
+      color: #92400E !important;
+      margin-bottom: 6px !important;
+    }
+    .p-safety-box__title {
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      color: #92400E !important;
+    }
+    .p-safety-box__body {
+      font-size: 13px !important;
+      line-height: 1.5 !important;
+      color: #78350F !important;
+    }
+
+    /* 6. Content Container adjustments */
+    .p-content {
+      gap: 32px;
+      padding: 0 16px;
+    }
+    .p-sec {
+      scroll-margin-top: 120px;
+    }
+    .p-sec__title {
+      font-size: 20px !important;
+      font-weight: 800 !important;
+      margin-bottom: 12px !important;
+    }
+
+    /* 7. Wiring Cards */
+    .p-wiring-mobile {
+      display: flex !important;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .p-pin-card {
+      background: #ffffff;
+      border: 1.5px solid #ECEFF2;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .p-pin-card__connection {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .p-pin-from {
+      font-weight: 700;
+      color: #0F1115;
+    }
+    .p-pin-arrow {
+      color: #D91F26;
+      font-weight: 800;
+    }
+    .p-pin-to {
+      color: #0F1115;
+      background: #F4F6F8;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .p-pin-card__note {
+      font-size: 12px;
+      color: #5A6270;
+      margin-top: 4px;
+    }
+
+    /* 8. Build Steps Progress & Collapsible Cards */
+    .m-steps-progress-card {
+      background: #F4F6F8;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .m-steps-progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0F1115;
+      margin-bottom: 8px;
+    }
+    .m-steps-progress-track {
+      width: 100%;
+      height: 6px;
+      background: #E2E8F0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .m-steps-progress-fill {
+      height: 100%;
+      background: #D91F26;
+      border-radius: 999px;
+      transition: width 200ms ease;
+    }
+
+    .p-steps-list {
+      gap: 12px;
+    }
+    .p-step-card {
+      border: 1.5px solid #ECEFF2;
+      border-radius: 14px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+    .p-step-card__header {
+      padding: 12px 14px;
+      background: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+    }
+    .p-step-badge {
+      width: 28px;
+      height: 28px;
+      font-size: 13px;
+      background: #D91F26;
+    }
+    .p-step-card__title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0F1115;
+    }
+    .m-step-chevron {
+      color: #5A6270;
+      transition: transform 200ms ease;
+      flex-shrink: 0;
+    }
+    .p-step-card.is-open .m-step-chevron {
+      transform: rotate(180deg);
+    }
+    .p-step-card:not(.is-open) .p-step-card__body {
+      display: none !important;
+    }
+    .p-step-card.is-open .p-step-card__body {
+      display: flex !important;
+      padding: 14px;
+      border-top: 1px solid #ECEFF2;
+    }
+    .p-step-check {
+      padding-top: 8px;
+    }
+    .p-step-check__label {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .p-step-check__label input {
+      width: 22px;
+      height: 22px;
+      accent-color: #D91F26;
+    }
+
+    /* 9. Related Packs Carousel */
+    .p-related-section {
+      padding-top: 20px;
+      margin-top: 8px;
+    }
+    .p-related-grid {
+      display: flex !important;
+      overflow-x: auto !important;
+      scroll-snap-type: x mandatory !important;
+      gap: 12px !important;
+      padding: 4px 0 16px !important;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .p-related-grid::-webkit-scrollbar {
+      display: none;
+    }
+    .p-related-grid > * {
+      flex: 0 0 260px !important;
+      min-width: 260px !important;
+      max-width: 260px !important;
+      scroll-snap-align: start !important;
+    }
+
+    /* 10. Sticky Bottom Bar */
+    :root {
+      --sticky-buy-h: 68px;
+    }
+    .m-sticky-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 68px;
+      padding: 0 16px env(safe-area-inset-bottom, 0px);
+      background: #ffffff;
+      border-top: 1px solid #ECEFF2;
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 80;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    }
+    .m-sticky-bar__info {
+      display: flex;
+      flex-direction: column;
+    }
+    .m-sticky-bar__price {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      color: #0F1115;
+      line-height: 1.1;
+    }
+    .m-sticky-bar__sub {
+      font-size: 11px;
+      color: #5A6270;
+      font-weight: 500;
+    }
+    .btn-m-sheet-open {
+      height: 44px;
+      padding: 0 24px;
+      background: #D91F26;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 150ms ease, transform 100ms ease;
+    }
+    .btn-m-sheet-open:active {
+      transform: scale(0.98);
+      background: #BC161C;
+    }
+
+    /* 11. Bottom Sheet Modal */
+    .m-sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 250ms ease;
+    }
+    .m-sheet-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .m-sheet-modal {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-radius: 20px 20px 0 0;
+      padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+      z-index: 101;
+      max-height: 85vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+    }
+    .m-sheet-backdrop.is-open .m-sheet-modal {
+      transform: translateY(0);
+    }
+    .m-sheet-handle-bar {
+      display: flex;
+      justify-content: center;
+      padding-bottom: 12px;
+    }
+    .m-sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: #D1D5DB;
+      border-radius: 2px;
+    }
+    .m-sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .m-sheet-tag {
+      font-size: 11px;
+      font-weight: 600;
+      color: #5A6270;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .m-sheet-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .m-sheet-price {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 800;
+      color: #0F1115;
+      line-height: 1;
+    }
+    .m-sheet-price-sub {
+      font-size: 12px;
+      color: #5A6270;
+    }
+    .m-sheet-close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      background: #F4F6F8;
+      border: none;
+      border-radius: 50%;
+      color: #0F1115;
+      cursor: pointer;
+    }
+
+    .m-sheet-highlights {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 0;
+      border-top: 1px solid #ECEFF2;
+      border-bottom: 1px solid #ECEFF2;
+      margin-bottom: 16px;
+    }
+    .m-sheet-highlight {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F1115;
+    }
+    .m-sheet-hl-icon {
+      color: #D91F26;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .m-sheet-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .m-sheet-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .m-sheet-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F1115;
+    }
+    .m-sheet-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 10px;
+      font-size: 16px; /* Prevents iOS auto-zoom */
+      color: #0F1115;
+      background: #ffffff;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+    .m-sheet-input:focus {
+      border-color: #D91F26;
+    }
+    .m-sheet-input--sm {
+      height: 40px;
+      font-size: 14px;
+    }
+    .m-sheet-coupon-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .m-sheet-coupon-toggle {
+      background: none;
+      border: none;
+      color: #D91F26;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
+    }
+    .btn-m-sheet-submit {
+      width: 100%;
+      height: 48px;
+      background: #D91F26;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 150ms ease;
+    }
+    .btn-m-sheet-submit:active {
+      background: #BC161C;
+    }
+
+    .m-sheet-trust {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 4px;
+    }
+    .m-sheet-trust-line {
+      font-size: 11px;
+      color: #5A6270;
+      line-height: 1.4;
+    }
+
+    /* Toast */
+    .m-share-toast {
+      position: fixed;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0F1115;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 999px;
+      z-index: 150;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
   }
 </style>

@@ -28,6 +28,9 @@ const heroPaid = (heroProject?.price_inr ?? 0) > 0;
 const heroBadges = ['Code', 'Schematic'];
 if (heroProject?.model_url || heroProject?.file_kinds?.includes('3d')) heroBadges.push('3D');
 
+const rawCategories = Array.from(new Set(allProjects.map((p) => p.category).filter(Boolean)));
+const categories = ['All', ...rawCategories];
+
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -39,6 +42,8 @@ const jsonLd = {
 ---
 
 <Base jsonLd={jsonLd}>
+  <!-- Desktop Homepage Layout (>= 769px) -->
+  <div class="desktop-home-only">
   <!-- ============================ HERO ============================ -->
   <section class="home-hero">
     <div class="container home-hero__grid">
@@ -206,11 +211,144 @@ const jsonLd = {
       </div>
     </div>
   </section>
+  </div>
+
+  <!-- ==================== MOBILE-NATIVE HOME (<= 768px) ==================== -->
+  <div class="m-home-only">
+    <!-- Short Hero -->
+    <section class="m-hero">
+      <h1 class="m-hero__title">
+        Engineering project packs you can actually build.
+      </h1>
+      <p class="m-hero__lead">
+        Schematics, source code, 3D files, and verified parts lists, everything you need to go from watching a video to holding a working build.
+      </p>
+      <div class="m-hero__buttons">
+        <a href="/projects" class="m-hero__btn-primary">Browse packs</a>
+        <a href="/how-it-works" class="m-hero__btn-secondary">How it works</a>
+      </div>
+    </section>
+
+    <!-- Category Chips Track -->
+    <nav class="m-chips-track" aria-label="Project categories">
+      {categories.map((c, i) => (
+        <a
+          href={c === 'All' ? '/projects' : `/projects?cat=${encodeURIComponent(c)}`}
+          class:list={['m-chip-pill', { 'is-active': i === 0 }]}
+        >
+          {c}
+        </a>
+      ))}
+    </nav>
+
+    <!-- Featured Packs Carousel -->
+    {allProjects.length > 0 && (
+      <section class="m-section">
+        <div class="m-section-head">
+          <h2 class="m-section-title">Featured packs</h2>
+          <a href="/projects" class="m-section-viewall">
+            View all {allProjects.length}
+          </a>
+        </div>
+        <div class="m-carousel">
+          {allProjects.map((p) => {
+            const pPaid = (p.price_inr ?? 0) > 0;
+            return (
+              <article class="m-carousel-card">
+                <a href={`/projects/${p.slug}`} class="m-carousel-card__link" aria-label={p.title}></a>
+                <div class="m-carousel-card__thumb">
+                  {p.cover_image ? (
+                    <img src={p.cover_image} alt={p.title} width="320" height="220" loading="lazy" />
+                  ) : (
+                    <div class="m-carousel-card__ph">
+                      <Icon name="cube" size={32} />
+                    </div>
+                  )}
+                </div>
+                <div class="m-carousel-card__body">
+                  <span class="m-carousel-card__cat">{p.category || 'PACK'}</span>
+                  <h3 class="m-carousel-card__title">{p.title}</h3>
+                  <span class="m-carousel-card__meta">
+                    {p.difficulty || 'All levels'}{p.build_time ? `, ${p.build_time}` : ''}
+                  </span>
+                  <div class="m-carousel-card__foot">
+                    <span class="m-carousel-card__price">
+                      {pPaid ? formatINR(p.price_inr) : 'Free'}
+                    </span>
+                    <span class="m-carousel-card__cta">View pack</span>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    <!-- Every Pack Includes (2x2 Grid) -->
+    <section class="m-section">
+      <div class="m-section-head">
+        <h2 class="m-section-title">Every pack includes</h2>
+      </div>
+      <div class="m-includes-grid">
+        <div class="m-include-tile">
+          <span class="m-include-tile__icon"><Icon name="code" size={22} /></span>
+          <span class="m-include-tile__text">Tested source code</span>
+        </div>
+        <div class="m-include-tile">
+          <span class="m-include-tile__icon"><Icon name="schematic" size={22} /></span>
+          <span class="m-include-tile__text">Wiring and schematics</span>
+        </div>
+        <div class="m-include-tile">
+          <span class="m-include-tile__icon"><Icon name="cart" size={22} /></span>
+          <span class="m-include-tile__text">Parts list with buy links</span>
+        </div>
+        <div class="m-include-tile">
+          <span class="m-include-tile__icon"><Icon name="play" size={22} /></span>
+          <span class="m-include-tile__text">Full build videos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dark Channel Card -->
+    <section class="m-section">
+      <div class="m-channel-box">
+        <h3 class="m-channel-box__title">Watch every build before you buy.</h3>
+        <p class="m-channel-box__desc">
+          Every project is documented end to end on YouTube, so you see the prototype working first.
+        </p>
+        <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="m-channel-box__btn">
+          Visit channel
+        </a>
+      </div>
+    </section>
+
+    <!-- Creator Row -->
+    <section class="m-section">
+      <div class="m-creator-row">
+        <div class="m-creator-avatar">TN</div>
+        <div class="m-creator-info">
+          <strong class="m-creator-name">Triveni Narayan Priy</strong>
+          <p class="m-creator-bio">
+            B.Tech ECE (VLSI) student at NIT Patna. Every pack is built and tested by me.
+          </p>
+          <a href="/about" class="m-creator-link">Read more about Triveni</a>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <script type="module" src="https://cdn.jsdelivr.net/npm/@justinribeiro/lite-youtube-embed@2.1.2/lite-youtube.js"></script>
 </Base>
 
 <style>
+  .m-home-only {
+    display: none;
+  }
+  .desktop-home-only {
+    display: block;
+  }
+
   /* ---------------- Hero Section ---------------- */
   .home-hero {
     padding-top: 96px;
@@ -671,6 +809,334 @@ const jsonLd = {
     }
     .about-strip__link {
       align-self: center;
+    }
+  }
+
+  /* ============================================================
+     MOBILE-NATIVE HOMEPAGE (<= 768px)
+     ============================================================ */
+  @media (max-width: 768px) {
+    .desktop-home-only {
+      display: none !important;
+    }
+    .m-home-only {
+      display: block !important;
+      padding-bottom: 2rem;
+    }
+
+    /* Mobile Hero */
+    .m-hero {
+      padding: 1.5rem 1rem 1.25rem;
+      background: var(--bg);
+    }
+    .m-hero__title {
+      font-family: var(--font-display, var(--font-sans));
+      font-size: 1.85rem;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: #0F1115;
+      margin: 0 0 0.75rem 0;
+    }
+    .m-hero__lead {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      color: #5A6270;
+      margin: 0 0 1.25rem 0;
+    }
+    .m-hero__buttons {
+      display: flex;
+      gap: 0.75rem;
+      width: 100%;
+    }
+    .m-hero__btn-primary {
+      flex: 1;
+      min-height: 44px;
+      background: #D91F26;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.92rem;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border: none;
+      box-shadow: 0 2px 8px rgba(217, 31, 38, 0.25);
+    }
+    .m-hero__btn-secondary {
+      flex: 1;
+      min-height: 44px;
+      background: #fff;
+      color: #0F1115;
+      font-weight: 600;
+      font-size: 0.92rem;
+      border-radius: 999px;
+      border: 1.5px solid #0F1115;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+
+    /* Category Chips */
+    .m-chips-track {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding: 0.25rem 1rem 1.5rem;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .m-chips-track::-webkit-scrollbar {
+      display: none;
+    }
+    .m-chip-pill {
+      flex-shrink: 0;
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #0F1115;
+      background: #fff;
+      border: 1px solid #E2E6EC;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .m-chip-pill.is-active {
+      background: #0F1115;
+      color: #fff;
+      border-color: #0F1115;
+    }
+
+    /* Sections */
+    .m-section {
+      margin-bottom: 2rem;
+    }
+    .m-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+      margin-bottom: 0.85rem;
+    }
+    .m-section-title {
+      font-family: var(--font-display, var(--font-sans));
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0F1115;
+      margin: 0;
+    }
+    .m-section-viewall {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #D91F26;
+      text-decoration: none;
+    }
+
+    /* Scroll-snap Carousel */
+    .m-carousel {
+      display: flex;
+      gap: 0.85rem;
+      overflow-x: auto;
+      padding: 0 1rem;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .m-carousel::-webkit-scrollbar {
+      display: none;
+    }
+    .m-carousel-card {
+      flex: 0 0 250px;
+      scroll-snap-align: start;
+      background: #fff;
+      border: 1px solid #E8ECEF;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .m-carousel-card__link {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+    .m-carousel-card__thumb {
+      width: 100%;
+      aspect-ratio: 16 / 11;
+      background: #EDF0F4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .m-carousel-card__thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .m-carousel-card__ph {
+      color: #9AA3AF;
+    }
+    .m-carousel-card__body {
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      flex: 1;
+    }
+    .m-carousel-card__cat {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #5A6270;
+    }
+    .m-carousel-card__title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #0F1115;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .m-carousel-card__meta {
+      font-size: 0.78rem;
+      color: #5A6270;
+    }
+    .m-carousel-card__foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 0.5rem;
+    }
+    .m-carousel-card__price {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #0F1115;
+    }
+    .m-carousel-card__cta {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #D91F26;
+    }
+
+    /* 2x2 Every Pack Includes Grid */
+    .m-includes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+      padding: 0 1rem;
+    }
+    .m-include-tile {
+      background: #F4F6F8;
+      border-radius: 14px;
+      padding: 1rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .m-include-tile__icon {
+      color: #D91F26;
+      display: flex;
+      align-items: center;
+    }
+    .m-include-tile__text {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #0F1115;
+      line-height: 1.25;
+    }
+
+    /* Dark Channel Card */
+    .m-channel-box {
+      margin: 0 1rem;
+      background: #111418;
+      border-radius: 20px;
+      padding: 1.5rem 1.25rem;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .m-channel-box__title {
+      font-family: var(--font-display, var(--font-sans));
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.2;
+      color: #fff;
+      margin: 0;
+    }
+    .m-channel-box__desc {
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: #9AA3AF;
+      margin: 0 0 0.5rem 0;
+    }
+    .m-channel-box__btn {
+      align-self: flex-start;
+      min-height: 44px;
+      padding: 0 1.25rem;
+      background: #D91F26;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+
+    /* Creator Row */
+    .m-creator-row {
+      margin: 0 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding-top: 0.5rem;
+    }
+    .m-creator-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #111418;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+    .m-creator-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .m-creator-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0F1115;
+    }
+    .m-creator-bio {
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: #5A6270;
+      margin: 0;
+    }
+    .m-creator-link {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #D91F26;
+      text-decoration: none;
+      margin-top: 0.25rem;
     }
   }
 </style>

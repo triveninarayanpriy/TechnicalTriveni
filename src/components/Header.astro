@@ -34,9 +34,9 @@ const centerLinks = [
         Free resources <Icon name="arrow-right" size={15} />
       </a>
 
-      <!-- Mobile actions: Download icon + Menu toggle -->
-      <a href="/account/downloads" class="mobile-dl-btn" aria-label="My downloads">
-        <Icon name="download" size={20} />
+      <!-- Mobile actions: Search icon + Menu toggle -->
+      <a href="/projects" class="mobile-search-btn" aria-label="Search projects">
+        <Icon name="search" size={22} />
       </a>
       <button class="nav-toggle" data-nav-toggle aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
         <Icon name="menu" size={22} />
@@ -188,6 +188,7 @@ const centerLinks = [
   }
 
   /* Mobile icons hidden on desktop */
+  .mobile-search-btn,
   .mobile-dl-btn,
   .nav-toggle {
     display: none;
@@ -202,6 +203,7 @@ const centerLinks = [
     cursor: pointer;
     text-decoration: none;
   }
+  .mobile-search-btn:hover,
   .mobile-dl-btn:hover,
   .nav-toggle:hover {
     background: var(--bg-soft);
@@ -295,7 +297,8 @@ const centerLinks = [
     .nav-desktop { display: none; }
     .nav-link--downloads { display: none; }
     .btn--header { display: none; }
-    .mobile-dl-btn,
+    .mobile-search-btn,
     .nav-toggle { display: inline-flex; }
+    .mobile-dl-btn { display: none; }
   }
 </style>

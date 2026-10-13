@@ -175,47 +175,53 @@ const totalCoreCost = coreItems
   )}
 </div>
 
-<!-- Mobile Parts List (Card-based layout to fit 360px without truncation) -->
+<!-- Mobile Parts List (Native row layout matching mockup) -->
 <div class="bom-mobile-only">
   {coreItems.length > 0 && (
-    <div class="bom-mobile-group">
-      <div class="bom-mobile-group__title">Core build components</div>
-      <div class="bom-mobile-list">
+    <div class="m-bom-container">
+      <div class="m-bom-header">
+        <h3 class="m-bom-title">
+          Core cost &asymp; <span id="bom-calc-total-mobile" data-base-total={totalCoreCost}>{formatINR(totalCoreCost)}</span>
+        </h3>
+        <p class="m-bom-subtitle">Tick off parts as you get them. Every part has a direct buy link.</p>
+      </div>
+
+      <div class="m-bom-list">
         {coreItems.map((b) => {
           const qty = parseInt(b.qty, 10) || 1;
           const priced = (b.unit_price_inr ?? 0) > 0;
           return (
-            <div class="bom-mobile-card" data-bom-id={b.id}>
-              <div class="bom-mobile-card__top">
-                <label class="bom-mobile-check-label">
-                  <input
-                    type="checkbox"
-                    class="bom-check"
-                    data-price={priced ? b.unit_price_inr * qty : 0}
-                    title="I already have this part"
-                  />
-                  <span class="bom-mobile-name">{b.name}</span>
-                </label>
+            <div class="m-bom-row" data-bom-id={b.id}>
+              <label class="m-bom-check-target" aria-label={`Check ${b.name}`}>
+                <input
+                  type="checkbox"
+                  class="bom-check m-bom-check"
+                  data-price={priced ? b.unit_price_inr * qty : 0}
+                  title="I already have this part"
+                />
+              </label>
+
+              <div class="m-bom-info">
+                <span class="m-bom-name">{b.name}</span>
+                {b.notes && <span class="m-bom-note">{b.notes}</span>}
+                <span class="m-bom-qty">Qty {b.qty}</span>
               </div>
-              {b.notes && <div class="bom-mobile-note">{b.notes}</div>}
-              <div class="bom-mobile-card__bottom">
-                <div class="bom-mobile-meta">
-                  <span class="bom-mobile-qty">Qty: {b.qty}</span>
-                  <span class="bom-mobile-price">
-                    {priced ? formatINR(b.unit_price_inr) : <span class="bom-price--unset">Price not set</span>}
-                  </span>
-                </div>
+
+              <div class="m-bom-action">
+                <span class="m-bom-price">
+                  {priced ? formatINR(b.unit_price_inr) : '—'}
+                </span>
                 {b.affiliate_url ? (
                   <a
                     href={b.affiliate_url}
                     target="_blank"
                     rel="nofollow sponsored noopener"
-                    class="btn-buy-part btn-buy-part--mobile"
+                    class="btn-m-bom-buy"
                   >
-                    Buy <Icon name="external-link" size={11} />
+                    Buy
                   </a>
                 ) : (
-                  <span class="bom-empty-dash">—</span>
+                  <span class="btn-m-bom-buy btn-m-bom-buy--dim">Buy</span>
                 )}
               </div>
             </div>
@@ -226,60 +232,55 @@ const totalCoreCost = coreItems
   )}
 
   {toolItems.length > 0 && (
-    <div class="bom-mobile-group">
-      <div class="bom-mobile-group__title">Tools & Optional equipment</div>
-      <div class="bom-mobile-list">
+    <div class="m-bom-container" style="margin-top: 24px;">
+      <div class="m-bom-header">
+        <h4 class="m-bom-title" style="font-size: 16px;">Tools & Optional equipment</h4>
+        <p class="m-bom-subtitle">Equipment you may already have on your bench.</p>
+      </div>
+
+      <div class="m-bom-list">
         {toolItems.map((b) => {
           const qty = parseInt(b.qty, 10) || 1;
           const priced = (b.unit_price_inr ?? 0) > 0;
           return (
-            <div class="bom-mobile-card" data-bom-id={b.id}>
-              <div class="bom-mobile-card__top">
-                <label class="bom-mobile-check-label">
-                  <input
-                    type="checkbox"
-                    class="bom-check"
-                    data-price={priced ? b.unit_price_inr * qty : 0}
-                    checked
-                    title="I already have this tool"
-                  />
-                  <span class="bom-mobile-name">{b.name}</span>
-                </label>
+            <div class="m-bom-row" data-bom-id={b.id}>
+              <label class="m-bom-check-target" aria-label={`Check ${b.name}`}>
+                <input
+                  type="checkbox"
+                  class="bom-check m-bom-check"
+                  data-price={priced ? b.unit_price_inr * qty : 0}
+                  checked
+                  title="I already have this tool"
+                />
+              </label>
+
+              <div class="m-bom-info">
+                <span class="m-bom-name">{b.name}</span>
+                {b.notes && <span class="m-bom-note">{b.notes}</span>}
+                <span class="m-bom-qty">Qty {b.qty}</span>
               </div>
-              {b.notes && <div class="bom-mobile-note">{b.notes}</div>}
-              <div class="bom-mobile-card__bottom">
-                <div class="bom-mobile-meta">
-                  <span class="bom-mobile-qty">Qty: {b.qty}</span>
-                  <span class="bom-mobile-price">
-                    {priced ? formatINR(b.unit_price_inr) : <span class="bom-price--unset">Price not set</span>}
-                  </span>
-                </div>
+
+              <div class="m-bom-action">
+                <span class="m-bom-price">
+                  {priced ? formatINR(b.unit_price_inr) : '—'}
+                </span>
                 {b.affiliate_url ? (
                   <a
                     href={b.affiliate_url}
                     target="_blank"
                     rel="nofollow sponsored noopener"
-                    class="btn-buy-part btn-buy-part--mobile"
+                    class="btn-m-bom-buy"
                   >
-                    Buy <Icon name="external-link" size={11} />
+                    Buy
                   </a>
                 ) : (
-                  <span class="bom-empty-dash">—</span>
+                  <span class="btn-m-bom-buy btn-m-bom-buy--dim">Buy</span>
                 )}
               </div>
             </div>
           );
         })}
       </div>
-    </div>
-  )}
-
-  {hasPriced && totalCoreCost > 0 && (
-    <div class="bom-total-row bom-total-row--mobile">
-      <span class="bom-total-label">Core build estimate:</span>
-      <span class="bom-total-price" id="bom-calc-total-mobile" data-base-total={totalCoreCost}>
-        {formatINR(totalCoreCost)}
-      </span>
     </div>
   )}
 </div>
@@ -303,8 +304,11 @@ const totalCoreCost = coreItems
     checkBoxes.forEach((cb) => {
       cb.addEventListener('change', () => {
         const itemPrice = parseFloat(cb.dataset.price || '0');
+        const row = cb.closest('.m-bom-row');
+        if (row) row.classList.toggle('is-ticked', cb.checked);
+
         const isTool = cb.closest('tbody')?.textContent?.includes('Tools') ||
-                       cb.closest('.bom-mobile-group')?.textContent?.includes('Tools');
+                       cb.closest('.m-bom-container')?.textContent?.includes('Tools');
         if (!isTool && itemPrice > 0) {
           if (cb.checked) {
             currentDeduction += itemPrice;
@@ -495,7 +499,7 @@ const totalCoreCost = coreItems
     display: none;
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .bom-desktop-only {
       display: none !important;
     }
@@ -505,106 +509,144 @@ const totalCoreCost = coreItems
       gap: 16px;
     }
 
-    .bom-mobile-group {
-      border: 1px solid var(--line);
-      border-radius: var(--r-card);
-      overflow: hidden;
-      background: var(--bg);
-      box-shadow: var(--shadow);
-    }
-    .bom-mobile-group__title {
-      font-weight: 600;
-      color: var(--ink-2);
-      background: var(--bg-soft);
-      padding: 10px 14px;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid var(--line);
-    }
-    .bom-mobile-list {
+    .m-bom-container {
       display: flex;
       flex-direction: column;
     }
-    .bom-mobile-card {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
+
+    .m-bom-header {
+      margin-bottom: 12px;
+    }
+
+    .m-bom-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0F1115;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .m-bom-subtitle {
+      font-size: 13px;
+      line-height: 1.45;
+      color: #5A6270;
+      margin: 0;
+    }
+
+    .m-bom-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      border-top: 1px solid #ECEFF2;
     }
-    .bom-mobile-card:last-child {
-      border-bottom: none;
-    }
-    .bom-mobile-card__top {
-      display: flex;
-      align-items: flex-start;
+
+    .m-bom-row {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: start;
       gap: 8px;
+      padding: 14px 0;
+      border-bottom: 1px solid #ECEFF2;
+      transition: opacity 150ms ease;
     }
-    .bom-mobile-check-label {
+
+    .m-bom-row.is-ticked {
+      opacity: 0.5;
+    }
+
+    .m-bom-check-target {
+      min-width: 44px;
+      min-height: 44px;
       display: flex;
       align-items: flex-start;
-      gap: 10px;
+      justify-content: flex-start;
+      padding-top: 2px;
       cursor: pointer;
-      width: 100%;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    .bom-mobile-check-label input {
-      margin-top: 2px;
-      flex-shrink: 0;
+
+    .m-bom-check {
+      width: 22px;
+      height: 22px;
+      margin: 0;
+      border-radius: 4px;
+      border: 1.5px solid #CBD5E1;
+      accent-color: #0F1115;
+      cursor: pointer;
     }
-    .bom-mobile-name {
-      font-weight: 600;
-      font-size: 14px;
-      color: var(--ink);
-      line-height: 1.35;
+
+    .m-bom-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+      padding-right: 8px;
+    }
+
+    .m-bom-name {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: #0F1115;
       word-break: break-word;
     }
-    .bom-mobile-note {
-      font-size: 12px;
-      color: var(--ink-3);
-      padding-left: 28px;
+
+    .m-bom-note {
+      font-size: 13px;
       line-height: 1.4;
+      color: #5A6270;
+      word-break: break-word;
     }
-    .bom-mobile-card__bottom {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding-left: 28px;
+
+    .m-bom-qty {
+      font-size: 13px;
+      color: #5A6270;
+      font-weight: 500;
       margin-top: 2px;
     }
-    .bom-mobile-meta {
+
+    .m-bom-action {
       display: flex;
-      align-items: baseline;
-      gap: 10px;
-    }
-    .bom-mobile-qty {
-      font-size: 12px;
-      font-family: var(--font-mono, monospace);
-      color: var(--ink-2);
-      background: var(--bg-soft);
-      padding: 2px 6px;
-      border-radius: var(--r-xs);
-      border: 1px solid var(--line);
-    }
-    .bom-mobile-price {
-      font-family: var(--font-display);
-      font-weight: 700;
-      font-size: 14px;
-      color: var(--ink);
-      white-space: nowrap;
-    }
-    .btn-buy-part--mobile {
-      padding: 5px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      min-height: 30px;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
       flex-shrink: 0;
     }
-    .bom-total-row--mobile {
-      border: 1px solid var(--line);
-      border-radius: var(--r-card);
-      padding: 14px 16px;
+
+    .m-bom-price {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0F1115;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .btn-m-bom-buy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 62px;
+      height: 34px;
+      padding: 0 14px;
+      border: 1.5px solid #0F1115;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F1115;
+      background: #ffffff;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 150ms ease;
+    }
+
+    .btn-m-bom-buy:active {
+      transform: scale(0.97);
+    }
+
+    .btn-m-bom-buy--dim {
+      border-color: #E2E8F0;
+      color: #94A3B8;
+      cursor: default;
     }
   }
 </style>

@@ -89,7 +89,7 @@ const socials = [
       const btn = group.querySelector<HTMLButtonElement>('.footer-col__header');
       if (!btn) return;
       btn.addEventListener('click', () => {
-        if (window.innerWidth > 640) return;
+        if (window.innerWidth > 768) return;
         const isOpen = group.classList.toggle('is-open');
         btn.setAttribute('aria-expanded', String(isOpen));
       });
@@ -273,9 +273,12 @@ const socials = [
     .footer-brand { grid-column: 1 / -1; max-width: none; }
   }
 
-  /* Phones: link groups as accordions */
-  @media (max-width: 640px) {
-    .site-footer { padding-block: 36px 20px; }
+  /* Phones (<= 768px): link groups as accordions */
+  @media (max-width: 768px) {
+    .site-footer {
+      padding-block: 36px 20px;
+      background: #111418;
+    }
     .footer-grid { grid-template-columns: 1fr; gap: 1rem; }
     .footer-brand { margin-bottom: 0.75rem; }
     .footer-col__header {
