@@ -767,8 +767,15 @@ const tabMissing = {
             <details class="data-row-edit" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 0.5rem;">
               <summary class="data-row" style="cursor: pointer; padding: 0.75rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                 <div class="data-row__main" style="flex: 1;">
-                  <strong>{t.symptom}</strong>
-                  <span class="dim" style="display: block; margin-top: 0.2rem;">{t.fix}</span>
+                  <strong style="display: block; font-size: var(--fs-sm); color: var(--text);">{t.symptom}</strong>
+                  {t.cause && (
+                    <span class="dim" style="display: block; font-size: var(--fs-xs); margin-top: 0.2rem; color: var(--text-muted);">
+                      <strong style="color: var(--brand-red);">Cause:</strong> {t.cause}
+                    </span>
+                  )}
+                  <span class="dim" style="display: block; font-size: var(--fs-xs); margin-top: 0.2rem;">
+                    <strong>Fix:</strong> {t.fix}
+                  </span>
                 </div>
                 <div class="row-ctrl" style="display: flex; gap: 0.5rem; align-items: center;">
                   <span class="btn btn-ghost btn-xs" style="pointer-events: none;"><Icon name="edit" size={14} /> Edit</span>
@@ -784,9 +791,21 @@ const tabMissing = {
                 <input type="hidden" name="csrf" value={csrf} />
                 <input type="hidden" name="id" value={t.id} />
                 <input type="hidden" name="project_id" value={p.id} />
-                <input class="input" name="symptom" value={t.symptom} placeholder="Symptom e.g. LED not lighting up" required />
-                <textarea class="textarea" name="fix" placeholder="The fix (Markdown)…" required data-markdown>{t.fix}</textarea>
-                <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Tip</button>
+                <div class="field">
+                  <label class="label">Symptom <span class="required">*</span></label>
+                  <input class="input" name="symptom" value={t.symptom} placeholder="Symptom e.g. LED not lighting up" required />
+                </div>
+                <div class="field">
+                  <label class="label">Probable Cause</label>
+                  <input class="input" name="cause" value={t.cause || ''} placeholder="Probable Cause e.g. GPIO pin reversed or blown current-limiting resistor" />
+                </div>
+                <div class="field">
+                  <label class="label">Fix (Markdown) <span class="required">*</span></label>
+                  <textarea class="textarea" name="fix" placeholder="The fix (Markdown)…" required data-markdown>{t.fix}</textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end;">
+                  <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Save Tip</button>
+                </div>
               </form>
             </details>
           ))}
@@ -794,12 +813,24 @@ const tabMissing = {
         </div>
 
         <form method="post" action="/api/admin/trouble/add" class="stack-add" style="background: var(--surface-2); padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 1rem;">
-          <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Troubleshooting Tip</h4>
+          <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;"><Icon name="plus-circle" size={16} /> Add a Troubleshooting Tip</h4>
           <input type="hidden" name="csrf" value={csrf} />
           <input type="hidden" name="project_id" value={p.id} />
-          <input class="input" name="symptom" placeholder="Symptom e.g. 'Failed to connect to ESP32: Timed out waiting for packet header'" required />
-          <textarea class="textarea" name="fix" placeholder="The fix (Markdown: hold Boot button while plugging in USB, check baud rate)…" required data-markdown></textarea>
-          <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Tip</button>
+          <div class="field">
+            <label class="label">Symptom <span class="required">*</span></label>
+            <input class="input" name="symptom" placeholder="Symptom e.g. 'Failed to connect to ESP32: Timed out waiting for packet header'" required />
+          </div>
+          <div class="field">
+            <label class="label">Probable Cause</label>
+            <input class="input" name="cause" placeholder="Probable Cause e.g. Boot mode pin GPIO0 not pulled low during reset or bad USB data cable" />
+          </div>
+          <div class="field">
+            <label class="label">Fix (Markdown) <span class="required">*</span></label>
+            <textarea class="textarea" name="fix" placeholder="The fix (Markdown: hold Boot button while plugging in USB, check baud rate)…" required data-markdown></textarea>
+          </div>
+          <div>
+            <button class="btn btn-primary" type="submit"><Icon name="plus" size={15} /> Add Tip</button>
+          </div>
         </form>
       </div>
     )}

@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     await updateTrouble(env.DB, id, {
       symptom: strField(form, 'symptom', 300),
+      cause: strField(form, 'cause', 600),
       fix: strField(form, 'fix', 2000)
     });
     return flashRedirect(back, { ok: 'Tip updated.' });

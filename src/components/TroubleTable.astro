@@ -23,7 +23,14 @@ const { items } = Astro.props;
           <span class="trouble-icon"><Icon name="chevron-down" size={16} /></span>
         </summary>
         <div class="trouble-fix">
-          <strong>Fix:</strong> {item.fix}
+          {item.cause && (
+            <div class="trouble-cause" style="margin-bottom: 0.35rem; color: var(--text);">
+              <strong>Probable Cause:</strong> <span class="trouble-cause-text">{item.cause}</span>
+            </div>
+          )}
+          <div>
+            <strong>Fix:</strong> <span class="trouble-fix-text">{item.fix}</span>
+          </div>
         </div>
       </details>
     ))}
@@ -40,8 +47,9 @@ const { items } = Astro.props;
       const term = (e.target as HTMLInputElement).value.toLowerCase();
       rows.forEach((row) => {
         const text = row.querySelector('.trouble-symptom-text')?.textContent?.toLowerCase() || '';
-        const fix = row.querySelector('.trouble-fix')?.textContent?.toLowerCase() || '';
-        if (text.includes(term) || fix.includes(term)) {
+        const cause = row.querySelector('.trouble-cause-text')?.textContent?.toLowerCase() || '';
+        const fix = row.querySelector('.trouble-fix-text')?.textContent?.toLowerCase() || '';
+        if (text.includes(term) || cause.includes(term) || fix.includes(term)) {
           (row as HTMLElement).style.display = '';
         } else {
           (row as HTMLElement).style.display = 'none';

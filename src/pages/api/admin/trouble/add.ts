@@ -11,9 +11,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const back = `/admin/projects/${projectId}`;
 
   const symptom = strField(form, 'symptom', 300);
-  const fix = strField(form, 'fix', 600);
+  const cause = strField(form, 'cause', 600);
+  const fix = strField(form, 'fix', 1000);
   if (!symptom || !fix) return flashRedirect(back, { err: 'Symptom and fix are required.' });
 
-  await addTrouble(env.DB, { project_id: projectId, symptom, fix });
+  await addTrouble(env.DB, { project_id: projectId, symptom, cause, fix });
   return flashRedirect(back, { ok: 'Troubleshooting tip added.' });
 };

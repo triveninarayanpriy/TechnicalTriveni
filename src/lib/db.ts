@@ -89,7 +89,7 @@ export interface ProjectPin {
   id: number; project_id: number; from_pin: string; to_pin: string; note: string; module: string; sort: number;
 }
 export interface Troubleshoot {
-  id: number; project_id: number; symptom: string; fix: string; sort: number;
+  id: number; project_id: number; symptom: string; cause?: string; fix: string; sort: number;
 }
 export interface ProjectLink {
   id: number; project_id: number; label: string; url: string; kind: string; sort: number;
@@ -458,7 +458,7 @@ export async function updateStep(db: D1Database, id: number, b: Partial<ProjectS
 }
 
 export async function updateTrouble(db: D1Database, id: number, b: any) {
-  const fields = ['symptom', 'fix', 'sort'];
+  const fields = ['symptom', 'cause', 'fix', 'sort'];
   const sets = [];
   const binds = [];
   for (const f of fields) {
@@ -532,8 +532,8 @@ export async function deletePin(db: D1Database, id: number) {
 /* --- troubleshooting --- */
 export async function addTrouble(db: D1Database, t: Omit<Troubleshoot, 'id' | 'sort'>) {
   const row = await db.prepare('SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_troubleshooting WHERE project_id = ?').bind(t.project_id).first<{ n: number }>();
-  await db.prepare('INSERT INTO project_troubleshooting (project_id,symptom,fix,sort) VALUES (?,?,?,?)')
-    .bind(t.project_id, t.symptom, t.fix, row?.n ?? 0).run();
+  await db.prepare('INSERT INTO project_troubleshooting (project_id,symptom,cause,fix,sort) VALUES (?,?,?,?,?)')
+    .bind(t.project_id, t.symptom, t.cause ?? '', t.fix, row?.n ?? 0).run();
 }
 export async function deleteTrouble(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_troubleshooting WHERE id = ?').bind(id).run();
