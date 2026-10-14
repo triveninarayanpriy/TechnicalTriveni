@@ -14,75 +14,84 @@ const fileKindsStr = (project.file_kinds || '').toLowerCase();
 const hasCode = fileKindsStr.includes('code') || fileKindsStr.includes('sketch') || fileKindsStr.includes('hex');
 const hasSchematic = fileKindsStr.includes('schematic') || fileKindsStr.includes('circuit');
 const has3D = fileKindsStr.includes('model') || fileKindsStr.includes('3d') || !!project.model_url;
-const hasPdf = fileKindsStr.includes('pdf') || fileKindsStr.includes('doc') || (!hasCode && !hasSchematic && !has3D);
+const hasPdf = fileKindsStr.includes('pdf') || fileKindsStr.includes('doc');
+const hasVideo = !!project.video_url;
 
-// Badges: max two, plain text with icon
-const badges: { label: string; icon: string }[] = [];
-if (hasCode) badges.push({ label: 'Code', icon: 'code' });
-if (hasSchematic && badges.length < 2) badges.push({ label: 'Schematic', icon: 'schematic' });
-if (has3D && badges.length < 2) badges.push({ label: '3D', icon: 'cube' });
-if (hasPdf && badges.length < 2) badges.push({ label: 'PDF', icon: 'file-text' });
+const chips: { label: string; icon: string; isVideo?: boolean }[] = [];
+if (hasCode) chips.push({ label: 'Code', icon: 'code' });
+if (hasSchematic) chips.push({ label: 'Schematic', icon: 'schematic' });
+if (has3D) chips.push({ label: '3D', icon: 'cube' });
+if (hasPdf) chips.push({ label: 'PDF', icon: 'file-text' });
+if (hasVideo) chips.push({ label: 'Video', icon: 'play', isVideo: true });
 
-// Meta row: "Beginner · 2 h · Core cost ≈ ₹1,480"
+if (chips.length === 0) {
+  if (project.category?.toLowerCase() === 'resource') {
+    chips.push({ label: 'PDF', icon: 'file-text' });
+  } else {
+    chips.push({ label: 'Code', icon: 'code' });
+    chips.push({ label: 'Schematic', icon: 'schematic' });
+  }
+}
+
 const metaParts: string[] = [];
 if (project.difficulty) metaParts.push(project.difficulty);
 if (project.build_time) metaParts.push(project.build_time);
-else metaParts.push('2 h');
-
-if (project.cost_override && project.cost_override > 0) {
-  metaParts.push(`Core cost ≈ ${formatINR(project.cost_override)}`);
-}
-const metaRow = metaParts.join(' · ');
+else metaParts.push('2 hours');
+const metaRight = metaParts.join(', ');
 ---
 
 <article class="pcard" data-reveal={reveal ? '' : undefined}>
-  <a href={`/projects/${project.slug}`} class="pcard__stretch" aria-label={`View ${project.title}`}></a>
+  <a href={`/projects/${project.slug}`} class="pcard__stretch" aria-label={`View pack ${project.title}`}></a>
   
+  <!-- Clean 16:9 Cover Image (NO text, tags, badges, or play overlays on top) -->
   <div class="pcard__media">
     {project.cover_image ? (
-      <img src={project.cover_image} alt={project.title} loading="lazy" decoding="async" width="640" height="400" />
+      <img
+        src={project.cover_image}
+        alt={project.title}
+        loading="lazy"
+        decoding="async"
+        width="640"
+        height="360"
+        class="pcard__img"
+      />
     ) : (
-      <div class="pcard__placeholder grid-bg" aria-hidden="true">
-        <svg viewBox="-4 -4 120 100" class="pcard__mark">
-          <defs><path id={`m-${project.id}`} d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
-          <use href={`#m-${project.id}`} x="0" fill="var(--red)" opacity="0.9"/>
-          <use href={`#m-${project.id}`} x="50" fill="var(--ink-2)"/>
-        </svg>
+      <div class="pcard__placeholder" aria-hidden="true">
+        <Icon name="cube" size={36} />
       </div>
-    )}
-
-    {badges.length > 0 && (
-      <div class="pcard__badges">
-        {badges.map((b) => (
-          <span class="pcard__badge">
-            <Icon name={b.icon} size={11} /> {b.label}
-          </span>
-        ))}
-      </div>
-    )}
-
-    {project.video_url && (
-      <span class="pcard__video" title="Video walkthrough included">
-        <Icon name="play" size={12} />
-      </span>
     )}
   </div>
 
   <div class="pcard__body">
-    <span class="pcard__cat">{project.category || 'PROJECT'}</span>
-    <h3 class="pcard__title">{project.title}</h3>
-    <div class="pcard__meta-row">{metaRow}</div>
-    {project.summary && <p class="pcard__summary">{project.summary}</p>}
+    <!-- Category (left) and Level/Time (right) -->
+    <div class="pcard__top-meta">
+      <span class="pcard__cat">{project.category || 'Electronics'}</span>
+      <span class="pcard__level-time">{metaRight}</span>
+    </div>
 
+    <!-- Full Title (wraps up to 3 lines, never truncated) -->
+    <h3 class="pcard__title">{project.title}</h3>
+
+    <!-- Chip Row: 28px high, 14px icon, 13px text -->
+    <div class="pcard__chips">
+      {chips.map((c) => (
+        <span class:list={['pcard__chip', { 'pcard__chip--video': c.isVideo }]}>
+          <Icon name={c.icon} size={14} />
+          <span>{c.label}</span>
+        </span>
+      ))}
+    </div>
+
+    <!-- Foot Row: Price on left, View pack on right -->
     <div class="pcard__foot">
       <div class="pcard__price-wrap">
         {paid ? (
           <span class="pcard__price">{formatINR(project.price_inr)}</span>
         ) : (
-          <span class="pcard__free">Free</span>
+          <span class="pcard__price pcard__price--free">Free</span>
         )}
       </div>
-      <span class="pcard__cta">View &rarr;</span>
+      <span class="pcard__btn">View pack</span>
     </div>
   </div>
 </article>
@@ -93,7 +102,7 @@ const metaRow = metaParts.join(' · ');
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg);
+    background: #FFFFFF;
     border: 1px solid var(--line);
     border-radius: var(--r-card);
     padding: 16px;
@@ -103,8 +112,11 @@ const metaRow = metaParts.join(' · ');
   @media (hover: hover) and (min-width: 768px) {
     .pcard:hover {
       transform: translateY(-2px);
-      border-color: var(--ink-2);
-      box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 12px 28px rgba(0,0,0,.08);
+      border-color: #C0C5CD;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+    .pcard:hover .pcard__btn {
+      opacity: 0.92;
     }
   }
   .pcard__stretch {
@@ -114,195 +126,138 @@ const metaRow = metaParts.join(' · ');
     border-radius: inherit;
   }
 
-  /* 16:10 Media ratio */
+  /* Fixed 16:9 ratio, object-fit cover, clean */
   .pcard__media {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 16 / 9;
     background: var(--bg-soft);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
+    flex-shrink: 0;
   }
-  .pcard__media img {
+  .pcard__img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 300ms var(--ease);
+    transition: transform 250ms var(--ease);
   }
   @media (hover: hover) {
-    .pcard:hover .pcard__media img {
-      transform: scale(1.03);
+    .pcard:hover .pcard__img {
+      transform: scale(1.02);
     }
   }
   .pcard__placeholder {
-    display: grid;
-    place-items: center;
-    width: 100%;
-    height: 100%;
-  }
-  .pcard__mark { width: 36%; opacity: 0.85; }
-
-  /* Max two badges overlay */
-  .pcard__badges {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    display: flex;
-    gap: 5px;
-    z-index: 1;
-  }
-  .pcard__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 550;
-    padding: 3px 7px;
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(4px);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    color: var(--ink);
-  }
-  .pcard__video {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: var(--red);
-    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    z-index: 1;
+    width: 100%;
+    height: 100%;
+    color: var(--muted);
+    background: #F4F5F7;
   }
 
-  /* Card content */
+  /* Card Body */
   .pcard__body {
     display: flex;
     flex-direction: column;
     flex: 1;
     padding-top: 14px;
-    gap: 6px;
+  }
+
+  /* Top Meta Row */
+  .pcard__top-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
   }
   .pcard__cat {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-    font-weight: 600;
-    line-height: 1.2;
-  }
-  .pcard__title {
-    font-family: var(--font-display);
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--ink);
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    transition: color 180ms ease;
-  }
-  .pcard:hover .pcard__title {
-    color: var(--red);
-  }
-  .pcard__meta-row {
     font-size: 13px;
-    color: var(--ink-3);
-    font-weight: 500;
-    line-height: 1.4;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: capitalize;
   }
-  .pcard__summary {
-    font-size: 14px;
-    color: var(--ink-2);
-    line-height: 1.5;
-    margin: 0;
+  .pcard__level-time {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Full Title */
+  .pcard__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+    margin: 0 0 12px 0;
     display: -webkit-box;
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
-  /* Foot row */
+  /* Chip Row */
+  .pcard__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .pcard__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 550;
+    background: #ECEEF2;
+    color: var(--ink);
+  }
+  .pcard__chip--video {
+    background: var(--video-chip-bg);
+    color: var(--video-chip-text);
+  }
+  .pcard__chip--video svg {
+    color: var(--video-chip-text);
+  }
+
+  /* Foot Row */
   .pcard__foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     margin-top: auto;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
+    padding-top: 8px;
   }
   .pcard__price {
-    font-family: var(--font-display);
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--ink);
+    letter-spacing: -0.01em;
   }
-  .pcard__free {
-    font-size: 15px;
-    font-weight: 600;
+  .pcard__price--free {
     color: var(--success);
+    font-size: 18px;
   }
-  .pcard__cta {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--red);
+  .pcard__btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-  }
-
-  @media (max-width: 640px) {
-    .pcard {
-      padding: 10px;
-      border-radius: var(--r-sm);
-    }
-    .pcard__body {
-      padding-top: 8px;
-      gap: 4px;
-    }
-    .pcard__cat {
-      font-size: 10px;
-    }
-    .pcard__title {
-      font-size: 14px;
-      line-height: 1.25;
-      -webkit-line-clamp: 2;
-    }
-    .pcard__meta-row {
-      font-size: 11px;
-    }
-    .pcard__summary {
-      font-size: 12px;
-      -webkit-line-clamp: 1;
-      display: none; /* Hide summary preview on 2-col mobile cards to preserve clean density */
-    }
-    .pcard__foot {
-      padding-top: 8px;
-      margin-top: 6px;
-    }
-    .pcard__price {
-      font-size: 14px;
-    }
-    .pcard__free {
-      font-size: 13px;
-    }
-    .pcard__cta {
-      font-size: 12px;
-    }
-    .pcard__badge {
-      font-size: 9px;
-      padding: 2px 5px;
-    }
+    justify-content: center;
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: var(--red);
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 150ms ease;
   }
 </style>
