@@ -14,19 +14,15 @@ try {
   /* DB not ready */
 }
 
-// Select the Drone or ESP32 as hero project
+// Select Drone as hero project or fallback to first
 const heroProject = allProjects.find((p) => p.slug === 'arduino-drone') || allProjects[0];
 
-// Select 4 featured projects for the grid
+// Select up to 4 featured packs for grid
 const featuredPacks = allProjects.filter((p) => p.slug !== heroProject?.slug).slice(0, 4);
 if (featuredPacks.length < 4 && heroProject) {
   featuredPacks.unshift(heroProject);
 }
 const displayPacks = featuredPacks.slice(0, 4);
-
-const heroPaid = (heroProject?.price_inr ?? 0) > 0;
-const heroBadges = ['Code', 'Schematic'];
-if (heroProject?.model_url || heroProject?.file_kinds?.includes('3d')) heroBadges.push('3D');
 
 const rawCategories = Array.from(new Set(allProjects.map((p) => p.category).filter(Boolean)));
 const categories = ['All', ...rawCategories];
@@ -42,183 +38,166 @@ const jsonLd = {
 ---
 
 <Base jsonLd={jsonLd}>
-  <!-- Desktop Homepage Layout (>= 769px) -->
+  <!-- =========================================================================
+       DESKTOP HOMEPAGE (>= 769px)
+       Matches media_1791937885605_5f77abfa.png
+       ========================================================================= -->
   <div class="desktop-home-only">
-  <!-- ============================ HERO ============================ -->
-  <section class="home-hero">
-    <div class="container home-hero__grid">
-      <!-- Left Column (7 cols) -->
-      <div class="home-hero__copy">
-        <span class="home-hero__eyebrow">Electronics · Software · AI</span>
-        <h1 class="home-hero__title">
-          Engineering project packs you can <span class="text-red">actually build.</span>
-        </h1>
-        <p class="home-hero__lead">
-          Full schematics, source code, 3D files, and verified parts lists — everything you need to go from watching a video to holding a working build.
-        </p>
-        <div class="home-hero__buttons">
-          <a href="/projects" class="btn btn-primary btn-lg">
-            Browse packs <Icon name="arrow-right" size={16} />
-          </a>
-          <a href="/how-it-works" class="btn btn-secondary btn-lg">
-            How it works
-          </a>
-        </div>
-      </div>
+    <!-- HERO SECTION -->
+    <section class="home-hero">
+      <div class="container home-hero__grid">
+        <!-- Left Column -->
+        <div class="home-hero__copy">
+          <span class="home-hero__pill">Electronics, Software, AI</span>
+          <h1 class="home-hero__title">
+            Engineering project packs you can <span class="text-red">actually build.</span>
+          </h1>
+          <p class="home-hero__lead">
+            Schematics, source code, 3D files and verified parts lists, everything you need to go from watching a video to holding a working build.
+          </p>
+          <div class="home-hero__buttons">
+            <a href="/projects" class="btn btn-primary btn-hero">Browse packs</a>
+            <a href="/how-it-works" class="btn btn-secondary btn-hero">How it works</a>
+          </div>
 
-      <!-- Right Column (5 cols): Featured Project Card -->
-      {heroProject && (
-        <div class="home-hero__card-col">
-          <article class="hero-card">
-            <a href={`/projects/${heroProject.slug}`} class="hero-card__stretch" aria-label={`View ${heroProject.title}`}></a>
-            <div class="hero-card__media">
-              {heroProject.cover_image ? (
-                <img src={heroProject.cover_image} alt={heroProject.title} width="640" height="400" loading="eager" />
-              ) : (
-                <div class="hero-card__ph">
-                  <Icon name="cube" size={48} />
-                </div>
-              )}
-              <div class="hero-card__badges">
-                {heroBadges.slice(0, 2).map((b) => (
-                  <span class="hero-card__badge">{b}</span>
+          <div class="home-hero__proof-row">
+            <div class="proof-tick">
+              <Icon name="check-circle" size={16} />
+              <span>100% hardware tested</span>
+            </div>
+            <div class="proof-tick">
+              <Icon name="check-circle" size={16} />
+              <span>Build video for every pack</span>
+            </div>
+            <div class="proof-tick">
+              <Icon name="check-circle" size={16} />
+              <span>Instant download</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Featured Pack Card -->
+        {heroProject && (
+          <div class="home-hero__card-col">
+            <div class="hero-pack-wrap">
+              <ProjectCard project={heroProject} />
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+
+    <!-- FEATURED PACKS -->
+    {displayPacks.length > 0 && (
+      <section class="section">
+        <div class="container">
+          <div class="featured-head-row">
+            <h2 class="section-heading">Featured packs</h2>
+            <div class="featured-nav-right">
+              <div class="category-chips">
+                {categories.map((c, i) => (
+                  <a
+                    href={c === 'All' ? '/projects' : `/projects?cat=${encodeURIComponent(c)}`}
+                    class:list={['cat-chip', { 'is-active': i === 0 }]}
+                  >
+                    {c}
+                  </a>
                 ))}
               </div>
+              <a href="/projects" class="view-all-link">
+                View all {allProjects.length} packs
+              </a>
             </div>
-            <div class="hero-card__body">
-              <span class="hero-card__cat">{heroProject.category || 'FEATURED PACK'}</span>
-              <h3 class="hero-card__title">{heroProject.title}</h3>
-              <p class="hero-card__summary">{heroProject.summary}</p>
-              <div class="hero-card__foot">
-                <span class="hero-card__price">
-                  {heroPaid ? formatINR(heroProject.price_inr) : <span class="text-success">Free</span>}
-                </span>
-                <span class="hero-card__cta">View pack &rarr;</span>
-              </div>
-            </div>
-          </article>
+          </div>
+
+          <div class="packs-grid-4">
+            {displayPacks.map((p) => (
+              <ProjectCard project={p} />
+            ))}
+          </div>
         </div>
-      )}
-    </div>
-  </section>
+      </section>
+    )}
 
-  <!-- ======================== THREE VALUES ======================== -->
-  <section class="values-section">
-    <div class="container values-grid">
-      <div class="value-item">
-        <div class="value-item__icon"><Icon name="cpu" size={24} /></div>
-        <h3 class="value-item__title">Tested circuit</h3>
-        <p class="value-item__text">Every schematic and pin connection verified on real hardware.</p>
-      </div>
-      <div class="value-item">
-        <div class="value-item__icon"><Icon name="layers" size={24} /></div>
-        <h3 class="value-item__title">Complete files</h3>
-        <p class="value-item__text">Code, 3D STLs, schematics and parts lists in one download.</p>
-      </div>
-      <div class="value-item">
-        <div class="value-item__icon"><Icon name="mail" size={24} /></div>
-        <h3 class="value-item__title">Direct support</h3>
-        <p class="value-item__text">Ask questions, get help from the builder.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ======================= FEATURED PACKS ======================= -->
-  {displayPacks.length > 0 && (
+    <!-- EVERY PACK INCLUDES -->
     <section class="section">
       <div class="container">
-        <div class="section-head-row">
-          <div>
-            <h2 class="section-heading">Featured project packs</h2>
-            <p class="section-subtext">Verified builds with schematics, code, 3D files, and parts lists.</p>
+        <h2 class="section-heading" style="margin-bottom: 24px;">Every pack includes</h2>
+        <div class="includes-tiles-row">
+          <div class="include-tile">
+            <div class="include-tile__icon"><Icon name="code" size={20} /></div>
+            <h3 class="include-tile__title">Tested source code</h3>
+            <p class="include-tile__desc">Clean, commented firmware and sketches ready to flash.</p>
           </div>
-          <a href="/projects" class="section-link">
-            View all {allProjects.length > 0 ? allProjects.length : '4'} packs &rarr;
-          </a>
-        </div>
-
-        <div class="packs-grid">
-          {displayPacks.map((p) => (
-            <ProjectCard project={p} />
-          ))}
+          <div class="include-tile">
+            <div class="include-tile__icon"><Icon name="schematic" size={20} /></div>
+            <h3 class="include-tile__title">Wiring and schematics</h3>
+            <p class="include-tile__desc">Clear circuit diagrams and pin tables, so you never guess.</p>
+          </div>
+          <div class="include-tile">
+            <div class="include-tile__icon"><Icon name="cart" size={20} /></div>
+            <h3 class="include-tile__title">Verified parts list</h3>
+            <p class="include-tile__desc">Exact component specifications with direct buy links.</p>
+          </div>
+          <div class="include-tile">
+            <div class="include-tile__icon"><Icon name="play" size={20} /></div>
+            <h3 class="include-tile__title">Full build videos</h3>
+            <p class="include-tile__desc">Watch the physical bring-up on YouTube, step by step.</p>
+          </div>
         </div>
       </div>
     </section>
-  )}
 
-  <!-- ================== WHAT EVERY PACK INCLUDES ================== -->
-  <section class="section bg-soft">
-    <div class="container">
-      <div class="section-center-head">
-        <h2 class="section-heading">What every pack includes</h2>
-        <p class="section-subtext">No guessing, no missing libraries, no broken links.</p>
-      </div>
-
-      <div class="includes-grid">
-        <div class="includes-card">
-          <div class="includes-card__icon"><Icon name="code" size={30} /></div>
-          <h3 class="includes-card__title">Source code</h3>
-          <p class="includes-card__text">Clean, commented firmware and sketches ready to flash to your board.</p>
-        </div>
-        <div class="includes-card">
-          <div class="includes-card__icon"><Icon name="schematic" size={30} /></div>
-          <h3 class="includes-card__title">Wiring & schematics</h3>
-          <p class="includes-card__text">Clear circuit diagrams and pin tables so you never cross a wire.</p>
-        </div>
-        <div class="includes-card">
-          <div class="includes-card__icon"><Icon name="cart" size={30} /></div>
-          <h3 class="includes-card__title">Complete parts list</h3>
-          <p class="includes-card__text">Exact component specifications with direct local purchase links.</p>
-        </div>
-        <div class="includes-card">
-          <div class="includes-card__icon"><Icon name="play" size={30} /></div>
-          <h3 class="includes-card__title">Video walkthrough</h3>
-          <p class="includes-card__text">Full build videos on YouTube showing the physical bring-up step by step.</p>
+    <!-- DARK CHANNEL BAND -->
+    <section class="section">
+      <div class="container">
+        <div class="channel-band">
+          <div class="channel-band__copy">
+            <h2 class="channel-band__title">Watch every build before you buy.</h2>
+            <p class="channel-band__desc">
+              Every project is documented end to end on YouTube, so you can watch the physical prototype come to life before downloading the pack.
+            </p>
+            <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-channel">
+              <Icon name="play" size={16} /> Visit channel
+            </a>
+          </div>
+          <div class="channel-band__media">
+            <div class="band-covers-collage">
+              <img src="/covers/arduino-drone.png" alt="Drone" class="collage-cover collage-cover--1" loading="lazy" />
+              <img src="/covers/blynk-iot.png" alt="ESP32 Blynk" class="collage-cover collage-cover--2" loading="lazy" />
+              <img src="/covers/100-components.png" alt="Components" class="collage-cover collage-cover--3" loading="lazy" />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ======================= YOUTUBE CHANNEL ======================= -->
-  <section class="section">
-    <div class="container yt-grid">
-      <div class="yt-copy">
-        <span class="yt-label">THE CHANNEL</span>
-        <h2 class="section-heading">Watch every build before you buy.</h2>
-        <p class="yt-text">
-          Every project on Technical Triveni is documented end-to-end on YouTube so you can watch the physical prototype come to life before downloading the pack.
-        </p>
-        <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-          <Icon name="youtube" size={18} /> Visit channel &rarr;
-        </a>
+    <!-- MEET THE MAKER -->
+    <section class="section maker-section">
+      <div class="container maker-grid">
+        <div class="maker-photo-wrap">
+          <img src={PROFILE.photo} alt={PROFILE.name} class="maker-photo" width="480" height="340" loading="lazy" />
+        </div>
+        <div class="maker-info">
+          <span class="maker-eyebrow">Meet the maker</span>
+          <h2 class="maker-title">{PROFILE.name}</h2>
+          <p class="maker-bio">
+            I'm a B.Tech ECE (VLSI) student at NIT Patna. Every electronics, software and AI project on Technical Triveni is built and tested by me. YouTube shows the highlight reel; this is where you get the complete verified code, schematics and parts lists to actually finish the build.
+          </p>
+          <a href="/about" class="maker-link">Read more about Triveni</a>
+        </div>
       </div>
-      <div class="yt-player">
-        <lite-youtube videoid="qWj0V1c1_bU" style="border-radius: var(--r-card); overflow: hidden; box-shadow: var(--shadow);"></lite-youtube>
-      </div>
-    </div>
-  </section>
-
-  <!-- =================== COMMUNITY / ABOUT STRIP =================== -->
-  <section class="about-strip">
-    <div class="container about-strip__inner">
-      <img src={PROFILE.photo} alt={PROFILE.name} class="about-strip__avatar" width="96" height="96" loading="lazy" />
-      <div class="about-strip__copy">
-        <h3 class="about-strip__name">{PROFILE.name}</h3>
-        <p class="about-strip__bio">
-          {PROFILE.lead} YouTube shows the highlight reel, but Technical Triveni is where you get the complete verified code, schematics, and parts lists to actually finish the build.
-        </p>
-        <a href="/about" class="about-strip__link">Read more about Triveni &rarr;</a>
-      </div>
-    </div>
-  </section>
+    </section>
   </div>
 
-  <!-- ==================== MOBILE-NATIVE HOME (<= 768px) ==================== -->
+  <!-- =========================================================================
+       MOBILE HOMEPAGE (<= 768px)
+       ========================================================================= -->
   <div class="m-home-only">
     <!-- Short Hero -->
     <section class="m-hero">
       <h1 class="m-hero__title">
-        Engineering project packs you can actually build.
+        Engineering project packs you can <span class="text-red">actually build.</span>
       </h1>
       <p class="m-hero__lead">
         Schematics, source code, 3D files, and verified parts lists, everything you need to go from watching a video to holding a working build.
@@ -251,36 +230,11 @@ const jsonLd = {
           </a>
         </div>
         <div class="m-carousel">
-          {allProjects.map((p) => {
-            const pPaid = (p.price_inr ?? 0) > 0;
-            return (
-              <article class="m-carousel-card">
-                <a href={`/projects/${p.slug}`} class="m-carousel-card__link" aria-label={p.title}></a>
-                <div class="m-carousel-card__thumb">
-                  {p.cover_image ? (
-                    <img src={p.cover_image} alt={p.title} width="320" height="220" loading="lazy" />
-                  ) : (
-                    <div class="m-carousel-card__ph">
-                      <Icon name="cube" size={32} />
-                    </div>
-                  )}
-                </div>
-                <div class="m-carousel-card__body">
-                  <span class="m-carousel-card__cat">{p.category || 'PACK'}</span>
-                  <h3 class="m-carousel-card__title">{p.title}</h3>
-                  <span class="m-carousel-card__meta">
-                    {p.difficulty || 'All levels'}{p.build_time ? `, ${p.build_time}` : ''}
-                  </span>
-                  <div class="m-carousel-card__foot">
-                    <span class="m-carousel-card__price">
-                      {pPaid ? formatINR(p.price_inr) : 'Free'}
-                    </span>
-                    <span class="m-carousel-card__cta">View pack</span>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+          {allProjects.map((p) => (
+            <div class="m-carousel-card-wrap">
+              <ProjectCard project={p} />
+            </div>
+          ))}
         </div>
       </section>
     )}
@@ -301,7 +255,7 @@ const jsonLd = {
         </div>
         <div class="m-include-tile">
           <span class="m-include-tile__icon"><Icon name="cart" size={22} /></span>
-          <span class="m-include-tile__text">Parts list with buy links</span>
+          <span class="m-include-tile__text">Verified parts list</span>
         </div>
         <div class="m-include-tile">
           <span class="m-include-tile__icon"><Icon name="play" size={22} /></span>
@@ -315,7 +269,7 @@ const jsonLd = {
       <div class="m-channel-box">
         <h3 class="m-channel-box__title">Watch every build before you buy.</h3>
         <p class="m-channel-box__desc">
-          Every project is documented end to end on YouTube, so you see the prototype working first.
+          Every project is documented end to end on YouTube, so you can watch the physical prototype come to life before downloading the pack.
         </p>
         <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="m-channel-box__btn">
           Visit channel
@@ -326,9 +280,9 @@ const jsonLd = {
     <!-- Creator Row -->
     <section class="m-section">
       <div class="m-creator-row">
-        <div class="m-creator-avatar">TN</div>
+        <img src={PROFILE.photo} alt={PROFILE.name} class="m-creator-avatar" width="60" height="60" loading="lazy" />
         <div class="m-creator-info">
-          <strong class="m-creator-name">Triveni Narayan Priy</strong>
+          <strong class="m-creator-name">{PROFILE.name}</strong>
           <p class="m-creator-bio">
             B.Tech ECE (VLSI) student at NIT Patna. Every pack is built and tested by me.
           </p>
@@ -337,46 +291,59 @@ const jsonLd = {
       </div>
     </section>
   </div>
-
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@justinribeiro/lite-youtube-embed@2.1.2/lite-youtube.js"></script>
 </Base>
 
 <style>
+  /* Visibility toggles */
   .m-home-only {
     display: none;
   }
   .desktop-home-only {
     display: block;
   }
+  @media (max-width: 768px) {
+    .desktop-home-only {
+      display: none;
+    }
+    .m-home-only {
+      display: block;
+    }
+  }
 
-  /* ---------------- Hero Section ---------------- */
+  /* =========================================================================
+     DESKTOP HERO STYLES (>= 769px)
+     ========================================================================= */
   .home-hero {
-    padding-top: 96px;
-    padding-bottom: 80px;
-    background: var(--bg);
+    padding-top: 56px;
+    padding-bottom: 48px;
+    background: #FFFFFF;
   }
   .home-hero__grid {
     display: grid;
-    grid-template-columns: 7fr 5fr;
-    gap: 48px;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 56px;
     align-items: center;
   }
   .home-hero__copy {
     display: flex;
     flex-direction: column;
   }
-  .home-hero__eyebrow {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--ink-3);
+  .home-hero__pill {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: #F4F5F7;
+    border: 1px solid var(--line);
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 16px;
+    color: var(--muted);
+    margin-bottom: 20px;
   }
   .home-hero__title {
     font-family: var(--font-display);
-    font-size: var(--fs-h1);
-    line-height: 1.08;
+    font-size: clamp(2.4rem, 2rem + 2vw, 3.8rem);
+    line-height: 1.1;
     letter-spacing: -0.02em;
     font-weight: 700;
     color: var(--ink);
@@ -385,13 +352,10 @@ const jsonLd = {
   .text-red {
     color: var(--red);
   }
-  .text-success {
-    color: var(--success);
-  }
   .home-hero__lead {
-    font-size: 1.125rem;
-    line-height: 1.6;
-    color: var(--ink-2);
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--muted);
     max-width: 52ch;
     margin: 0 0 32px 0;
   }
@@ -399,744 +363,471 @@ const jsonLd = {
     display: flex;
     align-items: center;
     gap: 16px;
+    margin-bottom: 36px;
+  }
+  .btn-hero {
+    height: 52px;
+    padding: 0 28px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+  }
+  .home-hero__proof-row {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .proof-tick {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 550;
+    color: var(--ink);
+  }
+  .proof-tick svg {
+    color: var(--red);
   }
 
-  /* Right Hero Card */
   .home-hero__card-col {
     display: flex;
     justify-content: flex-end;
   }
-  .hero-card {
-    position: relative;
+  .hero-pack-wrap {
     width: 100%;
     max-width: 440px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    padding: 16px;
-    box-shadow: var(--shadow);
-    display: flex;
-    flex-direction: column;
-    transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   }
-  @media (hover: hover) and (min-width: 768px) {
-    .hero-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--ink-2);
-    }
-  }
-  .hero-card__stretch {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    border-radius: inherit;
-  }
-  .hero-card__media {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    border-radius: 10px;
-    overflow: hidden;
-    background: var(--bg-soft);
-  }
-  .hero-card__media img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .hero-card__ph {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-items: center;
-    color: var(--ink-3);
-  }
-  .hero-card__badges {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    display: flex;
-    gap: 6px;
-    z-index: 1;
-  }
-  .hero-card__badge {
-    font-size: 11px;
-    font-weight: 550;
-    padding: 3px 7px;
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(4px);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    color: var(--ink);
-  }
-  .hero-card__body {
-    display: flex;
-    flex-direction: column;
-    padding-top: 14px;
-    gap: 6px;
-  }
-  .hero-card__cat {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-    font-weight: 600;
-  }
-  .hero-card__title {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--ink);
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .hero-card__summary {
-    font-size: 14px;
-    color: var(--ink-2);
-    line-height: 1.5;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .hero-card__foot {
+
+  /* Featured Packs Desktop */
+  .featured-head-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 10px;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
+    gap: 20px;
+    margin-bottom: 24px;
   }
-  .hero-card__price {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 700;
+  .featured-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .category-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cat-chip {
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .cat-chip:hover {
     color: var(--ink);
   }
-  .hero-card__cta {
+  .cat-chip.is-active {
+    background: var(--ink);
+    color: #FFFFFF;
+    border-color: var(--ink);
+  }
+  .view-all-link {
     font-size: 14px;
     font-weight: 600;
     color: var(--red);
-  }
-
-  /* ---------------- Three Values Section ---------------- */
-  .values-section {
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    background: var(--bg-soft);
-    padding: 48px 0;
-  }
-  .values-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .value-item {
-    padding: 0 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .value-item:not(:last-child) {
-    border-right: 1px solid var(--line);
-  }
-  .value-item__icon {
-    color: var(--red);
-    margin-bottom: 4px;
-  }
-  .value-item__title {
-    font-family: var(--font-display);
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0;
-  }
-  .value-item__text {
-    font-size: var(--fs-sm);
-    color: var(--ink-2);
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  /* ---------------- Section Headers ---------------- */
-  .section-head-row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-  }
-  .section-center-head {
-    text-align: center;
-    max-width: 600px;
-    margin: 0 auto 36px;
-  }
-  .section-heading {
-    font-family: var(--font-display);
-    font-size: var(--fs-h2);
-    font-weight: 700;
-    line-height: 1.15;
-    color: var(--ink);
-    margin: 0 0 8px 0;
-  }
-  .section-subtext {
-    font-size: var(--fs-base);
-    color: var(--ink-2);
-    margin: 0;
-    line-height: 1.5;
-  }
-  .section-link {
-    font-size: var(--fs-sm);
-    font-weight: 600;
-    color: var(--red);
-    white-space: nowrap;
     text-decoration: none;
   }
-  .section-link:hover {
-    text-decoration: underline;
-  }
-  .bg-soft {
-    background: var(--bg-soft);
-  }
 
-  /* ---------------- Packs Grid ---------------- */
-  .packs-grid {
+  .packs-grid-4 {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 20px;
   }
+  @media (max-width: 1180px) and (min-width: 769px) {
+    .packs-grid-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
 
-  /* ---------------- What Every Pack Includes ---------------- */
-  .includes-grid {
+  /* Every pack includes Desktop */
+  .includes-tiles-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 24px;
-    text-align: center;
+    gap: 20px;
   }
-  .includes-card {
-    background: var(--bg);
+  .include-tile {
+    background: #FFFFFF;
     border: 1px solid var(--line);
     border-radius: var(--r-card);
-    padding: 24px 16px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 8px;
   }
-  .includes-card__icon {
+  .include-tile__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #FDE9EA;
     color: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-bottom: 8px;
   }
-  .includes-card__title {
-    font-family: var(--font-display);
-    font-size: 1rem;
+  .include-tile__title {
+    font-size: 16px;
     font-weight: 700;
     color: var(--ink);
     margin: 0;
   }
-  .includes-card__text {
-    font-size: var(--fs-sm);
-    color: var(--ink-2);
+  .include-tile__desc {
+    font-size: 14px;
+    color: var(--muted);
     line-height: 1.5;
     margin: 0;
   }
 
-  /* ---------------- YouTube Channel ---------------- */
-  .yt-grid {
+  /* Dark Channel Band Desktop */
+  .channel-band {
+    background: var(--dark);
+    border-radius: 24px;
+    padding: 48px;
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+    color: #FFFFFF;
+  }
+  .channel-band__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .channel-band__title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .channel-band__desc {
+    font-size: 16px;
+    color: #A3AAB8;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .btn-channel {
+    align-self: flex-start;
+    height: 48px;
+    padding: 0 24px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .band-covers-collage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+  }
+  .collage-cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .collage-cover--1 {
+    grid-column: 1 / 3;
+  }
+
+  /* Meet the Maker Desktop */
+  .maker-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
     gap: 48px;
     align-items: center;
   }
-  .yt-copy {
+  .maker-photo-wrap {
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .maker-photo {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 20px;
+    display: block;
+  }
+  .maker-info {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .yt-label {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--ink-3);
-    font-weight: 600;
+  .maker-eyebrow {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--red);
+    text-transform: capitalize;
   }
-  .yt-text {
-    font-size: var(--fs-base);
-    color: var(--ink-2);
-    line-height: 1.6;
-    margin: 0 0 16px 0;
-  }
-  .yt-copy .btn {
-    align-self: flex-start;
-  }
-  .yt-player {
-    width: 100%;
-  }
-
-  /* ---------------- Community / About Strip ---------------- */
-  .about-strip {
-    border-top: 1px solid var(--line);
-    background: var(--bg-soft);
-    padding: 48px 0;
-  }
-  .about-strip__inner {
-    display: flex;
-    align-items: center;
-    gap: 32px;
-    max-width: 860px;
-  }
-  .about-strip__avatar {
-    width: 96px;
-    height: 96px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid var(--line);
-    flex-shrink: 0;
-  }
-  .about-strip__copy {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .about-strip__name {
-    font-family: var(--font-display);
-    font-size: 1.125rem;
+  .maker-title {
+    font-size: 32px;
     font-weight: 700;
     color: var(--ink);
     margin: 0;
   }
-  .about-strip__bio {
-    font-size: var(--fs-sm);
-    color: var(--ink-2);
+  .maker-bio {
+    font-size: 16px;
+    color: var(--muted);
     line-height: 1.6;
-    margin: 0;
+    margin: 0 0 8px 0;
   }
-  .about-strip__link {
-    font-size: var(--fs-sm);
+  .maker-link {
+    font-size: 15px;
     font-weight: 600;
     color: var(--red);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    margin-top: 4px;
+    text-decoration: none;
+  }
+
+  /* =========================================================================
+     MOBILE STYLES (<= 768px)
+     ========================================================================= */
+  .m-hero {
+    padding: 32px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .m-hero__title {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--ink);
+    margin: 0;
+  }
+  .m-hero__lead {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0 0 8px 0;
+  }
+  .m-hero__buttons {
+    display: flex;
+    gap: 12px;
+  }
+  .m-hero__btn-primary {
+    flex: 1;
+    height: 48px;
+    background: var(--red);
+    color: #FFFFFF;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+  }
+  .m-hero__btn-secondary {
+    flex: 1;
+    height: 48px;
+    background: #FFFFFF;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+  }
+
+  .m-chips-track {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 16px 16px;
+    scrollbar-width: none;
+  }
+  .m-chips-track::-webkit-scrollbar {
+    display: none;
+  }
+  .m-chip-pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .m-chip-pill.is-active {
+    background: var(--ink);
+    color: #FFFFFF;
+    border-color: var(--ink);
+  }
+
+  .m-section {
+    padding: 20px 16px;
+  }
+  .m-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .m-section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .m-section-viewall {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--red);
+    text-decoration: none;
+  }
+
+  .m-carousel {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .m-carousel::-webkit-scrollbar {
+    display: none;
+  }
+  .m-carousel-card-wrap {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+  }
+
+  .m-includes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .m-include-tile {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .m-include-tile__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #FDE9EA;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .m-include-tile__text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .m-channel-box {
+    background: var(--dark);
+    border-radius: 20px;
+    padding: 24px 20px;
+    color: #FFFFFF;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .m-channel-box__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0;
+    line-height: 1.25;
+  }
+  .m-channel-box__desc {
+    font-size: 14px;
+    color: #A3AAB8;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .m-channel-box__btn {
     align-self: flex-start;
+    height: 42px;
+    padding: 0 20px;
+    background: var(--red);
+    color: #FFFFFF;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    margin-top: 4px;
   }
 
-  /* ============================ Responsive ============================ */
-  @media (max-width: 1024px) {
-    .home-hero {
-      padding-top: 64px;
-      padding-bottom: 64px;
-    }
-    .home-hero__grid {
-      grid-template-columns: 1fr;
-      gap: 36px;
-    }
-    .home-hero__card-col {
-      justify-content: flex-start;
-    }
-    .packs-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .yt-grid {
-      grid-template-columns: 1fr;
-      gap: 32px;
-    }
+  .m-creator-row {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
   }
-
-  /* Mobile Phones (< 640px) */
-  @media (max-width: 640px) {
-    .home-hero {
-      padding-top: 28px;
-      padding-bottom: 32px;
-    }
-    .home-hero__title {
-      font-size: 30px !important;
-      line-height: 1.15 !important;
-      margin-bottom: 12px !important;
-    }
-    .home-hero__lead {
-      font-size: 15px !important;
-      line-height: 1.5 !important;
-      margin-bottom: 20px !important;
-    }
-    .home-hero__eyebrow {
-      margin-bottom: 8px !important;
-    }
-    .home-hero__buttons {
-      flex-direction: column;
-      width: 100%;
-    }
-    .home-hero__buttons .btn {
-      width: 100%;
-    }
-
-    .values-grid {
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
-    .value-item {
-      padding: 0;
-    }
-    .value-item:not(:last-child) {
-      border-right: none;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 20px;
-    }
-
-    .packs-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-
-    .includes-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-    .includes-card {
-      padding: 16px 12px;
-    }
-
-    .about-strip__inner {
-      flex-direction: column;
-      text-align: center;
-      gap: 16px;
-    }
-    .about-strip__link {
-      align-self: center;
-    }
+  .m-creator-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
   }
-
-  /* ============================================================
-     MOBILE-NATIVE HOMEPAGE (<= 768px)
-     ============================================================ */
-  @media (max-width: 768px) {
-    .desktop-home-only {
-      display: none !important;
-    }
-    .m-home-only {
-      display: block !important;
-      padding-bottom: 2rem;
-    }
-
-    /* Mobile Hero */
-    .m-hero {
-      padding: 1.5rem 1rem 1.25rem;
-      background: var(--bg);
-    }
-    .m-hero__title {
-      font-family: var(--font-display, var(--font-sans));
-      font-size: 1.85rem;
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-      color: #0F1115;
-      margin: 0 0 0.75rem 0;
-    }
-    .m-hero__lead {
-      font-size: 0.95rem;
-      line-height: 1.45;
-      color: #5A6270;
-      margin: 0 0 1.25rem 0;
-    }
-    .m-hero__buttons {
-      display: flex;
-      gap: 0.75rem;
-      width: 100%;
-    }
-    .m-hero__btn-primary {
-      flex: 1;
-      min-height: 44px;
-      background: #D91F26;
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.92rem;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      border: none;
-      box-shadow: 0 2px 8px rgba(217, 31, 38, 0.25);
-    }
-    .m-hero__btn-secondary {
-      flex: 1;
-      min-height: 44px;
-      background: #fff;
-      color: #0F1115;
-      font-weight: 600;
-      font-size: 0.92rem;
-      border-radius: 999px;
-      border: 1.5px solid #0F1115;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-    }
-
-    /* Category Chips */
-    .m-chips-track {
-      display: flex;
-      gap: 0.5rem;
-      overflow-x: auto;
-      padding: 0.25rem 1rem 1.5rem;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .m-chips-track::-webkit-scrollbar {
-      display: none;
-    }
-    .m-chip-pill {
-      flex-shrink: 0;
-      padding: 0.45rem 1rem;
-      border-radius: 999px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #0F1115;
-      background: #fff;
-      border: 1px solid #E2E6EC;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .m-chip-pill.is-active {
-      background: #0F1115;
-      color: #fff;
-      border-color: #0F1115;
-    }
-
-    /* Sections */
-    .m-section {
-      margin-bottom: 2rem;
-    }
-    .m-section-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1rem;
-      margin-bottom: 0.85rem;
-    }
-    .m-section-title {
-      font-family: var(--font-display, var(--font-sans));
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #0F1115;
-      margin: 0;
-    }
-    .m-section-viewall {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #D91F26;
-      text-decoration: none;
-    }
-
-    /* Scroll-snap Carousel */
-    .m-carousel {
-      display: flex;
-      gap: 0.85rem;
-      overflow-x: auto;
-      padding: 0 1rem;
-      scroll-snap-type: x mandatory;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .m-carousel::-webkit-scrollbar {
-      display: none;
-    }
-    .m-carousel-card {
-      flex: 0 0 250px;
-      scroll-snap-align: start;
-      background: #fff;
-      border: 1px solid #E8ECEF;
-      border-radius: 16px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
-    .m-carousel-card__link {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-    }
-    .m-carousel-card__thumb {
-      width: 100%;
-      aspect-ratio: 16 / 11;
-      background: #EDF0F4;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-    .m-carousel-card__thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .m-carousel-card__ph {
-      color: #9AA3AF;
-    }
-    .m-carousel-card__body {
-      padding: 0.85rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-      flex: 1;
-    }
-    .m-carousel-card__cat {
-      font-size: 0.72rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #5A6270;
-    }
-    .m-carousel-card__title {
-      font-size: 0.92rem;
-      font-weight: 700;
-      line-height: 1.25;
-      color: #0F1115;
-      margin: 0;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .m-carousel-card__meta {
-      font-size: 0.78rem;
-      color: #5A6270;
-    }
-    .m-carousel-card__foot {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: auto;
-      padding-top: 0.5rem;
-    }
-    .m-carousel-card__price {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #0F1115;
-    }
-    .m-carousel-card__cta {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #D91F26;
-    }
-
-    /* 2x2 Every Pack Includes Grid */
-    .m-includes-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.65rem;
-      padding: 0 1rem;
-    }
-    .m-include-tile {
-      background: #F4F6F8;
-      border-radius: 14px;
-      padding: 1rem 0.85rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    .m-include-tile__icon {
-      color: #D91F26;
-      display: flex;
-      align-items: center;
-    }
-    .m-include-tile__text {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #0F1115;
-      line-height: 1.25;
-    }
-
-    /* Dark Channel Card */
-    .m-channel-box {
-      margin: 0 1rem;
-      background: #111418;
-      border-radius: 20px;
-      padding: 1.5rem 1.25rem;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .m-channel-box__title {
-      font-family: var(--font-display, var(--font-sans));
-      font-size: 1.35rem;
-      font-weight: 700;
-      line-height: 1.2;
-      color: #fff;
-      margin: 0;
-    }
-    .m-channel-box__desc {
-      font-size: 0.88rem;
-      line-height: 1.45;
-      color: #9AA3AF;
-      margin: 0 0 0.5rem 0;
-    }
-    .m-channel-box__btn {
-      align-self: flex-start;
-      min-height: 44px;
-      padding: 0 1.25rem;
-      background: #D91F26;
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.9rem;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-    }
-
-    /* Creator Row */
-    .m-creator-row {
-      margin: 0 1rem;
-      display: flex;
-      align-items: flex-start;
-      gap: 0.85rem;
-      padding-top: 0.5rem;
-    }
-    .m-creator-avatar {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: #111418;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.95rem;
-      flex-shrink: 0;
-    }
-    .m-creator-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .m-creator-name {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #0F1115;
-    }
-    .m-creator-bio {
-      font-size: 0.82rem;
-      line-height: 1.4;
-      color: #5A6270;
-      margin: 0;
-    }
-    .m-creator-link {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #D91F26;
-      text-decoration: none;
-      margin-top: 0.25rem;
-    }
+  .m-creator-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .m-creator-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .m-creator-bio {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+    margin: 0;
+  }
+  .m-creator-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--red);
+    text-decoration: none;
   }
 </style>
