@@ -13,15 +13,18 @@ const csrf = Astro.locals.csrfToken;
 const initialTopic = Astro.url.searchParams.get('topic') || '';
 const initialProject = Astro.url.searchParams.get('project') || '';
 
+import { getEffectiveContent } from '../lib/pages';
+
 const tsOn = turnstileEnabled(env);
 const tsKey = env.TURNSTILE_SITE_KEY;
 
-const pageData = await getPage(env.DB, 'contact');
-const customHtml = pageData?.content_md ? renderMarkdown(pageData.content_md) : null;
+const pageData = await getEffectiveContent(env.DB, 'contact');
+if (pageData.published === 0) return Astro.redirect('/404');
+const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null;
 const replyTime = await getSetting(env.DB, 'reply_time');
 ---
 
-<Base title={pageData?.title || 'Contact'} description="Questions, project support, or collaboration inquiries — get in direct touch with Technical Triveni.">
+<Base title={pageData.meta_title || pageData.title || 'Contact'} description={pageData.meta_description || "Questions, project support, or collaboration inquiries — get in direct touch with Technical Triveni."}>
   <section class="contact-section">
     <div class="container contact-grid">
       <!-- LEFT: INTRO & DETAILS -->

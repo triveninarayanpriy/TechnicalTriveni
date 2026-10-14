@@ -3,25 +3,17 @@ import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { renderMarkdown } from '../../lib/format';
+import { getEffectiveContent } from '../../lib/pages';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/404');
 
-const res = await env.DB.prepare('SELECT * FROM pages WHERE slug = ?').bind(slug).first<{
-  slug: string;
-  title: string;
-  content_md: string;
-  published: number;
-  meta_title?: string;
-  meta_description?: string;
-  updated_at?: number;
-}>();
+const pageContent = await getEffectiveContent(env.DB, slug);
+if (pageContent.published === 0) return Astro.redirect('/404');
 
-if (!res || res.published !== 1) return Astro.redirect('/404');
-
-const title = res.meta_title || res.title;
-const description = res.meta_description || `Official ${res.title} for Technical Triveni.`;
-const html = renderMarkdown(res.content_md || '');
+const title = pageContent.meta_title || pageContent.title;
+const description = pageContent.meta_description || `Official ${pageContent.title} for Technical Triveni.`;
+const html = renderMarkdown(pageContent.markdown || '');
 
 const legalLinks = [
   { label: 'Terms & Conditions', slug: 'terms' },
@@ -43,7 +35,7 @@ const legalLinks = [
         <span class="crumb-current">Legal & Policies</span>
       </nav>
       <span class="legal-eyebrow">OFFICIAL POLICY</span>
-      <h1 class="legal-title">{res.title}</h1>
+      <h1 class="legal-title">{pageContent.title}</h1>
     </div>
   </section>
 

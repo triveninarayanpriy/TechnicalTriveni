@@ -62,7 +62,19 @@ export interface Component {
 
 export interface Page {
   slug: string; title: string; content_md: string; image_url: string; updated_at: number;
-  published: number; meta_title: string; meta_description: string;
+  published: number; meta_title: string; meta_description: string; is_custom?: number;
+}
+
+export interface PageRevision {
+  id: number;
+  page_slug: string;
+  title: string;
+  content_md: string;
+  meta_title?: string;
+  meta_description?: string;
+  source: string;
+  note: string;
+  created_at: number;
 }
 
 export interface ProjectImage {
@@ -929,8 +941,8 @@ export async function getAllPages(db: D1Database): Promise<Page[]> {
 export async function upsertPage(db: D1Database, page: Partial<Page> & { slug: string }): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   await db.prepare(
-    `INSERT INTO pages (slug, title, content_md, image_url, published, meta_title, meta_description, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO pages (slug, title, content_md, image_url, published, meta_title, meta_description, is_custom, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(slug) DO UPDATE SET
        title = excluded.title,
        content_md = excluded.content_md,
@@ -938,17 +950,71 @@ export async function upsertPage(db: D1Database, page: Partial<Page> & { slug: s
        published = excluded.published,
        meta_title = excluded.meta_title,
        meta_description = excluded.meta_description,
+       is_custom = excluded.is_custom,
        updated_at = excluded.updated_at`
   ).bind(
     page.slug,
     page.title ?? '',
     page.content_md ?? '',
     page.image_url ?? '',
-    page.published ?? 0,
+    page.published ?? 1,
     page.meta_title ?? '',
     page.meta_description ?? '',
+    page.is_custom ?? 1,
     now
   ).run();
+}
+
+export async function deletePage(db: D1Database, slug: string): Promise<void> {
+  await db.prepare('DELETE FROM pages WHERE slug = ?').bind(slug).run();
+}
+
+export async function recordPageRevision(
+  db: D1Database,
+  rev: {
+    page_slug: string;
+    title: string;
+    content_md: string;
+    meta_title?: string;
+    meta_description?: string;
+    source?: string;
+    note?: string;
+  }
+): Promise<number> {
+  const now = Math.floor(Date.now() / 1000);
+  const res = await db.prepare(
+    `INSERT INTO page_revisions (page_slug, title, content_md, meta_title, meta_description, source, note, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    rev.page_slug,
+    rev.title,
+    rev.content_md,
+    rev.meta_title ?? '',
+    rev.meta_description ?? '',
+    rev.source ?? 'custom',
+    rev.note ?? 'Custom content saved',
+    now
+  ).run();
+  return (res.meta.last_row_id as number) || 0;
+}
+
+export async function listPageRevisions(db: D1Database, slug: string, limit = 5): Promise<PageRevision[]> {
+  try {
+    const { results } = await db.prepare(
+      'SELECT * FROM page_revisions WHERE page_slug = ? ORDER BY created_at DESC, id DESC LIMIT ?'
+    ).bind(slug, limit).all<PageRevision>();
+    return results || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getPageRevisionById(db: D1Database, id: number): Promise<PageRevision | null> {
+  try {
+    return await db.prepare('SELECT * FROM page_revisions WHERE id = ?').bind(id).first<PageRevision>();
+  } catch {
+    return null;
+  }
 }
 
 

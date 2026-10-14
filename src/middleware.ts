@@ -13,6 +13,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(canonicalUrl.toString(), 301);
   }
 
+  // Legal page top-level slug alias redirection (e.g. /affiliate -> /legal/affiliate)
+  const LEGAL_ALIASES = new Set(['affiliate', 'cookies', 'digital-delivery', 'disclaimer', 'terms', 'privacy', 'refund']);
+  const cleanSlug = url.pathname.replace(/^\/|\/$/g, '');
+  if (LEGAL_ALIASES.has(cleanSlug)) {
+    return context.redirect(`/legal/${cleanSlug}`, 301);
+  }
+
   // DB Redirects
   if (!url.pathname.startsWith('/admin') && !url.pathname.startsWith('/api') && !url.pathname.startsWith('/_')) {
     try {

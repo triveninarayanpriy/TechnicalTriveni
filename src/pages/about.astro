@@ -3,12 +3,15 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE, PROFILE } from '../lib/site';
-import { getPage, listProjects } from '../lib/db';
+import { listProjects } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
+import { getEffectiveContent } from '../lib/pages';
 
-const pageData = await getPage(env.DB, 'about');
-const profilePhoto = pageData?.image_url || '/brand/profile.jpg';
-const customBioHtml = pageData?.content_md ? renderMarkdown(pageData.content_md) : null;
+const pageData = await getEffectiveContent(env.DB, 'about');
+if (pageData.published === 0) return Astro.redirect('/404');
+
+const profilePhoto = pageData.image_url || '/brand/profile.jpg';
+const bioHtml = renderMarkdown(pageData.markdown);
 
 // Fetch projects for count and closing card covers
 let packCount = 5;
@@ -108,23 +111,29 @@ const jsonLd = {
       </div>
     </section>
 
-    <!-- DARK STORY BAND (#111418, 2 COLUMNS) -->
+    <!-- DARK STORY BAND (#111418) -->
     <section class="about-story-section">
       <div class="container">
         <div class="about-story-band">
-          <div class="story-left">
-            <h2 class="story-headline">
-              I was tired of electronics tutorials that don't actually work.
-            </h2>
-          </div>
-          <div class="story-right">
-            <p class="story-body">
-              Most guides leave out critical pinouts, skip power decoupling, or share untested code that throws errors the moment you clone it.
-            </p>
-            <p class="story-body">
-              So there is one promise here: <span class="story-highlight">complete transparency and physical proof</span>.
-            </p>
-          </div>
+          {pageData.is_custom ? (
+            <div class="about-story-prose prose-dark" set:html={bioHtml} />
+          ) : (
+            <>
+              <div class="story-left">
+                <h2 class="story-headline">
+                  I was tired of electronics tutorials that don't actually work.
+                </h2>
+              </div>
+              <div class="story-right">
+                <p class="story-body">
+                  Most guides leave out critical pinouts, skip power decoupling, or share untested code that throws errors the moment you clone it.
+                </p>
+                <p class="story-body">
+                  So there is one promise here: <span class="story-highlight">complete transparency and physical proof</span>.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -318,6 +327,40 @@ const jsonLd = {
   }
   .story-body:last-child {
     margin-bottom: 0;
+  }
+  .about-story-prose {
+    grid-column: 1 / -1;
+    max-width: 720px;
+  }
+  .about-story-prose :global(h2) {
+    font-size: clamp(24px, 3vw, 32px);
+    font-weight: 700;
+    line-height: 1.25;
+    color: #FFFFFF;
+    margin: 0 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .about-story-prose :global(h3) {
+    font-size: clamp(18px, 2.5vw, 24px);
+    font-weight: 600;
+    color: #FFFFFF;
+    margin: 28px 0 12px;
+  }
+  .about-story-prose :global(p) {
+    font-size: 16px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0 0 16px;
+  }
+  .about-story-prose :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .about-story-prose :global(strong) {
+    color: #FFFFFF;
+  }
+  .about-story-prose :global(a) {
+    color: var(--brand-red, #E11D48);
+    text-decoration: underline;
   }
   .story-highlight {
     color: #FFFFFF;

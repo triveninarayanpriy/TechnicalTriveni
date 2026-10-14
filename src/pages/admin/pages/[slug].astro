@@ -2,143 +2,1204 @@
 import Admin from '../../../layouts/Admin.astro';
 import Icon from '../../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
-import { getPage } from '../../../lib/db';
+import { getEffectiveContent } from '../../../lib/pages';
+import { listPageRevisions } from '../../../lib/db';
+import { formatDate, renderMarkdown } from '../../../lib/format';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/admin/pages');
 
-const page = (await getPage(env.DB, slug)) || {
-  slug,
-  title: slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-  content_md: '',
-  image_url: '',
-  published: 0,
-  meta_title: '',
-  meta_description: ''
-};
+const page = await getEffectiveContent(env.DB, slug);
+const revisions = await listPageRevisions(env.DB, slug, 5);
 const csrf = Astro.locals.csrfToken;
+
+// Word count calculation
+const wordCount = page.markdown.trim() ? page.markdown.trim().split(/\s+/).length : 0;
+const initialPreviewHtml = renderMarkdown(page.markdown);
 ---
 
 <Admin title={`Edit ${page.title}`} active="pages">
-  <div class="page-actions" style="margin-bottom: 1.5rem;">
-    <a href="/admin/pages" class="btn btn-ghost" style="padding: 0; display: inline-flex; gap: 0.25rem;"><Icon name="arrow-left" size={16} /> Back to pages</a>
-  </div>
+  <!-- Toast feedback container -->
+  <div id="page-toast" class="admin-toast" hidden></div>
 
-  <div class="editor">
-    <form method="post" action="/api/admin/page/save" enctype="multipart/form-data" class="editor-form panel" style="margin-bottom: 2rem;">
-      <input type="hidden" name="csrf" value={csrf} />
-      <input type="hidden" name="slug" value={page.slug} />
-      <input type="hidden" name="image_url" value={page.image_url || ''} />
+  <!-- Main Editor Form -->
+  <form id="page-editor-form" method="post" action="/api/admin/page/save" enctype="multipart/form-data" class="editor-shell">
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="slug" value={page.slug} />
+    <input type="hidden" name="image_url" value={page.image_url || ''} />
 
-      <div class="editor-form__head" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
-        <h2 style="font-size: 1.25rem; font-weight: 600;">{page.slug === 'about' ? 'Edit About Page' : page.slug === 'contact' ? 'Edit Contact Page' : 'Edit How It Works'}</h2>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
-            <input type="checkbox" name="published" value="1" checked={page.published === 1} />
-            Published
-          </label>
-          <button type="submit" class="btn btn-primary"><Icon name="check" size={16} /> Save Changes</button>
-        </div>
+    <!-- Top Navigation & Action Bar -->
+    <header class="editor-topbar">
+      <div class="editor-topbar__left">
+        <a href="/admin/pages" class="editor-back-link">
+          <Icon name="chevron-left" size={18} />
+          <span>Back to pages</span>
+        </a>
+        <h1 class="editor-topbar__title">Edit {page.title} page</h1>
       </div>
 
-      <div class="field">
-        <label class="label" for="title">Page Title *</label>
-        <input class="input" id="title" name="title" value={page.title} required />
-        <span class="field-hint">The main heading shown at the top of the live page.</span>
+      <div class="editor-topbar__actions">
+        <!-- Published Toggle Switch -->
+        <label class="switch-label">
+          <span class="switch-text">Published</span>
+          <div class="switch-wrap">
+            <input type="checkbox" name="published" value="1" checked={page.published === 1} class="switch-input" id="published-toggle" />
+            <span class="switch-slider"></span>
+          </div>
+        </label>
+
+        <!-- Preview Button (Toggles preview or scrolls to preview) -->
+        <button type="button" class="admin-btn admin-btn--secondary" id="btn-toggle-preview">
+          <Icon name="eye" size={16} />
+          <span>Preview</span>
+        </button>
+
+        <!-- Save Button -->
+        <button type="submit" class="admin-btn admin-btn--primary" id="btn-save-desktop">
+          <Icon name="check" size={16} />
+          <span>Save changes</span>
+        </button>
       </div>
+    </header>
 
-      <div class="field" style="margin-top: 1.5rem;">
-        <label class="label" for="content_md">Page Content (Markdown) *</label>
-        {page.slug === 'about' && <span class="field-hint" style="display:block; margin-top:-0.2rem; margin-bottom:0.5rem; color:var(--text-dim);">This text replaces the main biography section on the About page.</span>}
-        {page.slug === 'contact' && <span class="field-hint" style="display:block; margin-top:-0.2rem; margin-bottom:0.5rem; color:var(--text-dim);">This text appears as the intro paragraph above the contact form.</span>}
-        {page.slug === 'how-it-works' && <span class="field-hint" style="display:block; margin-top:-0.2rem; margin-bottom:0.5rem; color:var(--text-dim);">This text appears below the hero section on the How It Works page.</span>}
-        <textarea class="textarea" id="content_md" name="content_md" rows="20" style="font-family:var(--font-mono); font-size:13px; line-height:1.6; min-height: 400px;" required>{page.content_md}</textarea>
-        <span class="field-hint">Supports full Markdown formatting (headers, bold, links, lists).</span>
+    <!-- Mobile Segmented Control (Edit vs Preview) -->
+    <div class="mobile-segmented-bar">
+      <div class="segmented-control">
+        <button type="button" class="segmented-btn is-active" id="seg-btn-edit">Edit</button>
+        <button type="button" class="segmented-btn" id="seg-btn-preview">Preview</button>
       </div>
+    </div>
 
-      <div style="margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
-        <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">SEO Settings</h3>
-        <div class="field">
-          <label class="label" for="meta_title">Meta Title</label>
-          <input class="input" id="meta_title" name="meta_title" value={page.meta_title} />
-          <span class="field-hint">Optional. Overrides the default page title in search results.</span>
+    <!-- Mobile Content Source Card (top) -->
+    <div class="mobile-source-bar">
+      <div class="source-card source-card--mobile">
+        <div class="source-card__header">
+          <span class:list={['source-badge', page.is_custom ? 'source-badge--custom' : 'source-badge--default']}>
+            {page.is_custom ? 'Custom content' : 'Built-in site content'}
+          </span>
+          <span class="source-card__hint">
+            {page.is_custom ? 'Custom overrides active.' : 'Visitors see this text now.'}
+          </span>
         </div>
-        <div class="field" style="margin-top: 1rem;">
-          <label class="label" for="meta_description">Meta Description</label>
-          <textarea class="textarea" id="meta_description" name="meta_description" rows="3">{page.meta_description}</textarea>
-          <span class="field-hint">Brief description shown in search results and social shares.</span>
+        <div class="source-card__actions">
+          <button
+            type="button"
+            class="admin-btn admin-btn--secondary admin-btn--sm"
+            id="btn-reset-mobile"
+            disabled={!page.is_custom}
+          >
+            Reset to default
+          </button>
         </div>
       </div>
-    </form>
+    </div>
 
-    {page.slug === 'about' && (
-      <form method="post" action="/api/admin/page/save" enctype="multipart/form-data" class="editor-form panel">
-        <input type="hidden" name="csrf" value={csrf} />
-        <input type="hidden" name="slug" value={page.slug} />
-        <input type="hidden" name="title" value={page.title} />
-        <input type="hidden" name="content_md" value={page.content_md} />
-        <input type="hidden" name="published" value={page.published} />
-        <input type="hidden" name="meta_title" value={page.meta_title || ''} />
-        <input type="hidden" name="meta_description" value={page.meta_description || ''} />
-        
-        <div class="editor-form__head" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
-          <h2 style="font-size: 1.25rem; font-weight: 600;">Profile Photo</h2>
+    <!-- Two-Column Editor Layout -->
+    <div class="editor-grid">
+      <!-- LEFT COLUMN: EDIT FORM -->
+      <div class="editor-col-left" id="editor-left-pane">
+        <!-- Card 1: Page Details -->
+        <div class="editor-card">
+          <h2 class="editor-card__title">Page</h2>
+          <div class="page-meta-grid">
+            <div class="admin-form-group">
+              <label for="title" class="admin-label">Page title</label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={page.title}
+                class="admin-input"
+                required
+              />
+            </div>
+
+            <div class="admin-form-group">
+              <label for="page-url-display" class="admin-label">URL</label>
+              <div class="url-input-wrap">
+                <input
+                  type="text"
+                  id="page-url-display"
+                  value={page.route}
+                  class="admin-input url-input"
+                  readonly
+                />
+                <a
+                  href={page.route}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="url-open-btn"
+                  title="Open live URL"
+                  aria-label="Open live URL in new tab"
+                >
+                  <Icon name="external" size={16} />
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="field">
-          <label class="label" for="image">Upload New Photo</label>
-          <input type="file" id="image" name="image" accept="image/*" class="input" style="padding:0.4rem; font-size:0.85rem;" />
-          <span class="field-hint">Upload a high-res square photo (e.g. JPG/PNG). It replaces the current image. Save to apply.</span>
+        <!-- Card 2: Content (Markdown) -->
+        <div class="editor-card">
+          <div class="editor-card__head">
+            <h2 class="editor-card__title">Content (Markdown)</h2>
+            {page.sectionHint && (
+              <span class="section-hint-badge" title={page.sectionHint}>
+                <Icon name="info" size={13} /> {page.sectionHint}
+              </span>
+            )}
+          </div>
+
+          <!-- Markdown Toolbar -->
+          <div class="md-toolbar" role="toolbar" aria-label="Markdown formatting tools">
+            <button type="button" class="md-tool-btn" data-tool="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+            <button type="button" class="md-tool-btn" data-tool="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+            <button type="button" class="md-tool-btn" data-tool="h2" title="Heading 2">H2</button>
+            <button type="button" class="md-tool-btn" data-tool="link" title="Link">Link</button>
+            <button type="button" class="md-tool-btn" data-tool="list" title="Bullet list">List</button>
+            <button type="button" class="md-tool-btn" data-tool="quote" title="Quote">Quote</button>
+            <button type="button" class="md-tool-btn" data-tool="code" title="Code block">Code</button>
+            <button type="button" class="md-tool-btn" data-tool="image" title="Image">Image</button>
+          </div>
+
+          <!-- Markdown Textarea -->
+          <div class="textarea-wrap">
+            <textarea
+              id="content_md"
+              name="content_md"
+              class="md-textarea"
+              placeholder="Write page content in Markdown..."
+              rows="16"
+            >{page.markdown}</textarea>
+          </div>
+
+          <!-- Word count & Saved info footer -->
+          <div class="md-footer">
+            <span id="word-count-display">{wordCount} words.</span>
+            <span class="md-footer-sep">Saved {formatDate(page.updated_at)}.</span>
+          </div>
         </div>
 
-        {page.image_url && (
-          <div style="margin-top: 1rem;">
-            <p class="label">Current Photo:</p>
-            <img src={page.image_url} alt="Profile preview" style="width: 120px; height: 120px; border-radius: var(--r-md); object-fit: cover; border: 1px solid var(--border);" />
+        <!-- Card 3: Profile Photo (for About page only) -->
+        {page.slug === 'about' && (
+          <div class="editor-card">
+            <h2 class="editor-card__title">Profile Photo</h2>
+            <div class="photo-upload-grid">
+              <div class="photo-preview-wrap">
+                <img
+                  src={page.image_url || '/brand/profile.jpg'}
+                  alt="Profile preview"
+                  id="photo-preview-img"
+                  class="photo-preview"
+                />
+              </div>
+              <div class="photo-input-col">
+                <label for="image" class="admin-label">Upload New Photo</label>
+                <input
+                  type="file"
+                  id="image"
+                  name="image"
+                  accept="image/*"
+                  class="admin-file-input"
+                />
+                <span class="admin-field-hint">High-resolution portrait photo (JPG, PNG). Replaces the About page portrait.</span>
+              </div>
+            </div>
           </div>
         )}
-        
-        <div style="margin-top: 1.5rem;">
-           <button type="submit" class="btn btn-primary btn-sm"><Icon name="upload" size={16} /> Upload & Save</button>
+
+        <!-- Card 4: Search and social (SEO) -->
+        <div class="editor-card">
+          <h2 class="editor-card__title">Search and social</h2>
+          <div class="seo-grid">
+            <div class="admin-form-group">
+              <div class="label-with-counter">
+                <label for="meta_title" class="admin-label">Meta title</label>
+                <span class="char-counter" id="meta-title-counter">({(page.meta_title || '').length}/60)</span>
+              </div>
+              <input
+                type="text"
+                id="meta_title"
+                name="meta_title"
+                value={page.meta_title || ''}
+                maxlength="60"
+                class="admin-input"
+                placeholder={page.title}
+              />
+            </div>
+
+            <div class="admin-form-group">
+              <div class="label-with-counter">
+                <label for="meta_description" class="admin-label">Meta description</label>
+                <span class="char-counter" id="meta-desc-counter">({(page.meta_description || '').length}/160)</span>
+              </div>
+              <input
+                type="text"
+                id="meta_description"
+                name="meta_description"
+                value={page.meta_description || ''}
+                maxlength="160"
+                class="admin-input"
+                placeholder="Defaults to the first paragraph"
+              />
+            </div>
+          </div>
         </div>
-      </form>
-    )}
-  </div>
+      </div>
+
+      <!-- RIGHT COLUMN: STATUS, LIVE PREVIEW, HISTORY -->
+      <div class="editor-col-right" id="editor-right-pane">
+        <!-- Content Source Card -->
+        <div class="editor-card source-card-desktop">
+          <h2 class="editor-card__title">Content source</h2>
+          <div class="source-content">
+            <span class:list={['source-badge', page.is_custom ? 'source-badge--custom' : 'source-badge--default']}>
+              {page.is_custom ? 'Custom content' : 'Showing built-in site content'}
+            </span>
+            <p class="source-desc">
+              {page.is_custom
+                ? 'This page has custom overrides active and live on the site.'
+                : 'This is the text visitors see now. Edit and save to make it custom.'}
+            </p>
+            <div class="source-actions">
+              <button
+                type="button"
+                class="admin-btn admin-btn--secondary admin-btn--sm"
+                id="btn-reset-desktop"
+                disabled={!page.is_custom}
+              >
+                Reset to default
+              </button>
+              <a
+                href={page.route}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="admin-btn admin-btn--secondary admin-btn--sm"
+              >
+                View on site
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Preview Card -->
+        <div class="editor-card preview-card">
+          <div class="editor-card__head">
+            <h2 class="editor-card__title">Live preview</h2>
+            <span class="preview-mode-tag">Real site styling</span>
+          </div>
+          <div class="live-preview-box" id="live-preview-box" set:html={initialPreviewHtml}>
+          </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="editor-card history-card">
+          <h2 class="editor-card__title">History</h2>
+          <div class="history-list" id="history-list">
+            {revisions.length > 0 ? (
+              revisions.map((rev) => (
+                <div class="history-item" data-rev-id={rev.id}>
+                  <div class="history-item__left">
+                    <strong class="history-item__note">{rev.note || 'Custom content saved'}</strong>
+                    <span class="history-item__date">{formatDate(rev.created_at)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-restore"
+                    data-id={rev.id}
+                    title="Restore this revision"
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))
+            ) : (
+              <>
+                {page.is_custom && (
+                  <div class="history-item">
+                    <div class="history-item__left">
+                      <strong class="history-item__note">Custom content saved</strong>
+                      <span class="history-item__date">{formatDate(page.updated_at)}</span>
+                    </div>
+                  </div>
+                )}
+                <div class="history-item">
+                  <div class="history-item__left">
+                    <strong class="history-item__note">Created</strong>
+                    <span class="history-item__date">14 Nov 2023</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Mobile Bottom Bar -->
+    <div class="mobile-sticky-footer">
+      <button type="submit" class="admin-btn admin-btn--primary admin-btn--block" id="btn-save-mobile">
+        <Icon name="check" size={18} />
+        <span>Save changes</span>
+      </button>
+    </div>
+  </form>
 </Admin>
 
 <style>
+  /* Toast */
+  .admin-toast {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 1000;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    background: #111827;
+    color: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .admin-toast--success {
+    background: #065F46;
+    color: #ECFDF5;
+  }
+  .admin-toast--error {
+    background: #991B1B;
+    color: #FEF2F2;
+  }
+
+  /* Shell */
+  .editor-shell {
+    padding-bottom: 5rem;
+  }
+
+  /* Top Bar */
+  .editor-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #E2E8F0;
+  }
+  .editor-topbar__left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .editor-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #64748B;
+    text-decoration: none;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .editor-back-link:hover {
+    color: #0F172A;
+  }
+  .editor-topbar__title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .editor-topbar__actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  /* Switch */
+  .switch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+    user-select: none;
+  }
+  .switch-wrap {
+    position: relative;
+    width: 44px;
+    height: 24px;
+  }
+  .switch-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #CBD5E1;
+    transition: 0.2s;
+    border-radius: 24px;
+  }
+  .switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .switch-input:checked + .switch-slider {
+    background-color: #111827;
+  }
+  .switch-input:checked + .switch-slider:before {
+    transform: translateX(20px);
+  }
+
+  /* Grid Layout */
+  .editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* Cards */
+  .editor-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+  .editor-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .editor-card__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0F172A;
+    margin: 0 0 1rem;
+  }
+  .editor-card__head .editor-card__title {
+    margin: 0;
+  }
+
+  .section-hint-badge {
+    font-size: 12px;
+    color: #64748B;
+    background: #F1F5F9;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Form Elements */
+  .page-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .admin-form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+  .admin-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid #CBD5E1;
+    font-size: 14px;
+    color: #0F172A;
+    background: #FFFFFF;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .admin-input:focus {
+    border-color: #E11D48;
+    box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+  }
+  .url-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .url-input {
+    font-family: var(--font-mono, monospace);
+    color: #64748B;
+    background: #F8FAFC;
+    padding-right: 40px;
+  }
+  .url-open-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #E11D48;
+    padding: 6px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .url-open-btn:hover {
+    background: #FFF1F2;
+  }
+
+  /* Markdown Toolbar */
+  .md-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    border-bottom: none;
+    border-top-left-radius: 10px;
+    border-top-right-left-radius: 10px;
+    overflow-x: auto;
+  }
+  .md-tool-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .md-tool-btn:hover {
+    background: #F1F5F9;
+    color: #0F172A;
+    border-color: #CBD5E1;
+  }
+
+  .textarea-wrap {
+    display: flex;
+  }
+  .md-textarea {
+    width: 100%;
+    border: 1px solid #CBD5E1;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 14px;
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    line-height: 1.6;
+    color: #0F172A;
+    background: #FFFFFF;
+    outline: none;
+    resize: vertical;
+    min-height: 380px;
+  }
+  .md-textarea:focus {
+    border-color: #E11D48;
+    box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+  }
+
+  .md-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    border-top: none;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    font-size: 12px;
+    color: #64748B;
+  }
+
+  /* SEO */
+  .seo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .label-with-counter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .char-counter {
+    font-size: 12px;
+    color: #94A3B8;
+  }
+
+  /* Photo Upload */
+  .photo-upload-grid {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .photo-preview-wrap {
+    width: 100px;
+    height: 100px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+    background: #F8FAFC;
+    flex-shrink: 0;
+  }
+  .photo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .photo-input-col {
+    flex: 1;
+  }
+  .admin-file-input {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  /* Right Column: Source Card */
+  .source-card-desktop {
+    margin-bottom: 1.25rem;
+  }
+  .source-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+    width: fit-content;
+  }
+  .source-badge--default {
+    background: #FEF3C7;
+    color: #92400E;
+  }
+  .source-badge--custom {
+    background: #DCFCE7;
+    color: #166534;
+  }
+  .source-desc {
+    font-size: 13px;
+    color: #64748B;
+    margin: 0;
+    line-height: 1.5;
+  }
+  .source-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 4px;
+  }
+
+  /* Live Preview Box */
+  .live-preview-box {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    min-height: 240px;
+    max-height: 520px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1E293B;
+  }
+  .live-preview-box :global(h2) {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0 0 10px;
+  }
+  .live-preview-box :global(h3) {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0F172A;
+    margin: 18px 0 8px;
+  }
+  .live-preview-box :global(p) {
+    margin: 0 0 12px;
+    color: #334155;
+  }
+  .live-preview-box :global(strong) {
+    color: #0F172A;
+    font-weight: 600;
+  }
+  .live-preview-box :global(ul) {
+    margin: 0 0 12px 18px;
+    padding: 0;
+  }
+  .live-preview-box :global(li) {
+    margin-bottom: 4px;
+  }
+  .live-preview-box :global(a) {
+    color: #E11D48;
+    text-decoration: underline;
+  }
+  .live-preview-box :global(code) {
+    background: #E2E8F0;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .preview-mode-tag {
+    font-size: 11px;
+    color: #64748B;
+    background: #F1F5F9;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* History Card */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+  }
+  .history-item__left {
+    display: flex;
+    flex-direction: column;
+  }
+  .history-item__note {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+  }
+  .history-item__date {
+    font-size: 11px;
+    color: #64748B;
+  }
+  .btn-restore {
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #E11D48;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn-restore:hover {
+    background: #FFF1F2;
+    border-color: #E11D48;
+  }
+
+  /* Mobile Segments & Bars */
+  .mobile-segmented-bar,
+  .mobile-source-bar,
+  .mobile-sticky-footer {
+    display: none;
+  }
+
   @media (max-width: 768px) {
-    .editor { width: 100%; max-width: 100%; }
-    .panel {
-      border-radius: 16px;
+    .editor-topbar__actions #btn-save-desktop,
+    .editor-topbar__actions #btn-toggle-preview,
+    .editor-topbar__actions .switch-label {
+      display: none;
+    }
+    .editor-topbar {
+      margin-bottom: 1rem;
+    }
+    .editor-grid {
+      grid-template-columns: 1fr;
+    }
+    .page-meta-grid,
+    .seo-grid {
+      grid-template-columns: 1fr;
+    }
+    .source-card-desktop {
+      display: none;
+    }
+    .mobile-segmented-bar {
+      display: block;
+      margin-bottom: 1rem;
+    }
+    .segmented-control {
+      display: flex;
+      background: #E2E8F0;
+      padding: 3px;
+      border-radius: 10px;
+    }
+    .segmented-btn {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #64748B;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .segmented-btn.is-active {
       background: #FFFFFF;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      padding: 1.25rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      color: #0F172A;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-    .editor-form__head {
-      flex-direction: column;
-      align-items: flex-start !important;
-      gap: 1rem;
+    .mobile-source-bar {
+      display: block;
+      margin-bottom: 1rem;
     }
-    .editor-form__head > div {
-      width: 100%;
+    .source-card--mobile {
+      display: flex;
+      align-items: center;
       justify-content: space-between;
-    }
-    input.input, select.select {
-      min-height: 48px;
-      font-size: 16px !important;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
       border-radius: 12px;
     }
-    textarea.textarea {
-      font-size: 16px !important;
-      border-radius: 12px;
+    .source-card__header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
-    .btn-primary {
-      min-height: 48px;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
+    .source-card__hint {
+      font-size: 12px;
+      color: #64748B;
+    }
+    .mobile-sticky-footer {
+      display: block;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0.75rem 1rem;
+      background: #FFFFFF;
+      border-top: 1px solid #E2E8F0;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+      z-index: 100;
     }
   }
 </style>
+
+<script is:inline define:vars={{ csrf, slug }}>
+  // Simple markdown-to-HTML parser for real-time live preview
+  function renderMarkdown(md) {
+    if (!md) return '<p style="color:#94a3b8; font-style:italic;">No content to preview.</p>';
+    let html = md
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Headings
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h2>$1</h2>');
+
+    // Bold & Italic
+    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+    // Code blocks & inline code
+    html = html.replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>');
+    html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
+
+    // Blockquotes
+    html = html.replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+    // Links & Images
+    html = html.replace(/!\[([^\]]*)\]\((.*?)\)/gim, '<img alt="$1" src="$2" style="max-width:100%; border-radius:8px;" />');
+    html = html.replace(/\[([^\]]+)\]\((.*?)\)/gim, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    // Lists
+    html = html.replace(/^\- (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
+
+    // Paragraphs
+    html = html.split(/\n{2,}/).map(para => {
+      para = para.trim();
+      if (!para) return '';
+      if (para.startsWith('<h') || para.startsWith('<ul') || para.startsWith('<blockquote') || para.startsWith('<pre')) {
+        return para;
+      }
+      return '<p>' + para.replace(/\n/g, '<br />') + '</p>';
+    }).join('');
+
+    return html;
+  }
+
+  // Toast
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('page-toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.className = 'admin-toast ' + (isError ? 'admin-toast--error' : 'admin-toast--success');
+    toast.hidden = false;
+    setTimeout(() => { toast.hidden = true; }, 3500);
+  }
+
+  const form = document.getElementById('page-editor-form');
+  const textarea = document.getElementById('content_md');
+  const previewBox = document.getElementById('live-preview-box');
+  const wordCountDisplay = document.getElementById('word-count-display');
+  const metaTitleInput = document.getElementById('meta_title');
+  const metaTitleCounter = document.getElementById('meta-title-counter');
+  const metaDescInput = document.getElementById('meta_description');
+  const metaDescCounter = document.getElementById('meta-desc-counter');
+
+  let isDirty = false;
+
+  // Real-time Preview & Word count update
+  function updatePreview() {
+    if (!textarea || !previewBox) return;
+    const val = textarea.value;
+    previewBox.innerHTML = renderMarkdown(val);
+
+    const words = val.trim() ? val.trim().split(/\s+/).length : 0;
+    if (wordCountDisplay) {
+      wordCountDisplay.textContent = `${words} words.`;
+    }
+  }
+
+  if (textarea) {
+    textarea.addEventListener('input', () => {
+      isDirty = true;
+      updatePreview();
+    });
+    // Initial render
+    updatePreview();
+  }
+
+  // Char counters
+  if (metaTitleInput && metaTitleCounter) {
+    metaTitleInput.addEventListener('input', () => {
+      isDirty = true;
+      metaTitleCounter.textContent = `(${metaTitleInput.value.length}/60)`;
+    });
+  }
+  if (metaDescInput && metaDescCounter) {
+    metaDescInput.addEventListener('input', () => {
+      isDirty = true;
+      metaDescCounter.textContent = `(${metaDescInput.value.length}/160)`;
+    });
+  }
+
+  // Markdown Toolbar helper
+  function insertFormat(prefix, suffix = '', defaultText = '') {
+    if (!textarea) return;
+    textarea.focus();
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const sel = textarea.value.substring(start, end) || defaultText;
+    const replacement = prefix + sel + suffix;
+
+    textarea.setRangeText(replacement, start, end, 'select');
+    textarea.selectionStart = start + prefix.length;
+    textarea.selectionEnd = start + prefix.length + sel.length;
+    isDirty = true;
+    updatePreview();
+  }
+
+  document.querySelectorAll('.md-tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tool = btn.getAttribute('data-tool');
+      switch (tool) {
+        case 'bold': insertFormat('**', '**', 'bold text'); break;
+        case 'italic': insertFormat('*', '*', 'italic text'); break;
+        case 'h2': insertFormat('\n## ', '\n', 'Heading'); break;
+        case 'link': insertFormat('[', '](https://example.com)', 'link text'); break;
+        case 'list': insertFormat('\n- ', '', 'List item'); break;
+        case 'quote': insertFormat('\n> ', '', 'Quote text'); break;
+        case 'code': insertFormat('\n```\n', '\n```\n', 'code here'); break;
+        case 'image': insertFormat('![', '](https://example.com/image.png)', 'alt text'); break;
+      }
+    });
+  });
+
+  // Mobile Segments (Edit vs Preview)
+  const segEdit = document.getElementById('seg-btn-edit');
+  const segPreview = document.getElementById('seg-btn-preview');
+  const leftPane = document.getElementById('editor-left-pane');
+  const rightPane = document.getElementById('editor-right-pane');
+
+  if (segEdit && segPreview) {
+    segEdit.addEventListener('click', () => {
+      segEdit.classList.add('is-active');
+      segPreview.classList.remove('is-active');
+      if (leftPane) leftPane.style.display = 'block';
+      if (rightPane) rightPane.style.display = 'none';
+    });
+
+    segPreview.addEventListener('click', () => {
+      segPreview.classList.add('is-active');
+      segEdit.classList.remove('is-active');
+      if (leftPane) leftPane.style.display = 'none';
+      if (rightPane) rightPane.style.display = 'block';
+    });
+  }
+
+  // Desktop Toggle Preview button
+  const btnTogglePreview = document.getElementById('btn-toggle-preview');
+  if (btnTogglePreview) {
+    btnTogglePreview.addEventListener('click', () => {
+      if (previewBox) {
+        previewBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        previewBox.style.outline = '2px solid #E11D48';
+        setTimeout(() => { previewBox.style.outline = 'none'; }, 1000);
+      }
+    });
+  }
+
+  // Save handler (AJAX & Form)
+  async function submitForm() {
+    if (!form) return;
+    const btnSaveDesktop = document.getElementById('btn-save-desktop');
+    const btnSaveMobile = document.getElementById('btn-save-mobile');
+
+    const setBusy = (b) => {
+      if (btnSaveDesktop) btnSaveDesktop.disabled = b;
+      if (btnSaveMobile) btnSaveMobile.disabled = b;
+    };
+
+    setBusy(true);
+
+    try {
+      const fd = new FormData(form);
+      const res = await fetch('/api/admin/page/save', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: fd
+      });
+      const data = await res.json();
+      if (data.ok) {
+        isDirty = false;
+        showToast(data.msg);
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast(data.error || 'Failed to save page.', true);
+        setBusy(false);
+      }
+    } catch (e) {
+      showToast('Network error while saving.', true);
+      setBusy(false);
+    }
+  }
+
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitForm();
+    });
+  }
+
+  // Reset to default handler
+  async function handleReset() {
+    if (!confirm('Reset this page to its built-in site default? This will delete your custom overrides.')) {
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      fd.append('csrf', csrf);
+      fd.append('slug', slug);
+
+      const res = await fetch('/api/admin/page/reset', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: fd
+      });
+      const data = await res.json();
+      if (data.ok) {
+        isDirty = false;
+        showToast(data.msg);
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast(data.error || 'Reset failed.', true);
+      }
+    } catch (e) {
+      showToast('Network error while resetting.', true);
+    }
+  }
+
+  const btnResetDesktop = document.getElementById('btn-reset-desktop');
+  if (btnResetDesktop) btnResetDesktop.addEventListener('click', handleReset);
+  const btnResetMobile = document.getElementById('btn-reset-mobile');
+  if (btnResetMobile) btnResetMobile.addEventListener('click', handleReset);
+
+  // Restore revision handler
+  document.querySelectorAll('.btn-restore').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      if (!confirm('Restore this revision? Your current draft will be replaced.')) return;
+
+      try {
+        const fd = new FormData();
+        fd.append('csrf', csrf);
+        fd.append('id', id);
+
+        const res = await fetch('/api/admin/page/restore', {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          body: fd
+        });
+        const data = await res.json();
+        if (data.ok) {
+          isDirty = false;
+          showToast(data.msg);
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast(data.error || 'Restore failed.', true);
+        }
+      } catch {
+        showToast('Network error while restoring.', true);
+      }
+    });
+  });
+
+  // Keyboard shortcut: Ctrl+S or Cmd+S to save
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      submitForm();
+    }
+  });
+
+  // Unsaved changes guard
+  window.addEventListener('beforeunload', (e) => {
+    if (isDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+</script>

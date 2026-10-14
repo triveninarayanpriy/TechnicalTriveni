@@ -2,174 +2,837 @@
 import Admin from '../../../layouts/Admin.astro';
 import Icon from '../../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
-import { getAllPages } from '../../../lib/db';
+import { listEffectivePages } from '../../../lib/pages';
 import { formatDate } from '../../../lib/format';
 
-const pages = await getAllPages(env.DB);
-const defaultPages = ['about', 'contact', 'how-it-works'];
-
-const displayPages = [...pages];
-for (const slug of defaultPages) {
-  if (!displayPages.some(p => p.slug === slug)) {
-    displayPages.push({ slug, title: `Set up ${slug}`, content_md: '', image_url: '', updated_at: 0, published: 0, meta_title: '', meta_description: '' });
-  }
-}
-displayPages.sort((a, b) => a.slug.localeCompare(b.slug));
+const pages = await listEffectivePages(env.DB);
+const csrf = Astro.locals.csrfToken;
+const totalCount = pages.length;
+const infoCount = pages.filter(p => p.category === 'info').length;
+const legalCount = pages.filter(p => p.category === 'legal').length;
 ---
 
 <Admin title="Pages" active="pages">
+  <!-- Top Flash Toast container -->
+  <div id="page-toast" class="admin-toast" hidden></div>
+
   <!-- Desktop / Tablet Pages View (>= 769px) -->
   <div class="pages-desktop-view">
     <header class="admin-desktop-topbar">
-      <h1 class="admin-desktop-topbar__title">Pages</h1>
-      <p style="margin: 0; color: var(--admin-muted); font-size: 14px;">Manage custom static pages</p>
+      <div>
+        <h1 class="admin-desktop-topbar__title">Pages</h1>
+        <p class="admin-desktop-topbar__sub">Manage custom static pages</p>
+      </div>
+      <button type="button" class="admin-btn admin-btn--primary" id="btn-new-page-desktop">
+        <Icon name="plus" size={16} /> New page
+      </button>
     </header>
 
     <div class="admin-desktop-content">
-      <div class="admin-table-card">
-        <div class="admin-table-wrap">
-          <table class="admin-table-standard">
-            <thead>
-              <tr>
-                <th>Page</th>
-                <th>Status</th>
-                <th>Published</th>
-                <th>Last Updated</th>
-                <th style="text-align: right;"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayPages.map((p) => (
-                <tr>
-                  <td style="min-width: 0; max-width: 320px;">
-                    <a href={`/admin/pages/${p.slug}`} class="proj-table-title" title={p.title}>{p.title}</a>
-                    <span class="proj-table-slug" title={`/${p.slug}`}>/{p.slug}</span>
-                  </td>
-                  <td>
-                    <span class:list={['admin-chip', p.updated_at === 0 ? 'admin-chip--draft' : 'admin-chip--live']}>
-                      {p.updated_at === 0 ? 'Not configured' : 'Active'}
-                    </span>
-                  </td>
-                  <td>
-                    <span class:list={['admin-chip', p.published === 1 ? 'admin-chip--live' : 'admin-chip--draft']}>
-                      {p.published === 1 ? 'Published' : 'Draft'}
-                    </span>
-                  </td>
-                  <td style="color: var(--admin-muted); font-size: 13px;">
-                    {p.updated_at > 0 ? formatDate(p.updated_at) : '—'}
-                  </td>
-                  <td style="text-align: right;">
-                    <a href={`/admin/pages/${p.slug}`} class="admin-btn admin-btn--secondary admin-btn--sm">Edit</a>
-                    <a href={`/${p.slug}`} target="_blank" rel="noopener noreferrer" class="admin-btn admin-btn--ghost admin-btn--sm admin-btn--icon" aria-label="Preview">
-                      <Icon name="external" size={16} />
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <!-- Explanation Banner -->
+      <div class="pages-banner">
+        <div class="pages-banner__left">
+          <div class="pages-banner__icon">
+            <Icon name="download" size={20} />
+          </div>
+          <div class="pages-banner__text">
+            <strong>Pages with no custom text show the built-in site content.</strong>
+            <span>Import it once, then edit it here. Nothing on the live site changes until you save.</span>
+          </div>
         </div>
+        <button type="button" class="admin-btn admin-btn--secondary" id="btn-import-all-desktop">
+          Import all current content
+        </button>
+      </div>
+
+      <!-- Search & Filter Controls -->
+      <div class="pages-controls">
+        <div class="pages-search-wrap">
+          <Icon name="search" size={16} class="pages-search-icon" />
+          <input
+            type="search"
+            id="page-search-desktop"
+            placeholder="Search pages..."
+            class="pages-search-input"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="pages-filter-pills" role="tablist">
+          <button type="button" class="pages-pill is-active" data-filter="all">All {totalCount}</button>
+          <button type="button" class="pages-pill" data-filter="info">Info</button>
+          <button type="button" class="pages-pill" data-filter="legal">Legal</button>
+        </div>
+      </div>
+
+      <!-- Page Cards List -->
+      <div class="pages-list" id="pages-list-desktop">
+        {pages.map((p) => (
+          <div
+            class="page-card"
+            data-slug={p.slug}
+            data-title={p.title.toLowerCase()}
+            data-category={p.category}
+          >
+            <div class="page-card__left">
+              <div class="page-card__icon-tile">
+                <Icon name="doc" size={20} />
+              </div>
+              <div class="page-card__info">
+                <a href={`/admin/pages/${p.slug}`} class="page-card__title">{p.title}</a>
+                <span class="page-card__slug">/{p.slug}</span>
+              </div>
+            </div>
+
+            <div class="page-card__center">
+              <span class:list={['page-chip', p.published === 1 ? 'page-chip--published' : 'page-chip--draft']}>
+                {p.published === 1 ? 'Published' : 'Draft'}
+              </span>
+
+              <span class:list={['page-chip', p.is_custom ? 'page-chip--custom' : 'page-chip--default']}>
+                {p.is_custom ? 'Custom' : 'Site default'}
+              </span>
+
+              <span class="page-card__date">
+                {formatDate(p.updated_at)}
+              </span>
+            </div>
+
+            <div class="page-card__right">
+              <a href={`/admin/pages/${p.slug}`} class="admin-btn admin-btn--secondary admin-btn--sm">
+                Edit
+              </a>
+              <a
+                href={p.route}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="admin-btn admin-btn--secondary admin-btn--sm admin-btn--icon"
+                title="View on live site"
+                aria-label={`View ${p.title} on live site`}
+              >
+                <Icon name="external" size={15} />
+              </a>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   </div>
 
   <!-- Mobile Pages View (<= 768px) -->
   <div class="admin-mobile-shell">
-    <header class="admin-mobile-topbar">
-      <h1 class="admin-mobile-topbar__title">Pages</h1>
+    <header class="admin-mobile-topbar" style="display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <a href="/admin" class="mobile-topbar-back" aria-label="Back to dashboard">
+          <Icon name="chevron-left" size={20} />
+        </a>
+        <h1 class="admin-mobile-topbar__title" style="margin: 0;">Pages</h1>
+      </div>
+      <button type="button" class="mobile-topbar-plus" id="btn-new-page-mobile" aria-label="Create new page">
+        <Icon name="plus" size={20} />
+      </button>
     </header>
 
     <div class="admin-mobile-content">
-      <div class="admin-card mobile-pages-list">
-        {displayPages.map((p) => (
-          <a href={`/admin/pages/${p.slug}`} class="mobile-page-row">
-            <div class="mobile-page-info">
-              <strong class="mobile-page-title">{p.title}</strong>
-              <span class="mobile-page-slug">/{p.slug}</span>
-              <div class="mobile-page-meta">
-                <span class:list={['admin-chip', p.published === 1 ? 'admin-chip--live' : 'admin-chip--draft']}>
+      <!-- Mobile Explanation Banner -->
+      <div class="pages-banner pages-banner--mobile">
+        <div class="pages-banner__left">
+          <div class="pages-banner__icon">
+            <Icon name="download" size={18} />
+          </div>
+          <div class="pages-banner__text">
+            <strong>Pages with no custom text show built-in site content.</strong>
+            <span>Import it once, then edit it here.</span>
+          </div>
+        </div>
+        <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm admin-btn--block" id="btn-import-all-mobile">
+          Import all current content
+        </button>
+      </div>
+
+      <!-- Mobile Search & Filter -->
+      <div class="mobile-search-row">
+        <div class="pages-search-wrap">
+          <Icon name="search" size={16} class="pages-search-icon" />
+          <input
+            type="search"
+            id="page-search-mobile"
+            placeholder="Search pages..."
+            class="pages-search-input"
+            autocomplete="off"
+          />
+        </div>
+        <div class="pages-filter-pills pages-filter-pills--mobile" role="tablist">
+          <button type="button" class="pages-pill is-active" data-filter="all">All</button>
+          <button type="button" class="pages-pill" data-filter="info">Info</button>
+          <button type="button" class="pages-pill" data-filter="legal">Legal</button>
+        </div>
+      </div>
+
+      <!-- Mobile Cards List -->
+      <div class="mobile-pages-list" id="pages-list-mobile">
+        {pages.map((p) => (
+          <a
+            href={`/admin/pages/${p.slug}`}
+            class="mobile-page-card"
+            data-slug={p.slug}
+            data-title={p.title.toLowerCase()}
+            data-category={p.category}
+          >
+            <div class="mobile-page-card__icon-tile">
+              <Icon name="doc" size={18} />
+            </div>
+
+            <div class="mobile-page-card__body">
+              <strong class="mobile-page-card__title">{p.title}</strong>
+              <span class="mobile-page-card__slug">/{p.slug}</span>
+              <div class="mobile-page-card__chips">
+                <span class:list={['page-chip', p.published === 1 ? 'page-chip--published' : 'page-chip--draft']}>
                   {p.published === 1 ? 'Published' : 'Draft'}
                 </span>
-                <span style="font-size: 12px; color: var(--admin-muted);">
-                  {p.updated_at > 0 ? formatDate(p.updated_at) : 'Not configured'}
+                <span class:list={['page-chip', p.is_custom ? 'page-chip--custom' : 'page-chip--default']}>
+                  {p.is_custom ? 'Custom' : 'Site default'}
                 </span>
               </div>
             </div>
-            <Icon name="chevron-right" size={18} class="mobile-page-arrow" />
+
+            <Icon name="chevron-right" size={18} class="mobile-page-card__arrow" />
           </a>
         ))}
       </div>
     </div>
   </div>
+
+  <!-- New Page Modal Dialog -->
+  <dialog id="new-page-dialog" class="admin-dialog">
+    <div class="admin-dialog__content">
+      <div class="admin-dialog__head">
+        <h2>Create New Page</h2>
+        <button type="button" class="admin-dialog__close" id="btn-dialog-close" aria-label="Close">&times;</button>
+      </div>
+      <form id="new-page-form" class="admin-dialog__form">
+        <input type="hidden" name="csrf" value={csrf} />
+        <div class="admin-form-group">
+          <label for="new-title" class="admin-label">Page Title</label>
+          <input type="text" id="new-title" name="title" class="admin-input" placeholder="e.g. Sponsorship Guidelines" required />
+        </div>
+        <div class="admin-form-group">
+          <label for="new-slug" class="admin-label">Slug (URL path)</label>
+          <div class="admin-input-prefix-wrap">
+            <span class="admin-input-prefix">/</span>
+            <input type="text" id="new-slug" name="slug" class="admin-input" placeholder="sponsorship" required pattern="[a-z0-9\-]+" />
+          </div>
+          <span class="admin-field-hint">Letters, numbers and hyphens only.</span>
+        </div>
+        <div class="admin-dialog__actions">
+          <button type="button" class="admin-btn admin-btn--secondary" id="btn-dialog-cancel">Cancel</button>
+          <button type="submit" class="admin-btn admin-btn--primary">Continue to Editor</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 </Admin>
 
 <style>
-  @media (max-width: 768px) {
-    .pages-desktop-view { display: none !important; }
+  /* Toast */
+  .admin-toast {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 1000;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    background: #111827;
+    color: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .admin-toast--success {
+    background: #065F46;
+    color: #ECFDF5;
+  }
+  .admin-toast--error {
+    background: #991B1B;
+    color: #FEF2F2;
   }
 
-  .proj-table-title {
-    font-size: 14.5px;
-    font-weight: 700;
-    color: var(--admin-ink);
-    text-decoration: none;
-    display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+  /* Desktop layout */
+  .pages-desktop-view {
+    display: none;
   }
-  .proj-table-title:hover {
-    color: var(--admin-red);
-  }
-  .proj-table-slug {
-    font-size: 12px;
-    color: var(--admin-muted);
-    font-family: var(--admin-font-mono);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    display: block;
+  @media (min-width: 769px) {
+    .pages-desktop-view {
+      display: block;
+    }
+    .admin-mobile-shell {
+      display: none !important;
+    }
   }
 
-  /* Mobile */
-  .mobile-pages-list {
-    padding: 8px 16px;
+  .admin-desktop-topbar__sub {
+    margin: 4px 0 0;
+    color: var(--admin-muted, #6B7280);
+    font-size: 14px;
   }
-  .mobile-page-row {
+
+  /* Explanation Banner */
+  .pages-banner {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 0;
-    border-bottom: 1px solid var(--admin-line-subtle);
-    text-decoration: none;
-    color: var(--admin-ink);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
   }
-  .mobile-page-row:last-child {
-    border-bottom: none;
-  }
-  .mobile-page-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .mobile-page-title {
-    font-size: 15px;
-    font-weight: 700;
-  }
-  .mobile-page-slug {
-    font-size: 12px;
-    color: var(--admin-muted);
-    font-family: var(--admin-font-mono);
-  }
-  .mobile-page-meta {
+  .pages-banner__left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 1rem;
+  }
+  .pages-banner__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(225, 29, 72, 0.1);
+    color: #E11D48;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .pages-banner__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pages-banner__text strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+  }
+  .pages-banner__text span {
+    font-size: 13px;
+    color: #64748B;
+  }
+
+  /* Search & Filters Row */
+  .pages-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .pages-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 320px;
+    max-width: 100%;
+  }
+  .pages-search-wrap :global(svg),
+  .pages-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .pages-search-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px 0 38px;
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    font-size: 14px;
+    color: #1E293B;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .pages-search-input:focus {
+    border-color: #E11D48;
+    box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+  }
+
+  .pages-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pages-pill {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pages-pill:hover {
+    background: #F8FAFC;
+    color: #1E293B;
+  }
+  .pages-pill.is-active {
+    background: #111827;
+    border-color: #111827;
+    color: #FFFFFF;
+  }
+
+  /* Page Cards Desktop */
+  .pages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .page-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 1.1rem 1.4rem;
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) auto auto;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .page-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+  .page-card__left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+  }
+  .page-card__icon-tile {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #FFF1F2;
+    color: #E11D48;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .page-card__info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .page-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0F172A;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page-card__title:hover {
+    color: #E11D48;
+  }
+  .page-card__slug {
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    color: #64748B;
+    margin-top: 1px;
+  }
+  .page-card__center {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-shrink: 0;
+  }
+  .page-card__date {
+    font-size: 13px;
+    color: #64748B;
+    min-width: 95px;
+    text-align: right;
+  }
+  .page-card__right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  /* Chips */
+  .page-chip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.4;
+  }
+  .page-chip--published {
+    background: #DCFCE7;
+    color: #166534;
+  }
+  .page-chip--draft {
+    background: #F1F5F9;
+    color: #64748B;
+  }
+  .page-chip--custom {
+    background: #FEF3C7;
+    color: #92400E;
+  }
+  .page-chip--default {
+    background: #F1F5F9;
+    color: #475569;
+  }
+
+  /* Mobile Styles */
+  .mobile-topbar-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1E293B;
+    text-decoration: none;
+    padding: 4px;
+  }
+  .mobile-topbar-plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #FFF1F2;
+    color: #E11D48;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .pages-banner--mobile {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.1rem;
+    gap: 1rem;
+  }
+  .mobile-search-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .mobile-search-row .pages-search-wrap {
+    width: 100%;
+  }
+  .pages-filter-pills--mobile {
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .mobile-pages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .mobile-page-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+  .mobile-page-card__icon-tile {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #FFF1F2;
+    color: #E11D48;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .mobile-page-card__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-page-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0F172A;
+  }
+  .mobile-page-card__slug {
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    color: #64748B;
+    margin-top: 1px;
+  }
+  .mobile-page-card__chips {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .mobile-page-card__arrow {
+    color: #94A3B8;
+    flex-shrink: 0;
+  }
+
+  /* Modal Dialog */
+  .admin-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    background: transparent;
+    max-width: 460px;
+    width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  .admin-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+  }
+  .admin-dialog__content {
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+  .admin-dialog__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  .admin-dialog__head h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: #0F172A;
+  }
+  .admin-dialog__close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94A3B8;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .admin-form-group {
+    margin-bottom: 1rem;
+  }
+  .admin-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+  .admin-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid #CBD5E1;
+    font-size: 14px;
+    color: #0F172A;
+    outline: none;
+  }
+  .admin-input:focus {
+    border-color: #E11D48;
+    box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+  }
+  .admin-input-prefix-wrap {
+    display: flex;
+    align-items: center;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .admin-input-prefix-wrap:focus-within {
+    border-color: #E11D48;
+    box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+  }
+  .admin-input-prefix {
+    padding: 0 12px;
+    background: #F1F5F9;
+    color: #64748B;
+    font-family: monospace;
+    font-weight: 600;
+  }
+  .admin-input-prefix-wrap .admin-input {
+    border: none;
+    border-radius: 0;
+  }
+  .admin-field-hint {
+    display: block;
+    font-size: 12px;
+    color: #64748B;
     margin-top: 4px;
   }
-  .mobile-page-arrow {
-    color: var(--admin-muted);
+  .admin-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
   }
 </style>
+
+<script is:inline define:vars={{ csrf }}>
+  // Toast helper
+  function showToast(message, isError = false) {
+    const toast = document.getElementById('page-toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = 'admin-toast ' + (isError ? 'admin-toast--error' : 'admin-toast--success');
+    toast.hidden = false;
+    setTimeout(() => {
+      toast.hidden = true;
+    }, 4000);
+  }
+
+  // Filter & Search logic
+  let activeFilter = 'all';
+  let searchTerm = '';
+
+  function applyFilters() {
+    const desktopCards = document.querySelectorAll('#pages-list-desktop .page-card');
+    const mobileCards = document.querySelectorAll('#pages-list-mobile .mobile-page-card');
+
+    const filterCard = (card) => {
+      const title = card.getAttribute('data-title') || '';
+      const slug = card.getAttribute('data-slug') || '';
+      const cat = card.getAttribute('data-category') || '';
+
+      const matchesSearch = !searchTerm || title.includes(searchTerm) || slug.includes(searchTerm);
+      const matchesFilter = activeFilter === 'all' || cat === activeFilter;
+
+      card.style.display = matchesSearch && matchesFilter ? '' : 'none';
+    };
+
+    desktopCards.forEach(filterCard);
+    mobileCards.forEach(filterCard);
+  }
+
+  // Search input listeners
+  const searchDesktop = document.getElementById('page-search-desktop');
+  if (searchDesktop) {
+    searchDesktop.addEventListener('input', (e) => {
+      searchTerm = e.target.value.trim().toLowerCase();
+      applyFilters();
+    });
+  }
+
+  const searchMobile = document.getElementById('page-search-mobile');
+  if (searchMobile) {
+    searchMobile.addEventListener('input', (e) => {
+      searchTerm = e.target.value.trim().toLowerCase();
+      applyFilters();
+    });
+  }
+
+  // Pill filter buttons
+  document.querySelectorAll('.pages-pill').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pages-pill').forEach((b) => b.classList.remove('is-active'));
+      const f = btn.getAttribute('data-filter') || 'all';
+      activeFilter = f;
+      document.querySelectorAll(`.pages-pill[data-filter="${f}"]`).forEach((b) => b.classList.add('is-active'));
+      applyFilters();
+    });
+  });
+
+  // Import all content handler
+  async function handleImportAll(btn) {
+    if (!confirm('Import all built-in site content into the database? This copies current defaults so you can edit them. Existing custom pages will not be overwritten.')) {
+      return;
+    }
+
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Importing...';
+
+    try {
+      const fd = new FormData();
+      fd.append('csrf', csrf);
+
+      const res = await fetch('/api/admin/page/import-all', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: fd
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(data.msg);
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        showToast(data.error || 'Import failed.', true);
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    } catch (e) {
+      showToast('Network error while importing.', true);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+
+  const btnImportDesktop = document.getElementById('btn-import-all-desktop');
+  if (btnImportDesktop) btnImportDesktop.addEventListener('click', () => handleImportAll(btnImportDesktop));
+
+  const btnImportMobile = document.getElementById('btn-import-all-mobile');
+  if (btnImportMobile) btnImportMobile.addEventListener('click', () => handleImportAll(btnImportMobile));
+
+  // Modal dialog handling for "+ New page"
+  const dialog = document.getElementById('new-page-dialog');
+  const btnNewDesktop = document.getElementById('btn-new-page-desktop');
+  const btnNewMobile = document.getElementById('btn-new-page-mobile');
+  const btnClose = document.getElementById('btn-dialog-close');
+  const btnCancel = document.getElementById('btn-dialog-cancel');
+  const newTitle = document.getElementById('new-title');
+  const newSlug = document.getElementById('new-slug');
+  const newForm = document.getElementById('new-page-form');
+
+  function openNewPageDialog() {
+    if (!dialog) return;
+    if (newForm) newForm.reset();
+    dialog.showModal();
+    if (newTitle) newTitle.focus();
+  }
+
+  if (btnNewDesktop) btnNewDesktop.addEventListener('click', openNewPageDialog);
+  if (btnNewMobile) btnNewMobile.addEventListener('click', openNewPageDialog);
+  if (btnClose) btnClose.addEventListener('click', () => dialog?.close());
+  if (btnCancel) btnCancel.addEventListener('click', () => dialog?.close());
+
+  // Auto-slugify title in dialog
+  if (newTitle && newSlug) {
+    newTitle.addEventListener('input', () => {
+      newSlug.value = newTitle.value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    });
+  }
+
+  if (newForm) {
+    newForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const slug = newSlug ? newSlug.value.trim() : '';
+      if (!slug) return;
+      window.location.href = `/admin/pages/${encodeURIComponent(slug)}`;
+    });
+  }
+</script>

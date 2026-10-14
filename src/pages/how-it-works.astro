@@ -3,9 +3,12 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE } from '../lib/site';
-import { getPage } from '../lib/db';
+import { renderMarkdown } from '../lib/format';
+import { getEffectiveContent } from '../lib/pages';
 
-const page = await getPage(env.DB, 'how-it-works');
+const pageData = await getEffectiveContent(env.DB, 'how-it-works');
+if (pageData.published === 0) return Astro.redirect('/404');
+const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null;
 
 const steps = [
   {
@@ -120,6 +123,16 @@ const faqs = [
         </div>
       </div>
     </section>
+
+    {customHtml && (
+      <section class="hiw-custom-section" style="padding: 2rem 0; background: var(--bg);">
+        <div class="container" style="max-width: 800px;">
+          <div class="hiw-custom-card" style="background: var(--surface, #FFF); border: 1px solid var(--border, #E5E7EB); border-radius: 16px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div class="prose" set:html={customHtml} />
+          </div>
+        </div>
+      </section>
+    )}
 
     <!-- 5-STEP STEPPER (Horizontal Desktop, Vertical Timeline Mobile) -->
     <section class="hiw-stepper-section">
