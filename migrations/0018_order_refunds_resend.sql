@@ -3,7 +3,6 @@
 -- Reversible: Yes. See rollback section below.
 
 -- 1. Schema Additions
-ALTER TABLE orders ADD COLUMN notes TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders ADD COLUMN refund_id TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN refunded_at TEXT DEFAULT NULL;
 ALTER TABLE orders ADD COLUMN last_resent_at TEXT DEFAULT NULL;
