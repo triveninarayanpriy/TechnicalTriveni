@@ -92,13 +92,19 @@
   --sp-96: 96px;
 
   /* Header & Containers */
-  --header-h: 72px;
+  --header-h: 60px;
   --container: 1200px;
   --container-wide: 1200px;
   --container-narrow: 720px;
-  --section-y: clamp(48px, 6vw, 80px);
+  --section-y: clamp(36px, 4.5vw, 56px);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --ring: 0 0 0 2px #ffffff, 0 0 0 4px var(--red);
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --header-h: 52px;
+  }
 }
 
 /* ------------------------------------------------------------------ Reset - */

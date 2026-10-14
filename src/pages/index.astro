@@ -128,7 +128,7 @@ const jsonLd = {
 
     <!-- FEATURED PACKS -->
     {displayPacks.length > 0 && (
-      <section class="section">
+      <section class="section featured-section">
         <div class="container">
           <div class="featured-head-row">
             <h2 class="section-heading">Featured packs</h2>
@@ -412,14 +412,14 @@ const jsonLd = {
      DESKTOP HERO STYLES (>= 769px)
      ========================================================================= */
   .home-hero {
-    padding-top: 72px;
-    padding-bottom: 72px;
+    padding-top: 36px;
+    padding-bottom: 24px;
     background: #FFFFFF;
   }
   .home-hero__grid {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-    gap: 56px;
+    gap: 48px;
     align-items: center;
   }
   .home-hero__copy {
@@ -429,46 +429,46 @@ const jsonLd = {
   .home-hero__pill {
     display: inline-flex;
     align-self: flex-start;
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 999px;
     background: #F4F5F7;
     border: 1px solid var(--line);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--muted);
-    margin-bottom: 20px;
+    margin-bottom: 14px;
   }
   .home-hero__title {
     font-family: var(--font-display);
-    font-size: clamp(2.4rem, 2rem + 2vw, 3.8rem);
+    font-size: clamp(2.2rem, 1.8rem + 1.8vw, 3.4rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 20px 0;
+    margin: 0 0 16px 0;
   }
   .text-red {
     color: var(--red);
   }
   .home-hero__lead {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1.55;
     color: var(--muted);
     max-width: 52ch;
-    margin: 0 0 32px 0;
+    margin: 0 0 24px 0;
   }
   .home-hero__buttons {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 36px;
+    gap: 14px;
+    margin-bottom: 24px;
   }
   .btn-hero {
-    height: 52px;
-    padding: 0 28px;
-    font-size: 16px;
+    height: 46px;
+    padding: 0 24px;
+    font-size: 15px;
     font-weight: 600;
-    border-radius: 14px;
+    border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -477,7 +477,7 @@ const jsonLd = {
   .home-hero__proof-row {
     display: flex;
     align-items: center;
-    gap: 28px;
+    gap: 24px;
     flex-wrap: wrap;
   }
   .proof-tick {
@@ -502,6 +502,9 @@ const jsonLd = {
   }
 
   /* Featured Packs Desktop */
+  .featured-section {
+    padding-top: 24px;
+  }
   .featured-head-row {
     display: flex;
     align-items: center;
