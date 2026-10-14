@@ -1,16 +1,16 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { updateBom } from '../../../../lib/db';
-import { csrfOk, intField, strField, checkbox, flashRedirect } from '../../../../lib/admin';
+import { csrfOk, intField, strField, checkbox, adminResponse } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  if (!csrfOk(cookies, form)) return flashRedirect('/admin/projects', { err: 'Session expired.' });
+  if (!csrfOk(cookies, form)) return adminResponse(request, '/admin/projects', { err: 'Session expired.' });
 
   const id = intField(form, 'id', 0);
   const projectId = intField(form, 'project_id', 0);
   const back = `/admin/projects/${projectId}`;
-  if (!id || !projectId) return flashRedirect(back, { err: 'Missing ID.' });
+  if (!id || !projectId) return adminResponse(request, back, { err: 'Missing ID.' });
 
   try {
     await updateBom(env.DB, id, {
@@ -24,8 +24,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       is_affiliate: checkbox(form, 'is_affiliate'),
       component_id: intField(form, 'component_id', 0)
     });
-    return flashRedirect(back, { ok: 'Part updated.' });
+    return adminResponse(request, back, { ok: 'Part updated.', data: { id, projectId } });
   } catch (e: any) {
-    return flashRedirect(back, { err: e?.message || 'Update failed.' });
+    return adminResponse(request, back, { err: e?.message || 'Update failed.' });
   }
 };

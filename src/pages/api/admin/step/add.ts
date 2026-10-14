@@ -1,19 +1,19 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { addStep } from '../../../../lib/db';
-import { csrfOk, intField, strField, flashRedirect } from '../../../../lib/admin';
+import { csrfOk, intField, strField, adminResponse } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  if (!csrfOk(cookies, form)) return flashRedirect('/admin/projects', { err: 'Session expired.' });
+  if (!csrfOk(cookies, form)) return adminResponse(request, '/admin/projects', { err: 'Session expired.' });
   const projectId = intField(form, 'project_id', 0);
-  if (!projectId) return flashRedirect('/admin/projects', { err: 'Missing project.' });
+  if (!projectId) return adminResponse(request, '/admin/projects', { err: 'Missing project.' });
   const back = `/admin/projects/${projectId}`;
 
   const body = strField(form, 'body', 4000);
-  if (!body) return flashRedirect(back, { err: 'Step instruction is required.' });
+  if (!body) return adminResponse(request, back, { err: 'Step instruction is required.' });
 
-  await addStep(env.DB, {
+  const id = await addStep(env.DB, {
     project_id: projectId,
     title: strField(form, 'title', 160),
     body,
@@ -27,5 +27,5 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if_fails: strField(form, "if_fails", 500),
     video_ts: strField(form, "video_ts", 20),
   });
-  return flashRedirect(back, { ok: 'Step added.' });
+  return adminResponse(request, back, { ok: 'Step added.', data: { id, projectId } });
 };

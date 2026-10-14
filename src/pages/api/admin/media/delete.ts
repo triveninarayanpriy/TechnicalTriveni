@@ -1,16 +1,16 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { deleteImage, syncProjectMedia } from '../../../../lib/db';
-import { csrfOk, intField, flashRedirect } from '../../../../lib/admin';
+import { csrfOk, intField, adminResponse } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  if (!csrfOk(cookies, form)) return flashRedirect('/admin/projects', { err: 'Session expired.' });
+  if (!csrfOk(cookies, form)) return adminResponse(request, '/admin/projects', { err: 'Session expired.' });
 
   const id = intField(form, 'id', 0);
   const projectId = intField(form, 'project_id', 0);
   const back = projectId ? `/admin/projects/${projectId}` : '/admin/projects';
-  if (!id) return flashRedirect(back, { err: 'Missing image.' });
+  if (!id) return adminResponse(request, back, { err: 'Missing image.' });
 
   // Fetch the row to see if it points at our own MEDIA bucket, then clean it up.
   const row = await env.DB.prepare('SELECT url FROM project_images WHERE id = ?').bind(id).first<{ url: string }>();
@@ -20,5 +20,5 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     try { await env.BLOBS.delete(key); } catch { /* ignore */ }
   }
   if (projectId) await syncProjectMedia(env.DB, projectId);
-  return flashRedirect(back, { ok: 'Item removed.' });
+  return adminResponse(request, back, { ok: 'Item removed.', data: { id, projectId } });
 };

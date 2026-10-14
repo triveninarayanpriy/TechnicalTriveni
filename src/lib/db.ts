@@ -331,32 +331,48 @@ export async function updateImageKind(db: D1Database, id: number, kind: string) 
   await db.prepare('UPDATE project_images SET kind = ? WHERE id = ?').bind(kind, id).run();
 }
 
-export async function addWiringDiagram(db: D1Database, project_id: number, url: string, label: string, module: string) {
+export async function addWiringDiagram(db: D1Database, project_id: number, url: string, label: string, module: string): Promise<number> {
   const row = await db.prepare('SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_wiring_diagrams WHERE project_id = ?').bind(project_id).first<{ n: number }>();
-  await db.prepare('INSERT INTO project_wiring_diagrams (project_id,url,label,module,sort) VALUES (?,?,?,?,?)')
+  const res = await db.prepare('INSERT INTO project_wiring_diagrams (project_id,url,label,module,sort) VALUES (?,?,?,?,?)')
     .bind(project_id, url, label, module, row?.n ?? 0).run();
+  return res.meta.last_row_id as number;
 }
 export async function deleteWiringDiagram(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_wiring_diagrams WHERE id = ?').bind(id).run();
+}
+export async function moveWiringDiagram(db: D1Database, id: number, projectId: number, dir: 'up' | 'down') {
+  await swapSort(db, 'project_wiring_diagrams', id, projectId, dir);
 }
 export async function getImages(db: D1Database, projectId: number): Promise<ProjectImage[]> {
   const res = await db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort, id')
     .bind(projectId).all<ProjectImage>();
   return res.results ?? [];
 }
-/** Swap a gallery item's order with its neighbour ('up' = earlier). */
+/** Swap a gallery item's order with its neighbour ('up' = earlier) and re-index sequentially. */
 export async function moveImage(db: D1Database, id: number, projectId: number, dir: 'up' | 'down') {
   const items = await getImages(db, projectId);
   const idx = items.findIndex((i) => i.id === id);
   if (idx < 0) return;
   const swapWith = dir === 'up' ? idx - 1 : idx + 1;
   if (swapWith < 0 || swapWith >= items.length) return;
-  const a = items[idx];
-  const b = items[swapWith];
-  await db.batch([
-    db.prepare('UPDATE project_images SET sort = ? WHERE id = ?').bind(b.sort, a.id),
-    db.prepare('UPDATE project_images SET sort = ? WHERE id = ?').bind(a.sort, b.id),
-  ]);
+  const temp = items[idx];
+  items[idx] = items[swapWith];
+  items[swapWith] = temp;
+  const statements = items.map((item, index) =>
+    db.prepare('UPDATE project_images SET sort = ? WHERE id = ?').bind(index, item.id)
+  );
+  await db.batch(statements);
+  await syncProjectMedia(db, projectId);
+}
+
+/** Set deterministic sort order from an array of image IDs and sync cover. */
+export async function reorderMedia(db: D1Database, projectId: number, orderedIds: number[]) {
+  if (!orderedIds.length) return;
+  const statements = orderedIds.map((id, index) =>
+    db.prepare('UPDATE project_images SET sort = ? WHERE id = ? AND project_id = ?').bind(index, id, projectId)
+  );
+  await db.batch(statements);
+  await syncProjectMedia(db, projectId);
 }
 /**
  * Derive the project's cover + 3D model from the ordered gallery:
@@ -390,10 +406,11 @@ export async function getComboFiles(db: D1Database, projectId: number): Promise<
   return res.results ?? [];
 }
 
-export async function addBom(db: D1Database, b: Omit<BomItem, 'id'>) {
-  await db.prepare(
+export async function addBom(db: D1Database, b: Omit<BomItem, 'id'>): Promise<number> {
+  const res = await db.prepare(
     'INSERT INTO bom_items (project_id,name,qty,notes,store,affiliate_url,unit_price_inr,price_checked,is_affiliate,component_id,is_required,group_name,stage_tag,sort) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
   ).bind(b.project_id, b.name, b.qty, b.notes, b.store, b.affiliate_url, b.unit_price_inr, b.price_checked ?? '', b.is_affiliate ?? 0, b.component_id ?? 0, b.is_required ?? 1, b.group_name ?? '', b.stage_tag ?? '', b.sort).run();
+  return res.meta.last_row_id as number;
 }
 
 /* -------------------------------------------------- component library ---- */
@@ -507,10 +524,11 @@ export async function deleteBom(db: D1Database, id: number) {
 }
 
 /* --- build steps --- */
-export async function addStep(db: D1Database, s: Omit<ProjectStep, "id" | "sort">) {
-  const row = await db.prepare("SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_steps WHERE project_id = ?").bind(s.project_id).first();
-  await db.prepare("INSERT INTO project_steps (project_id,title,body,why,image_url,sort,goal,time_est,parts_needed,file_id,expected_res,if_fails,video_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+export async function addStep(db: D1Database, s: Omit<ProjectStep, "id" | "sort">): Promise<number> {
+  const row = await db.prepare("SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_steps WHERE project_id = ?").bind(s.project_id).first<{ n: number }>();
+  const res = await db.prepare("INSERT INTO project_steps (project_id,title,body,why,image_url,sort,goal,time_est,parts_needed,file_id,expected_res,if_fails,video_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
     .bind(s.project_id, s.title, s.body || "", s.why || "", s.image_url || "", (row && row.n) ? row.n : 0, s.goal || "", s.time_est || "", s.parts_needed || "", s.file_id || null, s.expected_res || "", s.if_fails || "", s.video_ts || "").run();
+  return res.meta.last_row_id as number;
 }
 export async function deleteStep(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_steps WHERE id = ?').bind(id).run();
@@ -520,26 +538,31 @@ export async function moveStep(db: D1Database, id: number, projectId: number, di
 }
 
 /* --- pin connections --- */
-export async function addPin(db: D1Database, p: Omit<ProjectPin, 'id' | 'sort'>) {
+export async function addPin(db: D1Database, p: Omit<ProjectPin, 'id' | 'sort'>): Promise<number> {
   const row = await db.prepare('SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_pins WHERE project_id = ?').bind(p.project_id).first<{ n: number }>();
-  await db.prepare('INSERT INTO project_pins (project_id,from_pin,to_pin,note,sort) VALUES (?,?,?,?,?)')
+  const res = await db.prepare('INSERT INTO project_pins (project_id,from_pin,to_pin,note,sort) VALUES (?,?,?,?,?)')
     .bind(p.project_id, p.from_pin, p.to_pin, p.note, row?.n ?? 0).run();
+  return res.meta.last_row_id as number;
 }
 export async function deletePin(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_pins WHERE id = ?').bind(id).run();
 }
 
 /* --- troubleshooting --- */
-export async function addTrouble(db: D1Database, t: Omit<Troubleshoot, 'id' | 'sort'>) {
+export async function addTrouble(db: D1Database, t: Omit<Troubleshoot, 'id' | 'sort'>): Promise<number> {
   const row = await db.prepare('SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_troubleshooting WHERE project_id = ?').bind(t.project_id).first<{ n: number }>();
-  await db.prepare('INSERT INTO project_troubleshooting (project_id,symptom,cause,fix,sort) VALUES (?,?,?,?,?)')
+  const res = await db.prepare('INSERT INTO project_troubleshooting (project_id,symptom,cause,fix,sort) VALUES (?,?,?,?,?)')
     .bind(t.project_id, t.symptom, t.cause ?? '', t.fix, row?.n ?? 0).run();
+  return res.meta.last_row_id as number;
 }
 export async function deleteTrouble(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_troubleshooting WHERE id = ?').bind(id).run();
 }
+export async function moveTrouble(db: D1Database, id: number, projectId: number, dir: 'up' | 'down') {
+  await swapSort(db, 'project_troubleshooting', id, projectId, dir);
+}
 
-/** Swap a row's sort with its neighbour in any ordered child table. */
+/** Swap a row's sort with its neighbour in any ordered child table and re-index sequentially. */
 export async function swapSort(db: D1Database, table: string, id: number, projectId: number, dir: 'up' | 'down') {
   const res = await db.prepare(`SELECT id, sort FROM ${table} WHERE project_id = ? ORDER BY sort, id`).bind(projectId).all<{ id: number; sort: number }>();
   const items = res.results ?? [];
@@ -547,18 +570,35 @@ export async function swapSort(db: D1Database, table: string, id: number, projec
   if (idx < 0) return;
   const j = dir === 'up' ? idx - 1 : idx + 1;
   if (j < 0 || j >= items.length) return;
-  await db.batch([
-    db.prepare(`UPDATE ${table} SET sort = ? WHERE id = ?`).bind(items[j].sort, items[idx].id),
-    db.prepare(`UPDATE ${table} SET sort = ? WHERE id = ?`).bind(items[idx].sort, items[j].id),
-  ]);
+  const temp = items[idx];
+  items[idx] = items[j];
+  items[j] = temp;
+  const statements = items.map((item, index) =>
+    db.prepare(`UPDATE ${table} SET sort = ? WHERE id = ?`).bind(index, item.id)
+  );
+  await db.batch(statements);
 }
 
-export async function addLink(db: D1Database, l: Omit<ProjectLink, 'id'>) {
-  await db.prepare('INSERT INTO project_links (project_id,label,url,kind,sort) VALUES (?,?,?,?,?)')
-    .bind(l.project_id, l.label, l.url, l.kind, l.sort).run();
+/** Set deterministic sort order from an array of IDs for any table. */
+export async function reorderTable(db: D1Database, table: string, projectId: number, orderedIds: number[]) {
+  if (!orderedIds.length) return;
+  const statements = orderedIds.map((id, index) =>
+    db.prepare(`UPDATE ${table} SET sort = ? WHERE id = ? AND project_id = ?`).bind(index, id, projectId)
+  );
+  await db.batch(statements);
+}
+
+export async function addLink(db: D1Database, l: Omit<ProjectLink, 'id'>): Promise<number> {
+  const row = await db.prepare('SELECT COALESCE(MAX(sort),-1)+1 AS n FROM project_links WHERE project_id = ?').bind(l.project_id).first<{ n: number }>();
+  const res = await db.prepare('INSERT INTO project_links (project_id,label,url,kind,sort) VALUES (?,?,?,?,?)')
+    .bind(l.project_id, l.label, l.url, l.kind, row?.n ?? 0).run();
+  return res.meta.last_row_id as number;
 }
 export async function deleteLink(db: D1Database, id: number) {
   await db.prepare('DELETE FROM project_links WHERE id = ?').bind(id).run();
+}
+export async function moveLink(db: D1Database, id: number, projectId: number, dir: 'up' | 'down') {
+  await swapSort(db, 'project_links', id, projectId, dir);
 }
 
 /* -------------------------------------------------------------- orders --- */

@@ -32,3 +32,38 @@ export function intField(form: FormData, name: string, fallback = 0): number {
 export function strField(form: FormData, name: string, max = 5000): string {
   return String(form.get(name) ?? '').trim().replace(/\\n/g, '\n').slice(0, max);
 }
+
+/** Check if the request expects a JSON response (fetch or AJAX). */
+export function wantsJson(request: Request): boolean {
+  const accept = request.headers.get('accept') || '';
+  const xrw = request.headers.get('x-requested-with') || '';
+  return accept.includes('application/json') || xrw.toLowerCase() === 'fetch' || xrw.toLowerCase() === 'xmlhttprequest';
+}
+
+/** Respond with JSON if fetch/AJAX, or flashRedirect if traditional form submission. */
+export function adminResponse(
+  request: Request,
+  to: string,
+  opts: { ok?: string; err?: string; data?: Record<string, unknown> } = {},
+): Response {
+  if (wantsJson(request)) {
+    if (opts.err) {
+      return new Response(JSON.stringify({ success: false, error: opts.err }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: opts.ok || 'Success',
+        ...(opts.data || {}),
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+  return flashRedirect(to, opts);
+}

@@ -1,14 +1,14 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { addBom, getComponent } from '../../../../lib/db';
-import { csrfOk, checkbox, intField, strField, flashRedirect } from '../../../../lib/admin';
+import { csrfOk, checkbox, intField, strField, adminResponse } from '../../../../lib/admin';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  if (!csrfOk(cookies, form)) return flashRedirect('/admin/projects', { err: 'Session expired.' });
+  if (!csrfOk(cookies, form)) return adminResponse(request, '/admin/projects', { err: 'Session expired.' });
 
   const projectId = intField(form, 'project_id', 0);
-  if (!projectId) return flashRedirect('/admin/projects', { err: 'Missing project.' });
+  if (!projectId) return adminResponse(request, '/admin/projects', { err: 'Missing project.' });
   const back = `/admin/projects/${projectId}`;
 
   // Optionally reference a reusable library component (its price/link stay live).
@@ -22,15 +22,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (componentId > 0) {
     const comp = await getComponent(env.DB, componentId);
-    if (!comp) return flashRedirect(back, { err: 'That component was not found.' });
+    if (!comp) return adminResponse(request, back, { err: 'That component was not found.' });
     // Snapshot fields for display; live values are re-resolved on the public page.
     name = comp.name; store = comp.store; affiliate_url = comp.buy_url;
     unit_price_inr = comp.unit_price_inr; is_affiliate = comp.is_affiliate; price_checked = comp.price_checked;
   } else if (!name) {
-    return flashRedirect(back, { err: 'Enter a component name or pick one from the library.' });
+    return adminResponse(request, back, { err: 'Enter a component name or pick one from the library.' });
   }
 
-  await addBom(env.DB, {
+  const id = await addBom(env.DB, {
     project_id: projectId,
     name,
     qty: strField(form, 'qty', 20) || '1',
@@ -46,6 +46,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     group_name: strField(form, 'group_name', 60),
     stage_tag: strField(form, 'stage_tag', 60),
   });
-  return flashRedirect(back, { ok: 'Component added.' });
+  return adminResponse(request, back, { ok: 'Component added.', data: { id, projectId, name, qty: strField(form, 'qty', 20) || '1', unit_price_inr, store, affiliate_url } });
 };
 

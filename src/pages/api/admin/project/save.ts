@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { createProject, updateProject, slugExists, getProjectById } from '../../../../lib/db';
 import { uploadToStore } from '../../../../lib/upload';
-import { csrfOk, checkbox, intField, strField, flashRedirect } from '../../../../lib/admin';
+import { csrfOk, checkbox, intField, strField, adminResponse } from '../../../../lib/admin';
 import { slugify } from '../../../../lib/format';
 
 // Builds that involve mains, batteries or motors must carry a safety note.
@@ -10,11 +10,11 @@ const RISK_RE = /\b(mains|230\s?v|220\s?v|110\s?v|high[-\s]?voltage|lipo|li[-\s]
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  if (!csrfOk(cookies, form)) return flashRedirect('/admin/projects', { err: 'Session expired, try again.' });
+  if (!csrfOk(cookies, form)) return adminResponse(request, '/admin/projects', { err: 'Session expired, try again.' });
 
   const id = intField(form, 'id', 0);
   const title = strField(form, 'title', 140);
-  if (!title) return flashRedirect(id ? `/admin/projects/${id}` : '/admin/projects/new', { err: 'Title is required.' });
+  if (!title) return adminResponse(request, id ? `/admin/projects/${id}` : '/admin/projects/new', { err: 'Title is required.' });
 
   // Slug: use provided or derive from title; ensure uniqueness.
   let base = slugify(strField(form, 'slug', 80) || title);
@@ -85,8 +85,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       const where = id > 0 ? `/admin/projects/${id}` : '/admin/projects/new';
       const savedId = id > 0 ? id : await createProject(env.DB, data);
       if (id > 0) await updateProject(env.DB, id, data);
-      return flashRedirect(id > 0 ? where : `/admin/projects/${savedId}`, {
+      return adminResponse(request, id > 0 ? where : `/admin/projects/${savedId}`, {
         err: `Saved as draft — add ${missing.join(', ')} before publishing.`,
+        data: { id: id > 0 ? id : savedId, slug: data.slug },
       });
     }
   }
@@ -97,10 +98,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       await env.DB.prepare('INSERT OR REPLACE INTO redirects (old_path, new_path) VALUES (?, ?)').bind(`/projects/${oldProject.slug}`, `/projects/${data.slug}`).run();
     }
     await updateProject(env.DB, id, data);
-    return flashRedirect(`/admin/projects/${id}`, { ok: 'Project saved.' });
+    return adminResponse(request, `/admin/projects/${id}`, { ok: 'Project saved.', data: { id, slug: data.slug } });
   }
   const newId = await createProject(env.DB, data);
-  return flashRedirect(`/admin/projects/${newId}`, { ok: 'Project created — now add images, files & parts.' });
+  return adminResponse(request, `/admin/projects/${newId}`, { ok: 'Project created — now add images, files & parts.', data: { id: newId, slug: data.slug } });
 };
 
 

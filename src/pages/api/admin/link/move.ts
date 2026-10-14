@@ -1,0 +1,15 @@
+import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
+import { moveLink } from '../../../../lib/db';
+import { csrfOk, intField, strField, adminResponse } from '../../../../lib/admin';
+
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const form = await request.formData();
+  if (!csrfOk(cookies, form)) return adminResponse(request, '/admin/projects', { err: 'Session expired.' });
+  const projectId = intField(form, 'project_id', 0);
+  const id = intField(form, 'id', 0);
+  const dir = strField(form, 'dir', 4) === 'up' ? 'up' : 'down';
+  const back = projectId ? `/admin/projects/${projectId}` : '/admin/projects';
+  if (id && projectId) await moveLink(env.DB, id, projectId, dir);
+  return adminResponse(request, back, { ok: 'Order updated.', data: { id, projectId, dir } });
+};

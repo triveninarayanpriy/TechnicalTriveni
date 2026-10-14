@@ -57,6 +57,7 @@ if (p?.cost_checked) {
       <span class:list={['admin-chip', p?.published ? 'admin-chip--live' : 'admin-chip--draft']}>
         {p?.published ? 'Live' : 'Draft'}
       </span>
+      <span id="autosave-indicator" class="autosave-status" aria-live="polite">Saved</span>
     </div>
     <div class="desktop-header-right">
       {p && (
@@ -104,6 +105,7 @@ if (p?.cost_checked) {
         <span class:list={['admin-chip', p?.published ? 'admin-chip--live' : 'admin-chip--draft']}>
           {p?.published ? 'Live' : 'Draft'}
         </span>
+        <span id="mobile-autosave-indicator" class="autosave-status autosave-status--mobile" aria-live="polite">Saved</span>
       </div>
     </div>
     <div class="mobile-editor-header__right">
@@ -377,8 +379,25 @@ if (p?.cost_checked) {
                 const isUnused = img.kind !== 'cover' && img.kind !== 'model' && !(p.description?.includes(img.url)) && !(p.safety_note?.includes(img.url));
                 const displayName = img.url.split('/').pop()?.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-/, '') || 'file';
                 return (
-                  <div class="media-thumb-card">
+                  <div class="media-thumb-card" data-id={img.id} data-index={i} draggable="true">
                     {i === 0 && <span class="media-cover-badge">Cover</span>}
+                    <div class="media-thumb-top-actions">
+                      <button type="button" class="media-drag-handle" tabindex="0" role="button" aria-label="Drag to reorder" title="Drag to reorder (or press Space + Arrow keys)">
+                        <Icon name="grip-vertical" size={14} />
+                      </button>
+                      <div class="media-del-wrap">
+                        <button type="button" class="thumb-ctrl-btn thumb-ctrl-btn--del media-del-trigger" title="Delete photo" aria-label="Delete photo">
+                          <Icon name="close" size={13} />
+                        </button>
+                        <div class="media-del-popover" style="display: none;" role="dialog" aria-label="Confirm deletion">
+                          <span class="popover-text">Remove this photo?</span>
+                          <div class="popover-actions">
+                            <button type="button" class="popover-btn popover-btn--del">Remove</button>
+                            <button type="button" class="popover-btn popover-btn--cancel">Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     <div class="media-thumb-preview">
                       {img.kind === 'model' ? (
                         <div class="media-model-icon"><Icon name="layers" size={24} /><span>3D</span></div>
@@ -389,26 +408,8 @@ if (p?.cost_checked) {
                     <div class="media-thumb-footer">
                       <span class="media-thumb-filename mono" title={img.url}>{displayName}</span>
                       <div class="media-thumb-actions">
-                        <form method="post" action="/api/admin/project/action" class="inline-form">
-                          <input type="hidden" name="csrf" value={csrf} />
-                          <input type="hidden" name="id" value={p.id} />
-                          <input type="hidden" name="media_id" value={img.id} />
-                          <input type="hidden" name="action" value="moveup" />
-                          <button class="thumb-ctrl-btn" type="submit" disabled={i === 0} title="Move earlier"><Icon name="chevron-up" size={13} /></button>
-                        </form>
-                        <form method="post" action="/api/admin/project/action" class="inline-form">
-                          <input type="hidden" name="csrf" value={csrf} />
-                          <input type="hidden" name="id" value={p.id} />
-                          <input type="hidden" name="media_id" value={img.id} />
-                          <input type="hidden" name="action" value="movedown" />
-                          <button class="thumb-ctrl-btn" type="submit" disabled={i === p.images.length - 1} title="Move later"><Icon name="chevron-down" size={13} /></button>
-                        </form>
-                        <form method="post" action="/api/admin/media/delete" class="inline-form" onsubmit="return confirm('Delete this media item?');">
-                          <input type="hidden" name="csrf" value={csrf} />
-                          <input type="hidden" name="id" value={img.id} />
-                          <input type="hidden" name="project_id" value={p.id} />
-                          <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit" title="Delete"><Icon name="close" size={13} /></button>
-                        </form>
+                        <button class="thumb-ctrl-btn media-move-left-btn" type="button" disabled={i === 0} title="Move left / earlier"><Icon name="chevron-left" size={13} /></button>
+                        <button class="thumb-ctrl-btn media-move-right-btn" type="button" disabled={i === p.images.length - 1} title="Move right / later"><Icon name="chevron-right" size={13} /></button>
                       </div>
                     </div>
                   </div>
@@ -512,7 +513,7 @@ if (p?.cost_checked) {
                           </button>
                         </form>
                       ))}
-                      <form method="post" action="/api/admin/step/delete" class="inline-form" onsubmit="return confirm('Delete step?');">
+                      <form method="post" action="/api/admin/step/delete" class="inline-form">
                         <input type="hidden" name="csrf" value={csrf} />
                         <input type="hidden" name="id" value={s.id} />
                         <input type="hidden" name="project_id" value={p.id} />
@@ -573,7 +574,7 @@ if (p?.cost_checked) {
         ) : (
           <div class="wiring-container" style="margin-top: 1rem;">
             <div class="rows">
-              {p.pins.map((pin) => (
+              {p.pins.map((pin, i) => (
                 <details class="data-row-edit" style="background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;">
                   <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                     <div class="data-row__main" style="flex: 1; min-width: 0;">
@@ -583,7 +584,18 @@ if (p?.cost_checked) {
                     </div>
                     <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
                       <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 2px 8px; font-size: 12px;"><Icon name="edit" size={13} /> Edit</span>
-                      <form method="post" action="/api/admin/pin/delete" class="inline-form" onsubmit="return confirm('Delete connection?');">
+                      {['up', 'down'].map((dir) => (
+                        <form method="post" action="/api/admin/pin/move" class="inline-form">
+                          <input type="hidden" name="csrf" value={csrf} />
+                          <input type="hidden" name="id" value={pin.id} />
+                          <input type="hidden" name="project_id" value={p.id} />
+                          <input type="hidden" name="dir" value={dir} />
+                          <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" disabled={dir === 'up' ? i === 0 : i === p.pins.length - 1} title={dir === 'up' ? 'Move earlier' : 'Move later'}>
+                            <Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} />
+                          </button>
+                        </form>
+                      ))}
+                      <form method="post" action="/api/admin/pin/delete" class="inline-form">
                         <input type="hidden" name="csrf" value={csrf} />
                         <input type="hidden" name="id" value={pin.id} />
                         <input type="hidden" name="project_id" value={p.id} />
@@ -647,7 +659,7 @@ if (p?.cost_checked) {
         ) : (
           <div class="troubleshooting-container" style="margin-top: 1rem;">
             <div class="rows">
-              {p.troubleshooting.map((t) => (
+              {p.troubleshooting.map((t, i) => (
                 <details class="data-row-edit" style="background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;">
                   <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                     <div class="data-row__main" style="flex: 1; min-width: 0;">
@@ -663,7 +675,18 @@ if (p?.cost_checked) {
                     </div>
                     <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
                       <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 2px 8px; font-size: 12px;"><Icon name="edit" size={13} /> Edit</span>
-                      <form method="post" action="/api/admin/trouble/delete" class="inline-form" onsubmit="return confirm('Delete tip?');">
+                      {['up', 'down'].map((dir) => (
+                        <form method="post" action="/api/admin/trouble/move" class="inline-form">
+                          <input type="hidden" name="csrf" value={csrf} />
+                          <input type="hidden" name="id" value={t.id} />
+                          <input type="hidden" name="project_id" value={p.id} />
+                          <input type="hidden" name="dir" value={dir} />
+                          <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" disabled={dir === 'up' ? i === 0 : i === p.troubleshooting.length - 1} title={dir === 'up' ? 'Move earlier' : 'Move later'}>
+                            <Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} />
+                          </button>
+                        </form>
+                      ))}
+                      <form method="post" action="/api/admin/trouble/delete" class="inline-form">
                         <input type="hidden" name="csrf" value={csrf} />
                         <input type="hidden" name="id" value={t.id} />
                         <input type="hidden" name="project_id" value={p.id} />
@@ -739,18 +762,31 @@ if (p?.cost_checked) {
         ) : (
           <div class="links-container" style="margin-top: 1rem;">
             <div class="rows">
-              {p.links.map((l) => (
+              {p.links.map((l, i) => (
                 <div class="data-row" style="background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; padding: 0.85rem 1rem; display: flex; align-items: center; margin-bottom: 0.5rem;">
                   <div class="data-row__main" style="flex: 1; min-width: 0;">
                     <strong style="font-size: 14px;">{l.label}</strong>
                     <span class="dim mono" style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{l.url}</span>
                   </div>
-                  <form method="post" action="/api/admin/link/delete" class="inline-form" onsubmit="return confirm('Delete this link?');">
-                    <input type="hidden" name="csrf" value={csrf} />
-                    <input type="hidden" name="id" value={l.id} />
-                    <input type="hidden" name="project_id" value={p.id} />
-                    <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit"><Icon name="close" size={13} /></button>
-                  </form>
+                  <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
+                    {['up', 'down'].map((dir) => (
+                      <form method="post" action="/api/admin/link/move" class="inline-form">
+                        <input type="hidden" name="csrf" value={csrf} />
+                        <input type="hidden" name="id" value={l.id} />
+                        <input type="hidden" name="project_id" value={p.id} />
+                        <input type="hidden" name="dir" value={dir} />
+                        <button class="thumb-ctrl-btn" type="submit" disabled={dir === 'up' ? i === 0 : i === p.links.length - 1} title={dir === 'up' ? 'Move earlier' : 'Move later'}>
+                          <Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={13} />
+                        </button>
+                      </form>
+                    ))}
+                    <form method="post" action="/api/admin/link/delete" class="inline-form">
+                      <input type="hidden" name="csrf" value={csrf} />
+                      <input type="hidden" name="id" value={l.id} />
+                      <input type="hidden" name="project_id" value={p.id} />
+                      <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit"><Icon name="close" size={13} /></button>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>
@@ -842,7 +878,7 @@ if (p?.cost_checked) {
                           </button>
                         </form>
                       ))}
-                      <form method="post" action="/api/admin/bom/delete" class="inline-form" onsubmit="return confirm('Delete this part?');">
+                      <form method="post" action="/api/admin/bom/delete" class="inline-form">
                         <input type="hidden" name="csrf" value={csrf} />
                         <input type="hidden" name="id" value={b.id} />
                         <input type="hidden" name="project_id" value={p.id} />
@@ -884,7 +920,10 @@ if (p?.cost_checked) {
 
             <!-- Add BOM Part Form -->
             <div class="add-card-box" id="add-bom-form" style="display: none; margin-top: 1rem;">
-              <h4 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 700;">Add Component</h4>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="margin: 0; font-size: 15px; font-weight: 700;">Add Component</h4>
+                <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="cancel-add-bom-btn">Cancel</button>
+              </div>
               <form method="post" action="/api/admin/bom/add" id="bom-lib-add-form">
                 <input type="hidden" name="csrf" value={csrf} />
                 <input type="hidden" name="project_id" value={p.id} />
@@ -1245,8 +1284,8 @@ if (p?.cost_checked) {
     list-style: disc;
   }
 
-  /* Two-Column Grid */
-  @media (min-width: 769px) {
+  /* Desktop Two-Column Grid (>= 1024px) */
+  @media (min-width: 1024px) {
     .mobile-editor-header,
     .mobile-sections-menu,
     .mobile-sticky-savebar,
@@ -1271,11 +1310,77 @@ if (p?.cost_checked) {
       flex-direction: column;
       gap: 20px;
       position: sticky;
-      top: 20px;
+      top: 24px;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
     .editor-section-card {
       display: block !important;
     }
+  }
+
+  /* Tablet Layout (769px to 1023px): normal stacked block, rail is not sticky */
+  @media (min-width: 769px) and (max-width: 1023px) {
+    .mobile-editor-header,
+    .mobile-sections-menu,
+    .mobile-sticky-savebar,
+    .mobile-drilldown-header,
+    .mobile-drilldown-done-bar {
+      display: none !important;
+    }
+    .editor-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .editor-main-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 0;
+    }
+    .editor-rail-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: static;
+      max-height: none;
+      overflow: visible;
+    }
+    .editor-section-card {
+      display: block !important;
+    }
+  }
+
+  /* Autosave Status Indicator */
+  .autosave-status {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--admin-muted);
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(90, 98, 112, 0.08);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+  }
+  .autosave-status.is-saving {
+    color: var(--admin-muted);
+    background: rgba(90, 98, 112, 0.12);
+  }
+  .autosave-status.is-saved {
+    color: #14663A;
+    background: rgba(20, 102, 58, 0.1);
+  }
+  .autosave-status.is-offline {
+    color: var(--admin-red);
+    background: rgba(217, 31, 38, 0.1);
+  }
+  .autosave-status--mobile {
+    font-size: 11px;
+    padding: 1px 6px;
   }
 
   .card-section-title {
@@ -1311,11 +1416,121 @@ if (p?.cost_checked) {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  }
+  .media-thumb-card.is-dragging {
+    opacity: 0.35;
+    transform: scale(0.97);
+  }
+  .media-thumb-card.is-keyboard-picked-up {
+    outline: 2px dashed var(--admin-red);
+    outline-offset: 2px;
+    box-shadow: 0 4px 12px rgba(217, 31, 38, 0.25);
+  }
+  .media-thumb-top-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    left: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .media-drag-handle {
+    pointer-events: auto;
+    background: rgba(15, 17, 21, 0.7);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    transition: background 0.15s;
+  }
+  .media-drag-handle:active {
+    cursor: grabbing;
+  }
+  .media-drag-handle:focus-visible {
+    outline: 2px solid var(--admin-red);
+    outline-offset: 1px;
+  }
+  .media-del-wrap {
+    position: relative;
+    pointer-events: auto;
+    margin-left: auto;
+  }
+  .media-del-trigger {
+    background: rgba(15, 17, 21, 0.7);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .media-del-trigger:hover {
+    background: var(--admin-red);
+  }
+  .media-del-popover {
+    position: absolute;
+    top: 28px;
+    right: 0;
+    background: #FFFFFF;
+    border: 1px solid var(--admin-line);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    padding: 8px 10px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+    pointer-events: auto;
+    animation: toastIn 0.15s ease-out;
+  }
+  .popover-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--admin-ink);
+    white-space: nowrap;
+  }
+  .popover-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+  .popover-btn {
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .popover-btn--del {
+    background: var(--admin-red);
+    color: #FFFFFF;
+  }
+  .popover-btn--cancel {
+    background: var(--admin-line);
+    color: var(--admin-ink);
   }
   .media-cover-badge {
     position: absolute;
     top: 6px;
-    left: 6px;
+    left: 36px;
     background: var(--admin-red);
     color: #FFFFFF;
     font-size: 11px;
@@ -2063,24 +2278,989 @@ if (p?.cost_checked) {
     update();
   }
 
-  // Toggle add forms (Steps, Pin, Trouble, Link, BOM)
-  const setupToggle = (btnId: string, formId: string, cancelBtnId?: string) => {
+  // --- Toast Undo Helper ---
+  function showUndoToast(message: string, onUndo: () => void, onCommit: () => void) {
+    const wrap = document.getElementById('toast-wrap');
+    if (!wrap) { onCommit(); return; }
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'space-between';
+    el.style.gap = '12px';
+    el.style.padding = '10px 14px';
+
+    const text = document.createElement('span');
+    text.textContent = message;
+
+    const undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.textContent = 'Undo';
+    undoBtn.style.background = '#FFFFFF';
+    undoBtn.style.color = '#0F1115';
+    undoBtn.style.border = 'none';
+    undoBtn.style.borderRadius = '6px';
+    undoBtn.style.padding = '4px 10px';
+    undoBtn.style.fontWeight = '700';
+    undoBtn.style.fontSize = '12px';
+    undoBtn.style.cursor = 'pointer';
+
+    el.appendChild(text);
+    el.appendChild(undoBtn);
+    wrap.appendChild(el);
+
+    let committed = false;
+    let undone = false;
+
+    const timer = setTimeout(() => {
+      if (!undone && !committed) {
+        committed = true;
+        el.style.opacity = '0';
+        el.style.transition = 'opacity .3s ease-out';
+        setTimeout(() => el.remove(), 300);
+        onCommit();
+      }
+    }, 4000);
+
+    undoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      undone = true;
+      clearTimeout(timer);
+      el.remove();
+      onUndo();
+    });
+  }
+
+  // --- Add Form Toggle Management ---
+  // Form opens on click, STAYS OPEN on repeated clicks (never closes on repeated clicks).
+  // First field is focused when opened. Enter submits. Esc cancels.
+  const setupAddToggle = (btnId: string, formId: string, cancelBtnId?: string) => {
     const btn = document.getElementById(btnId);
     const form = document.getElementById(formId);
     const cancel = cancelBtnId ? document.getElementById(cancelBtnId) : null;
-    btn?.addEventListener('click', () => {
-      if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if (!btn || !form) return;
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      form.style.display = 'block';
+      const firstInput = form.querySelector<HTMLInputElement | HTMLTextAreaElement>('input:not([type="hidden"]), textarea, select');
+      if (firstInput) firstInput.focus({ preventScroll: true });
     });
-    cancel?.addEventListener('click', () => {
-      if (form) form.style.display = 'none';
+
+    const closeForm = () => {
+      form.style.display = 'none';
+    };
+
+    if (cancel) {
+      cancel.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeForm();
+      });
+    }
+
+    form.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeForm();
+      }
     });
   };
 
-  setupToggle('toggle-add-step-btn', 'add-step-form', 'cancel-add-step-btn');
-  setupToggle('toggle-add-pin-btn', 'add-pin-form', 'cancel-add-pin-btn');
-  setupToggle('toggle-add-trouble-btn', 'add-trouble-form', 'cancel-add-trouble-btn');
-  setupToggle('toggle-add-link-btn', 'add-link-form', 'cancel-add-link-btn');
-  setupToggle('toggle-add-bom-btn', 'add-bom-form');
+  setupAddToggle('toggle-add-step-btn', 'add-step-form', 'cancel-add-step-btn');
+  setupAddToggle('toggle-add-pin-btn', 'add-pin-form', 'cancel-add-pin-btn');
+  setupAddToggle('toggle-add-trouble-btn', 'add-trouble-form', 'cancel-add-trouble-btn');
+  setupAddToggle('toggle-add-link-btn', 'add-link-form', 'cancel-add-link-btn');
+  setupAddToggle('toggle-add-bom-btn', 'add-bom-form', 'cancel-add-bom-btn');
+
+  // Preserve scroll position across page reloads
+  try {
+    const savedScroll = sessionStorage.getItem('tt-scroll-top');
+    if (savedScroll) {
+      sessionStorage.removeItem('tt-scroll-top');
+      window.scrollTo({ top: Number(savedScroll), behavior: 'instant' as ScrollBehavior });
+    }
+  } catch {}
+
+  function updateSectionCount(section: string, delta: number) {
+    const card = document.querySelector(`.editor-section-card[data-section="${section}"]`);
+    const hint = card?.querySelector('.card-header-split .field-hint');
+    if (!hint) return;
+    const match = hint.textContent?.match(/\d+/);
+    const current = match ? parseInt(match[0], 10) : 0;
+    const next = Math.max(0, current + delta);
+    if (section === 'links') hint.textContent = next ? `${next} links` : 'No links yet';
+    if (section === 'steps') hint.textContent = next ? `${next} build steps configured` : 'No steps yet';
+    if (section === 'wiring') hint.textContent = next ? `${next} pin connections` : 'No connections yet';
+    if (section === 'troubleshooting') hint.textContent = next ? `${next} tips` : 'No tips yet';
+    if (section === 'parts') hint.textContent = next ? `${next} components listed` : 'No parts yet';
+  }
+
+  function updateListMoveButtons(container: Element) {
+    const rows = Array.from(container.children).filter(el => el.classList.contains('data-row') || el.classList.contains('data-row-edit'));
+    rows.forEach((row, i) => {
+      const badge = row.querySelector('.step-badge');
+      if (badge) badge.textContent = String(i + 1);
+
+      const upBtn = row.querySelector<HTMLButtonElement>('form[action$="/move"] input[value="up"] + button');
+      const downBtn = row.querySelector<HTMLButtonElement>('form[action$="/move"] input[value="down"] + button');
+      if (upBtn) upBtn.disabled = (i === 0);
+      if (downBtn) downBtn.disabled = (i === rows.length - 1);
+    });
+  }
+
+  // --- AJAX List Add Forms (Zero scroll jump) ---
+  const addLinkForm = document.getElementById('add-link-form') as HTMLFormElement | null;
+  addLinkForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(addLinkForm);
+    try {
+      const res = await fetch(addLinkForm.action, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const rowsContainer = document.querySelector('.links-container .rows');
+        if (rowsContainer) {
+          const row = document.createElement('div');
+          row.className = 'data-row';
+          row.dataset.id = String(data.id);
+          row.style.cssText = 'background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; padding: 0.85rem 1rem; display: flex; align-items: center; margin-bottom: 0.5rem;';
+          row.innerHTML = `
+            <div class="data-row__main" style="flex: 1; min-width: 0;">
+              <strong style="font-size: 14px;">${data.label || fd.get('label')}</strong>
+              <span class="dim mono" style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${data.url || fd.get('url')}</span>
+            </div>
+            <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
+              <form method="post" action="/api/admin/link/move" class="inline-form">
+                <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                <input type="hidden" name="id" value="${data.id}" />
+                <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                <input type="hidden" name="dir" value="up" />
+                <button class="thumb-ctrl-btn" type="submit" title="Move earlier"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m18 15-6-6-6 6"/></svg></button>
+              </form>
+              <form method="post" action="/api/admin/link/move" class="inline-form">
+                <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                <input type="hidden" name="id" value="${data.id}" />
+                <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                <input type="hidden" name="dir" value="down" />
+                <button class="thumb-ctrl-btn" type="submit" disabled title="Move later"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></button>
+              </form>
+              <form method="post" action="/api/admin/link/delete" class="inline-form">
+                <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                <input type="hidden" name="id" value="${data.id}" />
+                <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+              </form>
+            </div>
+          `;
+          rowsContainer.appendChild(row);
+          updateSectionCount('links', 1);
+          updateListMoveButtons(rowsContainer);
+        }
+        addLinkForm.reset();
+        addLinkForm.style.display = 'none';
+        if ((window as any).toast) (window as any).toast('Link added.', 'success');
+      } else {
+        alert(data.error || 'Failed to add link');
+      }
+    } catch {
+      alert('Network error adding link');
+    }
+  });
+
+  const addStepForm = document.getElementById('add-step-form') as HTMLFormElement | null;
+  addStepForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(addStepForm);
+    try {
+      const res = await fetch(addStepForm.action, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const rowsContainer = document.querySelector('.steps-container .rows');
+        if (rowsContainer) {
+          const count = rowsContainer.children.length + 1;
+          const title = String(fd.get('title') || '').trim() || String(fd.get('body') || '').slice(0, 50) || 'Step';
+          const why = String(fd.get('why') || '').trim();
+          const details = document.createElement('details');
+          details.className = 'data-row-edit';
+          details.dataset.id = String(data.id);
+          details.style.cssText = 'background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;';
+          details.innerHTML = `
+            <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+              <span class="data-row__icon step-badge">${count}</span>
+              <div class="data-row__main" style="flex: 1; min-width: 0;">
+                <strong style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${title}</strong>
+                ${why ? `<span class="dim" style="font-size: 13px;">Why: ${why}</span>` : ''}
+              </div>
+              <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
+                <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 2px 8px; font-size: 12px;"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</span>
+                <form method="post" action="/api/admin/step/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="up" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" title="Move earlier"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m18 15-6-6-6 6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/step/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="down" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" disabled title="Move later"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/step/delete" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit" onclick="event.stopPropagation();"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg></button>
+                </form>
+              </div>
+            </summary>
+            <form method="post" action="/api/admin/step/update" class="stack-add" style="padding: 1rem; border-top: 1px dashed var(--admin-line); background: #FAFBFD; border-radius: 0 0 12px 12px;">
+              <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+              <input type="hidden" name="id" value="${data.id}" />
+              <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+              <input class="input" name="title" value="${fd.get('title') || ''}" placeholder="Title (optional)" />
+              <textarea class="textarea" name="body" placeholder="Step instructions (Markdown)…" required data-markdown>${fd.get('body') || ''}</textarea>
+              <input class="input" name="why" value="${fd.get('why') || ''}" placeholder="Why are we doing this? (optional)" />
+              <button class="admin-btn admin-btn--primary admin-btn--sm" type="submit"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 6 9 17l-5-5"/></svg> Save Step</button>
+            </form>
+          `;
+          rowsContainer.appendChild(details);
+          updateSectionCount('steps', 1);
+          updateListMoveButtons(rowsContainer);
+        }
+        addStepForm.reset();
+        addStepForm.style.display = 'none';
+        if ((window as any).toast) (window as any).toast('Step added.', 'success');
+      } else {
+        alert(data.error || 'Failed to add step');
+      }
+    } catch {
+      alert('Network error adding step');
+    }
+  });
+
+  const addPinForm = document.getElementById('add-pin-form') as HTMLFormElement | null;
+  addPinForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(addPinForm);
+    try {
+      const res = await fetch(addPinForm.action, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const rowsContainer = document.querySelector('.wiring-container .rows');
+        if (rowsContainer) {
+          const fromPin = String(fd.get('from_pin') || '');
+          const toPin = String(fd.get('to_pin') || '');
+          const module = String(fd.get('module') || '').trim();
+          const note = String(fd.get('note') || '').trim();
+          const details = document.createElement('details');
+          details.className = 'data-row-edit';
+          details.dataset.id = String(data.id);
+          details.style.cssText = 'background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;';
+          details.innerHTML = `
+            <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+              <div class="data-row__main" style="flex: 1; min-width: 0;">
+                <strong class="mono" style="font-size: 14px;">${fromPin} → ${toPin}</strong>
+                ${module ? `<span class="mini-tag" style="margin-left: 0.5rem;">${module}</span>` : ''}
+                ${note ? `<span class="dim" style="display: block; font-size: 13px; margin-top: 0.2rem;">${note}</span>` : ''}
+              </div>
+              <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
+                <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 2px 8px; font-size: 12px;"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</span>
+                <form method="post" action="/api/admin/pin/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="up" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" title="Move earlier"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m18 15-6-6-6 6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/pin/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="down" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" disabled title="Move later"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/pin/delete" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit" onclick="event.stopPropagation();"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg></button>
+                </form>
+              </div>
+            </summary>
+            <form method="post" action="/api/admin/pin/update" class="add-row" style="padding: 1rem; border-top: 1px dashed var(--admin-line); background: #FAFBFD; border-radius: 0 0 12px 12px;">
+              <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+              <input type="hidden" name="id" value="${data.id}" />
+              <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+              <input class="input mono" name="from_pin" value="${fromPin}" placeholder="From (ESP32 D5)" required />
+              <input class="input mono" name="to_pin" value="${toPin}" placeholder="To (Relay IN1)" required />
+              <input class="input" name="module" value="${module}" placeholder="Module / Board (optional)" />
+              <input class="input" name="note" value="${note}" placeholder="Note (optional)" />
+              <button class="admin-btn admin-btn--primary admin-btn--sm" type="submit"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 6 9 17l-5-5"/></svg> Save</button>
+            </form>
+          `;
+          rowsContainer.appendChild(details);
+          updateSectionCount('wiring', 1);
+          updateListMoveButtons(rowsContainer);
+        }
+        addPinForm.reset();
+        addPinForm.style.display = 'none';
+        if ((window as any).toast) (window as any).toast('Connection added.', 'success');
+      } else {
+        alert(data.error || 'Failed to add pin');
+      }
+    } catch {
+      alert('Network error adding pin');
+    }
+  });
+
+  const addTroubleForm = document.getElementById('add-trouble-form') as HTMLFormElement | null;
+  addTroubleForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(addTroubleForm);
+    try {
+      const res = await fetch(addTroubleForm.action, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const rowsContainer = document.querySelector('.troubleshooting-container .rows');
+        if (rowsContainer) {
+          const symptom = String(fd.get('symptom') || '');
+          const cause = String(fd.get('cause') || '').trim();
+          const fix = String(fd.get('fix') || '').trim();
+          const details = document.createElement('details');
+          details.className = 'data-row-edit';
+          details.dataset.id = String(data.id);
+          details.style.cssText = 'background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;';
+          details.innerHTML = `
+            <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+              <div class="data-row__main" style="flex: 1; min-width: 0;">
+                <strong style="display: block; font-size: 14px;">${symptom}</strong>
+                ${cause ? `<span class="dim" style="display: block; font-size: 13px; margin-top: 0.2rem;"><strong style="color: var(--admin-red);">Cause:</strong> ${cause}</span>` : ''}
+                <span class="dim" style="display: block; font-size: 13px; margin-top: 0.2rem;"><strong>Fix:</strong> ${fix}</span>
+              </div>
+              <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
+                <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 2px 8px; font-size: 12px;"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</span>
+                <form method="post" action="/api/admin/trouble/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="up" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" title="Move earlier"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m18 15-6-6-6 6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/trouble/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="down" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" disabled title="Move later"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/trouble/delete" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit" onclick="event.stopPropagation();"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg></button>
+                </form>
+              </div>
+            </summary>
+            <form method="post" action="/api/admin/trouble/update" class="stack-add" style="padding: 1rem; border-top: 1px dashed var(--admin-line); background: #FAFBFD; border-radius: 0 0 12px 12px;">
+              <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+              <input type="hidden" name="id" value="${data.id}" />
+              <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+              <div class="field">
+                <label class="label">Symptom *</label>
+                <input class="input" name="symptom" value="${symptom}" required />
+              </div>
+              <div class="field">
+                <label class="label">Probable Cause</label>
+                <input class="input" name="cause" value="${cause}" />
+              </div>
+              <div class="field">
+                <label class="label">Fix (Markdown) *</label>
+                <textarea class="textarea" name="fix" required data-markdown>${fix}</textarea>
+              </div>
+              <button class="admin-btn admin-btn--primary admin-btn--sm" type="submit"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 6 9 17l-5-5"/></svg> Save Tip</button>
+            </form>
+          `;
+          rowsContainer.appendChild(details);
+          updateSectionCount('troubleshooting', 1);
+          updateListMoveButtons(rowsContainer);
+        }
+        addTroubleForm.reset();
+        addTroubleForm.style.display = 'none';
+        if ((window as any).toast) (window as any).toast('Tip added.', 'success');
+      } else {
+        alert(data.error || 'Failed to add troubleshooting tip');
+      }
+    } catch {
+      alert('Network error adding tip');
+    }
+  });
+
+  const handleBomAdd = async (form: HTMLFormElement) => {
+    const fd = new FormData(form);
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const rowsContainer = document.querySelector('.bom-container .rows');
+        if (rowsContainer) {
+          const name = String(data.name || fd.get('name') || '');
+          const qty = String(data.qty || fd.get('qty') || '1');
+          const price = Number(data.unit_price_inr || fd.get('unit_price_inr') || 0);
+          const store = String(data.store || fd.get('store') || '');
+          const details = document.createElement('details');
+          details.className = 'data-row-edit bom-row';
+          details.dataset.id = String(data.id);
+          details.style.cssText = 'background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;';
+          details.innerHTML = `
+            <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
+              <div class="data-row__main" style="flex: 1; min-width: 0;">
+                <strong style="font-size: 14px;">${name} <span class="dim mono">x${qty}</span>${price > 0 ? ` • ₹${price}` : ''}</strong>
+                <span class="dim" style="font-size: 12.5px; display: block; margin-top: 0.2rem;">${store || '—'}</span>
+              </div>
+              <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
+                <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 2px 8px; font-size: 12px;"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</span>
+                <form method="post" action="/api/admin/bom/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="up" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" title="Move earlier"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m18 15-6-6-6 6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/bom/move" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <input type="hidden" name="dir" value="down" />
+                  <button class="thumb-ctrl-btn" type="submit" onclick="event.stopPropagation();" disabled title="Move later"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></button>
+                </form>
+                <form method="post" action="/api/admin/bom/delete" class="inline-form">
+                  <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+                  <input type="hidden" name="id" value="${data.id}" />
+                  <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+                  <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit" onclick="event.stopPropagation();"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg></button>
+                </form>
+              </div>
+            </summary>
+            <form method="post" action="/api/admin/bom/update" class="bom-add" style="padding: 1rem; border-top: 1px dashed var(--admin-line); background: #FAFBFD; border-radius: 0 0 12px 12px;">
+              <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
+              <input type="hidden" name="id" value="${data.id}" />
+              <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
+              <div class="grid-3">
+                <input class="input" name="name" value="${name}" placeholder="Component" required />
+                <input class="input" name="qty" value="${qty}" placeholder="Qty" />
+                <input class="input" name="unit_price_inr" value="${price || ''}" type="number" min="0" placeholder="₹ price" />
+              </div>
+              <div class="grid-2" style="margin-top: 0.5rem;">
+                <input class="input" name="store" value="${store}" placeholder="Store (Amazon, Robu…)" />
+                <input class="input mono" name="affiliate_url" value="${fd.get('affiliate_url') || ''}" placeholder="Buy link" />
+              </div>
+              <div style="display:flex; justify-content: flex-end; margin-top: 0.75rem;">
+                <button class="admin-btn admin-btn--primary admin-btn--sm" type="submit"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 6 9 17l-5-5"/></svg> Save Changes</button>
+              </div>
+            </form>
+          `;
+          rowsContainer.appendChild(details);
+          updateSectionCount('parts', 1);
+          updateListMoveButtons(rowsContainer);
+        }
+        form.reset();
+        const addBomBox = document.getElementById('add-bom-form');
+        if (addBomBox) addBomBox.style.display = 'none';
+        if ((window as any).toast) (window as any).toast('Component added.', 'success');
+      } else {
+        alert(data.error || 'Failed to add component');
+      }
+    } catch {
+      alert('Network error adding component');
+    }
+  };
+
+  const bomLibAddForm = document.getElementById('bom-lib-add-form') as HTMLFormElement | null;
+  bomLibAddForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleBomAdd(bomLibAddForm);
+  });
+
+  const bomCustomAddForm = document.getElementById('bom-custom-add-form') as HTMLFormElement | null;
+  bomCustomAddForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleBomAdd(bomCustomAddForm);
+  });
+
+  // --- Delegated Handlers for Delete, Move, and Update in Editor Layout ---
+  const editorLayout = document.querySelector('.editor-layout');
+  if (editorLayout) {
+    // Intercept DELETE forms with 4-second undo toast
+    editorLayout.addEventListener('submit', (e) => {
+      const form = e.target as HTMLFormElement;
+      if (!form || !form.action || !form.action.includes('/delete')) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const row = form.closest('.data-row-edit, .data-row') as HTMLElement | null;
+      if (!row) return;
+
+      const sectionCard = form.closest('.editor-section-card') as HTMLElement | null;
+      const sectionName = sectionCard?.dataset.section || '';
+      const parentContainer = row.parentElement;
+
+      row.style.display = 'none';
+      if (sectionName) updateSectionCount(sectionName, -1);
+      if (parentContainer) updateListMoveButtons(parentContainer);
+
+      showUndoToast('Item removed', () => {
+        row.style.display = '';
+        if (sectionName) updateSectionCount(sectionName, 1);
+        if (parentContainer) updateListMoveButtons(parentContainer);
+      }, async () => {
+        try {
+          const fd = new FormData(form);
+          await fetch(form.action, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+          });
+          row.remove();
+        } catch {}
+      });
+    });
+
+    // Intercept MOVE forms
+    editorLayout.addEventListener('submit', async (e) => {
+      const form = e.target as HTMLFormElement;
+      if (!form || !form.action || !form.action.includes('/move')) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const row = form.closest('.data-row-edit, .data-row') as HTMLElement | null;
+      if (!row || !row.parentElement) return;
+
+      const fd = new FormData(form);
+      const dir = fd.get('dir') as string;
+      const parent = row.parentElement;
+
+      if (dir === 'up') {
+        const prev = row.previousElementSibling;
+        if (prev) {
+          parent.insertBefore(row, prev);
+          updateListMoveButtons(parent);
+        }
+      } else if (dir === 'down') {
+        const next = row.nextElementSibling;
+        if (next) {
+          parent.insertBefore(next, row);
+          updateListMoveButtons(parent);
+        }
+      }
+
+      try {
+        await fetch(form.action, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+        });
+      } catch {}
+    });
+
+    // Intercept UPDATE forms
+    editorLayout.addEventListener('submit', async (e) => {
+      const form = e.target as HTMLFormElement;
+      if (!form || !form.action || !form.action.includes('/update')) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fd = new FormData(form);
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const details = form.closest('details');
+          if (details) details.open = false;
+          const summary = details?.querySelector('summary');
+          if (summary) {
+            const strong = summary.querySelector('strong');
+            if (strong && fd.has('title') && fd.get('title')) strong.textContent = String(fd.get('title'));
+            else if (strong && fd.has('name') && fd.get('name')) strong.textContent = String(fd.get('name'));
+            else if (strong && fd.has('symptom') && fd.get('symptom')) strong.textContent = String(fd.get('symptom'));
+            else if (strong && fd.has('from_pin') && fd.has('to_pin')) strong.textContent = `${fd.get('from_pin')} → ${fd.get('to_pin')}`;
+          }
+          if ((window as any).toast) (window as any).toast('Saved successfully.', 'success');
+        } else {
+          alert(data.error || 'Failed to update');
+        }
+      } catch {
+        alert('Network error updating');
+      }
+    });
+  }
+
+  // --- Media Engine: Popover Delete, Drag & Drop, Touch Drag, Keyboard Reorder, Mobile Buttons ---
+  const mediaGrid = document.querySelector('.media-grid-4up');
+  const mainCsrf = (document.querySelector('input[name="csrf"]') as HTMLInputElement)?.value || '';
+  const mainProjId = Number((document.querySelector('input[name="id"]') as HTMLInputElement)?.value || 0);
+
+  function updateMediaCoverBadge() {
+    if (!mediaGrid) return;
+    const cards = Array.from(mediaGrid.querySelectorAll<HTMLElement>('.media-thumb-card'));
+    cards.forEach((card, i) => {
+      let badge = card.querySelector('.media-cover-badge');
+      if (i === 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'media-cover-badge';
+          badge.textContent = 'Cover';
+          card.prepend(badge);
+        }
+      } else {
+        if (badge) badge.remove();
+      }
+      const leftBtn = card.querySelector<HTMLButtonElement>('.media-move-left-btn');
+      const rightBtn = card.querySelector<HTMLButtonElement>('.media-move-right-btn');
+      if (leftBtn) leftBtn.disabled = (i === 0);
+      if (rightBtn) rightBtn.disabled = (i === cards.length - 1);
+    });
+  }
+
+  async function persistMediaOrder() {
+    if (!mediaGrid || !mainProjId) return;
+    const cards = Array.from(mediaGrid.querySelectorAll<HTMLElement>('.media-thumb-card[data-id]'));
+    const ids = cards.map(c => c.dataset.id).filter(Boolean).join(',');
+    const fd = new FormData();
+    fd.set('csrf', mainCsrf);
+    fd.set('id', String(mainProjId));
+    fd.set('action', 'reorder');
+    fd.set('media_ids', ids);
+    try {
+      await fetch('/api/admin/project/action', {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' }
+      });
+    } catch {}
+  }
+
+  if (mediaGrid) {
+    // 1. Popover Delete with Confirm
+    mediaGrid.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const trigger = target.closest('.media-del-trigger');
+      if (trigger) {
+        e.stopPropagation();
+        const wrap = trigger.closest('.media-del-wrap');
+        const pop = wrap?.querySelector('.media-del-popover') as HTMLElement | null;
+        if (pop) {
+          const isOpen = pop.style.display !== 'none';
+          document.querySelectorAll<HTMLElement>('.media-del-popover').forEach(p => p.style.display = 'none');
+          pop.style.display = isOpen ? 'none' : 'flex';
+        }
+        return;
+      }
+
+      const cancelBtn = target.closest('.popover-btn--cancel');
+      if (cancelBtn) {
+        e.stopPropagation();
+        const pop = cancelBtn.closest('.media-del-popover') as HTMLElement | null;
+        if (pop) pop.style.display = 'none';
+        return;
+      }
+
+      const delBtn = target.closest('.popover-btn--del');
+      if (delBtn) {
+        e.stopPropagation();
+        const card = delBtn.closest('.media-thumb-card') as HTMLElement | null;
+        if (!card || !card.parentElement) return;
+
+        const pop = delBtn.closest('.media-del-popover') as HTMLElement | null;
+        if (pop) pop.style.display = 'none';
+
+        const parent = card.parentElement;
+        const nextSibling = card.nextElementSibling;
+        const mediaId = card.dataset.id;
+
+        card.remove();
+        updateMediaCoverBadge();
+        persistMediaOrder();
+
+        showUndoToast('Photo removed', () => {
+          if (nextSibling && nextSibling.parentElement === parent) {
+            parent.insertBefore(card, nextSibling);
+          } else {
+            const uploadSlot = parent.querySelector('.media-upload-slot');
+            if (uploadSlot) parent.insertBefore(card, uploadSlot);
+            else parent.appendChild(card);
+          }
+          updateMediaCoverBadge();
+          persistMediaOrder();
+        }, async () => {
+          if (mediaId && mainProjId) {
+            const fd = new FormData();
+            fd.set('csrf', mainCsrf);
+            fd.set('id', mediaId);
+            fd.set('project_id', String(mainProjId));
+            try {
+              await fetch('/api/admin/media/delete', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' }
+              });
+            } catch {}
+          }
+        });
+        return;
+      }
+
+      document.querySelectorAll<HTMLElement>('.media-del-popover').forEach(p => p.style.display = 'none');
+    });
+
+    // 2. Mobile Move Left / Move Right Buttons
+    mediaGrid.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const leftBtn = target.closest('.media-move-left-btn');
+      if (leftBtn) {
+        const card = leftBtn.closest('.media-thumb-card') as HTMLElement | null;
+        const prev = card?.previousElementSibling as HTMLElement | null;
+        if (card && prev && prev.classList.contains('media-thumb-card')) {
+          card.parentElement?.insertBefore(card, prev);
+          updateMediaCoverBadge();
+          persistMediaOrder();
+        }
+        return;
+      }
+      const rightBtn = target.closest('.media-move-right-btn');
+      if (rightBtn) {
+        const card = rightBtn.closest('.media-thumb-card') as HTMLElement | null;
+        const next = card?.nextElementSibling as HTMLElement | null;
+        if (card && next && next.classList.contains('media-thumb-card')) {
+          card.parentElement?.insertBefore(next, card);
+          updateMediaCoverBadge();
+          persistMediaOrder();
+        }
+        return;
+      }
+    });
+
+    // 3. HTML5 Drag and Drop
+    let draggedCard: HTMLElement | null = null;
+    mediaGrid.addEventListener('dragstart', (e) => {
+      const target = (e.target as HTMLElement).closest('.media-thumb-card') as HTMLElement | null;
+      if (!target) return;
+      draggedCard = target;
+      target.classList.add('is-dragging');
+      e.dataTransfer?.setData('text/plain', target.dataset.id || '');
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    });
+
+    mediaGrid.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedCard) return;
+      const overCard = (e.target as HTMLElement).closest('.media-thumb-card') as HTMLElement | null;
+      if (!overCard || overCard === draggedCard) return;
+
+      const rect = overCard.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      const isAfter = e.clientX > midX;
+
+      if (isAfter) {
+        overCard.parentElement?.insertBefore(draggedCard, overCard.nextSibling);
+      } else {
+        overCard.parentElement?.insertBefore(draggedCard, overCard);
+      }
+      updateMediaCoverBadge();
+    });
+
+    mediaGrid.addEventListener('dragend', () => {
+      if (draggedCard) {
+        draggedCard.classList.remove('is-dragging');
+        draggedCard = null;
+        updateMediaCoverBadge();
+        persistMediaOrder();
+      }
+    });
+
+    // 4. Touch Drag Reordering
+    let touchDraggingCard: HTMLElement | null = null;
+    mediaGrid.addEventListener('touchstart', (e) => {
+      const handle = (e.target as HTMLElement).closest('.media-drag-handle');
+      if (!handle) return;
+      const card = handle.closest('.media-thumb-card') as HTMLElement | null;
+      if (card) {
+        touchDraggingCard = card;
+        card.classList.add('is-dragging');
+      }
+    }, { passive: true });
+
+    mediaGrid.addEventListener('touchmove', (e) => {
+      if (!touchDraggingCard) return;
+      const touch = e.touches[0];
+      const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = elBelow?.closest('.media-thumb-card') as HTMLElement | null;
+      if (targetCard && targetCard !== touchDraggingCard && targetCard.parentElement === mediaGrid) {
+        const rect = targetCard.getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+        if (touch.clientX > midX) {
+          targetCard.parentElement.insertBefore(touchDraggingCard, targetCard.nextSibling);
+        } else {
+          targetCard.parentElement.insertBefore(touchDraggingCard, targetCard);
+        }
+        updateMediaCoverBadge();
+      }
+    }, { passive: true });
+
+    mediaGrid.addEventListener('touchend', () => {
+      if (touchDraggingCard) {
+        touchDraggingCard.classList.remove('is-dragging');
+        touchDraggingCard = null;
+        updateMediaCoverBadge();
+        persistMediaOrder();
+      }
+    });
+
+    // 5. Keyboard Reordering on Handle (Space to pick up, Arrows to move, Space to drop)
+    let pickedUpCard: HTMLElement | null = null;
+    mediaGrid.addEventListener('keydown', (e) => {
+      const handle = (e.target as HTMLElement).closest('.media-drag-handle');
+      if (!handle) return;
+      const card = handle.closest('.media-thumb-card') as HTMLElement | null;
+      if (!card) return;
+
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        if (pickedUpCard === card) {
+          card.classList.remove('is-keyboard-picked-up');
+          pickedUpCard = null;
+          updateMediaCoverBadge();
+          persistMediaOrder();
+          if ((window as any).toast) (window as any).toast('Media dropped.', 'info');
+        } else {
+          if (pickedUpCard) pickedUpCard.classList.remove('is-keyboard-picked-up');
+          pickedUpCard = card;
+          card.classList.add('is-keyboard-picked-up');
+          if ((window as any).toast) (window as any).toast('Media picked up. Use Arrow keys to move, Space to drop.', 'info');
+        }
+      } else if (pickedUpCard === card) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const prev = card.previousElementSibling as HTMLElement | null;
+          if (prev && prev.classList.contains('media-thumb-card')) {
+            card.parentElement?.insertBefore(card, prev);
+            updateMediaCoverBadge();
+            handle.focus();
+          }
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          const next = card.nextElementSibling as HTMLElement | null;
+          if (next && next.classList.contains('media-thumb-card')) {
+            card.parentElement?.insertBefore(next, card);
+            updateMediaCoverBadge();
+            handle.focus();
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          card.classList.remove('is-keyboard-picked-up');
+          pickedUpCard = null;
+        }
+      }
+    });
+  }
+
+  // --- Debounced Autosave (800ms) ---
+  let autosaveTimer: any = null;
+  let isSaving = false;
+  const autosaveEl = document.getElementById('autosave-indicator');
+  const mobileAutosaveEl = document.getElementById('mobile-autosave-indicator');
+
+  const setAutosaveState = (state: 'saving' | 'saved' | 'offline') => {
+    [autosaveEl, mobileAutosaveEl].forEach(el => {
+      if (!el) return;
+      if (state === 'saving') {
+        el.textContent = 'Saving...';
+        el.className = 'autosave-status is-saving';
+        el.style.opacity = '1';
+      } else if (state === 'saved') {
+        el.textContent = 'Saved';
+        el.className = 'autosave-status is-saved';
+        el.style.opacity = '1';
+        setTimeout(() => {
+          if (!isSaving && el.textContent === 'Saved') {
+            el.style.opacity = '0.6';
+          }
+        }, 2000);
+      } else if (state === 'offline') {
+        el.textContent = 'Offline';
+        el.className = 'autosave-status is-offline';
+        el.style.opacity = '1';
+      }
+    });
+  };
+
+  const triggerAutosave = () => {
+    if (!mainProjId) return;
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(async () => {
+      const mainForm = document.getElementById('main-project-form') as HTMLFormElement | null;
+      if (!mainForm) return;
+      isSaving = true;
+      setAutosaveState('saving');
+      try {
+        const fd = new FormData(mainForm);
+        document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('[form="main-project-form"]').forEach(input => {
+          if (!input.name) return;
+          if (input.type === 'checkbox') {
+            fd.set(input.name, (input as HTMLInputElement).checked ? 'on' : 'off');
+          } else {
+            fd.set(input.name, input.value);
+          }
+        });
+        fd.set('action', 'draft');
+
+        const res = await fetch(mainForm.action, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' },
+        });
+        if (res.ok) {
+          setAutosaveState('saved');
+        } else {
+          setAutosaveState('offline');
+        }
+      } catch {
+        setAutosaveState('offline');
+      } finally {
+        isSaving = false;
+      }
+    }, 800);
+  };
+
+  document.querySelectorAll('[form="main-project-form"]').forEach(el => {
+    el.addEventListener('input', triggerAutosave);
+    el.addEventListener('change', triggerAutosave);
+  });
+
 
   // Media upload progress
   const mediaForm = document.querySelector('[data-media-form]') as HTMLFormElement | null;

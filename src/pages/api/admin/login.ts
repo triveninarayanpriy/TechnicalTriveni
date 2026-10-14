@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!csrfOk(cookies, form)) return redirect('/admin/login?err=1');
 
   // Throttle brute-force attempts per IP.
-  const rl = await rateLimit(env, `login:${clientIp(request)}`, 8, 300);
+  const rl = await rateLimit(env, `login:${clientIp(request)}`, 100, 300);
   if (!rl.ok) return redirect('/admin/login?err=1');
 
   const email = String(form.get('email') || '');
