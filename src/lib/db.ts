@@ -95,13 +95,28 @@ export interface ProjectLink {
   id: number; project_id: number; label: string; url: string; kind: string; sort: number;
 }
 export interface Order {
+  id: string;
+  project_id: number;
+  project_title: string;
+  email: string;
+  name?: string;
+  amount_inr: number;
+  currency: string;
+  status: string;
+  is_test: number;
+  notes?: string;
+  refund_id?: string;
+  refunded_at?: string | number | null;
+  last_resent_at?: string | number | null;
+  resend_count?: number;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+  download_token: string;
+  created_at: number | string;
+  paid_at: number | string | null;
   coupon_code?: string;
-    rating?: number;
-    id: number; project_title: string; email: string;
-  amount_inr: number; currency: string; status: string; is_test: number;
-  notes: string;
-  razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string;
-  download_token: string; created_at: number; paid_at: number | null;
+  rating?: number;
 }
 export interface ContactMessage {
   id: number; name: string; email: string; subject: string; message: string;
@@ -606,10 +621,11 @@ export async function moveLink(db: D1Database, id: number, projectId: number, di
 export async function createOrder(db: D1Database, o: {
   id: string; project_id: number; project_title: string; email: string; amount_inr: number; is_test: number; coupon_code?: string;
 }): Promise<void> {
+  const isoNow = new Date().toISOString();
   await db.prepare(
     `INSERT INTO orders (id,project_id,project_title,email,amount_inr,status,created_at)
      VALUES (?,?,?,?,?,'created',?)`,
-  ).bind(o.id, o.project_id, o.project_title, o.email, o.amount_inr, now()).run();
+  ).bind(o.id, o.project_id, o.project_title, o.email, o.amount_inr, isoNow).run();
 }
 export async function getOrder(db: D1Database, id: string): Promise<Order | null> {
   return (await db.prepare('SELECT * FROM orders WHERE id = ?').bind(id).first<Order>()) ?? null;
@@ -623,10 +639,11 @@ export async function setOrderRazorpayId(db: D1Database, id: string, rzpOrderId:
 export async function markOrderPaid(
   db: D1Database, id: string, paymentId: string, signature: string, downloadToken: string,
 ): Promise<void> {
+  const isoNow = new Date().toISOString();
   await db.prepare(
     `UPDATE orders SET status='paid', razorpay_payment_id=?, razorpay_signature=?, download_token=?, paid_at=?
      WHERE id = ?`,
-  ).bind(paymentId, signature, downloadToken, now(), id).run();
+  ).bind(paymentId, signature, downloadToken, isoNow, id).run();
 }
 export interface OrderFilter {
   status?: string;
@@ -687,8 +704,38 @@ export async function updateOrderNotes(db: D1Database, id: string, notes: string
   await db.prepare('UPDATE orders SET notes = ? WHERE id = ?').bind(notes, id).run();
 }
 
-export async function refundOrder(db: D1Database, id: string): Promise<void> {
-  await db.prepare('UPDATE orders SET status = "refunded" WHERE id = ?').bind(id).run();
+export async function recordOrderRefund(
+  db: D1Database, id: string, refundId: string,
+): Promise<string> {
+  const isoNow = new Date().toISOString();
+  try {
+    await db.prepare(
+      `UPDATE orders SET status = 'refunded', refund_id = ?, refunded_at = ?, download_token = '' WHERE id = ?`,
+    ).bind(refundId, isoNow, id).run();
+  } catch {
+    await db.prepare(
+      `UPDATE orders SET status = 'refunded', download_token = '' WHERE id = ?`,
+    ).bind(id).run();
+  }
+  return isoNow;
+}
+
+export async function recordOrderResend(
+  db: D1Database, id: string,
+): Promise<string> {
+  const isoNow = new Date().toISOString();
+  try {
+    await db.prepare(
+      `UPDATE orders SET last_resent_at = ?, resend_count = COALESCE(resend_count, 0) + 1 WHERE id = ?`,
+    ).bind(isoNow, id).run();
+  } catch {
+    // If columns do not exist yet
+  }
+  return isoNow;
+}
+
+export async function refundOrder(db: D1Database, id: string, refundId = ''): Promise<void> {
+  await recordOrderRefund(db, id, refundId || ('rfnd_' + Date.now()));
 }
 export async function getOrdersByEmail(db: D1Database, email: string): Promise<Order[]> {
   const res = await db.prepare("SELECT * FROM orders WHERE email = ? AND status='paid' ORDER BY created_at DESC")

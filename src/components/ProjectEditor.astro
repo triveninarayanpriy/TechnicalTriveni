@@ -10,8 +10,9 @@ interface Props {
   components?: Component[];
   categories?: string[];
   tags?: string[];
+  hasSnapshot?: boolean;
 }
-const { project, csrf, components = [], categories = [], tags = [] } = Astro.props;
+const { project, csrf, components = [], categories = [], tags = [], hasSnapshot = false } = Astro.props;
 const p = project;
 const isNew = !p;
 const val = (v: unknown) => (v === undefined || v === null ? '' : String(v));
@@ -40,12 +41,17 @@ if (p?.cost_checked) {
 }
 ---
 
-<div class="editor-page-container">
+<div class="editor-page-container" data-project-id={p?.id || 0}>
   <!-- Hidden main project form anchor for all inputs -->
   <form id="main-project-form" method="post" action="/api/admin/project/save" class="editor-main-form">
     <input type="hidden" name="csrf" value={csrf} />
     {p && <input type="hidden" name="id" value={p.id} />}
   </form>
+
+  <!-- ==============================================
+       STANDARD PROJECT EDITOR VIEW
+       ============================================== -->
+  <div id="editor-standard-view">
 
   <!-- ==============================================
        DESKTOP TOP BAR (>= 769px)
@@ -75,6 +81,15 @@ if (p?.cost_checked) {
           <button type="button" class="dropdown-item"><Icon name="history" size={15} /> Version History</button>
         </div>
       </div>
+      <button
+        type="button"
+        class="admin-btn admin-btn--secondary"
+        id="ai-revert-btn"
+        style={hasSnapshot ? 'color: var(--admin-red); border-color: rgba(217, 31, 38, 0.4); font-weight: 600;' : 'display: none; color: var(--admin-red); border-color: rgba(217, 31, 38, 0.4); font-weight: 600;'}
+        title="Revert project to pre-AI snapshot"
+      >
+        <Icon name="history" size={16} /> Revert AI changes
+      </button>
       <button type="submit" form="main-project-form" name="action" value="draft" class="admin-btn admin-btn--secondary">
         Save draft
       </button>
@@ -122,6 +137,14 @@ if (p?.cost_checked) {
           <button type="button" class="more-dropdown-item"><Icon name="copy" size={16} /> Duplicate</button>
           <button type="button" class="more-dropdown-item"><Icon name="archive" size={16} /> Archive</button>
           <button type="button" class="more-dropdown-item"><Icon name="history" size={16} /> Version History</button>
+          <button
+            type="button"
+            class="more-dropdown-item"
+            id="mobile-ai-revert-btn"
+            style={hasSnapshot ? 'color: var(--admin-red); font-weight: 600;' : 'display: none; color: var(--admin-red); font-weight: 600;'}
+          >
+            <Icon name="history" size={16} /> Revert AI changes
+          </button>
         </div>
       </div>
     </div>
@@ -161,20 +184,80 @@ if (p?.cost_checked) {
         <span class="dim ai-draft-summary-hint">Paste rough notes, code, or BOM to auto-populate editable draft fields</span>
       </summary>
       <div class="ai-draft-body">
-        <label class="label" for="ai-notes-input">
-          <span>Raw Project Notes, Code, BOM, or Terminal Output</span>
-          <span class="dim" style="font-weight: 400;">Lands in editable form fields — review before saving</span>
-        </label>
-        <textarea
-          class="textarea mono"
-          id="ai-notes-input"
-          rows="3"
-          placeholder="Paste raw notes, code snippet, hardware datasheet excerpts, BOM list, or terminal logs here (e.g. 'Build an ESP32 LoRa field tracker with GPS module NEO-6M, SX1278 transceiver, 18650 LiPo battery. Error: GPS not getting fix...')..."
-        ></textarea>
+        <div class="ai-input-group">
+          <label class="label" for="ai-notes-input">
+            <span>Rough Project Notes, Description, or Idea</span>
+            <span class="dim" style="font-weight: 400;">Your thoughts, overview, features, or terminal logs</span>
+          </label>
+          <textarea
+            class="textarea mono"
+            id="ai-notes-input"
+            rows="3"
+            placeholder="e.g. Build an ESP32 smart home IoT relay controller with Blynk 2.0 app. Uses 5V optocoupled relay on GPIO 23, AC appliance control, manual override switch, brownout capacitor fix..."
+          ></textarea>
+        </div>
+
+        <!-- Optional Attachments Drawer / Tabs -->
+        <div class="ai-attachments-wrap">
+          <div class="ai-attachments-header">
+            <span class="ai-attachments-title"><Icon name="paperclip" size={14} /> Optional Attachments (Code, BOM, Wiring)</span>
+            <div class="ai-attachments-tabs" role="tablist">
+              <button type="button" class="ai-attach-tab is-active" data-ai-tab="code">Arduino / ESP Code</button>
+              <button type="button" class="ai-attach-tab" data-ai-tab="bom">Pasted BOM</button>
+              <button type="button" class="ai-attach-tab" data-ai-tab="wiring">Wiring Notes</button>
+            </div>
+          </div>
+
+          <!-- Code Panel -->
+          <div class="ai-attach-panel" data-ai-panel="code">
+            <div class="ai-code-head">
+              <span class="dim" style="font-size: 12px;">Paste sketch or upload .ino / .cpp file:</span>
+              <label class="admin-btn admin-btn--secondary admin-btn--xs" style="cursor: pointer;">
+                <Icon name="upload" size={12} /> Upload File
+                <input type="file" id="ai-code-file-input" accept=".ino,.cpp,.h,.c,.py,.txt" style="display: none;" />
+              </label>
+              <span id="ai-code-file-name" class="dim" style="font-size: 12px; font-style: italic;"></span>
+            </div>
+            <textarea
+              class="textarea mono"
+              id="ai-code-input"
+              rows="3"
+              placeholder="#define RELAY_PIN 23&#10;#define BLYNK_TEMPLATE_ID &quot;TMPLxxxx&quot;&#10;void setup() { pinMode(RELAY_PIN, OUTPUT); ... }"
+            ></textarea>
+          </div>
+
+          <!-- BOM Panel -->
+          <div class="ai-attach-panel" data-ai-panel="bom" hidden>
+            <textarea
+              class="textarea mono"
+              id="ai-bom-input"
+              rows="3"
+              placeholder="Paste hardware list or parts: e.g.&#10;1x ESP32 DevKit v1 30-pin&#10;1x 5V Relay module (1 channel)&#10;1x 470uF 16V electrolytic capacitor&#10;1x 230V AC terminal block"
+            ></textarea>
+          </div>
+
+          <!-- Wiring Panel -->
+          <div class="ai-attach-panel" data-ai-panel="wiring" hidden>
+            <textarea
+              class="textarea mono"
+              id="ai-wiring-input"
+              rows="3"
+              placeholder="Pin notes: e.g.&#10;ESP32 GPIO 23 -> Relay IN1&#10;ESP32 VIN (5V) -> Relay VCC&#10;ESP32 GND -> Relay GND"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="ai-draft-options">
+          <label class="ai-checkbox-label" for="ai-include-context">
+            <input type="checkbox" id="ai-include-context" checked />
+            <span>Include current project fields (Title, Category, Summary) as grounding context</span>
+          </label>
+        </div>
+
         <div class="ai-draft-foot">
-          <div id="ai-notes-status"></div>
-          <button type="button" class="admin-btn admin-btn--primary admin-btn--sm" id="ai-generate-notes-btn">
-            <Icon name="spark" size={14} /> Generate Draft
+          <div id="ai-notes-status" class="ai-notes-status-area"></div>
+          <button type="button" class="admin-btn admin-btn--primary" id="ai-generate-notes-btn">
+            <Icon name="spark" size={15} /> Draft with Gemini
           </button>
         </div>
       </div>
@@ -1186,6 +1269,223 @@ if (p?.cost_checked) {
       Done
     </button>
   </div>
+
+  </div>
+  <!-- /#editor-standard-view -->
+
+  <!-- ==============================================
+       AI DRAFT REVIEW SCREEN (Desktop & Mobile)
+       Matches media_1791971722111_a6868909.png and media_1791971722088_ab3d6bf2.png
+       ============================================== -->
+  <div id="ai-review-screen" class="ai-rev-screen" style="display: none;">
+    <!-- Desktop Review Header -->
+    <div class="ai-rev-header desktop-only">
+      <h1 class="ai-rev-title">Review Gemini draft</h1>
+      <div class="ai-rev-header-actions">
+        <button type="button" class="ai-rev-btn-discard" id="ai-review-discard-btn">Discard</button>
+        <button type="button" class="ai-rev-btn-apply" id="ai-review-apply-top-btn">Apply 14 changes</button>
+      </div>
+    </div>
+
+    <!-- Mobile Review Header -->
+    <div class="ai-rev-mobile-header mobile-only">
+      <button type="button" class="ai-rev-mobile-back" id="ai-review-mobile-back-btn">
+        <Icon name="chevron-left" size={20} />
+        <span>Review draft</span>
+      </button>
+    </div>
+
+    <!-- Mobile Yellow Alert Banner -->
+    <div class="ai-rev-alert-banner mobile-only" id="ai-rev-mobile-alert">
+      <span class="ai-rev-alert-icon">⚠️</span>
+      <span id="ai-rev-mobile-alert-text">3 items need your check before publishing</span>
+    </div>
+
+    <!-- Two-Column Layout Grid -->
+    <div class="ai-rev-grid">
+      <!-- Left / Main Column: Cards Stack -->
+      <div class="ai-rev-main-col">
+
+        <!-- Card 1: Tags and SEO -->
+        <div class="ai-rev-card" id="ai-rev-card-seo" data-section="seo">
+          <div class="ai-rev-card-head">
+            <label class="ai-rev-card-check">
+              <input type="checkbox" class="ai-rev-section-toggle" data-section="seo" checked />
+              <span class="ai-rev-card-title">Tags and SEO</span>
+            </label>
+            <div class="ai-rev-head-right">
+              <span class="ai-rev-pill ai-rev-pill--green" id="ai-rev-pill-seo">5 fields</span>
+              <button type="button" class="ai-rev-chevron-btn" data-toggle-target="ai-rev-body-seo">
+                <Icon name="chevron-up" size={16} />
+              </button>
+            </div>
+          </div>
+          <div class="ai-rev-card-preview mobile-only" id="ai-rev-tags-preview"></div>
+          <div class="ai-rev-card-body" id="ai-rev-body-seo">
+            <div class="ai-rev-tags-wrap" id="ai-rev-tags-list"></div>
+            <p class="ai-rev-meta-sub" id="ai-rev-meta-text"></p>
+          </div>
+        </div>
+
+        <!-- Card 2: Parts list (BOM), matched to your component library -->
+        <div class="ai-rev-card ai-rev-card--bom" id="ai-rev-card-bom" data-section="bom">
+          <div class="ai-rev-card-head">
+            <label class="ai-rev-card-check">
+              <input type="checkbox" class="ai-rev-section-toggle" data-section="bom" checked />
+              <span class="ai-rev-card-title desktop-only">Parts list (BOM), matched to your component library</span>
+              <span class="ai-rev-card-title mobile-only">Parts list (BOM)</span>
+            </label>
+            <div class="ai-rev-head-right">
+              <div class="ai-rev-bom-pills" id="ai-rev-bom-pills"></div>
+              <button type="button" class="ai-rev-chevron-btn" data-toggle-target="ai-rev-body-bom">
+                <Icon name="chevron-up" size={16} />
+              </button>
+            </div>
+          </div>
+          <div class="ai-rev-card-body" id="ai-rev-body-bom">
+            <!-- Desktop Table View -->
+            <div class="ai-rev-bom-table-wrap desktop-only">
+              <table class="ai-rev-bom-table">
+                <thead>
+                  <tr>
+                    <th>Part from your notes</th>
+                    <th style="width: 50px;">Qty</th>
+                    <th>Library match</th>
+                    <th style="width: 100px; text-align: right;">Price</th>
+                  </tr>
+                </thead>
+                <tbody id="ai-rev-bom-tbody"></tbody>
+              </table>
+            </div>
+
+            <!-- Mobile Stack View -->
+            <div class="ai-rev-bom-mobile-list mobile-only" id="ai-rev-bom-mobile-list"></div>
+
+            <!-- New Component Confirmation Panel -->
+            <div class="ai-rev-new-comp-banner desktop-only" id="ai-rev-new-comp-banner" style="display: none;">
+              <label class="ai-rev-new-comp-label">
+                <input type="checkbox" id="ai-rev-add-new-components-cb" checked />
+                <span id="ai-rev-new-comp-text">Add 1 new component to the library and use it in this project</span>
+              </label>
+            </div>
+            <p class="ai-rev-card-note mobile-only">New components are added to your library.</p>
+          </div>
+        </div>
+
+        <!-- Card 3: Steps -->
+        <div class="ai-rev-card" id="ai-rev-card-steps" data-section="steps">
+          <div class="ai-rev-card-head">
+            <label class="ai-rev-card-check">
+              <input type="checkbox" class="ai-rev-section-toggle" data-section="steps" checked />
+              <span class="ai-rev-card-title">Steps</span>
+            </label>
+            <div class="ai-rev-head-right">
+              <span class="ai-rev-pill ai-rev-pill--green" id="ai-rev-pill-steps">6 steps</span>
+              <button type="button" class="ai-rev-chevron-btn" data-toggle-target="ai-rev-body-steps">
+                <Icon name="chevron-up" size={16} />
+              </button>
+            </div>
+          </div>
+          <div class="ai-rev-card-body" id="ai-rev-body-steps">
+            <div class="ai-rev-steps-list" id="ai-rev-steps-list"></div>
+          </div>
+        </div>
+
+        <!-- Card 4: Wiring and connections -->
+        <div class="ai-rev-card" id="ai-rev-card-wiring" data-section="wiring">
+          <div class="ai-rev-card-head">
+            <label class="ai-rev-card-check">
+              <input type="checkbox" class="ai-rev-section-toggle" data-section="wiring" checked />
+              <span class="ai-rev-card-title">Wiring and connections</span>
+            </label>
+            <div class="ai-rev-head-right">
+              <span class="ai-rev-pill ai-rev-pill--green" id="ai-rev-pill-wiring">8 connections</span>
+              <button type="button" class="ai-rev-chevron-btn" data-toggle-target="ai-rev-body-wiring">
+                <Icon name="chevron-up" size={16} />
+              </button>
+            </div>
+          </div>
+          <div class="ai-rev-card-body" id="ai-rev-body-wiring">
+            <div class="ai-rev-wiring-list" id="ai-rev-wiring-list"></div>
+          </div>
+        </div>
+
+        <!-- Card 5: Troubleshooting -->
+        <div class="ai-rev-card" id="ai-rev-card-troubleshooting" data-section="troubleshooting">
+          <div class="ai-rev-card-head">
+            <label class="ai-rev-card-check">
+              <input type="checkbox" class="ai-rev-section-toggle" data-section="troubleshooting" checked />
+              <span class="ai-rev-card-title">Troubleshooting</span>
+            </label>
+            <div class="ai-rev-head-right">
+              <span class="ai-rev-pill ai-rev-pill--green" id="ai-rev-pill-tb">4 tips</span>
+              <button type="button" class="ai-rev-chevron-btn" data-toggle-target="ai-rev-body-tb">
+                <Icon name="chevron-up" size={16} />
+              </button>
+            </div>
+          </div>
+          <div class="ai-rev-card-body" id="ai-rev-body-tb">
+            <div class="ai-rev-tb-list" id="ai-rev-tb-list"></div>
+          </div>
+        </div>
+
+        <!-- Mobile Footnote -->
+        <p class="ai-rev-kept-footnote mobile-only">Title, summary and description already have content and are kept.</p>
+      </div>
+
+      <!-- Right Column: Desktop Sidebar Rail -->
+      <div class="ai-rev-rail-col desktop-only">
+        <!-- Rail Card A: Review checklist -->
+        <div class="ai-rev-rail-card">
+          <h3 class="ai-rev-rail-title">Review checklist</h3>
+          <div class="ai-rev-checklist-list" id="ai-rev-checklist-list"></div>
+        </div>
+
+        <!-- Rail Card B: Kept as they are -->
+        <div class="ai-rev-rail-card">
+          <h3 class="ai-rev-rail-title">Kept as they are</h3>
+          <p class="ai-rev-rail-sub">These fields already have content. The draft will not overwrite them.</p>
+          <div class="ai-rev-toggles">
+            <div class="ai-rev-toggle-row">
+              <span class="ai-rev-toggle-name">Title</span>
+              <label class="ai-rev-switch">
+                <input type="checkbox" class="ai-rev-replace-switch" data-replace-field="title" />
+                <span class="ai-rev-slider"></span>
+              </label>
+            </div>
+            <div class="ai-rev-toggle-row">
+              <span class="ai-rev-toggle-name">Summary</span>
+              <label class="ai-rev-switch">
+                <input type="checkbox" class="ai-rev-replace-switch" data-replace-field="summary" />
+                <span class="ai-rev-slider"></span>
+              </label>
+            </div>
+            <div class="ai-rev-toggle-row">
+              <span class="ai-rev-toggle-name">Description</span>
+              <label class="ai-rev-switch">
+                <input type="checkbox" class="ai-rev-replace-switch" data-replace-field="description" />
+                <span class="ai-rev-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rail Card C: Source -->
+        <div class="ai-rev-rail-card">
+          <h3 class="ai-rev-rail-title">Source</h3>
+          <p class="ai-rev-rail-sub" id="ai-rev-source-text">
+            Notes, sketch and BOM text. Gemini 2.5 Flash, 14 Oct 2026, 7:12 AM.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Fixed Bottom Action Bar -->
+    <div class="ai-rev-mobile-footer mobile-only">
+      <button type="button" class="ai-rev-btn-discard" id="ai-review-discard-foot-btn">Discard</button>
+      <button type="button" class="ai-rev-btn-apply" id="ai-review-apply-foot-btn">Apply 14 changes</button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -1783,6 +2083,704 @@ if (p?.cost_checked) {
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+  }
+  .ai-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ai-attachments-wrap {
+    background: #F8FAFC;
+    border: 1px solid var(--admin-line);
+    border-radius: var(--admin-r-card);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ai-attachments-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ai-attachments-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-attachments-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .ai-attach-tab {
+    background: #FFFFFF;
+    border: 1px solid var(--admin-line);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--admin-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ai-attach-tab.is-active {
+    background: var(--admin-red-soft);
+    color: var(--admin-red);
+    border-color: rgba(217, 31, 38, 0.3);
+  }
+  .ai-attach-panel[hidden] {
+    display: none !important;
+  }
+  .ai-code-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .ai-draft-options {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ai-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--admin-ink);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* ============================================================
+     AI REVIEW SCREEN (DESKTOP & MOBILE)
+     Matches media_1791971722111_a6868909.png and media_1791971722088_ab3d6bf2.png
+     ============================================================ */
+  .ai-rev-screen {
+    width: 100%;
+    max-width: 1360px;
+    margin: 0 auto;
+    padding-bottom: 60px;
+  }
+
+  /* Desktop Review Header */
+  .ai-rev-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0 24px 0;
+  }
+  .ai-rev-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+  .ai-rev-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ai-rev-btn-discard {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    color: #0F172A;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .ai-rev-btn-discard:hover {
+    background: #F8FAFC;
+    border-color: #94A3B8;
+  }
+  .ai-rev-btn-apply {
+    background: #E11D48;
+    border: 1px solid transparent;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .ai-rev-btn-apply:hover {
+    background: #BE123C;
+  }
+
+  /* Mobile Review Header */
+  .ai-rev-mobile-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    margin: -12px -12px 16px -12px;
+  }
+  .ai-rev-mobile-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0F172A;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* Mobile Yellow Alert Banner */
+  .ai-rev-alert-banner {
+    background: #FEF9C3;
+    border: 1px solid #FEF08A;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #854D0E;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .ai-rev-alert-icon {
+    font-size: 16px;
+  }
+
+  /* Grid Layout: 2 Columns on Desktop */
+  .ai-rev-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(280px, 1.2fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 960px) {
+    .ai-rev-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Left Column Cards Stack */
+  .ai-rev-main-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Card Styling */
+  .ai-rev-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .ai-rev-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #F1F5F9;
+  }
+  .ai-rev-card-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ai-rev-card-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #E11D48;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .ai-rev-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+  .ai-rev-head-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ai-rev-chevron-btn {
+    background: none;
+    border: none;
+    color: #64748B;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, color 0.15s;
+  }
+  .ai-rev-chevron-btn:hover {
+    color: #0F172A;
+  }
+  .ai-rev-chevron-btn.is-collapsed {
+    transform: rotate(180deg);
+  }
+  .ai-rev-card-preview {
+    padding: 0 20px 14px 48px;
+    font-size: 13px;
+    color: #64748B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: -4px;
+  }
+  .ai-rev-card-body {
+    padding: 20px;
+  }
+  .ai-rev-card-body[hidden] {
+    display: none !important;
+  }
+  @media (min-width: 769px) {
+    .ai-rev-chevron-btn {
+      display: none !important;
+    }
+    .ai-rev-card-body {
+      display: block !important;
+    }
+    .ai-rev-card-preview {
+      display: none !important;
+    }
+  }
+
+  /* Pills */
+  .ai-rev-pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .ai-rev-pill--green {
+    background: #DCFCE7;
+    color: #15803D;
+  }
+  .ai-rev-pill--yellow {
+    background: #FEF9C3;
+    color: #854D0E;
+  }
+  .ai-rev-pill--gray {
+    background: #F1F5F9;
+    color: #475569;
+  }
+  .ai-rev-pill--peach {
+    background: #FEE2E2;
+    color: #991B1B;
+  }
+
+  /* Tags & SEO Card */
+  .ai-rev-tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .ai-rev-tag-chip {
+    background: #F8FAFC;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid #E2E8F0;
+  }
+  .ai-rev-meta-sub {
+    font-size: 13.5px;
+    color: #64748B;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* BOM Table */
+  .ai-rev-bom-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-rev-bom-table-wrap {
+    overflow-x: auto;
+  }
+  .ai-rev-bom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .ai-rev-bom-table th {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748B;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #F1F5F9;
+  }
+  .ai-rev-bom-table td {
+    padding: 12px;
+    border-bottom: 1px solid #F8FAFC;
+    color: #0F172A;
+  }
+  .ai-rev-bom-price {
+    font-weight: 700;
+    color: #0F172A;
+    text-align: right;
+  }
+
+  /* BOM Chips */
+  .ai-chip-matched {
+    background: #DCFCE7;
+    color: #166534;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+  }
+  .ai-chip-choose {
+    background: #FEF9C3;
+    color: #854D0E;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+  }
+  .ai-chip-new {
+    background: #FEE2E2;
+    color: #991B1B;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+  }
+  .ai-rev-match-text {
+    font-size: 13px;
+    color: #475569;
+  }
+
+  /* BOM Mobile Stack */
+  .ai-rev-bom-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .ai-rev-bom-mob-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #F1F5F9;
+  }
+  .ai-rev-bom-mob-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .ai-rev-bom-mob-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .ai-rev-bom-mob-name {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+  .ai-rev-bom-mob-price {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+  .ai-rev-bom-mob-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #64748B;
+  }
+
+  /* New Component Panel */
+  .ai-rev-new-comp-banner {
+    background: #F8FAFC;
+    border: 1px solid #F1F5F9;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 16px;
+  }
+  .ai-rev-new-comp-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0F172A;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ai-rev-new-comp-label input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #E11D48;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .ai-rev-card-note {
+    font-size: 12.5px;
+    color: #64748B;
+    margin: 10px 0 0 0;
+  }
+
+  /* Steps List */
+  .ai-rev-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ai-rev-step-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .ai-rev-step-num {
+    color: #E11D48;
+    font-weight: 700;
+    font-size: 14px;
+    width: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .ai-rev-step-text {
+    font-size: 14px;
+    color: #1E293B;
+    line-height: 1.5;
+  }
+
+  /* Wiring List */
+  .ai-rev-wiring-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ai-rev-wiring-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .ai-rev-wiring-arrow {
+    color: #E11D48;
+    font-weight: 700;
+    font-size: 15px;
+    width: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .ai-rev-wiring-text {
+    font-size: 14px;
+    color: #1E293B;
+    line-height: 1.5;
+  }
+
+  /* Troubleshooting List */
+  .ai-rev-tb-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ai-rev-tb-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .ai-rev-tb-mark {
+    color: #E11D48;
+    font-weight: 700;
+    font-size: 14px;
+    width: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .ai-rev-tb-text {
+    font-size: 14px;
+    color: #1E293B;
+    line-height: 1.5;
+  }
+
+  .ai-rev-kept-footnote {
+    font-size: 13px;
+    color: #64748B;
+    margin: 8px 0 0 0;
+    text-align: center;
+  }
+
+  /* Right Column: Desktop Sidebar Rail */
+  .ai-rev-rail-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .ai-rev-rail-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .ai-rev-rail-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0 0 12px 0;
+  }
+  .ai-rev-rail-sub {
+    font-size: 12.5px;
+    color: #64748B;
+    margin: 0 0 14px 0;
+    line-height: 1.4;
+  }
+
+  /* Review Checklist Items */
+  .ai-rev-checklist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ai-rev-check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .ai-rev-check-icon {
+    font-size: 14px;
+    line-height: 1.3;
+    flex-shrink: 0;
+  }
+  .ai-rev-check-text {
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.4;
+  }
+
+  /* Kept as they are Toggles */
+  .ai-rev-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ai-rev-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .ai-rev-toggle-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0F172A;
+  }
+  .ai-rev-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+  }
+  .ai-rev-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .ai-rev-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #94A3B8;
+    transition: 0.2s;
+    border-radius: 22px;
+  }
+  .ai-rev-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+  .ai-rev-switch input:checked + .ai-rev-slider {
+    background-color: #E11D48;
+  }
+  .ai-rev-switch input:checked + .ai-rev-slider:before {
+    transform: translateX(16px);
+  }
+
+  /* Mobile Fixed Bottom Action Bar */
+  .ai-rev-mobile-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #FFFFFF;
+    border-top: 1px solid #E2E8F0;
+    padding: 12px 16px;
+    display: flex;
+    gap: 12px;
+    z-index: 1000;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+  }
+  .ai-rev-mobile-footer .ai-rev-btn-discard,
+  .ai-rev-mobile-footer .ai-rev-btn-apply {
+    flex: 1;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .ai-rev-card--bom {
+      order: 1;
+    }
+    #ai-rev-card-seo {
+      order: 2;
+    }
+    #ai-rev-card-steps {
+      order: 3;
+    }
+    #ai-rev-card-wiring {
+      order: 4;
+    }
+    #ai-rev-card-troubleshooting {
+      order: 5;
+    }
+    .ai-rev-screen {
+      padding-bottom: 80px;
+    }
   }
 
   /* ============================================================
@@ -3546,73 +4544,670 @@ if (p?.cost_checked) {
     wrap.insertBefore(tb, textarea);
   });
 
-  // Gemini AI Draft Integration
+  // ============================================================
+  // GEMINI AI DRAFT & REVIEW INTEGRATION
+  // ============================================================
   const aiGenerateNotesBtn = document.getElementById('ai-generate-notes-btn') as HTMLButtonElement | null;
   const aiNotesInput = document.getElementById('ai-notes-input') as HTMLTextAreaElement | null;
+  const aiCodeInput = document.getElementById('ai-code-input') as HTMLTextAreaElement | null;
+  const aiBomInput = document.getElementById('ai-bom-input') as HTMLTextAreaElement | null;
+  const aiWiringInput = document.getElementById('ai-wiring-input') as HTMLTextAreaElement | null;
+  const aiIncludeContext = document.getElementById('ai-include-context') as HTMLInputElement | null;
+  const aiCodeFileInput = document.getElementById('ai-code-file-input') as HTMLInputElement | null;
+  const aiCodeFileName = document.getElementById('ai-code-file-name');
   const aiNotesStatus = document.getElementById('ai-notes-status');
 
+  const editorContainer = document.querySelector('.editor-page-container') as HTMLElement | null;
+  const currentProjectId = Number(editorContainer?.dataset.projectId || 0);
+
+  // Attachment tabs switching
+  const attachTabs = document.querySelectorAll<HTMLButtonElement>('.ai-attach-tab');
+  const attachPanels = document.querySelectorAll<HTMLElement>('.ai-attach-panel');
+  attachTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.aiTab;
+      attachTabs.forEach(t => t.classList.toggle('is-active', t.dataset.aiTab === target));
+      attachPanels.forEach(p => { p.hidden = p.dataset.aiPanel !== target; });
+    });
+  });
+
+  // Code file upload reader (.ino, .cpp, .h, .py, .txt)
+  if (aiCodeFileInput && aiCodeInput && aiCodeFileName) {
+    aiCodeFileInput.addEventListener('change', () => {
+      const file = aiCodeFileInput.files?.[0];
+      if (!file) return;
+      aiCodeFileName.textContent = `Reading ${file.name}...`;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        aiCodeInput.value = String(e.target?.result || '');
+        aiCodeFileName.textContent = `✓ ${file.name} (${Math.round(file.size / 1024)} KB)`;
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // SessionStorage notes caching so notes are never lost
+  const AI_NOTES_KEY = 'tt_ai_notes_cache';
+  try {
+    const cached = sessionStorage.getItem(AI_NOTES_KEY);
+    if (cached && aiNotesInput && !aiNotesInput.value.trim()) {
+      aiNotesInput.value = cached;
+    }
+    if (aiNotesInput) {
+      aiNotesInput.addEventListener('input', () => {
+        try { sessionStorage.setItem(AI_NOTES_KEY, aiNotesInput.value); } catch {}
+      });
+    }
+  } catch {}
+
+  // Revert AI changes buttons
+  const aiRevertBtn = document.getElementById('ai-revert-btn') as HTMLButtonElement | null;
+  const mobileAiRevertBtn = document.getElementById('mobile-ai-revert-btn') as HTMLButtonElement | null;
+
+  async function handleRevertSnapshot() {
+    if (!currentProjectId) {
+      alert('Cannot revert a project that has not been saved yet.');
+      return;
+    }
+    if (!confirm('Revert all project fields, BOM, steps, wiring, and troubleshooting to the state before the AI draft was applied?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/ai/revert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProjectId })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data.message || 'Failed to revert snapshot.');
+        return;
+      }
+      alert('Pre-AI snapshot restored successfully. The page will now reload.');
+      window.location.reload();
+    } catch (err: any) {
+      alert(`Error reverting snapshot: ${err?.message || err}`);
+    }
+  }
+
+  if (aiRevertBtn) aiRevertBtn.addEventListener('click', handleRevertSnapshot);
+  if (mobileAiRevertBtn) mobileAiRevertBtn.addEventListener('click', handleRevertSnapshot);
+
+  // ============================================================
+  // AI REVIEW SCREEN CONTROLLER (Desktop & Mobile)
+  // Matches media_1791971722111_a6868909.png and media_1791971722088_ab3d6bf2.png
+  // ============================================================
+  const standardView = document.getElementById('editor-standard-view') as HTMLElement | null;
+  const reviewScreen = document.getElementById('ai-review-screen') as HTMLElement | null;
+  const reviewDiscardBtn = document.getElementById('ai-review-discard-btn') as HTMLButtonElement | null;
+  const reviewDiscardFootBtn = document.getElementById('ai-review-discard-foot-btn') as HTMLButtonElement | null;
+  const reviewMobileBackBtn = document.getElementById('ai-review-mobile-back-btn') as HTMLButtonElement | null;
+  const reviewApplyTopBtn = document.getElementById('ai-review-apply-top-btn') as HTMLButtonElement | null;
+  const reviewApplyFootBtn = document.getElementById('ai-review-apply-foot-btn') as HTMLButtonElement | null;
+
+  let activeDraftData: any = null;
+  let activeMatchedBom: any[] = [];
+
+  function escapeHtml(str: any): string {
+    if (str === undefined || str === null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function openReviewScreen() {
+    document.body.classList.add('ai-review-active');
+    if (standardView) standardView.style.display = 'none';
+    if (reviewScreen) {
+      reviewScreen.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function closeReviewScreen() {
+    document.body.classList.remove('ai-review-active');
+    if (reviewScreen) reviewScreen.style.display = 'none';
+    if (standardView) {
+      standardView.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  if (reviewDiscardBtn) reviewDiscardBtn.addEventListener('click', closeReviewScreen);
+  if (reviewDiscardFootBtn) reviewDiscardFootBtn.addEventListener('click', closeReviewScreen);
+  if (reviewMobileBackBtn) reviewMobileBackBtn.addEventListener('click', closeReviewScreen);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && reviewScreen && reviewScreen.style.display !== 'none') {
+      closeReviewScreen();
+    }
+  });
+
+  // Collapsible cards chevrons on mobile
+  document.querySelectorAll<HTMLButtonElement>('.ai-rev-chevron-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = btn.dataset.toggleTarget;
+      if (!targetId) return;
+      const body = document.getElementById(targetId);
+      if (!body) return;
+      const isHidden = body.hasAttribute('hidden') || body.style.display === 'none';
+      if (isHidden) {
+        body.removeAttribute('hidden');
+        body.style.display = 'block';
+        btn.classList.remove('is-collapsed');
+      } else {
+        body.setAttribute('hidden', '');
+        body.style.display = 'none';
+        btn.classList.add('is-collapsed');
+      }
+    });
+  });
+
+  function updateChangeCount() {
+    let count = 0;
+
+    // Card 1: Tags and SEO
+    const seoToggle = document.querySelector<HTMLInputElement>('.ai-rev-section-toggle[data-section="seo"]');
+    if (seoToggle?.checked) {
+      let seoFields = 0;
+      if (activeDraftData?.tags?.length) seoFields++;
+      if (activeDraftData?.seo?.meta_title) seoFields++;
+      if (activeDraftData?.seo?.meta_description) seoFields++;
+      count += (seoFields || 1);
+    }
+
+    // Card 2: BOM
+    const bomToggle = document.querySelector<HTMLInputElement>('.ai-rev-section-toggle[data-section="bom"]');
+    if (bomToggle?.checked) {
+      count += (activeMatchedBom?.length || activeDraftData?.bom?.length || 0);
+    }
+
+    // Card 3: Steps
+    const stepsToggle = document.querySelector<HTMLInputElement>('.ai-rev-section-toggle[data-section="steps"]');
+    if (stepsToggle?.checked) {
+      count += (activeDraftData?.steps?.length || 0);
+    }
+
+    // Card 4: Wiring and connections
+    const wiringToggle = document.querySelector<HTMLInputElement>('.ai-rev-section-toggle[data-section="wiring"]');
+    if (wiringToggle?.checked) {
+      count += (activeDraftData?.wiring?.length || 0);
+    }
+
+    // Card 5: Troubleshooting
+    const tbToggle = document.querySelector<HTMLInputElement>('.ai-rev-section-toggle[data-section="troubleshooting"]');
+    if (tbToggle?.checked) {
+      count += (activeDraftData?.troubleshooting?.length || 0);
+    }
+
+    // Kept as they are replace switches
+    document.querySelectorAll<HTMLInputElement>('.ai-rev-replace-switch').forEach(sw => {
+      if (sw.checked) count++;
+    });
+
+    const totalCount = activeDraftData?.change_count !== undefined ? activeDraftData.change_count : count;
+    const label = `Apply ${totalCount} change${totalCount === 1 ? '' : 's'}`;
+    if (reviewApplyTopBtn) {
+      reviewApplyTopBtn.textContent = label;
+      reviewApplyTopBtn.disabled = totalCount === 0;
+    }
+    if (reviewApplyFootBtn) {
+      reviewApplyFootBtn.textContent = label;
+      reviewApplyFootBtn.disabled = totalCount === 0;
+    }
+  }
+
+  function renderReviewModal(draft: any, matchedBom: any[]) {
+    activeDraftData = draft;
+    activeMatchedBom = matchedBom;
+
+    // Reset section checkboxes to checked
+    document.querySelectorAll<HTMLInputElement>('.ai-rev-section-toggle').forEach(cb => {
+      cb.checked = true;
+      cb.onchange = () => updateChangeCount();
+    });
+
+    // 1. Tags and SEO Card
+    const tagsCount = (draft.tags || []).length;
+    const seoPill = document.getElementById('ai-rev-pill-seo');
+    if (seoPill) seoPill.textContent = draft.seo_pill_label || (tagsCount > 0 ? `${tagsCount + 1} fields` : '5 fields');
+
+    const tagsListEl = document.getElementById('ai-rev-tags-list');
+    if (tagsListEl) {
+      tagsListEl.innerHTML = (draft.tags || []).map((t: string) => `<span class="ai-rev-tag-chip">${escapeHtml(t)}</span>`).join('');
+    }
+
+    const tagsPreviewEl = document.getElementById('ai-rev-tags-preview');
+    if (tagsPreviewEl) {
+      tagsPreviewEl.textContent = (draft.tags || []).join(', ');
+    }
+
+    const metaTextEl = document.getElementById('ai-rev-meta-text');
+    if (metaTextEl) {
+      metaTextEl.innerHTML = `Meta title: ${escapeHtml(draft.seo?.meta_title || draft.title || '')}. Summary: kept as it is.`;
+    }
+
+    // 2. Parts List (BOM) Card
+    const matchedCount = matchedBom.filter((m: any) => m.status === 'matched').length;
+    const ambiguousCount = matchedBom.filter((m: any) => m.status === 'ambiguous').length;
+    const newCount = matchedBom.filter((m: any) => m.status === 'new').length;
+
+    const bomPillsEl = document.getElementById('ai-rev-bom-pills');
+    if (bomPillsEl) {
+      let pillsHtml = '';
+      if (matchedCount > 0) pillsHtml += `<span class="ai-rev-pill ai-rev-pill--green desktop-only">${matchedCount} matched</span>`;
+      if (ambiguousCount > 0) pillsHtml += `<span class="ai-rev-pill ai-rev-pill--yellow desktop-only">${ambiguousCount} to choose</span>`;
+      if (newCount > 0) {
+        pillsHtml += `<span class="ai-rev-pill ai-rev-pill--gray desktop-only">${newCount} new</span>`;
+        pillsHtml += `<span class="ai-rev-pill ai-rev-pill--peach mobile-only">${newCount} new</span>`;
+      } else {
+        pillsHtml += `<span class="ai-rev-pill ai-rev-pill--green mobile-only">${matchedCount} matched</span>`;
+      }
+      bomPillsEl.innerHTML = pillsHtml;
+    }
+
+    // Desktop BOM Table
+    const bomTbodyEl = document.getElementById('ai-rev-bom-tbody');
+    if (bomTbodyEl) {
+      bomTbodyEl.innerHTML = matchedBom.map((m: any, idx: number) => {
+        let matchHtml = '';
+        const price = m.matched_component?.unit_price_inr || m.bom_item?.approx_price_inr || 0;
+        if (m.status === 'matched') {
+          matchHtml = `<span class="ai-chip-matched">Matched</span> <span class="ai-rev-match-text">${escapeHtml(m.matched_component?.name || m.bom_item.name)}</span>`;
+        } else if (m.status === 'ambiguous') {
+          const candidates = m.candidates || [];
+          matchHtml = `
+            <span class="ai-chip-choose">Choose</span>
+            <select class="ai-rev-bom-select" data-bom-idx="${idx}">
+              ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)} (₹${c.component.unit_price_inr})</option>`).join('')}
+              <option value="0">Keep custom standalone</option>
+            </select>
+          `;
+        } else {
+          matchHtml = `<span class="ai-chip-new">New</span> <span class="ai-rev-match-text">will be added to library</span>`;
+        }
+
+        return `
+          <tr>
+            <td style="font-weight: 600;">${escapeHtml(m.bom_item.name)}</td>
+            <td>${m.bom_item.qty || 1}</td>
+            <td>${matchHtml}</td>
+            <td class="ai-rev-bom-price">₹${price}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Mobile BOM Stack
+    const bomMobListEl = document.getElementById('ai-rev-bom-mobile-list');
+    if (bomMobListEl) {
+      bomMobListEl.innerHTML = matchedBom.map((m: any, idx: number) => {
+        let matchHtml = '';
+        const price = m.matched_component?.unit_price_inr || m.bom_item?.approx_price_inr || 0;
+        if (m.status === 'matched') {
+          matchHtml = `<span class="ai-chip-matched">Matched</span> <span class="ai-rev-match-text">${escapeHtml(m.matched_component?.name || m.bom_item.name)}</span>`;
+        } else if (m.status === 'ambiguous') {
+          const candidates = m.candidates || [];
+          matchHtml = `
+            <span class="ai-chip-choose">Choose</span>
+            <select class="ai-rev-bom-select" data-bom-idx="${idx}">
+              ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)}</option>`).join('')}
+              <option value="0">Custom</option>
+            </select>
+          `;
+        } else {
+          matchHtml = `<span class="ai-chip-new">New</span> <span class="ai-rev-match-text">will be added to library</span>`;
+        }
+
+        return `
+          <div class="ai-rev-bom-mob-item">
+            <div class="ai-rev-bom-mob-top">
+              <span class="ai-rev-bom-mob-name">${escapeHtml(m.bom_item.name)}</span>
+              <span class="ai-rev-bom-mob-price">₹${price}</span>
+            </div>
+            <div class="ai-rev-bom-mob-sub">
+              ${matchHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // New Component Confirmation Banner
+    const newCompBanner = document.getElementById('ai-rev-new-comp-banner');
+    const newCompText = document.getElementById('ai-rev-new-comp-text');
+    const newCompCb = document.getElementById('ai-rev-add-new-components-cb') as HTMLInputElement | null;
+    if (newCompBanner && newCompText) {
+      if (newCount > 0) {
+        newCompBanner.style.display = 'block';
+        newCompText.textContent = `Add ${newCount} new component${newCount > 1 ? 's' : ''} to the library and use it in this project`;
+        if (newCompCb) newCompCb.checked = true;
+      } else {
+        newCompBanner.style.display = 'none';
+      }
+    }
+
+    // 3. Steps Card
+    const stepsPill = document.getElementById('ai-rev-pill-steps');
+    if (stepsPill) stepsPill.textContent = draft.steps_pill_label || `${(draft.steps || []).length} steps`;
+
+    const stepsListEl = document.getElementById('ai-rev-steps-list');
+    if (stepsListEl) {
+      stepsListEl.innerHTML = (draft.steps || []).map((s: any, idx: number) => `
+        <div class="ai-rev-step-row">
+          <span class="ai-rev-step-num">${idx + 1}</span>
+          <span class="ai-rev-step-text">${escapeHtml(s.title || s.instruction_markdown)}</span>
+        </div>
+      `).join('');
+    }
+
+    // 4. Wiring and connections Card
+    const wiringPill = document.getElementById('ai-rev-pill-wiring');
+    if (wiringPill) wiringPill.textContent = draft.wiring_pill_label || `${(draft.wiring || []).length} connections`;
+
+    const wiringListEl = document.getElementById('ai-rev-wiring-list');
+    if (wiringListEl) {
+      wiringListEl.innerHTML = (draft.wiring || []).map((w: any) => `
+        <div class="ai-rev-wiring-row">
+          <span class="ai-rev-wiring-arrow">→</span>
+          <span class="ai-rev-wiring-text">${escapeHtml(w.from)} → ${escapeHtml(w.to)}${w.note ? ' (' + escapeHtml(w.note) + ')' : ''}</span>
+        </div>
+      `).join('');
+    }
+
+    // 5. Troubleshooting Card
+    const tbPill = document.getElementById('ai-rev-pill-tb');
+    if (tbPill) tbPill.textContent = draft.tb_pill_label || `${(draft.troubleshooting || []).length} tips`;
+
+    const tbListEl = document.getElementById('ai-rev-tb-list');
+    if (tbListEl) {
+      tbListEl.innerHTML = (draft.troubleshooting || []).map((tb: any) => `
+        <div class="ai-rev-tb-row">
+          <span class="ai-rev-tb-mark">?</span>
+          <span class="ai-rev-tb-text"><strong>${escapeHtml(tb.symptom)}:</strong> ${escapeHtml(tb.fix_markdown)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Rail Card A: Review checklist
+    const checklistListEl = document.getElementById('ai-rev-checklist-list');
+    const needsReview = draft.needs_review || [];
+    if (checklistListEl) {
+      if (needsReview.length > 0) {
+        checklistListEl.innerHTML = needsReview.map((item: any) => `
+          <div class="ai-rev-check-row">
+            <span class="ai-rev-check-icon">⚠️</span>
+            <span class="ai-rev-check-text">${escapeHtml(item.reason || `${item.field}: confirm accuracy`)}</span>
+          </div>
+        `).join('');
+      } else {
+        checklistListEl.innerHTML = `
+          <div class="ai-rev-check-row">
+            <span class="ai-rev-check-icon">✓</span>
+            <span class="ai-rev-check-text" style="color:#166534;">All statements verified against notes and code.</span>
+          </div>
+        `;
+      }
+    }
+
+    // Mobile yellow alert banner
+    const mobAlert = document.getElementById('ai-rev-mobile-alert');
+    const mobAlertText = document.getElementById('ai-rev-mobile-alert-text');
+    if (mobAlert && mobAlertText) {
+      if (needsReview.length > 0) {
+        mobAlert.style.display = 'flex';
+        mobAlertText.textContent = `${needsReview.length} item${needsReview.length > 1 ? 's' : ''} need your check before publishing`;
+      } else {
+        mobAlert.style.display = 'none';
+      }
+    }
+
+    // Rail Card B: Kept as they are switches
+    document.querySelectorAll<HTMLInputElement>('.ai-rev-replace-switch').forEach(sw => {
+      sw.checked = false; // default OFF as in reference mockup
+      sw.onchange = () => updateChangeCount();
+    });
+
+    // Rail Card C: Source
+    const sourceEl = document.getElementById('ai-rev-source-text');
+    if (sourceEl) {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      sourceEl.textContent = `Notes, sketch and BOM text. Gemini 2.5 Flash, ${dateStr}, ${timeStr}.`;
+    }
+
+    // Mobile initial collapse state: Card 2 (BOM) expanded, others collapsed
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      const collapseTargets = ['ai-rev-body-seo', 'ai-rev-body-steps', 'ai-rev-body-wiring', 'ai-rev-body-tb'];
+      collapseTargets.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.setAttribute('hidden', '');
+          el.style.display = 'none';
+        }
+        const chevron = document.querySelector<HTMLButtonElement>(`.ai-rev-chevron-btn[data-toggle-target="${id}"]`);
+        if (chevron) chevron.classList.add('is-collapsed');
+      });
+      const bomBody = document.getElementById('ai-rev-body-bom');
+      if (bomBody) {
+        bomBody.removeAttribute('hidden');
+        bomBody.style.display = 'block';
+      }
+      const bomChevron = document.querySelector<HTMLButtonElement>('.ai-rev-chevron-btn[data-toggle-target="ai-rev-body-bom"]');
+      if (bomChevron) bomChevron.classList.remove('is-collapsed');
+    }
+
+    updateChangeCount();
+    openReviewScreen();
+  }
+
+  (window as any).renderReviewModal = renderReviewModal;
+  (window as any).openReviewScreen = openReviewScreen;
+  (window as any).closeReviewScreen = closeReviewScreen;
+
+  // Handle Apply Changes
+  async function handleApplyChanges() {
+    if (!activeDraftData) return;
+
+    if (reviewApplyTopBtn) reviewApplyTopBtn.disabled = true;
+    if (reviewApplyFootBtn) reviewApplyFootBtn.disabled = true;
+
+    // 1. Gather selections from section checkboxes
+    const selections: Record<string, boolean> = {};
+    document.querySelectorAll<HTMLInputElement>('.ai-rev-section-toggle').forEach(st => {
+      const sec = st.dataset.section;
+      if (sec) selections[sec] = st.checked;
+    });
+
+    // 2. Gather replace switches
+    const replace_fields: Record<string, boolean> = {
+      title: !!document.querySelector<HTMLInputElement>('.ai-rev-replace-switch[data-replace-field="title"]')?.checked,
+      summary: !!document.querySelector<HTMLInputElement>('.ai-rev-replace-switch[data-replace-field="summary"]')?.checked,
+      description: !!document.querySelector<HTMLInputElement>('.ai-rev-replace-switch[data-replace-field="description"]')?.checked,
+    };
+
+    if (replace_fields.title || replace_fields.summary) {
+      selections.basics = true;
+    }
+    if (replace_fields.description) {
+      selections.description = true;
+    }
+
+    // 3. Gather new components to create
+    const newComponents: any[] = [];
+    const addNewCb = document.getElementById('ai-rev-add-new-components-cb') as HTMLInputElement | null;
+    if (addNewCb?.checked) {
+      activeMatchedBom.forEach((m: any, idx: number) => {
+        if (m.status === 'new' && m.prepared_component) {
+          newComponents.push({
+            bom_index: idx,
+            name: m.prepared_component.name,
+            store: m.prepared_component.store,
+            category: m.prepared_component.category,
+            unit_price_inr: m.prepared_component.unit_price_inr,
+            buy_url: m.prepared_component.buy_url,
+            notes: m.prepared_component.notes
+          });
+        }
+      });
+    }
+
+    // 4. Gather ambiguous BOM selections
+    const bomResolutions: any[] = [];
+    document.querySelectorAll<HTMLSelectElement>('.ai-rev-bom-select').forEach(sel => {
+      const idx = Number(sel.dataset.bomIdx);
+      bomResolutions.push({
+        bom_index: idx,
+        component_id: Number(sel.value || 0)
+      });
+    });
+
+    try {
+      const res = await fetch('/api/admin/ai/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: currentProjectId,
+          draft: activeDraftData,
+          selections,
+          replace_fields,
+          new_components: newComponents,
+          bom_resolutions: bomResolutions
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data?.message || 'Failed to apply AI changes.');
+        return;
+      }
+
+      // Directly update the active DOM form inputs in standard view
+      if (replace_fields.title && activeDraftData.title) {
+        const t = document.getElementById('title') as HTMLInputElement | null;
+        if (t) t.value = activeDraftData.title;
+      }
+      if (replace_fields.summary && activeDraftData.summary) {
+        const s = document.getElementById('summary') as HTMLInputElement | null;
+        if (s) s.value = activeDraftData.summary;
+      }
+      if (replace_fields.description && activeDraftData.description_markdown) {
+        const d = document.getElementById('description') as HTMLTextAreaElement | null;
+        if (d) d.value = activeDraftData.description_markdown;
+      }
+      if (selections.seo) {
+        if (activeDraftData.seo?.meta_title) {
+          const mt = document.getElementById('meta_title') as HTMLInputElement | null;
+          if (mt) mt.value = activeDraftData.seo.meta_title;
+        }
+        if (activeDraftData.seo?.meta_description) {
+          const md = document.getElementById('meta_description') as HTMLInputElement | null;
+          if (md) md.value = activeDraftData.seo.meta_description;
+        }
+        if (activeDraftData.tags?.length) {
+          const tg = document.getElementById('tags') as HTMLInputElement | null;
+          if (tg) tg.value = activeDraftData.tags.join(', ');
+        }
+      }
+
+      // Reveal the Revert AI changes buttons
+      if (aiRevertBtn) aiRevertBtn.style.display = 'inline-flex';
+      if (mobileAiRevertBtn) mobileAiRevertBtn.style.display = 'inline-flex';
+
+      closeReviewScreen();
+
+      if (aiNotesStatus) {
+        aiNotesStatus.innerHTML = `<span style="color:var(--admin-success-text); font-weight:600; font-size:13px;">✨ ${data.message} Pre-AI snapshot created.</span>`;
+      }
+
+      // If child database items were modified on existing project, prompt reload to display tables
+      if (currentProjectId > 0 && (selections.bom || selections.steps || selections.wiring || selections.troubleshooting)) {
+        setTimeout(() => {
+          if (confirm('AI changes applied to database! Reload now to see newly matched BOM rows, steps, and wiring diagrams in the child panels?')) {
+            window.location.reload();
+          }
+        }, 300);
+      }
+    } catch (err: any) {
+      alert(`Error applying AI changes: ${err?.message || err}`);
+    } finally {
+      if (reviewApplyTopBtn) reviewApplyTopBtn.disabled = false;
+      if (reviewApplyFootBtn) reviewApplyFootBtn.disabled = false;
+    }
+  }
+
+  if (reviewApplyTopBtn) reviewApplyTopBtn.addEventListener('click', handleApplyChanges);
+  if (reviewApplyFootBtn) reviewApplyFootBtn.addEventListener('click', handleApplyChanges);
+
+  // Main Draft Button Click Handler
   if (aiGenerateNotesBtn && aiNotesInput && aiNotesStatus) {
     aiGenerateNotesBtn.addEventListener('click', async () => {
       const notes = aiNotesInput.value.trim();
-      if (!notes) {
-        aiNotesStatus.innerHTML = '<span style="color:var(--admin-red); font-size:13px;">Please paste some project notes first.</span>';
+      const code_snippet = aiCodeInput?.value.trim() || '';
+      const bom_pasted = aiBomInput?.value.trim() || '';
+      const wiring_notes = aiWiringInput?.value.trim() || '';
+
+      if (!notes && !code_snippet && !bom_pasted && !wiring_notes) {
+        aiNotesStatus.innerHTML = '<span style="color:var(--admin-red); font-size:13px;">Please paste some notes, sketch code, or parts list first.</span>';
         aiNotesInput.focus();
         return;
       }
+
       aiGenerateNotesBtn.disabled = true;
-      aiNotesStatus.innerHTML = '<span class="dim" style="font-size:13px;">Drafting with Gemini 3.8 Flash...</span>';
+      aiNotesStatus.innerHTML = '<span class="dim" style="font-size:13px;">Drafting with Gemini model &amp; matching component library...</span>';
+
+      const projectContext: any = {};
+      if (aiIncludeContext?.checked) {
+        projectContext.title = (document.getElementById('title') as HTMLInputElement)?.value.trim() || '';
+        projectContext.category = (document.getElementById('category') as HTMLInputElement)?.value.trim() || '';
+        projectContext.summary = (document.getElementById('summary') as HTMLInputElement)?.value.trim() || '';
+        projectContext.description = (document.getElementById('description') as HTMLTextAreaElement)?.value.trim() || '';
+      }
 
       try {
-        const res = await fetch('/api/admin/ai/draft-notes', {
+        const res = await fetch('/api/admin/ai/draft', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notes }),
+          body: JSON.stringify({
+            notes,
+            code_snippet,
+            bom_pasted,
+            wiring_notes,
+            project_context: projectContext,
+            project_id: currentProjectId
+          }),
         });
+
         const data = await res.json();
         if (!res.ok || !data.ok) {
-          aiNotesStatus.innerHTML = `<span style="color:var(--admin-red); font-size:13px;">⚠️ ${data?.message || 'Failed to generate draft.'}</span>`;
+          aiNotesStatus.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="color:var(--admin-red); font-size:13px;">⚠️ ${data?.message || 'Failed to generate draft.'}</span>
+              <button type="button" class="admin-btn admin-btn--secondary admin-btn--xs" id="ai-quick-retry-btn">Retry</button>
+            </div>
+          `;
+          const retryBtn = document.getElementById('ai-quick-retry-btn');
+          if (retryBtn) retryBtn.addEventListener('click', () => aiGenerateNotesBtn.click());
           return;
         }
 
-        const draft = data.draft;
-        if (draft.title) {
-          const tEl = document.getElementById('title') as HTMLInputElement | null;
-          if (tEl) tEl.value = draft.title;
-          const sEl = document.getElementById('slug') as HTMLInputElement | null;
-          if (sEl && !sEl.value) sEl.value = draft.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        }
-        if (draft.summary) {
-          const smEl = document.getElementById('summary') as HTMLInputElement | null;
-          if (smEl) smEl.value = draft.summary;
-        }
-        if (draft.category) {
-          const cEl = document.getElementById('category') as HTMLInputElement | null;
-          if (cEl) cEl.value = draft.category;
-        }
-        if (draft.difficulty) {
-          const dEl = document.getElementById('difficulty') as HTMLSelectElement | null;
-          if (dEl) dEl.value = draft.difficulty;
-        }
-        if (draft.build_time) {
-          const btEl = document.getElementById('build_time') as HTMLInputElement | null;
-          if (btEl) btEl.value = draft.build_time;
-        }
-        if (draft.description) {
-          const descEl = document.getElementById('description') as HTMLTextAreaElement | null;
-          if (descEl) descEl.value = draft.description;
-        }
-        if (Array.isArray(draft.outcomes)) {
-          const outEl = document.querySelector<HTMLElement>('.list-editor[data-name="outcomes_json"]');
-          if (outEl && (outEl as any).__setListItems) (outEl as any).__setListItems(draft.outcomes);
-        }
-        if (Array.isArray(draft.prerequisites)) {
-          const preEl = document.querySelector<HTMLElement>('.list-editor[data-name="prereqs_json"]');
-          if (preEl && (preEl as any).__setListItems) (preEl as any).__setListItems(draft.prerequisites);
-        }
-
-        aiNotesStatus.innerHTML = '<span style="color:var(--admin-success-text); font-size:13px;">✨ Draft generated into editable form fields!</span>';
+        aiNotesStatus.innerHTML = '<span style="color:var(--admin-success-text); font-size:13px;">✨ Draft generated! Opening review screen...</span>';
+        renderReviewModal(data.draft, data.matched_bom);
       } catch (err: any) {
-        aiNotesStatus.innerHTML = `<span style="color:var(--admin-red); font-size:13px;">⚠️ Error: ${err?.message || 'Failed to call Gemini.'}</span>`;
+        aiNotesStatus.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--admin-red); font-size:13px;">⚠️ Error: ${err?.message || 'Failed to call Gemini.'}</span>
+            <button type="button" class="admin-btn admin-btn--secondary admin-btn--xs" id="ai-quick-retry-btn">Retry</button>
+          </div>
+        `;
+        const retryBtn = document.getElementById('ai-quick-retry-btn');
+        if (retryBtn) retryBtn.addEventListener('click', () => aiGenerateNotesBtn.click());
       } finally {
         aiGenerateNotesBtn.disabled = false;
       }

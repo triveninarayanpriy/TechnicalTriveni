@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { setSetting } from '../../../../lib/db';
 import { csrfOk, strField, flashRedirect } from '../../../../lib/admin';
 
-const ALLOWED = ['site_announcement', 'contact_email', 'announcement_link', 'announcement_expiry', 'test_emails', 'announcement_enabled'];
+const ALLOWED = ['site_announcement', 'contact_email', 'announcement_link', 'announcement_expiry', 'test_emails', 'announcement_enabled', 'gemini_model', 'site_title', 'social_youtube', 'social_instagram'];
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();

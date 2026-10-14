@@ -11,9 +11,20 @@ export function flashRedirect(to: string, opts: { ok?: string; err?: string } = 
   return new Response(null, { status: 303, headers: { Location: location } });
 }
 
-/** Validate the CSRF token from a submitted form. */
-export function csrfOk(cookies: AstroCookies, form: FormData): boolean {
-  return verifyCsrf(cookies, String(form.get('csrf') || ''));
+/** Validate the CSRF token from a submitted form, string, or header. */
+export function csrfOk(cookies: AstroCookies, formOrToken?: FormData | string | null, request?: Request): boolean {
+  if (typeof formOrToken === 'string' && formOrToken) {
+    return verifyCsrf(cookies, formOrToken);
+  }
+  if (formOrToken instanceof FormData) {
+    const val = String(formOrToken.get('csrf') || '');
+    if (val && verifyCsrf(cookies, val)) return true;
+  }
+  if (request) {
+    const header = request.headers.get('x-csrf-token') || request.headers.get('x-csrf');
+    if (header && verifyCsrf(cookies, header)) return true;
+  }
+  return false;
 }
 
 /** Parse a checkbox value ("on"/"1"/"true") to 0/1. */

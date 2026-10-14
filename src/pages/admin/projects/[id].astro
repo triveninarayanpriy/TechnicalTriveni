@@ -3,6 +3,7 @@ import Admin from '../../../layouts/Admin.astro';
 import ProjectEditor from '../../../components/ProjectEditor.astro';
 import { env } from 'cloudflare:workers';
 import { getProjectFullById, listComponents, listCategories, listTags } from '../../../lib/db';
+import { hasProjectSnapshot } from '../../../lib/project-snapshot';
 
 const id = Number(Astro.params.id);
 if (!id) return Astro.redirect('/admin/projects');
@@ -11,9 +12,11 @@ if (!project) return Astro.redirect('/admin/projects?err=Project%20not%20found')
 const components = await listComponents(env.DB);
 const categories = await listCategories(env.DB);
 const tags = await listTags(env.DB);
+const snapshotStatus = await hasProjectSnapshot(env.DB, id);
+const hasSnapshot = snapshotStatus.has_snapshot;
 
 const csrf = Astro.locals.csrfToken;
 ---
 <Admin title={`Edit · ${project.title}`} active="projects" hideTabBar={true}>
-  <ProjectEditor project={project} csrf={csrf} components={components} categories={categories} tags={tags} />
+  <ProjectEditor project={project} csrf={csrf} components={components} categories={categories} tags={tags} hasSnapshot={hasSnapshot} />
 </Admin>
