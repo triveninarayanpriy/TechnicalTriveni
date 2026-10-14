@@ -53,19 +53,29 @@ const showcaseTotalKb = Math.round(
         <!-- SLOT 1: Maker Photo -->
         <article class="si-card" id="slot-card-maker_photo" data-slot="maker_photo">
           <div class="si-card__preview-col">
-            <div class="si-preview-wrap ratio-4-5">
+            <div class="si-preview-wrap ratio-4-5" data-slot="maker_photo" role="button" tabindex="0" title="Click to upload or replace image">
               {config.maker_photo?.url ? (
-                <img
-                  id="preview-img-maker_photo"
-                  src={config.maker_photo.url}
-                  alt={config.maker_photo.alt || 'Maker photo'}
-                  class="si-preview-img"
-                  loading="lazy"
-                />
+                <div class="si-preview-img-box">
+                  <img
+                    id="preview-img-maker_photo"
+                    src={config.maker_photo.url}
+                    alt={config.maker_photo.alt || 'Maker photo'}
+                    class="si-preview-img"
+                    loading="lazy"
+                  />
+                  <div class="si-preview-overlay">
+                    <Icon name="upload" size={22} />
+                    <span>Change photo</span>
+                  </div>
+                </div>
               ) : (
                 <div class="si-fallback-box" id="fallback-box-maker_photo">
-                  <Icon name="image" size={32} />
-                  <span class="si-fallback-text">1200 × 1500 px<br />4:5</span>
+                  <div class="si-fallback-icon-wrap">
+                    <Icon name="upload" size={26} />
+                  </div>
+                  <span class="si-fallback-action">Click to upload photo</span>
+                  <span class="si-fallback-text">1200 × 1500 px (4:5)</span>
+                  <span class="si-fallback-drag">or drag & drop file</span>
                 </div>
               )}
             </div>
@@ -104,15 +114,16 @@ const showcaseTotalKb = Math.round(
             </div>
 
             <div class="si-btn-row">
-              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="maker_photo">
+              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="maker_photo" title="Upload an image from your computer">
                 <Icon name="upload" size={16} />
-                <span>Upload</span>
+                <span>Upload image</span>
               </button>
-              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="maker_photo">
+              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="maker_photo" title="Choose from existing media library">
+                <Icon name="image" size={16} />
                 <span>Library</span>
               </button>
               {config.maker_photo?.url && (
-                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="maker_photo">
+                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="maker_photo" title="Remove image">
                   <span>Remove</span>
                 </button>
               )}
@@ -123,19 +134,29 @@ const showcaseTotalKb = Math.round(
         <!-- SLOT 2: How It Works Image -->
         <article class="si-card" id="slot-card-how_it_works_image" data-slot="how_it_works_image">
           <div class="si-card__preview-col">
-            <div class="si-preview-wrap ratio-7-5">
+            <div class="si-preview-wrap ratio-7-5" data-slot="how_it_works_image" role="button" tabindex="0" title="Click to upload or replace image">
               {config.how_it_works_image?.url ? (
-                <img
-                  id="preview-img-how_it_works_image"
-                  src={config.how_it_works_image.url}
-                  alt={config.how_it_works_image.alt || 'How it works'}
-                  class="si-preview-img"
-                  loading="lazy"
-                />
+                <div class="si-preview-img-box">
+                  <img
+                    id="preview-img-how_it_works_image"
+                    src={config.how_it_works_image.url}
+                    alt={config.how_it_works_image.alt || 'How it works'}
+                    class="si-preview-img"
+                    loading="lazy"
+                  />
+                  <div class="si-preview-overlay">
+                    <Icon name="upload" size={22} />
+                    <span>Change image</span>
+                  </div>
+                </div>
               ) : (
                 <div class="si-fallback-box" id="fallback-box-how_it_works_image">
-                  <Icon name="image" size={32} />
-                  <span class="si-fallback-text">1400 × 1000 px<br />7:5</span>
+                  <div class="si-fallback-icon-wrap">
+                    <Icon name="upload" size={26} />
+                  </div>
+                  <span class="si-fallback-action">Click to upload image</span>
+                  <span class="si-fallback-text">1400 × 1000 px (7:5)</span>
+                  <span class="si-fallback-drag">or drag & drop file</span>
                 </div>
               )}
             </div>
@@ -176,15 +197,16 @@ const showcaseTotalKb = Math.round(
             </div>
 
             <div class="si-btn-row">
-              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="how_it_works_image">
+              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="how_it_works_image" title="Upload an image from your computer">
                 <Icon name="upload" size={16} />
-                <span>Upload</span>
+                <span>Upload image</span>
               </button>
-              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="how_it_works_image">
+              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="how_it_works_image" title="Choose from existing media library">
+                <Icon name="image" size={16} />
                 <span>Library</span>
               </button>
               {config.how_it_works_image?.url && (
-                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="how_it_works_image">
+                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="how_it_works_image" title="Remove image">
                   <span>Remove</span>
                 </button>
               )}
@@ -195,7 +217,7 @@ const showcaseTotalKb = Math.round(
         <!-- SLOT 3: Channel Showcase -->
         <article class="si-card" id="slot-card-channel_showcase" data-slot="channel_showcase">
           <div class="si-card__preview-col">
-            <div class="si-preview-wrap si-preview-mosaic">
+            <div class="si-preview-wrap si-preview-mosaic" data-slot="channel_showcase" role="button" tabindex="0" title="Click to manage showcase images">
               {showcaseImages.slice(0, 3).map((img, i) => (
                 <div class="si-mosaic-thumb">
                   {img.url ? (
@@ -207,6 +229,10 @@ const showcaseTotalKb = Math.round(
                   )}
                 </div>
               ))}
+              <div class="si-preview-overlay">
+                <Icon name="upload" size={22} />
+                <span>Manage showcase</span>
+              </div>
             </div>
           </div>
 
@@ -243,15 +269,16 @@ const showcaseTotalKb = Math.round(
             </div>
 
             <div class="si-btn-row">
-              <button type="button" class="btn-showcase-manage admin-btn admin-btn--primary" id="btn-manage-showcase">
+              <button type="button" class="btn-showcase-manage admin-btn admin-btn--primary" id="btn-manage-showcase" title="Upload or change showcase images">
                 <Icon name="upload" size={16} />
-                <span>Upload</span>
+                <span>Upload showcase</span>
               </button>
-              <button type="button" class="btn-showcase-library admin-btn admin-btn--secondary" id="btn-library-showcase">
+              <button type="button" class="btn-showcase-library admin-btn admin-btn--secondary" id="btn-library-showcase" title="Choose from existing pack covers">
+                <Icon name="image" size={16} />
                 <span>Library</span>
               </button>
-              <button type="button" class="btn-showcase-reset admin-btn admin-btn--danger-outline" id="btn-reset-showcase">
-                <span>Remove</span>
+              <button type="button" class="btn-showcase-reset admin-btn admin-btn--danger-outline" id="btn-reset-showcase" title="Reset showcase back to default pack covers">
+                <span>Reset covers</span>
               </button>
             </div>
           </div>
@@ -260,19 +287,29 @@ const showcaseTotalKb = Math.round(
         <!-- SLOT 4: Default Share Image -->
         <article class="si-card" id="slot-card-default_share_image" data-slot="default_share_image">
           <div class="si-card__preview-col">
-            <div class="si-preview-wrap ratio-og">
+            <div class="si-preview-wrap ratio-og" data-slot="default_share_image" role="button" tabindex="0" title="Click to upload or replace image">
               {config.default_share_image?.url ? (
-                <img
-                  id="preview-img-default_share_image"
-                  src={config.default_share_image.url}
-                  alt={config.default_share_image.alt || 'Default share image'}
-                  class="si-preview-img"
-                  loading="lazy"
-                />
+                <div class="si-preview-img-box">
+                  <img
+                    id="preview-img-default_share_image"
+                    src={config.default_share_image.url}
+                    alt={config.default_share_image.alt || 'Default share image'}
+                    class="si-preview-img"
+                    loading="lazy"
+                  />
+                  <div class="si-preview-overlay">
+                    <Icon name="upload" size={22} />
+                    <span>Change share image</span>
+                  </div>
+                </div>
               ) : (
                 <div class="si-fallback-box" id="fallback-box-default_share_image">
-                  <Icon name="image" size={32} />
-                  <span class="si-fallback-text">1200 × 630 px<br />1.91:1</span>
+                  <div class="si-fallback-icon-wrap">
+                    <Icon name="upload" size={26} />
+                  </div>
+                  <span class="si-fallback-action">Click to upload image</span>
+                  <span class="si-fallback-text">1200 × 630 px (1.91:1)</span>
+                  <span class="si-fallback-drag">or drag & drop file</span>
                 </div>
               )}
             </div>
@@ -311,15 +348,16 @@ const showcaseTotalKb = Math.round(
             </div>
 
             <div class="si-btn-row">
-              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="default_share_image">
+              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="default_share_image" title="Upload an image from your computer">
                 <Icon name="upload" size={16} />
-                <span>Upload</span>
+                <span>Upload image</span>
               </button>
-              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="default_share_image">
+              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="default_share_image" title="Choose from existing media library">
+                <Icon name="image" size={16} />
                 <span>Library</span>
               </button>
               {config.default_share_image?.url && (
-                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="default_share_image">
+                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="default_share_image" title="Remove image">
                   <span>Remove</span>
                 </button>
               )}
@@ -554,8 +592,19 @@ const showcaseTotalKb = Math.round(
     </div>
   </div>
 
-  <!-- HIDDEN FILE INPUT -->
-  <input type="file" id="slot-file-input" accept="image/jpeg,image/png,image/webp,image/avif" style="display: none;" />
+  <!-- SITE ASSETS DATA & CSRF FOR CLIENT SCRIPT -->
+  <script type="application/json" id="site-assets-data" set:html={JSON.stringify(config)} />
+  <input type="hidden" id="si-csrf-token" value={csrf} />
+
+  <!-- HIDDEN FILE INPUT (Positioned off-screen, NOT display:none) -->
+  <input
+    type="file"
+    id="slot-file-input"
+    accept="image/jpeg,image/png,image/webp,image/avif"
+    aria-hidden="true"
+    tabindex="-1"
+    style="position: fixed; top: -9999px; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none;"
+  />
 
   <!-- CROP & FOCAL POINT MODAL -->
   <dialog id="crop-dialog" class="si-modal">
@@ -808,11 +857,24 @@ const showcaseTotalKb = Math.round(
     border-radius: 12px;
     overflow: hidden;
     background: #fafbfc;
-    border: 1px solid var(--admin-line-subtle, #eef0f2);
+    border: 1.5px solid var(--admin-line-subtle, #eef0f2);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+
+  .si-preview-wrap:hover {
+    border-color: #d91f26;
+    box-shadow: 0 0 0 3px rgba(217, 31, 38, 0.1);
+  }
+
+  .si-preview-wrap.is-dragover {
+    border-color: #d91f26 !important;
+    background: #fff5f5 !important;
+    box-shadow: 0 0 0 4px rgba(217, 31, 38, 0.25) !important;
   }
 
   .si-preview-wrap.ratio-4-5 {
@@ -856,6 +918,15 @@ const showcaseTotalKb = Math.round(
     color: #9aa0a6;
   }
 
+  .si-preview-img-box {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .si-preview-img {
     width: 100%;
     height: 100%;
@@ -863,27 +934,86 @@ const showcaseTotalKb = Math.round(
     display: block;
   }
 
+  .si-preview-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 17, 21, 0.65);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    backdrop-filter: blur(2px);
+  }
+
+  .si-preview-wrap:hover .si-preview-overlay {
+    opacity: 1;
+  }
+
   .si-fallback-box {
     width: 100%;
     height: 100%;
-    border: 1.5px dashed #cfd4dc;
+    border: 2px dashed #cfd4dc;
     border-radius: 12px;
     background: #fafbfc;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #80868b;
-    gap: 8px;
+    gap: 6px;
     text-align: center;
-    padding: 12px;
+    padding: 16px 12px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .si-preview-wrap:hover .si-fallback-box {
+    border-color: #d91f26;
+    background: #fff8f8;
+  }
+
+  .si-fallback-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #f1f3f5;
+    color: #d91f26;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .si-preview-wrap:hover .si-fallback-icon-wrap {
+    background: #fde8e8;
+    transform: translateY(-2px);
+  }
+
+  .si-fallback-action {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #d91f26;
+    display: block;
   }
 
   .si-fallback-text {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     line-height: 1.4;
     color: #5f6368;
+    display: block;
+  }
+
+  .si-fallback-drag {
+    font-size: 11px;
+    color: #8a9099;
+    display: block;
   }
 
   /* Card Body Column */
@@ -1541,32 +1671,37 @@ const showcaseTotalKb = Math.round(
   }
 </style>
 
-<script is:inline define:vars={{ initialConfig: config, csrfToken: csrf }}>
+<script>
   // Client state
-  let state = JSON.parse(JSON.stringify(initialConfig));
-  let activeSlot = null;
-  let activeShowcaseIndex = 0;
-  let currentFile = null;
-  let currentImageElement = null;
-  let focalPoint = { x: 0.5, y: 0.5 };
-  let libraryItems = { covers: [], media: [] };
+  const dataEl = document.getElementById('site-assets-data');
+  const initialConfig = dataEl ? JSON.parse(dataEl.textContent || '{}') : {};
+  const csrfInput = document.getElementById('si-csrf-token') as HTMLInputElement | null;
+  const csrfToken = csrfInput ? csrfInput.value : '';
 
-  const SLOT_SPECS = {
-    maker_photo: { width: 1200, height: 1500, ratio: 4 / 5, label: 'Maker photo' },
-    how_it_works_image: { width: 1400, height: 1000, ratio: 7 / 5, label: 'How it works image' },
-    channel_showcase: { width: 1600, height: 900, ratio: 16 / 9, label: 'Channel showcase' },
-    default_share_image: { width: 1200, height: 630, ratio: 1200 / 630, label: 'Default share image' },
+  let state = JSON.parse(JSON.stringify(initialConfig));
+  let activeSlot: string | null = null;
+  let activeShowcaseIndex = 0;
+  let currentFile: File | null = null;
+  let currentImageElement: HTMLImageElement | null = null;
+  let focalPoint = { x: 0.5, y: 0.5 };
+  let libraryItems: { covers: any[]; media: any[] } = { covers: [], media: [] };
+
+  const SLOT_SPECS: Record<string, { width: number; height: number; ratio: number; label: string; ratioLabel?: string }> = {
+    maker_photo: { width: 1200, height: 1500, ratio: 4 / 5, label: 'Maker photo', ratioLabel: '4:5' },
+    how_it_works_image: { width: 1400, height: 1000, ratio: 7 / 5, label: 'How it works image', ratioLabel: '7:5' },
+    channel_showcase: { width: 1600, height: 900, ratio: 16 / 9, label: 'Channel showcase', ratioLabel: '16:9' },
+    default_share_image: { width: 1200, height: 630, ratio: 1200 / 630, label: 'Default share image', ratioLabel: '1.91:1' },
   };
 
   // Elements
   const banner = document.getElementById('si-banner');
   const bannerMsg = document.getElementById('si-banner-msg');
-  const fileInput = document.getElementById('slot-file-input');
-  const cropDialog = document.getElementById('crop-dialog');
-  const libraryDialog = document.getElementById('library-dialog');
-  const showcaseDialog = document.getElementById('showcase-dialog');
+  const fileInput = document.getElementById('slot-file-input') as HTMLInputElement | null;
+  const cropDialog = document.getElementById('crop-dialog') as HTMLDialogElement | null;
+  const libraryDialog = document.getElementById('library-dialog') as HTMLDialogElement | null;
+  const showcaseDialog = document.getElementById('showcase-dialog') as HTMLDialogElement | null;
 
-  function showBanner(msg, isError = false) {
+  function showBanner(msg: string, isError = false) {
     if (!banner || !bannerMsg) return;
     banner.hidden = false;
     banner.className = 'si-banner ' + (isError ? 'is-error' : 'is-success');
@@ -1575,9 +1710,9 @@ const showcaseTotalKb = Math.round(
   }
 
   // --- Live Social URL Testing ---
-  function setupSocialTest(id, linkId) {
-    const input = document.getElementById(id);
-    const link = document.getElementById(linkId);
+  function setupSocialTest(id: string, linkId: string) {
+    const input = document.getElementById(id) as HTMLInputElement | null;
+    const link = document.getElementById(linkId) as HTMLAnchorElement | null;
     if (!input || !link) return;
     const updateLink = () => {
       const val = input.value.trim();
@@ -1593,12 +1728,89 @@ const showcaseTotalKb = Math.round(
   setupSocialTest('social-github', 'test-social-github');
   setupSocialTest('social-linkedin', 'test-social-linkedin');
 
-  // --- Upload Buttons ---
-  document.querySelectorAll('.btn-slot-upload').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      activeSlot = btn.dataset.slot;
+  // --- Upload Handlers ---
+  function triggerUploadForSlot(slot: string) {
+    activeSlot = slot;
+    if (fileInput) {
       fileInput.value = '';
       fileInput.click();
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.btn-slot-upload').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slot = btn.dataset.slot;
+      if (slot) triggerUploadForSlot(slot);
+    });
+  });
+
+  // Clicking on preview wrap or fallback box also triggers upload directly
+  document.querySelectorAll<HTMLElement>('.si-preview-wrap').forEach((wrap) => {
+    wrap.addEventListener('click', () => {
+      const slot = wrap.dataset.slot;
+      if (slot === 'channel_showcase') {
+        activeSlot = 'channel_showcase';
+        showcaseDialog?.showModal();
+        return;
+      }
+      if (slot) triggerUploadForSlot(slot);
+    });
+
+    // Drag and drop support on preview area
+    wrap.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      wrap.classList.add('is-dragover');
+    });
+    wrap.addEventListener('dragleave', () => {
+      wrap.classList.remove('is-dragover');
+    });
+    wrap.addEventListener('drop', (e) => {
+      e.preventDefault();
+      wrap.classList.remove('is-dragover');
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      const slot = wrap.dataset.slot;
+      if (slot === 'channel_showcase') {
+        activeSlot = 'channel_showcase';
+        showcaseDialog?.showModal();
+        return;
+      }
+      if (slot) {
+        activeSlot = slot;
+        handleSelectedFile(file);
+      }
+    });
+  });
+
+  // Card-level drag and drop support
+  document.querySelectorAll<HTMLElement>('.si-card').forEach((card) => {
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const wrap = card.querySelector<HTMLElement>('.si-preview-wrap');
+      if (wrap) wrap.classList.add('is-dragover');
+    });
+    card.addEventListener('dragleave', (e) => {
+      if (!card.contains(e.relatedTarget as Node)) {
+        const wrap = card.querySelector<HTMLElement>('.si-preview-wrap');
+        if (wrap) wrap.classList.remove('is-dragover');
+      }
+    });
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const wrap = card.querySelector<HTMLElement>('.si-preview-wrap');
+      if (wrap) wrap.classList.remove('is-dragover');
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      const slot = card.dataset.slot;
+      if (slot === 'channel_showcase') {
+        activeSlot = 'channel_showcase';
+        showcaseDialog?.showModal();
+        return;
+      }
+      if (slot) {
+        activeSlot = slot;
+        handleSelectedFile(file);
+      }
     });
   });
 
@@ -1607,20 +1819,23 @@ const showcaseTotalKb = Math.round(
     showcaseDialog?.showModal();
   });
 
-  document.querySelectorAll('.btn-sc-upload').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('.btn-sc-upload').forEach((btn) => {
     btn.addEventListener('click', () => {
       activeSlot = 'channel_showcase';
       activeShowcaseIndex = parseInt(btn.dataset.index || '0', 10);
       showcaseDialog?.close();
-      fileInput.value = '';
-      fileInput.click();
+      if (fileInput) {
+        fileInput.value = '';
+        fileInput.click();
+      }
     });
   });
 
   // --- Remove Buttons ---
-  document.querySelectorAll('.btn-slot-remove').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('.btn-slot-remove').forEach((btn) => {
     btn.addEventListener('click', () => {
       const slot = btn.dataset.slot;
+      if (!slot) return;
       if (!confirm(`Are you sure you want to remove this ${SLOT_SPECS[slot]?.label || 'image'}? The site will display its designed fallback.`)) {
         return;
       }
@@ -1645,8 +1860,7 @@ const showcaseTotalKb = Math.round(
   });
 
   // --- File Selection & Crop Modal ---
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files?.[0];
+  function handleSelectedFile(file: File) {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -1668,13 +1882,19 @@ const showcaseTotalKb = Math.round(
         currentImageElement = img;
         openCropDialog(img);
       };
-      img.src = loadEvt.target.result;
+      img.src = loadEvt.target?.result as string;
     };
     reader.readAsDataURL(file);
+  }
+
+  fileInput?.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) handleSelectedFile(file);
   });
 
-  function openCropDialog(img) {
-    const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+  function openCropDialog(img: HTMLImageElement) {
+    const slotKey = activeSlot || 'maker_photo';
+    const spec = SLOT_SPECS[slotKey] || SLOT_SPECS.maker_photo;
     const warningBox = document.getElementById('crop-warning-box');
     const warningText = document.getElementById('crop-warning-text');
     const title = document.getElementById('crop-modal-title');
@@ -1690,10 +1910,10 @@ const showcaseTotalKb = Math.round(
     }
 
     if (warnings.length > 0) {
-      warningBox.hidden = false;
-      warningText.textContent = warnings.join(' ');
+      if (warningBox) warningBox.hidden = false;
+      if (warningText) warningText.textContent = warnings.join(' ');
     } else {
-      warningBox.hidden = true;
+      if (warningBox) warningBox.hidden = true;
     }
 
     focalPoint = { x: 0.5, y: 0.5 };
@@ -1702,12 +1922,13 @@ const showcaseTotalKb = Math.round(
   }
 
   const cropViewport = document.getElementById('crop-viewport');
-  const cropCanvas = document.getElementById('crop-canvas');
+  const cropCanvas = document.getElementById('crop-canvas') as HTMLCanvasElement | null;
   const focalMarker = document.getElementById('focal-marker');
 
   function drawCropPreview() {
     if (!currentImageElement || !cropCanvas) return;
-    const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+    const slotKey = activeSlot || 'maker_photo';
+    const spec = SLOT_SPECS[slotKey] || SLOT_SPECS.maker_photo;
 
     // Viewport preview width
     const targetW = 600;
@@ -1716,12 +1937,13 @@ const showcaseTotalKb = Math.round(
     cropCanvas.height = targetH;
 
     const ctx = cropCanvas.getContext('2d');
+    if (!ctx) return;
     ctx.clearRect(0, 0, targetW, targetH);
 
     // Calculate crop rect based on focalPoint
     const imgW = currentImageElement.naturalWidth;
     const imgH = currentImageElement.naturalHeight;
-    let sW, sH;
+    let sW: number, sH: number;
 
     if (imgW / imgH > spec.ratio) {
       sH = imgH;
@@ -1754,7 +1976,7 @@ const showcaseTotalKb = Math.round(
     drawCropPreview();
   });
 
-  document.querySelectorAll('.btn-focal').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('.btn-focal').forEach((btn) => {
     btn.addEventListener('click', () => {
       focalPoint.x = parseFloat(btn.dataset.x || '0.5');
       focalPoint.y = parseFloat(btn.dataset.y || '0.5');
@@ -1769,17 +1991,17 @@ const showcaseTotalKb = Math.round(
   document.getElementById('btn-apply-crop')?.addEventListener('click', async () => {
     if (!currentImageElement || !activeSlot) return;
     const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
-    const applyBtn = document.getElementById('btn-apply-crop');
+    const applyBtn = document.getElementById('btn-apply-crop') as HTMLButtonElement | null;
     const spinner = document.getElementById('apply-crop-spinner');
 
     try {
-      applyBtn.disabled = true;
+      if (applyBtn) applyBtn.disabled = true;
       if (spinner) spinner.hidden = false;
 
       // Master crop calculation
       const imgW = currentImageElement.naturalWidth;
       const imgH = currentImageElement.naturalHeight;
-      let sW, sH;
+      let sW: number, sH: number;
       if (imgW / imgH > spec.ratio) {
         sH = imgH;
         sW = Math.round(imgH * spec.ratio);
@@ -1797,29 +2019,33 @@ const showcaseTotalKb = Math.round(
       masterCanvas.width = spec.width;
       masterCanvas.height = spec.height;
       const masterCtx = masterCanvas.getContext('2d');
+      if (!masterCtx) throw new Error('Could not create canvas context');
       masterCtx.imageSmoothingEnabled = true;
       masterCtx.imageSmoothingQuality = 'high';
       masterCtx.drawImage(currentImageElement, sx, sy, sW, sH, 0, 0, spec.width, spec.height);
 
       // Convert to WebP blob (naturally strips EXIF location metadata)
-      const masterBlob = await new Promise((resolve) =>
+      const masterBlob = await new Promise<Blob | null>((resolve) =>
         masterCanvas.toBlob(resolve, 'image/webp', 0.88)
       );
+      if (!masterBlob) throw new Error('Could not generate WebP blob');
 
       // Generate variants: 320, 640, 960, 1600
       const variantWidths = [320, 640, 960, 1600];
-      const variantBlobs = {};
+      const variantBlobs: Record<number, Blob | null> = {};
       for (const vw of variantWidths) {
         const vCanvas = document.createElement('canvas');
         vCanvas.width = vw;
         vCanvas.height = Math.round(vw / spec.ratio);
         const vCtx = vCanvas.getContext('2d');
-        vCtx.imageSmoothingEnabled = true;
-        vCtx.imageSmoothingQuality = 'high';
-        vCtx.drawImage(masterCanvas, 0, 0, vCanvas.width, vCanvas.height);
-        variantBlobs[vw] = await new Promise((resolve) =>
-          vCanvas.toBlob(resolve, 'image/webp', 0.82)
-        );
+        if (vCtx) {
+          vCtx.imageSmoothingEnabled = true;
+          vCtx.imageSmoothingQuality = 'high';
+          vCtx.drawImage(masterCanvas, 0, 0, vCanvas.width, vCanvas.height);
+          variantBlobs[vw] = await new Promise<Blob | null>((resolve) =>
+            vCanvas.toBlob(resolve, 'image/webp', 0.82)
+          );
+        }
       }
 
       // Build formData for upload API
@@ -1833,8 +2059,9 @@ const showcaseTotalKb = Math.round(
       formData.append('file', masterBlob, cleanFileName);
 
       for (const vw of variantWidths) {
-        if (variantBlobs[vw]) {
-          formData.append(`variant_${vw}`, variantBlobs[vw], `v${vw}_${cleanFileName}`);
+        const vb = variantBlobs[vw];
+        if (vb) {
+          formData.append(`variant_${vw}`, vb, `v${vw}_${cleanFileName}`);
         }
       }
 
@@ -1876,10 +2103,10 @@ const showcaseTotalKb = Math.round(
       updateSlotUi(activeSlot);
       cropDialog?.close();
       showBanner(`${spec.label} uploaded and variants generated successfully.`);
-    } catch (err) {
+    } catch (err: any) {
       alert(`Upload error: ${err.message}`);
     } finally {
-      applyBtn.disabled = false;
+      if (applyBtn) applyBtn.disabled = false;
       if (spinner) spinner.hidden = true;
     }
   });
@@ -1904,7 +2131,7 @@ const showcaseTotalKb = Math.round(
     const grid = document.getElementById('lib-grid-container');
     if (!grid) return;
 
-    let items = [];
+    let items: any[] = [];
     if (tab === 'covers' || tab === 'all') {
       items = items.concat(libraryItems.covers.map((c) => ({ ...c, type: 'cover' })));
     }
@@ -1928,11 +2155,12 @@ const showcaseTotalKb = Math.round(
       )
       .join('');
 
-    grid.querySelectorAll('.si-lib-card').forEach((card) => {
+    grid.querySelectorAll<HTMLElement>('.si-lib-card').forEach((card) => {
       card.addEventListener('click', () => {
         const url = card.dataset.url;
         const filename = card.dataset.filename;
-        const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+        const slotKey = activeSlot || 'maker_photo';
+        const spec = SLOT_SPECS[slotKey] || SLOT_SPECS.maker_photo;
 
         if (activeSlot === 'channel_showcase') {
           if (!state.channel_showcase.images) state.channel_showcase.images = [];
@@ -1943,7 +2171,7 @@ const showcaseTotalKb = Math.round(
             height: spec.height,
             size_bytes: 140000,
           };
-        } else {
+        } else if (activeSlot) {
           state[activeSlot] = {
             ...state[activeSlot],
             url,
@@ -1954,16 +2182,16 @@ const showcaseTotalKb = Math.round(
           };
         }
 
-        updateSlotUi(activeSlot);
+        if (activeSlot) updateSlotUi(activeSlot);
         libraryDialog?.close();
         showBanner(`Selected ${filename || 'image'} for ${spec.label}.`);
       });
     });
   }
 
-  document.querySelectorAll('.btn-slot-library').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('.btn-slot-library').forEach((btn) => {
     btn.addEventListener('click', () => {
-      activeSlot = btn.dataset.slot;
+      activeSlot = btn.dataset.slot || null;
       loadLibrary();
       libraryDialog?.showModal();
     });
@@ -1974,7 +2202,7 @@ const showcaseTotalKb = Math.round(
     showcaseDialog?.showModal();
   });
 
-  document.querySelectorAll('.btn-sc-lib').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('.btn-sc-lib').forEach((btn) => {
     btn.addEventListener('click', () => {
       activeSlot = 'channel_showcase';
       activeShowcaseIndex = parseInt(btn.dataset.index || '0', 10);
@@ -1984,7 +2212,7 @@ const showcaseTotalKb = Math.round(
     });
   });
 
-  document.querySelectorAll('.si-lib-tab').forEach((t) => {
+  document.querySelectorAll<HTMLElement>('.si-lib-tab').forEach((t) => {
     t.addEventListener('click', () => {
       document.querySelectorAll('.si-lib-tab').forEach((x) => x.classList.remove('is-active'));
       t.classList.add('is-active');
@@ -1998,21 +2226,26 @@ const showcaseTotalKb = Math.round(
   document.getElementById('btn-done-showcase')?.addEventListener('click', () => showcaseDialog?.close());
 
   // --- Dynamic Slot UI updater ---
-  function updateSlotUi(slot) {
+  function updateSlotUi(slot: string) {
     if (slot === 'channel_showcase') {
-      const images = state.channel_showcase.images || [];
+      const images = state.channel_showcase?.images || [];
       const mosaic = document.querySelector('.si-preview-mosaic');
       if (mosaic) {
         mosaic.innerHTML = images
           .slice(0, 3)
           .map(
-            (img, i) => `
+            (img: any, i: number) => `
             <div class="si-mosaic-thumb">
               ${img.url ? `<img src="${img.url}" alt="${img.alt || `Showcase ${i + 1}`}" class="si-thumb-img" />` : '<div class="si-thumb-fallback"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>'}
             </div>
           `
           )
-          .join('');
+          .join('') + `
+            <div class="si-preview-overlay">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Manage showcase</span>
+            </div>
+          `;
       }
       return;
     }
@@ -2025,7 +2258,15 @@ const showcaseTotalKb = Math.round(
 
     if (item && item.url) {
       if (previewWrap) {
-        previewWrap.innerHTML = `<img id="preview-img-${slot}" src="${item.url}" alt="${item.alt || ''}" class="si-preview-img" />`;
+        previewWrap.innerHTML = `
+          <div class="si-preview-img-box">
+            <img id="preview-img-${slot}" src="${item.url}" alt="${item.alt || ''}" class="si-preview-img" />
+            <div class="si-preview-overlay">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Change image</span>
+            </div>
+          </div>
+        `;
       }
       if (statusChip) {
         statusChip.className = 'si-chip si-chip--good_size';
@@ -2039,6 +2280,7 @@ const showcaseTotalKb = Math.round(
         rm.type = 'button';
         rm.className = 'btn-slot-remove admin-btn admin-btn--danger-outline';
         rm.dataset.slot = slot;
+        rm.title = 'Remove image';
         rm.innerHTML = '<span>Remove</span>';
         rm.addEventListener('click', () => {
           if (confirm(`Remove this image? The page will show its designed fallback.`)) {
@@ -2056,8 +2298,12 @@ const showcaseTotalKb = Math.round(
       if (previewWrap) {
         previewWrap.innerHTML = `
           <div class="si-fallback-box" id="fallback-box-${slot}">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-            <span class="si-fallback-text">${spec.width} × ${spec.height} px<br />${spec.label} fallback</span>
+            <div class="si-fallback-icon-wrap">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <span class="si-fallback-action">Click to upload image</span>
+            <span class="si-fallback-text">${spec.width} × ${spec.height} px (${spec.ratioLabel || ''})</span>
+            <span class="si-fallback-drag">or drag & drop file</span>
           </div>
         `;
       }
@@ -2074,7 +2320,7 @@ const showcaseTotalKb = Math.round(
   }
 
   // --- Revision Restore ---
-  document.querySelectorAll('.btn-restore-revision').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('.btn-restore-revision').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const revId = btn.dataset.id;
       if (!confirm(`Restore site images and links to Revision #${revId}?`)) return;
@@ -2092,7 +2338,7 @@ const showcaseTotalKb = Math.round(
         if (!data.ok) throw new Error(data.err || 'Failed to restore');
         showBanner(`Successfully restored revision #${revId}. Reloading page...`);
         setTimeout(() => window.location.reload(), 1000);
-      } catch (e) {
+      } catch (e: any) {
         alert(`Restore failed: ${e.message}`);
       }
     });
@@ -2100,15 +2346,15 @@ const showcaseTotalKb = Math.round(
 
   // --- Save Changes Handler ---
   async function saveAllChanges() {
-    const saveBtns = document.querySelectorAll('.btn-save-action');
+    const saveBtns = document.querySelectorAll<HTMLButtonElement>('.btn-save-action');
     saveBtns.forEach((b) => (b.disabled = true));
 
     try {
       // Collect alt texts
-      const altMaker = document.getElementById('alt-maker_photo')?.value?.trim();
-      const altHiw = document.getElementById('alt-how_it_works_image')?.value?.trim();
-      const altShowcase = document.getElementById('alt-channel_showcase')?.value?.trim();
-      const altShare = document.getElementById('alt-default_share_image')?.value?.trim();
+      const altMaker = (document.getElementById('alt-maker_photo') as HTMLInputElement)?.value?.trim();
+      const altHiw = (document.getElementById('alt-how_it_works_image') as HTMLInputElement)?.value?.trim();
+      const altShowcase = (document.getElementById('alt-channel_showcase') as HTMLInputElement)?.value?.trim();
+      const altShare = (document.getElementById('alt-default_share_image') as HTMLInputElement)?.value?.trim();
 
       if (state.maker_photo?.url && !altMaker) {
         throw new Error('Alt text is required for Maker photo.');
@@ -2129,11 +2375,11 @@ const showcaseTotalKb = Math.round(
       state.default_share_image.alt = altShare || '';
 
       // Collect social links
-      const yt = document.getElementById('social-youtube')?.value?.trim();
-      const ig = document.getElementById('social-instagram')?.value?.trim();
-      const gh = document.getElementById('social-github')?.value?.trim();
-      const li = document.getElementById('social-linkedin')?.value?.trim();
-      const showIcons = document.getElementById('social-show-icons')?.checked;
+      const yt = (document.getElementById('social-youtube') as HTMLInputElement)?.value?.trim();
+      const ig = (document.getElementById('social-instagram') as HTMLInputElement)?.value?.trim();
+      const gh = (document.getElementById('social-github') as HTMLInputElement)?.value?.trim();
+      const li = (document.getElementById('social-linkedin') as HTMLInputElement)?.value?.trim();
+      const showIcons = (document.getElementById('social-show-icons') as HTMLInputElement)?.checked;
 
       state.social_links = {
         youtube: yt || '',
@@ -2158,7 +2404,7 @@ const showcaseTotalKb = Math.round(
       }
 
       showBanner('All site images and social links saved successfully! Public pages updated.');
-    } catch (err) {
+    } catch (err: any) {
       showBanner(err.message, true);
     } finally {
       saveBtns.forEach((b) => (b.disabled = false));

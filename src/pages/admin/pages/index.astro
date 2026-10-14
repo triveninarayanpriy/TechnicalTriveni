@@ -690,9 +690,13 @@ const legalCount = pages.filter(p => p.category === 'legal').length;
   }
 </style>
 
-<script is:inline define:vars={{ csrf }}>
+  <input type="hidden" id="pages-csrf" value={csrf} />
+
+<script>
+  const csrf = (document.getElementById('pages-csrf') as HTMLInputElement)?.value || '';
+
   // Toast helper
-  function showToast(message, isError = false) {
+  function showToast(message: string, isError = false) {
     const toast = document.getElementById('page-toast');
     if (!toast) return;
     toast.textContent = message;

@@ -913,9 +913,15 @@ const initialPreviewHtml = renderMarkdown(page.markdown);
   }
 </style>
 
-<script is:inline define:vars={{ csrf, slug }}>
+  <input type="hidden" id="page-csrf" value={csrf} />
+  <input type="hidden" id="page-slug" value={slug} />
+
+<script>
+  const csrf = (document.getElementById('page-csrf') as HTMLInputElement)?.value || '';
+  const slug = (document.getElementById('page-slug') as HTMLInputElement)?.value || '';
+
   // Simple markdown-to-HTML parser for real-time live preview
-  function renderMarkdown(md) {
+  function renderMarkdown(md: string) {
     if (!md) return '<p style="color:#94a3b8; font-style:italic;">No content to preview.</p>';
     let html = md
       .replace(/&/g, '&amp;')
