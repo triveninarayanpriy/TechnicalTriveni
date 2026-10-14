@@ -106,6 +106,46 @@ export interface Troubleshoot {
 export interface ProjectLink {
   id: number; project_id: number; label: string; url: string; kind: string; sort: number;
 }
+export interface SiteAssetSlot {
+  url: string;
+  alt: string;
+  filename?: string;
+  width?: number;
+  height?: number;
+  size_bytes?: number;
+  variants?: Record<string, string>;
+}
+export interface ChannelShowcaseItem {
+  url: string;
+  alt?: string;
+  filename?: string;
+  width?: number;
+  height?: number;
+  size_bytes?: number;
+  variants?: Record<string, string>;
+}
+export interface SiteAssetsConfig {
+  maker_photo: SiteAssetSlot;
+  how_it_works_image: SiteAssetSlot;
+  channel_showcase: {
+    images: ChannelShowcaseItem[];
+    alt: string;
+  };
+  default_share_image: SiteAssetSlot;
+  social_links: {
+    youtube: string;
+    instagram: string;
+    github: string;
+    linkedin: string;
+    show_icons: boolean;
+  };
+}
+export interface SiteAssetRevision {
+  id: number;
+  data_json: string;
+  note: string;
+  created_at: number;
+}
 export interface Order {
   id: string;
   project_id: number;
@@ -790,6 +830,180 @@ export async function getSettings(db: D1Database): Promise<Record<string, string
 export async function setSetting(db: D1Database, key: string, value: string): Promise<void> {
   await db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
     .bind(key, value).run();
+}
+
+export const DEFAULT_SITE_ASSETS: SiteAssetsConfig = {
+  maker_photo: {
+    url: '/brand/profile.jpg',
+    alt: 'Triveni on a hillside viewpoint',
+    filename: 'maker.webp',
+    width: 1200,
+    height: 1500,
+    size_bytes: 148000,
+  },
+  how_it_works_image: {
+    url: '',
+    alt: 'Electronics project pack contents',
+    filename: '',
+    width: 1400,
+    height: 1000,
+    size_bytes: 0,
+  },
+  channel_showcase: {
+    images: [
+      { url: '/covers/esp32-weather.png', alt: 'ESP32 Weather Station', width: 1600, height: 900, filename: 'esp32-weather.png', size_bytes: 135000 },
+      { url: '/covers/line-robot.png', alt: 'Line Following Robot', width: 1600, height: 900, filename: 'line-robot.png', size_bytes: 142000 },
+      { url: '/covers/ai-camera.png', alt: 'AI Camera System', width: 1600, height: 900, filename: 'ai-camera.png', size_bytes: 135000 },
+    ],
+    alt: 'Drone, ESP32 and components pack covers',
+  },
+  default_share_image: {
+    url: '/og-default.png',
+    alt: 'Technical Triveni project packs',
+    filename: 'share-default.webp',
+    width: 1200,
+    height: 630,
+    size_bytes: 96000,
+  },
+  social_links: {
+    youtube: 'https://youtube.com/@TechnicalTriveni',
+    instagram: 'https://instagram.com/technicaltriveni',
+    github: 'https://github.com/triveninarayanpriy',
+    linkedin: 'https://linkedin.com/in/triveninarayanpriy',
+    show_icons: true,
+  },
+};
+
+export async function getSiteAssetsConfig(db: D1Database): Promise<SiteAssetsConfig> {
+  try {
+    const raw = await getSetting(db, 'site_assets_config');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        maker_photo: { ...DEFAULT_SITE_ASSETS.maker_photo, ...(parsed.maker_photo || {}) },
+        how_it_works_image: { ...DEFAULT_SITE_ASSETS.how_it_works_image, ...(parsed.how_it_works_image || {}) },
+        channel_showcase: {
+          images: Array.isArray(parsed.channel_showcase?.images) && parsed.channel_showcase.images.length > 0
+            ? parsed.channel_showcase.images
+            : DEFAULT_SITE_ASSETS.channel_showcase.images,
+          alt: parsed.channel_showcase?.alt || DEFAULT_SITE_ASSETS.channel_showcase.alt,
+        },
+        default_share_image: { ...DEFAULT_SITE_ASSETS.default_share_image, ...(parsed.default_share_image || {}) },
+        social_links: { ...DEFAULT_SITE_ASSETS.social_links, ...(parsed.social_links || {}) },
+      };
+    }
+  } catch (e) {
+    console.error('Error reading site_assets_config:', e);
+  }
+
+  // Fallback to individual settings if present
+  try {
+    const s = await getSettings(db);
+    return {
+      maker_photo: {
+        url: s.maker_photo_url || DEFAULT_SITE_ASSETS.maker_photo.url,
+        alt: s.maker_photo_alt || DEFAULT_SITE_ASSETS.maker_photo.alt,
+        filename: s.maker_photo_filename || DEFAULT_SITE_ASSETS.maker_photo.filename,
+        width: Number(s.maker_photo_width) || DEFAULT_SITE_ASSETS.maker_photo.width,
+        height: Number(s.maker_photo_height) || DEFAULT_SITE_ASSETS.maker_photo.height,
+        size_bytes: Number(s.maker_photo_size) || DEFAULT_SITE_ASSETS.maker_photo.size_bytes,
+      },
+      how_it_works_image: {
+        url: s.hiw_image_url || '',
+        alt: s.hiw_image_alt || DEFAULT_SITE_ASSETS.how_it_works_image.alt,
+        filename: s.hiw_image_filename || '',
+        width: Number(s.hiw_image_width) || DEFAULT_SITE_ASSETS.how_it_works_image.width,
+        height: Number(s.hiw_image_height) || DEFAULT_SITE_ASSETS.how_it_works_image.height,
+        size_bytes: Number(s.hiw_image_size) || 0,
+      },
+      channel_showcase: DEFAULT_SITE_ASSETS.channel_showcase,
+      default_share_image: {
+        url: s.default_share_image_url || DEFAULT_SITE_ASSETS.default_share_image.url,
+        alt: s.default_share_image_alt || DEFAULT_SITE_ASSETS.default_share_image.alt,
+        filename: s.default_share_image_filename || DEFAULT_SITE_ASSETS.default_share_image.filename,
+        width: Number(s.default_share_image_width) || DEFAULT_SITE_ASSETS.default_share_image.width,
+        height: Number(s.default_share_image_height) || DEFAULT_SITE_ASSETS.default_share_image.height,
+        size_bytes: Number(s.default_share_image_size) || DEFAULT_SITE_ASSETS.default_share_image.size_bytes,
+      },
+      social_links: {
+        youtube: s.social_youtube !== undefined && s.social_youtube !== null && s.social_youtube !== '' ? s.social_youtube : DEFAULT_SITE_ASSETS.social_links.youtube,
+        instagram: s.social_instagram !== undefined && s.social_instagram !== null && s.social_instagram !== '' ? s.social_instagram : DEFAULT_SITE_ASSETS.social_links.instagram,
+        github: s.social_github !== undefined && s.social_github !== null && s.social_github !== '' ? s.social_github : DEFAULT_SITE_ASSETS.social_links.github,
+        linkedin: s.social_linkedin !== undefined && s.social_linkedin !== null && s.social_linkedin !== '' ? s.social_linkedin : DEFAULT_SITE_ASSETS.social_links.linkedin,
+        show_icons: s.social_show_icons === '0' ? false : true,
+      },
+    };
+  } catch {
+    return DEFAULT_SITE_ASSETS;
+  }
+}
+
+export async function saveSiteAssetsConfig(db: D1Database, config: SiteAssetsConfig, note: string = 'Updated site images and links'): Promise<number> {
+  const jsonStr = JSON.stringify(config);
+  const nowTs = Math.floor(Date.now() / 1000);
+
+  // 1. Save JSON config
+  await setSetting(db, 'site_assets_config', jsonStr);
+
+  // 2. Mirror individual keys for quick lookups & backward compatibility
+  await setSetting(db, 'maker_photo_url', config.maker_photo?.url || '');
+  await setSetting(db, 'maker_photo_alt', config.maker_photo?.alt || '');
+  await setSetting(db, 'hiw_image_url', config.how_it_works_image?.url || '');
+  await setSetting(db, 'hiw_image_alt', config.how_it_works_image?.alt || '');
+  await setSetting(db, 'default_share_image_url', config.default_share_image?.url || '');
+  await setSetting(db, 'default_share_image_alt', config.default_share_image?.alt || '');
+  await setSetting(db, 'social_youtube', config.social_links?.youtube || '');
+  await setSetting(db, 'social_instagram', config.social_links?.instagram || '');
+  await setSetting(db, 'social_github', config.social_links?.github || '');
+  await setSetting(db, 'social_linkedin', config.social_links?.linkedin || '');
+  await setSetting(db, 'social_show_icons', config.social_links?.show_icons ? '1' : '0');
+  await setSetting(db, 'site_images_updated_at', String(Date.now()));
+
+  // 3. Save revision
+  try {
+    const res = await db.prepare(
+      'INSERT INTO site_assets_revisions (data_json, note, created_at) VALUES (?, ?, ?)'
+    ).bind(jsonStr, note, nowTs).run();
+
+    // 4. Prune older revisions to keep latest 5
+    await db.prepare(`
+      DELETE FROM site_assets_revisions
+      WHERE id NOT IN (
+        SELECT id FROM site_assets_revisions ORDER BY id DESC LIMIT 5
+      )
+    `).run();
+
+    return res.meta.last_row_id as number;
+  } catch (err) {
+    console.error('Error saving site_assets_revisions:', err);
+    return 0;
+  }
+}
+
+export async function getSiteAssetsRevisions(db: D1Database, limit: number = 5): Promise<SiteAssetRevision[]> {
+  try {
+    const res = await db.prepare(
+      'SELECT id, data_json, note, created_at FROM site_assets_revisions ORDER BY id DESC LIMIT ?'
+    ).bind(limit).all<SiteAssetRevision>();
+    return res.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function restoreSiteAssetsRevision(db: D1Database, revisionId: number): Promise<SiteAssetsConfig | null> {
+  try {
+    const row = await db.prepare(
+      'SELECT data_json FROM site_assets_revisions WHERE id = ?'
+    ).bind(revisionId).first<{ data_json: string }>();
+    if (!row || !row.data_json) return null;
+    const config: SiteAssetsConfig = JSON.parse(row.data_json);
+    await saveSiteAssetsConfig(db, config, `Restored from revision #${revisionId}`);
+    return config;
+  } catch (err) {
+    console.error('Error restoring site asset revision:', err);
+    return null;
+  }
 }
 
 /* ------------------------------------------------------------ contact ---- */

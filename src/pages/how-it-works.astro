@@ -6,14 +6,21 @@ import { SITE } from '../lib/site';
 import { getSetting } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 import { getEffectiveContent } from '../lib/pages';
+import { getSiteAssets, buildSrcSet } from '../lib/site-assets';
 
-const [pageData, hiwSettingImage] = await Promise.all([
+const [pageData, siteAssets] = await Promise.all([
   getEffectiveContent(env.DB, 'how-it-works'),
-  getSetting(env.DB, 'hiw_image'),
+  getSiteAssets(env.DB),
 ]);
 if (pageData.published === 0) return Astro.redirect('/404');
 const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null;
-const hiwImage = hiwSettingImage || pageData.image_url || '/covers/student-tools-2026.png';
+
+const hiwSlot = siteAssets.how_it_works_image;
+const hiwImage = hiwSlot?.url || pageData.image_url || '';
+const hasHiwImage = !!hiwImage.trim();
+const hiwAlt = hiwSlot?.alt || 'Electronics project pack contents';
+const hiwSrcSet = buildSrcSet(hiwSlot || { url: '' });
+const ytLink = siteAssets.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
 
 const steps = [
   {
@@ -121,7 +128,7 @@ const faqs = [
           </p>
           <div class="hiw-hero-actions">
             <a href="/projects" class="btn-hiw-primary">Browse packs</a>
-            <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn-hiw-secondary">
+            <a href={ytLink || '#'} target="_blank" rel="noopener noreferrer" class="btn-hiw-secondary">
               <Icon name="play" size={16} /> <span>Watch</span>
             </a>
           </div>
@@ -204,16 +211,20 @@ const faqs = [
           <!-- Left: Image with 3 floating pills -->
           <div class="hiw-image-col">
             <div class="hiw-image-card">
-              <img
-                src={hiwImage}
-                alt="Electronics project pack contents"
-                class="hiw-pack-img"
-                width="640"
-                height="400"
-                loading="lazy"
-                onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
-              />
-              <div class="hiw-pack-fallback" style="display: none;" aria-hidden="true">
+              {hasHiwImage && (
+                <img
+                  src={hiwImage}
+                  srcset={hiwSrcSet || undefined}
+                  sizes="(max-width: 768px) 100vw, 640px"
+                  alt={hiwAlt}
+                  class="hiw-pack-img"
+                  width={hiwSlot?.width || 1400}
+                  height={hiwSlot?.height || 1000}
+                  loading="lazy"
+                  onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+                />
+              )}
+              <div class="hiw-pack-fallback" style={hasHiwImage ? 'display: none;' : 'display: flex;'} aria-hidden={hasHiwImage ? 'true' : 'false'}>
                 <div class="hiw-fallback-blueprint">
                   <Icon name="schematic" size={56} />
                   <span class="hiw-fallback-title">Hardware · Firmware · Mechanics</span>

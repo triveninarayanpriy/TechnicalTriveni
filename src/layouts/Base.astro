@@ -54,10 +54,18 @@ interface Props {
 }
 
 
+let defaultOgImage = '/og-default.png';
+try {
+  const customShare = await getSetting(env.DB, 'default_share_image_url');
+  if (customShare && customShare.trim()) {
+    defaultOgImage = customShare;
+  }
+} catch {}
+
 const {
   title,
   description = SITE.description,
-  ogImage = '/og-default.png',
+  ogImage = defaultOgImage,
   noindex = false,
   wide = false,
   jsonLd,

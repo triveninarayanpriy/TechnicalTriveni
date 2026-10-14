@@ -1,0 +1,2170 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { getSiteAssets, SITE_IMAGE_SPECS, computeSlotStatus } from '../../../lib/site-assets';
+import { getSiteAssetsRevisions } from '../../../lib/db';
+
+const config = await getSiteAssets(env.DB);
+const revisions = await getSiteAssetsRevisions(env.DB, 5);
+const csrf = Astro.locals.csrfToken;
+
+// Initial slot statuses
+const makerStatus = computeSlotStatus(config.maker_photo, SITE_IMAGE_SPECS.maker_photo);
+const hiwStatus = computeSlotStatus(config.how_it_works_image, SITE_IMAGE_SPECS.how_it_works_image);
+const shareStatus = computeSlotStatus(config.default_share_image, SITE_IMAGE_SPECS.default_share_image);
+
+// Compute showcase summary
+const showcaseImages = config.channel_showcase?.images || [];
+const showcaseCount = showcaseImages.filter((img) => img.url && img.url.trim()).length;
+const showcaseTotalKb = Math.round(
+  showcaseImages.reduce((acc, curr) => acc + (curr.size_bytes || 135000), 0) / 1024
+);
+---
+
+<Admin title="Site images and links" active="settings" hideTabBar={true}>
+  <div class="site-images-page">
+    <!-- Top Action Bar (Desktop + Mobile) -->
+    <header class="si-header">
+      <div class="si-header__left">
+        <a href="/admin/settings" class="si-back-btn" title="Back to Settings">
+          <Icon name="chevron-left" size={20} />
+        </a>
+        <h1 class="si-title">Site images and links</h1>
+      </div>
+      <div class="si-header__actions">
+        <button type="button" id="btn-save-top" class="admin-btn admin-btn--primary btn-save-action">
+          <Icon name="check-circle" size={17} />
+          <span>Save changes</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Notification Toast / Banner -->
+    <div id="si-banner" class="si-banner" hidden>
+      <span id="si-banner-msg"></span>
+      <button type="button" class="si-banner-close" onclick="this.parentElement.hidden=true">✕</button>
+    </div>
+
+    <!-- Main Grid Layout -->
+    <div class="si-layout-grid">
+      <!-- LEFT COLUMN: Image Slot Cards -->
+      <main class="si-slots-column">
+        <!-- SLOT 1: Maker Photo -->
+        <article class="si-card" id="slot-card-maker_photo" data-slot="maker_photo">
+          <div class="si-card__preview-col">
+            <div class="si-preview-wrap ratio-4-5">
+              {config.maker_photo?.url ? (
+                <img
+                  id="preview-img-maker_photo"
+                  src={config.maker_photo.url}
+                  alt={config.maker_photo.alt || 'Maker photo'}
+                  class="si-preview-img"
+                  loading="lazy"
+                />
+              ) : (
+                <div class="si-fallback-box" id="fallback-box-maker_photo">
+                  <Icon name="image" size={32} />
+                  <span class="si-fallback-text">1200 × 1500 px<br />4:5</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div class="si-card__body-col">
+            <div class="si-card__head">
+              <div class="si-card__title-row">
+                <h2 class="si-card__title">Maker photo</h2>
+                <span class="si-chip si-chip--used">Home, About</span>
+              </div>
+              <p class="si-card__specs">Recommended 1200 × 1500 px (4:5). JPG, PNG or WebP, up to 5 MB.</p>
+            </div>
+
+            <div class="si-status-row">
+              <span class:list={['si-chip', `si-chip--${makerStatus.status}`]} id="status-chip-maker_photo">
+                {makerStatus.label}
+              </span>
+              <span class="si-file-meta" id="file-meta-maker_photo">
+                {config.maker_photo?.url
+                  ? `${config.maker_photo.filename || 'maker.webp'}, ${config.maker_photo.width || 1200} × ${config.maker_photo.height || 1500}, ${Math.round((config.maker_photo.size_bytes || 148000) / 1024)} KB`
+                  : 'No image yet. The page shows a designed fallback.'}
+              </span>
+            </div>
+
+            <div class="si-field-group">
+              <label class="si-label" for="alt-maker_photo">Alt text</label>
+              <input
+                type="text"
+                id="alt-maker_photo"
+                class="si-input"
+                value={config.maker_photo?.alt || ''}
+                placeholder="Triveni on a hillside viewpoint"
+                required
+              />
+            </div>
+
+            <div class="si-btn-row">
+              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="maker_photo">
+                <Icon name="upload" size={16} />
+                <span>Upload</span>
+              </button>
+              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="maker_photo">
+                <span>Library</span>
+              </button>
+              {config.maker_photo?.url && (
+                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="maker_photo">
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </article>
+
+        <!-- SLOT 2: How It Works Image -->
+        <article class="si-card" id="slot-card-how_it_works_image" data-slot="how_it_works_image">
+          <div class="si-card__preview-col">
+            <div class="si-preview-wrap ratio-7-5">
+              {config.how_it_works_image?.url ? (
+                <img
+                  id="preview-img-how_it_works_image"
+                  src={config.how_it_works_image.url}
+                  alt={config.how_it_works_image.alt || 'How it works'}
+                  class="si-preview-img"
+                  loading="lazy"
+                />
+              ) : (
+                <div class="si-fallback-box" id="fallback-box-how_it_works_image">
+                  <Icon name="image" size={32} />
+                  <span class="si-fallback-text">1400 × 1000 px<br />7:5</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div class="si-card__body-col">
+            <div class="si-card__head">
+              <div class="si-card__title-row">
+                <h2 class="si-card__title">How it works image</h2>
+                <span class="si-chip si-chip--used">How it works</span>
+              </div>
+              <p class="si-card__specs">
+                Recommended 1400 × 1000 px (7:5). Shown beside "Everything you need to finish the build".
+              </p>
+            </div>
+
+            <div class="si-status-row">
+              <span class:list={['si-chip', `si-chip--${hiwStatus.status}`]} id="status-chip-how_it_works_image">
+                {hiwStatus.label}
+              </span>
+              <span class="si-file-meta" id="file-meta-how_it_works_image">
+                {config.how_it_works_image?.url
+                  ? `${config.how_it_works_image.filename || 'how-it-works.webp'}, ${config.how_it_works_image.width || 1400} × ${config.how_it_works_image.height || 1000}, ${Math.round((config.how_it_works_image.size_bytes || 185000) / 1024)} KB`
+                  : 'No image yet. The page shows a designed fallback instead of a broken image.'}
+              </span>
+            </div>
+
+            <div class="si-field-group">
+              <label class="si-label" for="alt-how_it_works_image">Alt text</label>
+              <input
+                type="text"
+                id="alt-how_it_works_image"
+                class="si-input"
+                value={config.how_it_works_image?.alt || ''}
+                placeholder="Electronics project pack contents"
+                required
+              />
+            </div>
+
+            <div class="si-btn-row">
+              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="how_it_works_image">
+                <Icon name="upload" size={16} />
+                <span>Upload</span>
+              </button>
+              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="how_it_works_image">
+                <span>Library</span>
+              </button>
+              {config.how_it_works_image?.url && (
+                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="how_it_works_image">
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </article>
+
+        <!-- SLOT 3: Channel Showcase -->
+        <article class="si-card" id="slot-card-channel_showcase" data-slot="channel_showcase">
+          <div class="si-card__preview-col">
+            <div class="si-preview-wrap si-preview-mosaic">
+              {showcaseImages.slice(0, 3).map((img, i) => (
+                <div class="si-mosaic-thumb">
+                  {img.url ? (
+                    <img src={img.url} alt={img.alt || `Showcase ${i + 1}`} class="si-thumb-img" loading="lazy" />
+                  ) : (
+                    <div class="si-thumb-fallback">
+                      <Icon name="image" size={20} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div class="si-card__body-col">
+            <div class="si-card__head">
+              <div class="si-card__title-row">
+                <h2 class="si-card__title">Channel showcase</h2>
+                <span class="si-chip si-chip--used">Home</span>
+              </div>
+              <p class="si-card__specs">
+                Three 16:9 images, recommended 1600 × 900 px each. Pick pack covers or upload your own.
+              </p>
+            </div>
+
+            <div class="si-status-row">
+              <span class="si-chip si-chip--good_size" id="status-chip-channel_showcase">
+                {showcaseCount === 3 ? 'Good size' : 'Partially set'}
+              </span>
+              <span class="si-file-meta" id="file-meta-channel_showcase">
+                {`${showcaseCount} images, 1600 × 900, ${showcaseTotalKb || 412} KB total`}
+              </span>
+            </div>
+
+            <div class="si-field-group">
+              <label class="si-label" for="alt-channel_showcase">Alt text</label>
+              <input
+                type="text"
+                id="alt-channel_showcase"
+                class="si-input"
+                value={config.channel_showcase?.alt || ''}
+                placeholder="Drone, ESP32 and components pack covers"
+                required
+              />
+            </div>
+
+            <div class="si-btn-row">
+              <button type="button" class="btn-showcase-manage admin-btn admin-btn--primary" id="btn-manage-showcase">
+                <Icon name="upload" size={16} />
+                <span>Upload</span>
+              </button>
+              <button type="button" class="btn-showcase-library admin-btn admin-btn--secondary" id="btn-library-showcase">
+                <span>Library</span>
+              </button>
+              <button type="button" class="btn-showcase-reset admin-btn admin-btn--danger-outline" id="btn-reset-showcase">
+                <span>Remove</span>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <!-- SLOT 4: Default Share Image -->
+        <article class="si-card" id="slot-card-default_share_image" data-slot="default_share_image">
+          <div class="si-card__preview-col">
+            <div class="si-preview-wrap ratio-og">
+              {config.default_share_image?.url ? (
+                <img
+                  id="preview-img-default_share_image"
+                  src={config.default_share_image.url}
+                  alt={config.default_share_image.alt || 'Default share image'}
+                  class="si-preview-img"
+                  loading="lazy"
+                />
+              ) : (
+                <div class="si-fallback-box" id="fallback-box-default_share_image">
+                  <Icon name="image" size={32} />
+                  <span class="si-fallback-text">1200 × 630 px<br />1.91:1</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div class="si-card__body-col">
+            <div class="si-card__head">
+              <div class="si-card__title-row">
+                <h2 class="si-card__title">Default share image</h2>
+                <span class="si-chip si-chip--used">Link previews</span>
+              </div>
+              <p class="si-card__specs">Recommended 1200 × 630 px. Used when a page has no cover.</p>
+            </div>
+
+            <div class="si-status-row">
+              <span class:list={['si-chip', `si-chip--${shareStatus.status}`]} id="status-chip-default_share_image">
+                {shareStatus.label}
+              </span>
+              <span class="si-file-meta" id="file-meta-default_share_image">
+                {config.default_share_image?.url
+                  ? `${config.default_share_image.filename || 'share-default.webp'}, ${config.default_share_image.width || 1200} × ${config.default_share_image.height || 630}, ${Math.round((config.default_share_image.size_bytes || 96000) / 1024)} KB`
+                  : 'No image yet. Link previews use default brand card.'}
+              </span>
+            </div>
+
+            <div class="si-field-group">
+              <label class="si-label" for="alt-default_share_image">Alt text</label>
+              <input
+                type="text"
+                id="alt-default_share_image"
+                class="si-input"
+                value={config.default_share_image?.alt || ''}
+                placeholder="Technical Triveni project packs"
+                required
+              />
+            </div>
+
+            <div class="si-btn-row">
+              <button type="button" class="btn-slot-upload admin-btn admin-btn--primary" data-slot="default_share_image">
+                <Icon name="upload" size={16} />
+                <span>Upload</span>
+              </button>
+              <button type="button" class="btn-slot-library admin-btn admin-btn--secondary" data-slot="default_share_image">
+                <span>Library</span>
+              </button>
+              {config.default_share_image?.url && (
+                <button type="button" class="btn-slot-remove admin-btn admin-btn--danger-outline" data-slot="default_share_image">
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </article>
+      </main>
+
+      <!-- RIGHT COLUMN: Social Links & Informational Panels -->
+      <aside class="si-sidebar-column">
+        <!-- Social links card -->
+        <section class="si-panel-card">
+          <h2 class="si-panel-title">Social links</h2>
+
+          <div class="si-social-list">
+            <!-- YouTube -->
+            <div class="si-social-row">
+              <div class="si-social-box">
+                <Icon name="youtube" size={19} />
+              </div>
+              <div class="si-social-field">
+                <span class="si-social-label">YouTube</span>
+                <div class="si-social-input-wrap">
+                  <input
+                    type="url"
+                    id="social-youtube"
+                    class="si-input si-social-input"
+                    value={config.social_links?.youtube || ''}
+                    placeholder="https://youtube.com/@channel"
+                  />
+                  <a
+                    href={config.social_links?.youtube || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="test-social-youtube"
+                    class="si-test-link"
+                  >
+                    Test
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Instagram -->
+            <div class="si-social-row">
+              <div class="si-social-box">
+                <Icon name="instagram" size={19} />
+              </div>
+              <div class="si-social-field">
+                <span class="si-social-label">Instagram</span>
+                <div class="si-social-input-wrap">
+                  <input
+                    type="url"
+                    id="social-instagram"
+                    class="si-input si-social-input"
+                    value={config.social_links?.instagram || ''}
+                    placeholder="https://instagram.com/handle"
+                  />
+                  <a
+                    href={config.social_links?.instagram || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="test-social-instagram"
+                    class="si-test-link"
+                  >
+                    Test
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- GitHub -->
+            <div class="si-social-row">
+              <div class="si-social-box">
+                <Icon name="github" size={19} />
+              </div>
+              <div class="si-social-field">
+                <span class="si-social-label">GitHub</span>
+                <div class="si-social-input-wrap">
+                  <input
+                    type="url"
+                    id="social-github"
+                    class="si-input si-social-input"
+                    value={config.social_links?.github || ''}
+                    placeholder="https://github.com/handle"
+                  />
+                  <a
+                    href={config.social_links?.github || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="test-social-github"
+                    class="si-test-link"
+                  >
+                    Test
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- LinkedIn -->
+            <div class="si-social-row">
+              <div class="si-social-box">
+                <Icon name="linkedin" size={19} />
+              </div>
+              <div class="si-social-field">
+                <span class="si-social-label">LinkedIn</span>
+                <div class="si-social-input-wrap">
+                  <input
+                    type="url"
+                    id="social-linkedin"
+                    class="si-input si-social-input"
+                    value={config.social_links?.linkedin || ''}
+                    placeholder="https://linkedin.com/in/handle"
+                  />
+                  <a
+                    href={config.social_links?.linkedin || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="test-social-linkedin"
+                    class="si-test-link"
+                  >
+                    Test
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="si-switch-wrap">
+            <span class="si-switch-desc">Show icons in the footer, About and Meet the maker</span>
+            <label class="admin-switch">
+              <input type="checkbox" id="social-show-icons" checked={config.social_links?.show_icons !== false} />
+              <span class="admin-switch__slider"></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- What happens on upload card -->
+        <section class="si-panel-card">
+          <h2 class="si-panel-title">What happens on upload</h2>
+          <ul class="si-bullet-list">
+            <li>
+              <span class="si-check-icon"><Icon name="check-circle" size={16} /></span>
+              <span>Resized to 320, 640, 960 and 1600 px wide</span>
+            </li>
+            <li>
+              <span class="si-check-icon"><Icon name="check-circle" size={16} /></span>
+              <span>Converted to WebP and compressed</span>
+            </li>
+            <li>
+              <span class="si-check-icon"><Icon name="check-circle" size={16} /></span>
+              <span>Alt text required before saving</span>
+            </li>
+            <li>
+              <span class="si-check-icon"><Icon name="check-circle" size={16} /></span>
+              <span>Files under the recommended size show a warning</span>
+            </li>
+          </ul>
+        </section>
+
+        <!-- Where images appear card -->
+        <section class="si-panel-card">
+          <h2 class="si-panel-title">Where images appear</h2>
+          <table class="si-locations-table">
+            <tbody>
+              <tr>
+                <td class="si-loc-label">Maker photo</td>
+                <td class="si-loc-val">Home, About</td>
+              </tr>
+              <tr>
+                <td class="si-loc-label">How it works image</td>
+                <td class="si-loc-val">How it works</td>
+              </tr>
+              <tr>
+                <td class="si-loc-label">Channel showcase</td>
+                <td class="si-loc-val">Home</td>
+              </tr>
+              <tr>
+                <td class="si-loc-label">Default share image</td>
+                <td class="si-loc-val">Link previews</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Version History card -->
+        <section class="si-panel-card">
+          <div class="si-panel-head-row">
+            <h2 class="si-panel-title" style="margin: 0;">Version history</h2>
+            <span class="si-chip si-chip--neutral">Last 5</span>
+          </div>
+          {revisions && revisions.length > 0 ? (
+            <div class="si-revisions-list">
+              {revisions.map((rev) => {
+                const dateStr = new Date(rev.created_at * 1000).toLocaleString('en-IN', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true,
+                });
+                return (
+                  <div class="si-revision-item">
+                    <div class="si-revision-info">
+                      <strong class="si-revision-note">{rev.note || 'Site images update'}</strong>
+                      <span class="si-revision-date">{dateStr}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="admin-btn admin-btn--secondary admin-btn--sm btn-restore-revision"
+                      data-id={rev.id}
+                    >
+                      Restore
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p class="si-empty-revisions">No revisions saved yet. Changes are recorded automatically.</p>
+          )}
+        </section>
+      </aside>
+    </div>
+
+    <!-- STICKY MOBILE SAVE BAR -->
+    <div class="si-mobile-save-bar">
+      <button type="button" id="btn-save-mobile" class="admin-btn admin-btn--primary btn-save-action si-mobile-btn">
+        <Icon name="check-circle" size={18} />
+        <span>Save changes</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- HIDDEN FILE INPUT -->
+  <input type="file" id="slot-file-input" accept="image/jpeg,image/png,image/webp,image/avif" style="display: none;" />
+
+  <!-- CROP & FOCAL POINT MODAL -->
+  <dialog id="crop-dialog" class="si-modal">
+    <div class="si-modal-content">
+      <header class="si-modal-header">
+        <h3 class="si-modal-title" id="crop-modal-title">Adjust crop & focal point</h3>
+        <button type="button" class="si-modal-close" id="btn-close-crop">✕</button>
+      </header>
+
+      <div class="si-modal-body">
+        <div id="crop-warning-box" class="si-crop-warning" hidden>
+          <Icon name="alert-triangle" size={18} />
+          <span id="crop-warning-text">Image is smaller than recommended.</span>
+        </div>
+
+        <p class="si-crop-instructions">
+          Drag or click inside the image to reposition the focal center for different screens.
+        </p>
+
+        <div class="si-crop-viewport" id="crop-viewport">
+          <canvas id="crop-canvas" class="si-crop-canvas"></canvas>
+          <div id="focal-marker" class="si-focal-marker" title="Focal point"></div>
+        </div>
+
+        <div class="si-focal-quick-row">
+          <span class="si-focal-label">Quick focus:</span>
+          <button type="button" class="si-chip btn-focal" data-x="0.5" data-y="0.2">Top</button>
+          <button type="button" class="si-chip btn-focal" data-x="0.5" data-y="0.5">Center</button>
+          <button type="button" class="si-chip btn-focal" data-x="0.5" data-y="0.8">Bottom</button>
+        </div>
+      </div>
+
+      <footer class="si-modal-footer">
+        <button type="button" class="admin-btn admin-btn--secondary" id="btn-cancel-crop">Cancel</button>
+        <button type="button" class="admin-btn admin-btn--primary" id="btn-apply-crop">
+          <span id="apply-crop-spinner" class="si-spinner" hidden></span>
+          <span>Apply &amp; Upload</span>
+        </button>
+      </footer>
+    </div>
+  </dialog>
+
+  <!-- LIBRARY PICKER MODAL -->
+  <dialog id="library-dialog" class="si-modal">
+    <div class="si-modal-content si-modal-content--wide">
+      <header class="si-modal-header">
+        <h3 class="si-modal-title">Choose from Media Library</h3>
+        <button type="button" class="si-modal-close" id="btn-close-library">✕</button>
+      </header>
+
+      <div class="si-modal-body">
+        <div class="si-lib-tabs">
+          <button type="button" class="si-lib-tab is-active" data-lib-tab="all">All</button>
+          <button type="button" class="si-lib-tab" data-lib-tab="covers">Pack Covers</button>
+          <button type="button" class="si-lib-tab" data-lib-tab="uploads">Uploaded Media</button>
+        </div>
+
+        <div id="lib-grid-container" class="si-lib-grid">
+          <!-- Dynamically populated -->
+          <div class="si-lib-loading">Loading library items...</div>
+        </div>
+      </div>
+
+      <footer class="si-modal-footer">
+        <button type="button" class="admin-btn admin-btn--secondary" id="btn-cancel-library">Cancel</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <!-- SHOWCASE MANAGE MODAL -->
+  <dialog id="showcase-dialog" class="si-modal">
+    <div class="si-modal-content">
+      <header class="si-modal-header">
+        <h3 class="si-modal-title">Manage Channel Showcase (3 Images)</h3>
+        <button type="button" class="si-modal-close" id="btn-close-showcase">✕</button>
+      </header>
+
+      <div class="si-modal-body">
+        <p class="si-crop-instructions">Select which showcase position to update or pick a pack cover.</p>
+        <div class="si-showcase-slots-grid" id="showcase-modal-slots">
+          <!-- 3 slots -->
+          {[0, 1, 2].map((idx) => {
+            const item = showcaseImages[idx];
+            return (
+              <div class="si-sc-slot-item" data-showcase-index={idx}>
+                <span class="si-sc-slot-badge">Image #{idx + 1}</span>
+                <div class="si-sc-slot-preview">
+                  {item?.url ? (
+                    <img src={item.url} alt={`Showcase slot ${idx + 1}`} class="si-sc-slot-img" />
+                  ) : (
+                    <div class="si-sc-slot-empty">Empty</div>
+                  )}
+                </div>
+                <div class="si-sc-slot-actions">
+                  <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm btn-sc-upload" data-index={idx}>
+                    Upload
+                  </button>
+                  <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm btn-sc-lib" data-index={idx}>
+                    Library
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <footer class="si-modal-footer">
+        <button type="button" class="admin-btn admin-btn--primary" id="btn-done-showcase">Done</button>
+      </footer>
+    </div>
+  </dialog>
+</Admin>
+
+<style>
+  /* ==========================================================================
+     Site Images and Links Admin View Styles
+     ========================================================================== */
+
+  .site-images-page {
+    padding: 24px 32px 64px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Header Topbar */
+  .si-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .si-header__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .si-back-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    color: var(--admin-ink, #0f1115);
+    background: #ffffff;
+    border: 1px solid var(--admin-line, #e4e7eb);
+    text-decoration: none;
+  }
+
+  .si-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-ink, #0f1115);
+    margin: 0;
+    font-family: var(--admin-font, sans-serif);
+  }
+
+  .btn-save-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #d91f26 !important;
+    color: #ffffff !important;
+    border-radius: 12px;
+    padding: 10px 22px;
+    font-weight: 600;
+    font-size: 14.5px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .btn-save-action:hover {
+    background: #bf151b !important;
+  }
+
+  /* Notification banner */
+  .si-banner[hidden] {
+    display: none !important;
+  }
+
+  .si-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .si-banner.is-success {
+    background: #e3f4ea;
+    color: #14663a;
+    border: 1px solid #b7e1cd;
+  }
+
+  .si-banner.is-error {
+    background: #fde8e8;
+    color: #c5221f;
+    border: 1px solid #f8b4b4;
+  }
+
+  .si-banner-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: inherit;
+    padding: 0 4px;
+  }
+
+  /* Two Column Grid */
+  .si-layout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Left Column Cards */
+  .si-slots-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .si-card {
+    background: #ffffff;
+    border: 1px solid var(--admin-line, #e4e7eb);
+    border-radius: 16px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .si-card__preview-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .si-preview-wrap {
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fafbfc;
+    border: 1px solid var(--admin-line-subtle, #eef0f2);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .si-preview-wrap.ratio-4-5 {
+    aspect-ratio: 4 / 5;
+  }
+
+  .si-preview-wrap.ratio-7-5 {
+    aspect-ratio: 7 / 5;
+  }
+
+  .si-preview-wrap.ratio-og {
+    aspect-ratio: 1200 / 630;
+  }
+
+  .si-preview-wrap.si-preview-mosaic {
+    aspect-ratio: 16 / 9;
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    background: #f1f3f5;
+  }
+
+  .si-mosaic-thumb {
+    flex: 1;
+    height: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .si-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .si-thumb-fallback {
+    color: #9aa0a6;
+  }
+
+  .si-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .si-fallback-box {
+    width: 100%;
+    height: 100%;
+    border: 1.5px dashed #cfd4dc;
+    border-radius: 12px;
+    background: #fafbfc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #80868b;
+    gap: 8px;
+    text-align: center;
+    padding: 12px;
+  }
+
+  .si-fallback-text {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: #5f6368;
+  }
+
+  /* Card Body Column */
+  .si-card__body-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .si-card__title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .si-card__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--admin-ink, #0f1115);
+    margin: 0;
+  }
+
+  .si-card__specs {
+    font-size: 13px;
+    color: var(--admin-muted, #5a6270);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .si-status-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .si-file-meta {
+    color: #5f6368;
+    font-size: 13px;
+  }
+
+  .si-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .si-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #5f6368;
+  }
+
+  .si-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--admin-line, #e4e7eb);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--admin-ink, #0f1115);
+    background: #ffffff;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .si-input:focus {
+    border-color: #d91f26;
+  }
+
+  .si-btn-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .admin-btn--danger-outline {
+    background: #ffffff;
+    color: #d91f26;
+    border: 1px solid #fecdd3;
+  }
+
+  .admin-btn--danger-outline:hover {
+    background: #fde8e8;
+  }
+
+  /* Right Column Panels */
+  .si-sidebar-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .si-panel-card {
+    background: #ffffff;
+    border: 1px solid var(--admin-line, #e4e7eb);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .si-panel-title {
+    font-size: 16.5px;
+    font-weight: 700;
+    color: var(--admin-ink, #0f1115);
+    margin: 0 0 16px 0;
+  }
+
+  .si-panel-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  /* Social Links */
+  .si-social-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .si-social-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .si-social-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #f3f5f8;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .si-social-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .si-social-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5a6270;
+  }
+
+  .si-social-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .si-social-input {
+    padding-right: 50px !important;
+  }
+
+  .si-test-link {
+    position: absolute;
+    right: 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #d91f26;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .si-test-link:hover {
+    text-decoration: underline;
+  }
+
+  .si-switch-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid var(--admin-line, #e4e7eb);
+  }
+
+  .si-switch-desc {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--admin-ink, #0f1115);
+    line-height: 1.4;
+  }
+
+  /* Bullets List */
+  .si-bullet-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .si-bullet-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #3b4350;
+    line-height: 1.4;
+  }
+
+  .si-check-icon {
+    color: #d91f26;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    margin-top: 2px;
+  }
+
+  /* Where images appear table */
+  .si-locations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .si-locations-table td {
+    padding: 7px 0;
+    border-bottom: 1px solid #f1f3f5;
+  }
+
+  .si-loc-label {
+    font-weight: 600;
+    color: var(--admin-ink, #0f1115);
+  }
+
+  .si-loc-val {
+    color: #5a6270;
+    text-align: right;
+  }
+
+  /* Revisions list */
+  .si-revisions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .si-revision-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #fafbfc;
+    border: 1px solid var(--admin-line-subtle, #eef0f2);
+    border-radius: 10px;
+  }
+
+  .si-revision-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .si-revision-note {
+    font-size: 13px;
+    color: var(--admin-ink, #0f1115);
+  }
+
+  .si-revision-date {
+    font-size: 11.5px;
+    color: #6c757d;
+  }
+
+  .si-empty-revisions {
+    font-size: 12.5px;
+    color: #6c757d;
+    margin: 0;
+  }
+
+  /* Chips */
+  .si-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  .si-chip--used {
+    background: #eef0f2;
+    color: #495057;
+  }
+
+  .si-chip--neutral {
+    background: #eef0f2;
+    color: #495057;
+  }
+
+  .si-chip--good_size {
+    background: #e3f4ea;
+    color: #14663a;
+  }
+
+  .si-chip--too_small,
+  .si-chip--wrong_ratio {
+    background: #fff1d6;
+    color: #8c5b00;
+  }
+
+  .si-chip--not_set {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  /* Modals */
+  .si-modal {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 620px;
+    width: 90vw;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .si-modal::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+  }
+
+  .si-modal-content--wide {
+    max-width: 800px;
+  }
+
+  .si-modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+  }
+
+  .si-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--admin-line, #e4e7eb);
+  }
+
+  .si-modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .si-modal-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #5a6270;
+  }
+
+  .si-modal-body {
+    padding: 20px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .si-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 22px;
+    border-top: 1px solid var(--admin-line, #e4e7eb);
+  }
+
+  .si-crop-warning {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #fff1d6;
+    color: #8c5b00;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .si-crop-instructions {
+    font-size: 13px;
+    color: #5a6270;
+    margin: 0;
+  }
+
+  .si-crop-viewport {
+    position: relative;
+    width: 100%;
+    max-height: 380px;
+    background: #111418;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: crosshair;
+  }
+
+  .si-crop-canvas {
+    max-width: 100%;
+    max-height: 380px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .si-focal-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px #d91f26, inset 0 0 0 1px #d91f26;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    background: rgba(217, 31, 38, 0.4);
+    transition: transform 0.05s ease;
+  }
+
+  .si-focal-quick-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .si-focal-label {
+    color: #5a6270;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  .btn-focal {
+    background: #f1f3f5;
+    color: #0f1115;
+    border: 1px solid #dadce0;
+    cursor: pointer;
+  }
+
+  .btn-focal:hover {
+    background: #e4e7eb;
+  }
+
+  /* Library Grid */
+  .si-lib-tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--admin-line, #e4e7eb);
+    padding-bottom: 8px;
+  }
+
+  .si-lib-tab {
+    background: none;
+    border: none;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #5a6270;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .si-lib-tab.is-active {
+    background: #fde8e8;
+    color: #d91f26;
+  }
+
+  .si-lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .si-lib-card {
+    border: 2px solid transparent;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #f8f9fa;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .si-lib-card:hover {
+    border-color: #d91f26;
+  }
+
+  .si-lib-card-img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+  }
+
+  .si-lib-card-caption {
+    padding: 6px 8px;
+    font-size: 11px;
+    color: #3b4350;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Showcase Modal */
+  .si-showcase-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .si-sc-slot-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fafbfc;
+    border: 1px solid var(--admin-line, #e4e7eb);
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  .si-sc-slot-badge {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--admin-ink, #0f1115);
+  }
+
+  .si-sc-slot-preview {
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #eef0f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .si-sc-slot-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .si-sc-slot-empty {
+    font-size: 12px;
+    color: #80868b;
+  }
+
+  .si-sc-slot-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Mobile sticky save bar */
+  .si-mobile-save-bar {
+    display: none;
+  }
+
+  /* ==========================================================================
+     Mobile Responsive Breakpoint (<= 768px)
+     ========================================================================== */
+  @media (max-width: 768px) {
+    .site-images-page {
+      padding: 16px 16px 90px;
+    }
+
+    .si-header {
+      margin-bottom: 16px;
+    }
+
+    .si-header__left {
+      gap: 8px;
+    }
+
+    .si-back-btn {
+      display: inline-flex;
+    }
+
+    .si-title {
+      font-size: 20px;
+    }
+
+    /* Hide desktop top save button on mobile */
+    .si-header__actions {
+      display: none;
+    }
+
+    /* Stack column cards */
+    .si-layout-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .si-card {
+      grid-template-columns: 1fr;
+      padding: 16px;
+      gap: 16px;
+    }
+
+    .si-preview-wrap {
+      max-height: 280px;
+    }
+
+    .si-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .si-btn-row .admin-btn--danger-outline {
+      grid-column: span 2;
+    }
+
+    /* Show sticky bottom save bar on mobile */
+    .si-mobile-save-bar {
+      display: block;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 16px;
+      background: #ffffff;
+      border-top: 1px solid var(--admin-line, #e4e7eb);
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+      z-index: 50;
+    }
+
+    .si-mobile-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 13px;
+      font-size: 15px;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ initialConfig: config, csrfToken: csrf }}>
+  // Client state
+  let state = JSON.parse(JSON.stringify(initialConfig));
+  let activeSlot = null;
+  let activeShowcaseIndex = 0;
+  let currentFile = null;
+  let currentImageElement = null;
+  let focalPoint = { x: 0.5, y: 0.5 };
+  let libraryItems = { covers: [], media: [] };
+
+  const SLOT_SPECS = {
+    maker_photo: { width: 1200, height: 1500, ratio: 4 / 5, label: 'Maker photo' },
+    how_it_works_image: { width: 1400, height: 1000, ratio: 7 / 5, label: 'How it works image' },
+    channel_showcase: { width: 1600, height: 900, ratio: 16 / 9, label: 'Channel showcase' },
+    default_share_image: { width: 1200, height: 630, ratio: 1200 / 630, label: 'Default share image' },
+  };
+
+  // Elements
+  const banner = document.getElementById('si-banner');
+  const bannerMsg = document.getElementById('si-banner-msg');
+  const fileInput = document.getElementById('slot-file-input');
+  const cropDialog = document.getElementById('crop-dialog');
+  const libraryDialog = document.getElementById('library-dialog');
+  const showcaseDialog = document.getElementById('showcase-dialog');
+
+  function showBanner(msg, isError = false) {
+    if (!banner || !bannerMsg) return;
+    banner.hidden = false;
+    banner.className = 'si-banner ' + (isError ? 'is-error' : 'is-success');
+    bannerMsg.textContent = msg;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // --- Live Social URL Testing ---
+  function setupSocialTest(id, linkId) {
+    const input = document.getElementById(id);
+    const link = document.getElementById(linkId);
+    if (!input || !link) return;
+    const updateLink = () => {
+      const val = input.value.trim();
+      link.href = val || '#';
+      link.style.pointerEvents = val ? 'auto' : 'none';
+      link.style.opacity = val ? '1' : '0.4';
+    };
+    input.addEventListener('input', updateLink);
+    updateLink();
+  }
+  setupSocialTest('social-youtube', 'test-social-youtube');
+  setupSocialTest('social-instagram', 'test-social-instagram');
+  setupSocialTest('social-github', 'test-social-github');
+  setupSocialTest('social-linkedin', 'test-social-linkedin');
+
+  // --- Upload Buttons ---
+  document.querySelectorAll('.btn-slot-upload').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeSlot = btn.dataset.slot;
+      fileInput.value = '';
+      fileInput.click();
+    });
+  });
+
+  document.getElementById('btn-manage-showcase')?.addEventListener('click', () => {
+    activeSlot = 'channel_showcase';
+    showcaseDialog?.showModal();
+  });
+
+  document.querySelectorAll('.btn-sc-upload').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeSlot = 'channel_showcase';
+      activeShowcaseIndex = parseInt(btn.dataset.index || '0', 10);
+      showcaseDialog?.close();
+      fileInput.value = '';
+      fileInput.click();
+    });
+  });
+
+  // --- Remove Buttons ---
+  document.querySelectorAll('.btn-slot-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slot = btn.dataset.slot;
+      if (!confirm(`Are you sure you want to remove this ${SLOT_SPECS[slot]?.label || 'image'}? The site will display its designed fallback.`)) {
+        return;
+      }
+      if (state[slot]) {
+        state[slot].url = '';
+        state[slot].filename = '';
+        state[slot].size_bytes = 0;
+        state[slot].variants = {};
+        updateSlotUi(slot);
+      }
+    });
+  });
+
+  document.getElementById('btn-reset-showcase')?.addEventListener('click', () => {
+    if (!confirm('Reset channel showcase to default project pack covers?')) return;
+    state.channel_showcase.images = [
+      { url: '/covers/esp32-weather.png', alt: 'ESP32 Weather Station', width: 1600, height: 900 },
+      { url: '/covers/line-robot.png', alt: 'Line Following Robot', width: 1600, height: 900 },
+      { url: '/covers/ai-camera.png', alt: 'AI Camera System', width: 1600, height: 900 },
+    ];
+    updateSlotUi('channel_showcase');
+  });
+
+  // --- File Selection & Crop Modal ---
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File exceeds 5 MB. Please select a smaller image or compress it.');
+      return;
+    }
+
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(ext)) {
+      alert('Invalid format. Only JPG, PNG, WebP, and AVIF are supported.');
+      return;
+    }
+
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const img = new Image();
+      img.onload = () => {
+        currentImageElement = img;
+        openCropDialog(img);
+      };
+      img.src = loadEvt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function openCropDialog(img) {
+    const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+    const warningBox = document.getElementById('crop-warning-box');
+    const warningText = document.getElementById('crop-warning-text');
+    const title = document.getElementById('crop-modal-title');
+    if (title) title.textContent = `Adjust ${spec.label} crop`;
+
+    let warnings = [];
+    if (img.naturalWidth < spec.width * 0.7 || img.naturalHeight < spec.height * 0.7) {
+      warnings.push(`Image is smaller than recommended (${img.naturalWidth}×${img.naturalHeight} vs ${spec.width}×${spec.height}).`);
+    }
+    const currentRatio = img.naturalWidth / img.naturalHeight;
+    if (Math.abs(currentRatio - spec.ratio) / spec.ratio > 0.08) {
+      warnings.push(`Image ratio (${currentRatio.toFixed(2)}) differs from target (${spec.ratio.toFixed(2)}). Crop has been centered.`);
+    }
+
+    if (warnings.length > 0) {
+      warningBox.hidden = false;
+      warningText.textContent = warnings.join(' ');
+    } else {
+      warningBox.hidden = true;
+    }
+
+    focalPoint = { x: 0.5, y: 0.5 };
+    drawCropPreview();
+    cropDialog?.showModal();
+  }
+
+  const cropViewport = document.getElementById('crop-viewport');
+  const cropCanvas = document.getElementById('crop-canvas');
+  const focalMarker = document.getElementById('focal-marker');
+
+  function drawCropPreview() {
+    if (!currentImageElement || !cropCanvas) return;
+    const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+
+    // Viewport preview width
+    const targetW = 600;
+    const targetH = Math.round(targetW / spec.ratio);
+    cropCanvas.width = targetW;
+    cropCanvas.height = targetH;
+
+    const ctx = cropCanvas.getContext('2d');
+    ctx.clearRect(0, 0, targetW, targetH);
+
+    // Calculate crop rect based on focalPoint
+    const imgW = currentImageElement.naturalWidth;
+    const imgH = currentImageElement.naturalHeight;
+    let sW, sH;
+
+    if (imgW / imgH > spec.ratio) {
+      sH = imgH;
+      sW = Math.round(imgH * spec.ratio);
+    } else {
+      sW = imgW;
+      sH = Math.round(imgW / spec.ratio);
+    }
+
+    const maxSx = imgW - sW;
+    const maxSy = imgH - sH;
+    let sx = Math.max(0, Math.min(maxSx, Math.round(focalPoint.x * imgW - sW / 2)));
+    let sy = Math.max(0, Math.min(maxSy, Math.round(focalPoint.y * imgH - sH / 2)));
+
+    ctx.drawImage(currentImageElement, sx, sy, sW, sH, 0, 0, targetW, targetH);
+
+    // Position focal marker in viewport
+    if (focalMarker && cropViewport) {
+      focalMarker.style.left = `${focalPoint.x * 100}%`;
+      focalMarker.style.top = `${focalPoint.y * 100}%`;
+    }
+  }
+
+  // Interactive click inside crop viewport to adjust focal point
+  cropViewport?.addEventListener('click', (e) => {
+    const rect = cropViewport.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    focalPoint = { x, y };
+    drawCropPreview();
+  });
+
+  document.querySelectorAll('.btn-focal').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      focalPoint.x = parseFloat(btn.dataset.x || '0.5');
+      focalPoint.y = parseFloat(btn.dataset.y || '0.5');
+      drawCropPreview();
+    });
+  });
+
+  document.getElementById('btn-close-crop')?.addEventListener('click', () => cropDialog?.close());
+  document.getElementById('btn-cancel-crop')?.addEventListener('click', () => cropDialog?.close());
+
+  // --- Apply & Upload Handler (Canvas WebP Variants + Stripped EXIF) ---
+  document.getElementById('btn-apply-crop')?.addEventListener('click', async () => {
+    if (!currentImageElement || !activeSlot) return;
+    const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+    const applyBtn = document.getElementById('btn-apply-crop');
+    const spinner = document.getElementById('apply-crop-spinner');
+
+    try {
+      applyBtn.disabled = true;
+      if (spinner) spinner.hidden = false;
+
+      // Master crop calculation
+      const imgW = currentImageElement.naturalWidth;
+      const imgH = currentImageElement.naturalHeight;
+      let sW, sH;
+      if (imgW / imgH > spec.ratio) {
+        sH = imgH;
+        sW = Math.round(imgH * spec.ratio);
+      } else {
+        sW = imgW;
+        sH = Math.round(imgW / spec.ratio);
+      }
+      const maxSx = imgW - sW;
+      const maxSy = imgH - sH;
+      const sx = Math.max(0, Math.min(maxSx, Math.round(focalPoint.x * imgW - sW / 2)));
+      const sy = Math.max(0, Math.min(maxSy, Math.round(focalPoint.y * imgH - sH / 2)));
+
+      // Render master cropped image onto canvas
+      const masterCanvas = document.createElement('canvas');
+      masterCanvas.width = spec.width;
+      masterCanvas.height = spec.height;
+      const masterCtx = masterCanvas.getContext('2d');
+      masterCtx.imageSmoothingEnabled = true;
+      masterCtx.imageSmoothingQuality = 'high';
+      masterCtx.drawImage(currentImageElement, sx, sy, sW, sH, 0, 0, spec.width, spec.height);
+
+      // Convert to WebP blob (naturally strips EXIF location metadata)
+      const masterBlob = await new Promise((resolve) =>
+        masterCanvas.toBlob(resolve, 'image/webp', 0.88)
+      );
+
+      // Generate variants: 320, 640, 960, 1600
+      const variantWidths = [320, 640, 960, 1600];
+      const variantBlobs = {};
+      for (const vw of variantWidths) {
+        const vCanvas = document.createElement('canvas');
+        vCanvas.width = vw;
+        vCanvas.height = Math.round(vw / spec.ratio);
+        const vCtx = vCanvas.getContext('2d');
+        vCtx.imageSmoothingEnabled = true;
+        vCtx.imageSmoothingQuality = 'high';
+        vCtx.drawImage(masterCanvas, 0, 0, vCanvas.width, vCanvas.height);
+        variantBlobs[vw] = await new Promise((resolve) =>
+          vCanvas.toBlob(resolve, 'image/webp', 0.82)
+        );
+      }
+
+      // Build formData for upload API
+      const formData = new FormData();
+      formData.append('csrf', csrfToken);
+      const safeSlotName = activeSlot === 'channel_showcase' ? `channel_showcase_${activeShowcaseIndex}` : activeSlot;
+      formData.append('slot', safeSlotName);
+      formData.append('width', String(spec.width));
+      formData.append('height', String(spec.height));
+      const cleanFileName = (currentFile?.name || 'image.webp').replace(/\.[^/.]+$/, '') + '.webp';
+      formData.append('file', masterBlob, cleanFileName);
+
+      for (const vw of variantWidths) {
+        if (variantBlobs[vw]) {
+          formData.append(`variant_${vw}`, variantBlobs[vw], `v${vw}_${cleanFileName}`);
+        }
+      }
+
+      // Upload to server
+      const res = await fetch('/api/admin/site-images/upload', {
+        method: 'POST',
+        headers: { 'x-csrf-token': csrfToken },
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        throw new Error(data.err || 'Upload failed');
+      }
+
+      // Update state
+      if (activeSlot === 'channel_showcase') {
+        if (!state.channel_showcase.images) state.channel_showcase.images = [];
+        state.channel_showcase.images[activeShowcaseIndex] = {
+          url: data.url,
+          filename: data.filename,
+          width: data.width,
+          height: data.height,
+          size_bytes: data.size_bytes,
+          variants: data.variants || {},
+        };
+      } else {
+        state[activeSlot] = {
+          ...state[activeSlot],
+          url: data.url,
+          filename: data.filename,
+          width: data.width,
+          height: data.height,
+          size_bytes: data.size_bytes,
+          variants: data.variants || {},
+        };
+      }
+
+      updateSlotUi(activeSlot);
+      cropDialog?.close();
+      showBanner(`${spec.label} uploaded and variants generated successfully.`);
+    } catch (err) {
+      alert(`Upload error: ${err.message}`);
+    } finally {
+      applyBtn.disabled = false;
+      if (spinner) spinner.hidden = true;
+    }
+  });
+
+  // --- Library Picker Modal ---
+  async function loadLibrary() {
+    const grid = document.getElementById('lib-grid-container');
+    if (!grid) return;
+    try {
+      const res = await fetch('/api/admin/site-images/library');
+      const data = await res.json();
+      if (data.ok) {
+        libraryItems = { covers: data.covers || [], media: data.media || [] };
+        renderLibraryGrid('all');
+      }
+    } catch {
+      grid.innerHTML = '<div class="si-lib-loading">Failed to load media library.</div>';
+    }
+  }
+
+  function renderLibraryGrid(tab = 'all') {
+    const grid = document.getElementById('lib-grid-container');
+    if (!grid) return;
+
+    let items = [];
+    if (tab === 'covers' || tab === 'all') {
+      items = items.concat(libraryItems.covers.map((c) => ({ ...c, type: 'cover' })));
+    }
+    if (tab === 'uploads' || tab === 'all') {
+      items = items.concat(libraryItems.media.map((m) => ({ ...m, type: 'media' })));
+    }
+
+    if (items.length === 0) {
+      grid.innerHTML = '<div class="si-lib-loading">No media items found.</div>';
+      return;
+    }
+
+    grid.innerHTML = items
+      .map(
+        (it) => `
+        <div class="si-lib-card" data-url="${it.url}" data-title="${it.title || ''}" data-filename="${it.filename || ''}">
+          <img src="${it.url}" alt="${it.title || ''}" class="si-lib-card-img" loading="lazy" />
+          <span class="si-lib-card-caption">${it.title || it.filename || 'Image'}</span>
+        </div>
+      `
+      )
+      .join('');
+
+    grid.querySelectorAll('.si-lib-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const url = card.dataset.url;
+        const filename = card.dataset.filename;
+        const spec = SLOT_SPECS[activeSlot] || SLOT_SPECS.maker_photo;
+
+        if (activeSlot === 'channel_showcase') {
+          if (!state.channel_showcase.images) state.channel_showcase.images = [];
+          state.channel_showcase.images[activeShowcaseIndex] = {
+            url,
+            filename,
+            width: spec.width,
+            height: spec.height,
+            size_bytes: 140000,
+          };
+        } else {
+          state[activeSlot] = {
+            ...state[activeSlot],
+            url,
+            filename,
+            width: spec.width,
+            height: spec.height,
+            size_bytes: 140000,
+          };
+        }
+
+        updateSlotUi(activeSlot);
+        libraryDialog?.close();
+        showBanner(`Selected ${filename || 'image'} for ${spec.label}.`);
+      });
+    });
+  }
+
+  document.querySelectorAll('.btn-slot-library').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeSlot = btn.dataset.slot;
+      loadLibrary();
+      libraryDialog?.showModal();
+    });
+  });
+
+  document.getElementById('btn-library-showcase')?.addEventListener('click', () => {
+    activeSlot = 'channel_showcase';
+    showcaseDialog?.showModal();
+  });
+
+  document.querySelectorAll('.btn-sc-lib').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeSlot = 'channel_showcase';
+      activeShowcaseIndex = parseInt(btn.dataset.index || '0', 10);
+      showcaseDialog?.close();
+      loadLibrary();
+      libraryDialog?.showModal();
+    });
+  });
+
+  document.querySelectorAll('.si-lib-tab').forEach((t) => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.si-lib-tab').forEach((x) => x.classList.remove('is-active'));
+      t.classList.add('is-active');
+      renderLibraryGrid(t.dataset.libTab);
+    });
+  });
+
+  document.getElementById('btn-close-library')?.addEventListener('click', () => libraryDialog?.close());
+  document.getElementById('btn-cancel-library')?.addEventListener('click', () => libraryDialog?.close());
+  document.getElementById('btn-close-showcase')?.addEventListener('click', () => showcaseDialog?.close());
+  document.getElementById('btn-done-showcase')?.addEventListener('click', () => showcaseDialog?.close());
+
+  // --- Dynamic Slot UI updater ---
+  function updateSlotUi(slot) {
+    if (slot === 'channel_showcase') {
+      const images = state.channel_showcase.images || [];
+      const mosaic = document.querySelector('.si-preview-mosaic');
+      if (mosaic) {
+        mosaic.innerHTML = images
+          .slice(0, 3)
+          .map(
+            (img, i) => `
+            <div class="si-mosaic-thumb">
+              ${img.url ? `<img src="${img.url}" alt="${img.alt || `Showcase ${i + 1}`}" class="si-thumb-img" />` : '<div class="si-thumb-fallback"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>'}
+            </div>
+          `
+          )
+          .join('');
+      }
+      return;
+    }
+
+    const item = state[slot];
+    const previewWrap = document.querySelector(`#slot-card-${slot} .si-preview-wrap`);
+    const statusChip = document.getElementById(`status-chip-${slot}`);
+    const metaSpan = document.getElementById(`file-meta-${slot}`);
+    const btnRow = document.querySelector(`#slot-card-${slot} .si-btn-row`);
+
+    if (item && item.url) {
+      if (previewWrap) {
+        previewWrap.innerHTML = `<img id="preview-img-${slot}" src="${item.url}" alt="${item.alt || ''}" class="si-preview-img" />`;
+      }
+      if (statusChip) {
+        statusChip.className = 'si-chip si-chip--good_size';
+        statusChip.textContent = 'Good size';
+      }
+      if (metaSpan) {
+        metaSpan.textContent = `${item.filename || 'image.webp'}, ${item.width || 1200} × ${item.height || 1500}, ${Math.round((item.size_bytes || 140000) / 1024)} KB`;
+      }
+      if (btnRow && !btnRow.querySelector('.btn-slot-remove')) {
+        const rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'btn-slot-remove admin-btn admin-btn--danger-outline';
+        rm.dataset.slot = slot;
+        rm.innerHTML = '<span>Remove</span>';
+        rm.addEventListener('click', () => {
+          if (confirm(`Remove this image? The page will show its designed fallback.`)) {
+            state[slot].url = '';
+            state[slot].filename = '';
+            state[slot].size_bytes = 0;
+            state[slot].variants = {};
+            updateSlotUi(slot);
+          }
+        });
+        btnRow.appendChild(rm);
+      }
+    } else {
+      const spec = SLOT_SPECS[slot] || SLOT_SPECS.maker_photo;
+      if (previewWrap) {
+        previewWrap.innerHTML = `
+          <div class="si-fallback-box" id="fallback-box-${slot}">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <span class="si-fallback-text">${spec.width} × ${spec.height} px<br />${spec.label} fallback</span>
+          </div>
+        `;
+      }
+      if (statusChip) {
+        statusChip.className = 'si-chip si-chip--not_set';
+        statusChip.textContent = 'Not set';
+      }
+      if (metaSpan) {
+        metaSpan.textContent = 'No image yet. The page shows a designed fallback.';
+      }
+      const existingRm = btnRow?.querySelector('.btn-slot-remove');
+      if (existingRm) existingRm.remove();
+    }
+  }
+
+  // --- Revision Restore ---
+  document.querySelectorAll('.btn-restore-revision').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const revId = btn.dataset.id;
+      if (!confirm(`Restore site images and links to Revision #${revId}?`)) return;
+
+      try {
+        const res = await fetch('/api/admin/site-images/restore', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+          },
+          body: JSON.stringify({ revision_id: revId }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.err || 'Failed to restore');
+        showBanner(`Successfully restored revision #${revId}. Reloading page...`);
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (e) {
+        alert(`Restore failed: ${e.message}`);
+      }
+    });
+  });
+
+  // --- Save Changes Handler ---
+  async function saveAllChanges() {
+    const saveBtns = document.querySelectorAll('.btn-save-action');
+    saveBtns.forEach((b) => (b.disabled = true));
+
+    try {
+      // Collect alt texts
+      const altMaker = document.getElementById('alt-maker_photo')?.value?.trim();
+      const altHiw = document.getElementById('alt-how_it_works_image')?.value?.trim();
+      const altShowcase = document.getElementById('alt-channel_showcase')?.value?.trim();
+      const altShare = document.getElementById('alt-default_share_image')?.value?.trim();
+
+      if (state.maker_photo?.url && !altMaker) {
+        throw new Error('Alt text is required for Maker photo.');
+      }
+      if (state.how_it_works_image?.url && !altHiw) {
+        throw new Error('Alt text is required for How it works image.');
+      }
+      if (state.channel_showcase?.images?.length && !altShowcase) {
+        throw new Error('Alt text is required for Channel showcase.');
+      }
+      if (state.default_share_image?.url && !altShare) {
+        throw new Error('Alt text is required for Default share image.');
+      }
+
+      state.maker_photo.alt = altMaker || '';
+      state.how_it_works_image.alt = altHiw || '';
+      state.channel_showcase.alt = altShowcase || '';
+      state.default_share_image.alt = altShare || '';
+
+      // Collect social links
+      const yt = document.getElementById('social-youtube')?.value?.trim();
+      const ig = document.getElementById('social-instagram')?.value?.trim();
+      const gh = document.getElementById('social-github')?.value?.trim();
+      const li = document.getElementById('social-linkedin')?.value?.trim();
+      const showIcons = document.getElementById('social-show-icons')?.checked;
+
+      state.social_links = {
+        youtube: yt || '',
+        instagram: ig || '',
+        github: gh || '',
+        linkedin: li || '',
+        show_icons: showIcons !== false,
+      };
+
+      const res = await fetch('/api/admin/site-images/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+        body: JSON.stringify(state),
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.err || 'Failed to save');
+      }
+
+      showBanner('All site images and social links saved successfully! Public pages updated.');
+    } catch (err) {
+      showBanner(err.message, true);
+    } finally {
+      saveBtns.forEach((b) => (b.disabled = false));
+    }
+  }
+
+  document.getElementById('btn-save-top')?.addEventListener('click', saveAllChanges);
+  document.getElementById('btn-save-mobile')?.addEventListener('click', saveAllChanges);
+</script>

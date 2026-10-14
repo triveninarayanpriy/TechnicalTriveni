@@ -46,6 +46,21 @@ const autoAckEnabled = settings.contact_autoack_enabled === '1';
 
     <div class="admin-desktop-content">
       <div class="settings-cards-stack">
+        <!-- Card 0: Site Images & Links Navigation -->
+        <div class="admin-card" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #ffffff; border: 1.5px solid #d91f26;">
+          <div>
+            <h2 class="settings-card-title" style="margin: 0 0 4px 0; color: #d91f26; display: flex; align-items: center; gap: 8px;">
+              <Icon name="image" size={18} /> Site Images &amp; Links
+            </h2>
+            <div style="font-size: 13px; color: var(--admin-muted);">
+              Manage maker photo, how it works image, channel showcase (3 covers), link previews, and social icons.
+            </div>
+          </div>
+          <a href="/admin/settings/images" class="admin-btn admin-btn--primary" style="flex-shrink: 0; text-decoration: none;">
+            Configure Images &rarr;
+          </a>
+        </div>
+
         <!-- Card 1: General & Site Details -->
         <div class="admin-card">
           <h2 class="settings-card-title">General &amp; Site Details</h2>
@@ -216,8 +231,21 @@ const autoAckEnabled = settings.contact_autoack_enabled === '1';
     </header>
 
     <div class="admin-mobile-content" style="padding-bottom: 80px;">
+      <!-- Card 0: Site Images & Links Navigation (Mobile) -->
+      <div class="admin-card mobile-settings-card" style="border: 1.5px solid #d91f26;">
+        <h2 class="settings-card-title" style="color: #d91f26; display: flex; align-items: center; gap: 8px;">
+          <Icon name="image" size={18} /> Site Images &amp; Links
+        </h2>
+        <div style="font-size: 13px; color: var(--admin-muted); margin-bottom: 12px;">
+          Manage maker photo, how it works, channel showcase, and socials.
+        </div>
+        <a href="/admin/settings/images" class="admin-btn admin-btn--primary" style="width: 100%; justify-content: center; text-decoration: none;">
+          Configure Images &rarr;
+        </a>
+      </div>
+
       <!-- Card 1: Site Details -->
-      <div class="admin-card mobile-settings-card">
+      <div class="admin-card mobile-settings-card" style="margin-top: 14px;">
         <h2 class="settings-card-title">Site Details</h2>
         <div class="admin-field">
           <label class="admin-label" for="m-site_title">Site Title</label>

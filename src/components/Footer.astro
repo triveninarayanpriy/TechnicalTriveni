@@ -2,14 +2,30 @@
 import Logo from './Logo.astro';
 import Icon from './Icon.astro';
 import { SITE, FOOTER_LINKS } from '../lib/site';
+import { env } from 'cloudflare:workers';
+import { getSiteAssets } from '../lib/site-assets';
 
 const year = new Date().getFullYear();
-const socials = [
-  { key: 'youtube', label: 'YouTube', href: SITE.socials.youtube, icon: 'youtube' },
-  { key: 'instagram', label: 'Instagram', href: SITE.socials.instagram, icon: 'instagram' },
-  { key: 'github', label: 'GitHub', href: SITE.socials.github, icon: 'github' },
-  { key: 'linkedin', label: 'LinkedIn', href: SITE.socials.linkedin, icon: 'linkedin' },
-].filter((s) => s.href);
+
+let siteAssets = null;
+try {
+  siteAssets = await getSiteAssets(env.DB);
+} catch {}
+
+const ytLink = siteAssets?.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
+const igLink = siteAssets?.social_links?.instagram !== undefined ? siteAssets.social_links.instagram : SITE.socials.instagram;
+const ghLink = siteAssets?.social_links?.github !== undefined ? siteAssets.social_links.github : SITE.socials.github;
+const liLink = siteAssets?.social_links?.linkedin !== undefined ? siteAssets.social_links.linkedin : SITE.socials.linkedin;
+const showIcons = siteAssets?.social_links?.show_icons !== false;
+
+const socials = showIcons
+  ? [
+      { key: 'youtube', label: 'YouTube', href: ytLink, icon: 'youtube' },
+      { key: 'instagram', label: 'Instagram', href: igLink, icon: 'instagram' },
+      { key: 'github', label: 'GitHub', href: ghLink, icon: 'github' },
+      { key: 'linkedin', label: 'LinkedIn', href: liLink, icon: 'linkedin' },
+    ].filter((s) => s.href && s.href.trim())
+  : [];
 ---
 
 <footer class="site-footer">

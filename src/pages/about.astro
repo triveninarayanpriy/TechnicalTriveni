@@ -6,11 +6,15 @@ import { SITE, PROFILE } from '../lib/site';
 import { listProjects } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 import { getEffectiveContent } from '../lib/pages';
+import { getSiteAssets, buildSrcSet } from '../lib/site-assets';
 
 const pageData = await getEffectiveContent(env.DB, 'about');
 if (pageData.published === 0) return Astro.redirect('/404');
 
-const profilePhoto = pageData.image_url || '/brand/profile.jpg';
+const siteAssets = await getSiteAssets(env.DB);
+const profilePhoto = pageData.image_url || siteAssets.maker_photo?.url || '/brand/profile.jpg';
+const profileAlt = siteAssets.maker_photo?.alt || PROFILE.name;
+const profileSrcSet = buildSrcSet(siteAssets.maker_photo || { url: '' });
 const bioHtml = renderMarkdown(pageData.markdown);
 
 // Fetch projects for count and closing card covers
@@ -27,12 +31,20 @@ try {
   }
 } catch {}
 
-const socials = [
-  { label: 'YouTube', href: SITE.socials.youtube, icon: 'youtube' },
-  { label: 'Instagram', href: SITE.socials.instagram, icon: 'instagram' },
-  { label: 'GitHub', href: SITE.socials.github, icon: 'github' },
-  { label: 'LinkedIn', href: SITE.socials.linkedin, icon: 'linkedin' },
-].filter((s) => s.href);
+const ytLink = siteAssets.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
+const igLink = siteAssets.social_links?.instagram !== undefined ? siteAssets.social_links.instagram : SITE.socials.instagram;
+const ghLink = siteAssets.social_links?.github !== undefined ? siteAssets.social_links.github : SITE.socials.github;
+const liLink = siteAssets.social_links?.linkedin !== undefined ? siteAssets.social_links.linkedin : SITE.socials.linkedin;
+const showIcons = siteAssets.social_links?.show_icons !== false;
+
+const socials = showIcons
+  ? [
+      { label: 'YouTube', href: ytLink, icon: 'youtube' },
+      { label: 'Instagram', href: igLink, icon: 'instagram' },
+      { label: 'GitHub', href: ghLink, icon: 'github' },
+      { label: 'LinkedIn', href: liLink, icon: 'linkedin' },
+    ].filter((s) => s.href && s.href.trim())
+  : [];
 
 const proofCards = [
   {
@@ -110,10 +122,12 @@ const jsonLd = {
             <div class="about-photo-wrap">
               <img
                 src={profilePhoto}
-                alt={PROFILE.name}
+                srcset={profileSrcSet || undefined}
+                sizes="(max-width: 768px) 100vw, 480px"
+                alt={profileAlt}
                 class="about-portrait"
-                width="480"
-                height="560"
+                width={siteAssets.maker_photo?.width || 480}
+                height={siteAssets.maker_photo?.height || 560}
                 loading="eager"
                 onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
               />
