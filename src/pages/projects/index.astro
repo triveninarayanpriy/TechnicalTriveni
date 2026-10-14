@@ -205,8 +205,8 @@ const toggleIncUrl = (key: string) => {
 
           {projects.length > 0 ? (
             <div class="projects-cards-grid">
-              {projects.map((p) => (
-                <ProjectCard project={p} />
+              {projects.map((p, idx) => (
+                <ProjectCard project={p} priority={idx < 4} />
               ))}
             </div>
           ) : (
@@ -258,9 +258,9 @@ const toggleIncUrl = (key: string) => {
 
         <!-- Single Column Large Pack Cards -->
         <div class="m-projects-list">
-          {projects.map((p) => (
+          {projects.map((p, idx) => (
             <div class="m-project-card-wrap">
-              <ProjectCard project={p} />
+              <ProjectCard project={p} priority={idx === 0} />
             </div>
           ))}
         </div>
@@ -513,12 +513,12 @@ const toggleIncUrl = (key: string) => {
 
   .projects-cards-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
   }
   @media (max-width: 1200px) and (min-width: 769px) {
     .projects-cards-grid {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 

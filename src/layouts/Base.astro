@@ -163,8 +163,8 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
     <style>
-      body { display: flex; flex-direction: column; min-height: 100dvh; }
-      main { flex: 1 0 auto; }
+      body { display: flex; flex-direction: column; min-height: 100dvh; overflow-x: clip; }
+      main { flex: 1 0 auto; min-width: 0; }
       
       .announce-bar {
         position: relative;

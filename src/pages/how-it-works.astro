@@ -3,12 +3,17 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE } from '../lib/site';
+import { getSetting } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 import { getEffectiveContent } from '../lib/pages';
 
-const pageData = await getEffectiveContent(env.DB, 'how-it-works');
+const [pageData, hiwSettingImage] = await Promise.all([
+  getEffectiveContent(env.DB, 'how-it-works'),
+  getSetting(env.DB, 'hiw_image'),
+]);
 if (pageData.published === 0) return Astro.redirect('/404');
 const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null;
+const hiwImage = hiwSettingImage || pageData.image_url || '/covers/student-tools-2026.png';
 
 const steps = [
   {
@@ -200,14 +205,20 @@ const faqs = [
           <div class="hiw-image-col">
             <div class="hiw-image-card">
               <img
-                src="/covers/drone-pack.jpg"
+                src={hiwImage}
                 alt="Electronics project pack contents"
                 class="hiw-pack-img"
                 width="640"
                 height="400"
                 loading="lazy"
-                onerror="this.src='/brand/og-image.png'"
+                onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
               />
+              <div class="hiw-pack-fallback" style="display: none;" aria-hidden="true">
+                <div class="hiw-fallback-blueprint">
+                  <Icon name="schematic" size={56} />
+                  <span class="hiw-fallback-title">Hardware · Firmware · Mechanics</span>
+                </div>
+              </div>
               <div class="hiw-float-chip hiw-float-chip--top">
                 <Icon name="code" size={14} /> Tested source code
               </div>
@@ -498,9 +509,13 @@ const faqs = [
   }
   .hiw-showcase-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 48px;
     align-items: center;
+  }
+  .hiw-image-col,
+  .hiw-checklist-col {
+    min-width: 0;
   }
   .hiw-image-card {
     position: relative;
@@ -516,6 +531,30 @@ const faqs = [
     object-fit: cover;
     display: block;
   }
+  .hiw-pack-fallback {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 40%, #1E232D 0%, var(--dark) 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hiw-fallback-blueprint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0.85;
+    color: #A3AAB8;
+  }
+  .hiw-fallback-title {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--line);
+  }
   .hiw-float-chip {
     position: absolute;
     background: #FFFFFF;
@@ -528,6 +567,8 @@ const faqs = [
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+    z-index: 2;
   }
   .hiw-float-chip--top { top: 24px; left: 24px; }
   .hiw-float-chip--mid { top: 50%; right: 24px; transform: translateY(-50%); }

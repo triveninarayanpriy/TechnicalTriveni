@@ -21,7 +21,7 @@ const socials = [
         <div class="footer-socials">
           {socials.map((s) => (
             <a href={s.href} class="social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
-              <span class="social-btn-txt">{s.key === 'youtube' ? 'YT' : s.key === 'instagram' ? 'IG' : s.key === 'github' ? 'GH' : 'in'}</span>
+              <Icon name={s.icon} size={18} />
             </a>
           ))}
         </div>
@@ -127,7 +127,7 @@ const socials = [
 
   .footer-grid {
     display: grid;
-    grid-template-columns: 1.6fr 1fr 1fr 1.3fr;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
     gap: 2.5rem;
   }
   .footer-brand { max-width: 320px; }

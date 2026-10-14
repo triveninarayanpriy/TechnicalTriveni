@@ -96,6 +96,7 @@
   --container: 1200px;
   --container-wide: 1200px;
   --container-narrow: 720px;
+  --section-y: clamp(48px, 6vw, 80px);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --ring: 0 0 0 2px #ffffff, 0 0 0 4px var(--red);
 }
@@ -117,6 +118,8 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  scrollbar-gutter: stable;
+  overflow-x: clip;
 }
 
 body {
@@ -132,6 +135,7 @@ body {
     radial-gradient(820px 480px at -5% 0%, rgba(233, 36, 36, 0.03), transparent 55%);
   background-attachment: fixed;
   overflow-wrap: break-word;
+  overflow-x: clip;
 }
 
 img,
@@ -264,24 +268,29 @@ small { font-size: var(--fs-sm); }
 .container-narrow { max-width: 720px; }
 
 .section {
-  padding-block: 48px;
+  padding-top: var(--section-y);
+  padding-bottom: 0;
 }
 @media (min-width: 1024px) {
   .section {
-    padding-block: 96px;
+    padding-top: var(--section-y);
+    padding-bottom: 0;
   }
 }
 .section-sm {
-  padding-block: 32px;
+  padding-top: calc(var(--section-y) * 0.6);
+  padding-bottom: 0;
 }
 @media (min-width: 1024px) {
   .section-sm {
-    padding-block: 48px;
+    padding-top: calc(var(--section-y) * 0.6);
+    padding-bottom: 0;
   }
 }
 
 .stack > * + * { margin-top: var(--sp-4); }
 .grid { display: grid; gap: var(--sp-24); }
+.grid > *, [class*="grid"] > * { min-width: 0; }
 
 /* --------------------------------------------------------------- Eyebrow -- */
 .eyebrow {

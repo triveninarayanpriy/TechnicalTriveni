@@ -15,12 +15,15 @@ const bioHtml = renderMarkdown(pageData.markdown);
 
 // Fetch projects for count and closing card covers
 let packCount = 5;
-let featuredCovers: string[] = ['/covers/drone-pack.jpg', '/covers/blynk-iot.jpg', '/covers/esp32-cam.jpg'];
+let featuredCovers: string[] = ['/covers/esp32-weather.png', '/covers/line-robot.png', '/covers/ai-camera.png'];
 try {
-  const allProjects = await listProjects(env.DB, { publishedOnly: true, limit: 3 });
+  const allProjects = await listProjects(env.DB, { publishedOnly: true });
   if (allProjects.length > 0) {
     packCount = allProjects.length;
-    featuredCovers = allProjects.map((p) => p.cover_image).filter(Boolean) as string[];
+    const covers = allProjects.map((p) => p.cover_image).filter(Boolean) as string[];
+    if (covers.length > 0) {
+      featuredCovers = covers.slice(0, 3);
+    }
   }
 } catch {}
 
@@ -92,6 +95,14 @@ const jsonLd = {
                 <span class="stat-label">Project packs</span>
               </div>
             </div>
+
+            <div class="about-socials">
+              {socials.map((s) => (
+                <a href={s.href} class="about-social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+                  <Icon name={s.icon} size={18} />
+                </a>
+              ))}
+            </div>
           </div>
 
           <!-- Right: Portrait Photo -->
@@ -104,7 +115,11 @@ const jsonLd = {
                 width="480"
                 height="560"
                 loading="eager"
+                onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
               />
+              <div class="about-photo-fallback" style="display: none;" aria-hidden="true">
+                <span>TNP</span>
+              </div>
             </div>
           </div>
         </div>
@@ -214,13 +229,17 @@ const jsonLd = {
   }
   .about-hero-grid {
     display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     gap: 56px;
     align-items: center;
   }
+  .about-bio-col,
+  .about-photo-col {
+    min-width: 0;
+  }
   @media (max-width: 900px) {
     .about-hero-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 36px;
     }
   }
@@ -253,6 +272,7 @@ const jsonLd = {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
+    margin-bottom: 24px;
   }
   .about-stat-tile {
     background: var(--surface);
@@ -276,19 +296,58 @@ const jsonLd = {
     color: var(--muted);
   }
 
-  .about-photo-wrap {
-    border-radius: 24px;
-    overflow: hidden;
+  .about-socials {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .about-social-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
     background: var(--surface);
     border: 1px solid var(--line);
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 180ms ease;
+    text-decoration: none;
+  }
+  .about-social-btn:hover {
+    color: var(--red);
+    border-color: var(--red);
+    background: #FDE9EA;
+    transform: translateY(-2px);
+  }
+
+  .about-photo-wrap {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    aspect-ratio: 4 / 4.6;
   }
   .about-portrait {
     width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 4.6;
+    height: 100%;
     object-fit: cover;
     display: block;
+  }
+  .about-photo-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--dark) 0%, #2A303C 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    font-weight: 700;
+    font-family: var(--font-display);
   }
 
   /* Dark Story Band */
@@ -300,7 +359,7 @@ const jsonLd = {
     border-radius: 24px;
     padding: 56px 48px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 48px;
     align-items: center;
   }

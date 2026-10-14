@@ -53,7 +53,6 @@ This helps support the channel and allows us to keep publishing free tutorials a
     route: '/contact',
     category: 'info',
     sectionHint: 'Controls the introductory support and partnership guidelines on the Contact page.',
-    defaultTitle: 'Contact Us',
     defaultMarkdown: `We would love to hear from you. For support with any of our project combos, please include your Order ID and Razorpay Payment ID.
 
 ### General Inquiries

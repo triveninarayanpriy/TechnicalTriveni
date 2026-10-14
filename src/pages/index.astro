@@ -24,6 +24,24 @@ if (featuredPacks.length < 4 && heroProject) {
 }
 const displayPacks = featuredPacks.slice(0, 4);
 
+const mosaicCovers = [
+  displayPacks[0]?.cover_image || '/covers/esp32-weather.png',
+  displayPacks[1]?.cover_image || '/covers/line-robot.png',
+  displayPacks[2]?.cover_image || '/covers/ai-camera.png',
+];
+const mosaicAlts = [
+  displayPacks[0]?.title || 'ESP32 Weather Station',
+  displayPacks[1]?.title || 'Line Following Robot',
+  displayPacks[2]?.title || 'AI Camera System',
+];
+
+const makerSocials = [
+  { label: 'YouTube', href: SITE.socials.youtube, icon: 'youtube' },
+  { label: 'Instagram', href: SITE.socials.instagram, icon: 'instagram' },
+  { label: 'GitHub', href: SITE.socials.github, icon: 'github' },
+  { label: 'LinkedIn', href: SITE.socials.linkedin, icon: 'linkedin' },
+].filter((s) => s.href);
+
 const rawCategories = Array.from(new Set(allProjects.map((p) => p.category).filter(Boolean)));
 const categories = ['All', ...rawCategories];
 
@@ -80,7 +98,7 @@ const jsonLd = {
         {heroProject && (
           <div class="home-hero__card-col">
             <div class="hero-pack-wrap">
-              <ProjectCard project={heroProject} />
+              <ProjectCard project={heroProject} priority={true} />
             </div>
           </div>
         )}
@@ -112,7 +130,7 @@ const jsonLd = {
 
           <div class="packs-grid-4">
             {displayPacks.map((p) => (
-              <ProjectCard project={p} />
+              <ProjectCard project={p} priority={true} />
             ))}
           </div>
         </div>
@@ -163,9 +181,27 @@ const jsonLd = {
           </div>
           <div class="channel-band__media">
             <div class="band-covers-collage">
-              <img src="/covers/arduino-drone.png" alt="Drone" class="collage-cover collage-cover--1" loading="lazy" />
-              <img src="/covers/blynk-iot.png" alt="ESP32 Blynk" class="collage-cover collage-cover--2" loading="lazy" />
-              <img src="/covers/100-components.png" alt="Components" class="collage-cover collage-cover--3" loading="lazy" />
+              <img
+                src={mosaicCovers[0]}
+                alt={mosaicAlts[0]}
+                class="collage-cover collage-cover--1"
+                loading="lazy"
+                onerror="this.onerror=null;this.src='/covers/esp32-weather.png';"
+              />
+              <img
+                src={mosaicCovers[1]}
+                alt={mosaicAlts[1]}
+                class="collage-cover collage-cover--2"
+                loading="lazy"
+                onerror="this.onerror=null;this.src='/covers/line-robot.png';"
+              />
+              <img
+                src={mosaicCovers[2]}
+                alt={mosaicAlts[2]}
+                class="collage-cover collage-cover--3"
+                loading="lazy"
+                onerror="this.onerror=null;this.src='/covers/ai-camera.png';"
+              />
             </div>
           </div>
         </div>
@@ -176,7 +212,18 @@ const jsonLd = {
     <section class="section maker-section">
       <div class="container maker-grid">
         <div class="maker-photo-wrap">
-          <img src={PROFILE.photo} alt={PROFILE.name} class="maker-photo" width="480" height="340" loading="lazy" />
+          <img
+            src={PROFILE.photo}
+            alt={PROFILE.name}
+            class="maker-photo"
+            width="480"
+            height="340"
+            loading="lazy"
+            onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+          />
+          <div class="maker-photo-fallback" style="display: none;" aria-hidden="true">
+            <span>TNP</span>
+          </div>
         </div>
         <div class="maker-info">
           <span class="maker-eyebrow">Meet the maker</span>
@@ -184,7 +231,14 @@ const jsonLd = {
           <p class="maker-bio">
             I'm a B.Tech ECE (VLSI) student at NIT Patna. Every electronics, software and AI project on Technical Triveni is built and tested by me. YouTube shows the highlight reel; this is where you get the complete verified code, schematics and parts lists to actually finish the build.
           </p>
-          <a href="/about" class="maker-link">Read more about Triveni</a>
+          <div class="maker-socials">
+            {makerSocials.map((s) => (
+              <a href={s.href} class="maker-social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+                <Icon name={s.icon} size={18} />
+              </a>
+            ))}
+          </div>
+          <a href="/about" class="maker-link">Read more about Triveni &rarr;</a>
         </div>
       </div>
     </section>
@@ -314,13 +368,13 @@ const jsonLd = {
      DESKTOP HERO STYLES (>= 769px)
      ========================================================================= */
   .home-hero {
-    padding-top: 56px;
-    padding-bottom: 48px;
+    padding-top: 72px;
+    padding-bottom: 72px;
     background: #FFFFFF;
   }
   .home-hero__grid {
     display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
     gap: 56px;
     align-items: center;
   }
@@ -449,19 +503,19 @@ const jsonLd = {
 
   .packs-grid-4 {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
   }
   @media (max-width: 1180px) and (min-width: 769px) {
     .packs-grid-4 {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
   /* Every pack includes Desktop */
   .includes-tiles-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
   }
   .include-tile {
@@ -472,6 +526,7 @@ const jsonLd = {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
   }
   .include-tile__icon {
     width: 40px;
@@ -503,7 +558,7 @@ const jsonLd = {
     border-radius: 24px;
     padding: 48px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 40px;
     align-items: center;
     color: #FFFFFF;
@@ -512,6 +567,7 @@ const jsonLd = {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
   }
   .channel-band__title {
     font-size: 32px;
@@ -538,45 +594,79 @@ const jsonLd = {
     gap: 8px;
   }
 
+  .channel-band__media {
+    min-width: 0;
+    height: 316px;
+    overflow: hidden;
+  }
   .band-covers-collage {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-rows: 152px 152px;
     gap: 12px;
+    height: 316px;
+    min-width: 0;
   }
   .collage-cover {
     width: 100%;
-    aspect-ratio: 16 / 9;
+    height: 100%;
     object-fit: cover;
-    border-radius: 12px;
+    border-radius: 16px;
+    overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    display: block;
   }
   .collage-cover--1 {
-    grid-column: 1 / 3;
+    grid-row: 1 / 3;
+    grid-column: 1 / 2;
+  }
+  .collage-cover--2 {
+    grid-row: 1 / 2;
+    grid-column: 2 / 3;
+  }
+  .collage-cover--3 {
+    grid-row: 2 / 3;
+    grid-column: 2 / 3;
   }
 
   /* Meet the Maker Desktop */
   .maker-grid {
     display: grid;
-    grid-template-columns: 0.9fr 1.1fr;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 48px;
     align-items: center;
   }
   .maker-photo-wrap {
+    position: relative;
     border-radius: 20px;
     overflow: hidden;
+    aspect-ratio: 480 / 340;
+    background: var(--surface-2);
   }
   .maker-photo {
     width: 100%;
-    height: auto;
+    height: 100%;
     object-fit: cover;
     border-radius: 20px;
     display: block;
+  }
+  .maker-photo-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--dark) 0%, #2A303C 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: 700;
+    font-family: var(--font-display);
   }
   .maker-info {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
   }
   .maker-eyebrow {
     font-size: 13px;
@@ -595,6 +685,31 @@ const jsonLd = {
     color: var(--muted);
     line-height: 1.6;
     margin: 0 0 8px 0;
+  }
+  .maker-socials {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 16px;
+  }
+  .maker-social-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 180ms ease;
+    text-decoration: none;
+  }
+  .maker-social-btn:hover {
+    color: var(--red);
+    border-color: var(--red);
+    background: #FDE9EA;
+    transform: translateY(-2px);
   }
   .maker-link {
     font-size: 15px;

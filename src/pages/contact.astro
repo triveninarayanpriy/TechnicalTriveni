@@ -18,10 +18,12 @@ import { getEffectiveContent } from '../lib/pages';
 const tsOn = turnstileEnabled(env);
 const tsKey = env.TURNSTILE_SITE_KEY;
 
-const pageData = await getEffectiveContent(env.DB, 'contact');
+const [pageData, replyTime] = await Promise.all([
+  getEffectiveContent(env.DB, 'contact'),
+  getSetting(env.DB, 'reply_time'),
+]);
 if (pageData.published === 0) return Astro.redirect('/404');
 const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null;
-const replyTime = await getSetting(env.DB, 'reply_time');
 ---
 
 <Base title={pageData.meta_title || pageData.title || 'Contact'} description={pageData.meta_description || "Questions, project support, or collaboration inquiries — get in direct touch with Technical Triveni."}>
@@ -150,7 +152,7 @@ const replyTime = await getSetting(env.DB, 'reply_time');
           <!-- Sponsorship note below fields -->
           <div class="sponsorship-note">
             <Icon name="spark" size={16} />
-            <span>Interested in hardware sponsorships, component reviews, or custom enterprise kits? Mention it above or email <a href="mailto:technicaltriveniyt@gmail.com">technicaltriveniyt@gmail.com</a>.</span>
+            <span>Interested in hardware sponsorships, component reviews, or custom kits? Select <strong>Partnership / Collaboration</strong> in the topic dropdown above.</span>
           </div>
 
           <!-- honeypot -->
@@ -197,13 +199,17 @@ const replyTime = await getSetting(env.DB, 'reply_time');
   }
   .contact-grid {
     display: grid;
-    grid-template-columns: 0.9fr 1.1fr;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 48px;
     align-items: start;
   }
+  .contact-intro,
+  .contact-form-wrap {
+    min-width: 0;
+  }
   @media (max-width: 900px) {
     .contact-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 36px;
     }
   }

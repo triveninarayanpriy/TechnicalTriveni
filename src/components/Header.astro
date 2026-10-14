@@ -38,6 +38,11 @@ const centerLinks = [
         <input type="search" name="q" placeholder="Search projects" class="search-pill-input" aria-label="Search projects" />
       </form>
 
+      <!-- Mid-screen icon search (< 1280px) -->
+      <a href="/projects" class="header-search-icon-btn" aria-label="Search projects">
+        <Icon name="search" size={18} />
+      </a>
+
       <a href="/resources/free-tools-for-students-india-2026" class="btn btn-primary btn--header">
         Free resources
       </a>
@@ -172,6 +177,10 @@ const centerLinks = [
   .site-header.is-stuck {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   }
+  .site-header .container {
+    max-width: 1320px;
+    padding: 0 32px;
+  }
   .site-header__inner {
     display: flex;
     align-items: center;
@@ -184,17 +193,18 @@ const centerLinks = [
   .nav-desktop {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 28px;
     margin-inline: auto;
   }
   .nav-link {
-    padding: 0.5rem 0.85rem;
+    padding: 0.5rem 0.5rem;
     border-radius: var(--r-btn);
     font-size: 15px;
     font-weight: 550;
     color: var(--ink-2);
     transition: color 180ms, background 180ms;
     text-decoration: none;
+    white-space: nowrap;
   }
   .nav-link:hover {
     color: var(--ink);
@@ -210,6 +220,7 @@ const centerLinks = [
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    min-width: 0;
   }
   .nav-link--downloads {
     display: inline-flex;
@@ -218,6 +229,7 @@ const centerLinks = [
     color: var(--ink);
     font-weight: 550;
     font-size: 15px;
+    white-space: nowrap;
   }
   .nav-link--downloads.is-active {
     color: var(--red);
@@ -233,7 +245,7 @@ const centerLinks = [
     border-radius: 999px;
     padding: 0 16px;
     height: 42px;
-    width: 190px;
+    width: 200px;
     transition: width 180ms ease, border-color 180ms ease, background 180ms ease;
   }
   .desktop-search-pill:focus-within {
@@ -255,6 +267,24 @@ const centerLinks = [
     outline: none;
   }
 
+  .header-search-icon-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .header-search-icon-btn:hover {
+    background: var(--bg-soft);
+    border-color: var(--ink-3);
+  }
+
   .btn--header {
     min-height: 42px;
     height: 42px;
@@ -268,6 +298,7 @@ const centerLinks = [
     align-items: center;
     justify-content: center;
     text-decoration: none;
+    white-space: nowrap;
     transition: opacity 150ms ease;
   }
   .btn--header:hover {
@@ -482,10 +513,26 @@ const centerLinks = [
     text-decoration: none;
   }
 
-  @media (max-width: 880px) {
+  @media (max-width: 1280px) and (min-width: 1025px) {
+    .desktop-search-pill { display: none; }
+    .header-search-icon-btn { display: inline-flex; }
+    .nav-link--downloads span { display: none; }
+    .nav-link--downloads {
+      padding: 8px 10px;
+      border-radius: var(--r-btn);
+      background: var(--surface);
+      border: 1px solid var(--line);
+    }
+    .nav-desktop { gap: 16px; }
+  }
+
+  @media (max-width: 1024px) {
+    .site-header { height: 60px; }
+    .site-header .container { padding: 0 16px; }
     .nav-desktop { display: none; }
     .nav-link--downloads { display: none; }
     .desktop-search-pill { display: none; }
+    .header-search-icon-btn { display: none; }
     .btn--header { display: none; }
     .mobile-search-btn,
     .nav-toggle { display: inline-flex; }

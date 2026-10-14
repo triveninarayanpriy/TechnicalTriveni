@@ -6,8 +6,9 @@ import { formatINR } from '../lib/format';
 interface Props {
   project: Project;
   reveal?: boolean;
+  priority?: boolean;
 }
-const { project, reveal = true } = Astro.props;
+const { project, reveal = true, priority = false } = Astro.props;
 const paid = (project.price_inr ?? 0) > 0;
 
 const fileKindsStr = (project.file_kinds || '').toLowerCase();
@@ -49,11 +50,13 @@ const metaRight = metaParts.join(', ');
       <img
         src={project.cover_image}
         alt={project.title}
-        loading="lazy"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchpriority={priority ? 'high' : 'auto'}
         decoding="async"
         width="640"
         height="360"
         class="pcard__img"
+        onerror="this.onerror=null;this.src='/covers/esp32-weather.png';"
       />
     ) : (
       <div class="pcard__placeholder" aria-hidden="true">
