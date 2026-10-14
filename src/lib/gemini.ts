@@ -2,7 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { getSetting } from './db';
 import { validateOrRepairDraftOutput, type AIDraftOutput } from './ai-schema';
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 
 // In-memory rate limiting map (IP or session -> array of millisecond timestamps)
 const rateLimitMap = new Map<string, number[]>();
@@ -39,17 +39,17 @@ export async function getGeminiModel(env: any, db?: D1Database): Promise<string>
   if (db) {
     try {
       const stored = await getSetting(db, 'gemini_model');
-      if (stored && stored.trim() && stored !== 'gemini-3.8-flash') return stored.trim();
+      if (stored && stored.trim()) return stored.trim();
     } catch {}
   }
-  if (env?.GEMINI_MODEL && typeof env.GEMINI_MODEL === 'string' && env.GEMINI_MODEL.trim() && env.GEMINI_MODEL !== 'gemini-3.8-flash') {
+  if (env?.GEMINI_MODEL && typeof env.GEMINI_MODEL === 'string' && env.GEMINI_MODEL.trim()) {
     return env.GEMINI_MODEL.trim();
   }
   return DEFAULT_GEMINI_MODEL;
 }
 
 /**
- * Execute Gemini call with 30s timeout and 1 retry with exponential backoff.
+ * Execute Gemini call with 35s timeout and automatic fallback across candidate models.
  */
 export async function callGemini(
   apiKey: string,
@@ -57,8 +57,6 @@ export async function callGemini(
   systemInstruction?: string,
   modelName = DEFAULT_GEMINI_MODEL
 ): Promise<any> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
   const body: any = {
     contents: [
       {
@@ -77,14 +75,20 @@ export async function callGemini(
     };
   }
 
-  let attempt = 0;
-  let lastError: any = null;
-  let currentModel = modelName;
+  // Model fallback candidate list in priority order
+  const candidateModels = Array.from(new Set([
+    modelName,
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-3.5-flash'
+  ].filter(Boolean)));
 
-  while (attempt < 2) {
-    attempt++;
+  let lastError: any = null;
+
+  for (let i = 0; i < candidateModels.length; i++) {
+    const currentModel = candidateModels[i];
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(currentModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     try {
@@ -119,15 +123,12 @@ export async function callGemini(
       clearTimeout(timeoutId);
       lastError = err;
       if (err.name === 'AbortError') {
-        lastError = new Error(`Gemini API call to ${currentModel} timed out after 45 seconds.`);
+        lastError = new Error(`Gemini API call to ${currentModel} timed out after 35 seconds.`);
       }
-      if (attempt < 2) {
-        // Fall back to gemini-2.5-flash if primary model timed out or encountered high demand
-        if (currentModel !== 'gemini-2.5-flash') {
-          currentModel = 'gemini-2.5-flash';
-        }
-        // Wait 1 second before retry
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // If there are more models to try, continue to the next model in the fallback chain
+      if (i < candidateModels.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        continue;
       }
     }
   }
