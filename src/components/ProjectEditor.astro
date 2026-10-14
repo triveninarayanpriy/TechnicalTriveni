@@ -53,7 +53,7 @@ if (p?.cost_checked) {
        ============================================== -->
   <header class="desktop-editor-header">
     <div class="desktop-header-left">
-      <h1 class="desktop-editor-title">{isNew ? 'New project' : p?.title || 'Project details'}</h1>
+      <h1 class="desktop-editor-title" title={isNew ? 'New project' : p?.title || 'Project details'}>{isNew ? 'New project' : p?.title || 'Project details'}</h1>
       <span class:list={['admin-chip', p?.published ? 'admin-chip--live' : 'admin-chip--draft']}>
         {p?.published ? 'Live' : 'Draft'}
       </span>
@@ -1173,6 +1173,7 @@ if (p?.cost_checked) {
     align-items: center;
     gap: 12px;
     min-width: 0;
+    flex: 1;
   }
   .desktop-editor-title {
     font-size: 26px;
@@ -1183,12 +1184,13 @@ if (p?.cost_checked) {
     text-overflow: ellipsis;
     white-space: nowrap;
     letter-spacing: -0.02em;
+    min-width: 0;
   }
   .desktop-header-right {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-shrink: 0;
+    flex: none;
   }
 
   .desktop-more-menu-wrap {

@@ -41,9 +41,9 @@ displayPages.sort((a, b) => a.slug.localeCompare(b.slug));
             <tbody>
               {displayPages.map((p) => (
                 <tr>
-                  <td>
-                    <a href={`/admin/pages/${p.slug}`} class="proj-table-title">{p.title}</a>
-                    <span class="proj-table-slug">/{p.slug}</span>
+                  <td style="min-width: 0; max-width: 320px;">
+                    <a href={`/admin/pages/${p.slug}`} class="proj-table-title" title={p.title}>{p.title}</a>
+                    <span class="proj-table-slug" title={`/${p.slug}`}>/{p.slug}</span>
                   </td>
                   <td>
                     <span class:list={['admin-chip', p.updated_at === 0 ? 'admin-chip--draft' : 'admin-chip--live']}>
@@ -114,6 +114,10 @@ displayPages.sort((a, b) => a.slug.localeCompare(b.slug));
     color: var(--admin-ink);
     text-decoration: none;
     display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   .proj-table-title:hover {
     color: var(--admin-red);
@@ -122,6 +126,11 @@ displayPages.sort((a, b) => a.slug.localeCompare(b.slug));
     font-size: 12px;
     color: var(--admin-muted);
     font-family: var(--admin-font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
   }
 
   /* Mobile */

@@ -234,8 +234,9 @@ const integrations = [
   }
   .settings-fields-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px;
+    min-width: 0;
   }
   @media (max-width: 1023px) {
     .settings-fields-grid {
@@ -247,20 +248,24 @@ const integrations = [
     display: flex;
     flex-direction: column;
     gap: 14px;
+    min-width: 0;
   }
   .integration-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 12px 16px;
     background: #F8FAFC;
     border: 1px solid var(--admin-line);
     border-radius: 12px;
+    min-width: 0;
   }
   .integration-left {
     display: flex;
     align-items: center;
     gap: 14px;
+    min-width: 0;
   }
   .integration-icon {
     width: 38px;

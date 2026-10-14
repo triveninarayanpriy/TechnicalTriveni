@@ -216,9 +216,10 @@ const csrf = Astro.locals.csrfToken;
 
   .coupons-grid-layout {
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
+    min-width: 0;
   }
   @media (max-width: 1023px) {
     .coupons-grid-layout {

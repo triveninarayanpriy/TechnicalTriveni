@@ -69,10 +69,30 @@ body.admin-body {
 }
 
 .admin-layout-root {
-  display: flex;
   min-height: 100dvh;
   width: 100%;
   background-color: var(--admin-bg);
+}
+
+@media (min-width: 1024px) {
+  .admin-layout-root {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1023px) {
+  .admin-layout-root {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-layout-root {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 /* ==========================================================================
@@ -88,6 +108,8 @@ body.admin-body {
   flex-direction: column;
   z-index: 40;
   flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
   transition: width var(--admin-duration) var(--admin-ease);
 }
 
@@ -166,12 +188,19 @@ body.admin-body {
     gap: 4px;
     padding-top: 16px;
     border-top: var(--admin-border);
+    min-width: 0;
   }
   .admin-user-pill {
     padding: 8px 14px;
     font-size: 12px;
     color: var(--admin-muted);
-    word-break: break-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: block;
   }
 }
 
@@ -245,12 +274,55 @@ body.admin-body {
 /* ==========================================================================
    Main Content Area & Topbar
    ========================================================================== */
-.admin-main-wrap {
+.admin-main-wrap,
+main.admin-main-wrap {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   background-color: var(--admin-bg);
+}
+
+/* Card & Grid child base resilience: ensure no child forces container overflow */
+.admin-card,
+.admin-table-card,
+.dash-stat-card,
+.dash-projects-card,
+.dash-attention-card,
+.dash-health-card,
+.dash-health-tile,
+.dash-health-left,
+.dash-project-row,
+.dash-project-info,
+.dash-project-header,
+.dash-attention-row,
+.dash-attention-left,
+.admin-table-wrap,
+.projects-toolbar,
+.projects-chips-track,
+.proj-table-thumb,
+.mobile-project-item,
+.mobile-project-body,
+.msg-two-pane,
+.msg-pane-list,
+.msg-pane-detail,
+.msg-list-item,
+.coupons-grid-layout,
+.settings-cards-stack,
+.settings-fields-grid {
+  min-width: 0;
+}
+
+.admin-cell-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
 }
 
 /* Desktop Topbar: 72px */
