@@ -7,6 +7,7 @@
  * are configured, so the code can ship before the account is set up.
  */
 import type { Order } from './db';
+import { formatINR } from './format';
 
 export function emailEnabled(env: Env): boolean {
   return env.EMAIL_ENABLED === 'true' && !!env.BREVO_API_KEY && !!env.FROM_EMAIL;
@@ -68,7 +69,7 @@ export function buildOrderEmail(order: Order, downloadUrl: string): { subject: s
   // Fix URL domain just in case it was generated with .com locally or by a worker
   const safeUrl = downloadUrl.replace('technicaltriveni.com', 'technicaltriveni.me');
   
-  const rupees = `&#8377;${order.amount_inr}`;
+  const rupees = formatINR(order.amount_inr);
   return {
     subject: `Your download - ${order.project_title}`,
     html: shell('Thank you for your purchase!', `
@@ -90,6 +91,21 @@ export function buildOrderEmail(order: Order, downloadUrl: string): { subject: s
           </p>
         </div>
         <p style="margin:18px 0 0;color:#8a90a2;font-size:12px">Order ${order.id}</p>
+    `),
+  };
+}
+
+/** Refund confirmation email sent when an order is refunded via Razorpay. */
+export function buildRefundEmail(order: Order, refundId: string): { subject: string; html: string } {
+  const rupees = formatINR(order.amount_inr);
+  return {
+    subject: `Refund processed - ${order.project_title}`,
+    html: shell('Your refund has been processed', `
+      <p style="margin:0 0 16px;line-height:1.6">Your refund of <strong>${rupees}</strong> for
+      <strong>${order.project_title}</strong> has been issued through Razorpay.</p>
+      <p style="margin:0 0 16px;color:#5a6072;font-size:14px;line-height:1.6">Refund ID: <code>${refundId}</code></p>
+      <p style="margin:0 0 8px;color:#5a6072;font-size:13px;line-height:1.6">It typically takes 5–7 business days for the credit to appear on your original payment method statement.</p>
+      <p style="margin:18px 0 0;color:#8a90a2;font-size:12px">Order ${order.id}</p>
     `),
   };
 }

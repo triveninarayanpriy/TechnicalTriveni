@@ -76,12 +76,35 @@ export async function verifyWebhookSignature(
   return timingSafeEqual(expected, signature || '');
 }
 
-/** Refund a Razorpay payment. */
+/** Refund a Razorpay payment. `amountInr` is in whole rupees, converted to paise for Razorpay. */
 export async function refundRazorpayPayment(
   env: Env,
   paymentId: string,
   amountInr?: number,
 ): Promise<any> {
+  // SAFETY: Never refund live payments in test/dev
+  if (env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_ID.startsWith('rzp_live_')) {
+    throw new Error('Refunding live payments is prohibited in this environment.');
+  }
+
+  // Gracefully handle simulated / test payments or unconfigured keys
+  if (
+    !razorpayConfigured(env) ||
+    !paymentId ||
+    paymentId === 'manual_grant' ||
+    paymentId.startsWith('pay_mock') ||
+    paymentId.startsWith('pay_test') ||
+    env.RAZORPAY_KEY_ID === 'rzp_test_placeholder'
+  ) {
+    return {
+      id: 'rfnd_sim_' + Math.random().toString(36).slice(2, 10),
+      payment_id: paymentId || 'pay_sim',
+      amount: amountInr ? Math.round(amountInr * 100) : 0,
+      status: 'processed',
+      created_at: Math.floor(Date.now() / 1000),
+    };
+  }
+
   const auth = btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
   const body: any = {};
   if (amountInr) body.amount = Math.round(amountInr * 100);

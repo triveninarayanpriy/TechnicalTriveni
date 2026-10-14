@@ -3,7 +3,7 @@ import Admin from '../../layouts/Admin.astro';
 import Icon from '../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { listOrders, listProjects } from '../../lib/db';
-import { formatDateTime, formatINR } from '../../lib/format';
+import { formatDateTime, formatDate, formatINR } from '../../lib/format';
 
 const url = new URL(Astro.request.url);
 const status = url.searchParams.get('status') || 'all';
@@ -15,13 +15,14 @@ const view = url.searchParams.get('view') || 'orders';
 
 const projects = await listProjects(env.DB);
 const projectMap = new Map(projects.map((p) => [p.id, p.title]));
+const projectsObj = Object.fromEntries(projectMap);
 
 const orders = await listOrders(env.DB, { 
   status: status === 'all' ? undefined : status, 
   search, 
-  projectId, 
-  dateStart, 
-  dateEnd, 
+  projectId: projectId ? Number(projectId) : undefined, 
+  dateStart: dateStart ? Math.floor(new Date(dateStart).getTime() / 1000) : undefined, 
+  dateEnd: dateEnd ? Math.floor(new Date(dateEnd + 'T23:59:59').getTime() / 1000) : undefined, 
   limit: 1000 
 });
 
@@ -41,6 +42,7 @@ if (view === 'customers') {
 }
 
 const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
+const csrfToken = Astro.locals.csrfToken || '';
 ---
 
 <Admin title="Orders" active="orders">
@@ -73,7 +75,7 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
           <label for="search" class="admin-label">Search</label>
           <div class="input-with-icon">
             <Icon name="search" size={16} class="search-icon" />
-            <input type="text" name="search" id="search" value={search} placeholder="Email, name..." class="admin-input" />
+            <input type="text" name="search" id="search" value={search} placeholder="Email, order ID, payment ID..." class="admin-input" />
           </div>
         </div>
 
@@ -114,7 +116,7 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
       <div class="admin-table-card">
         <div class="admin-table-wrap">
           {view === 'customers' ? (
-            <table id="dataTable" class="admin-table-standard">
+            <table id="dataTable" class="admin-table-standard" data-view={view}>
               <thead>
                 <tr>
                   <th>Customer Email</th>
@@ -124,11 +126,11 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
               </thead>
               <tbody>
                 {groupedCustomers.map(c => (
-                  <tr>
+                  <tr data-customer-email={c.email} data-customer-amount={c.amount_inr} data-customer-count={c.count}>
                     <td style="font-weight: 600; min-width: 0; max-width: 340px;">
                       <div class="admin-cell-truncate" title={c.email}>{c.email}</div>
                     </td>
-                    <td style="font-weight: 700; color: var(--admin-ink); white-space: nowrap;">₹{(c.amount_inr / 100).toFixed(2)}</td>
+                    <td style="font-weight: 700; color: var(--admin-ink); white-space: nowrap;">{formatINR(c.amount_inr)}</td>
                     <td style="white-space: nowrap;">{c.count} {c.count === 1 ? 'order' : 'orders'}</td>
                   </tr>
                 ))}
@@ -140,24 +142,26 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
               </tbody>
             </table>
           ) : (
-            <table id="dataTable" class="admin-table-standard">
+            <table id="dataTable" class="admin-table-standard" data-view={view}>
               <thead>
                 <tr>
                   <th style="width: 140px;">ID / Date</th>
                   <th>Customer</th>
                   <th>Project</th>
-                  <th style="width: 110px;">Amount</th>
+                  <th style="width: 120px;">Amount</th>
                   <th style="width: 110px;">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map(order => {
                   const projName = projectMap.get(order.project_id) || `Project #${order.project_id}`;
+                  const isPaid = order.status === 'paid';
+                  const isRefunded = order.status === 'refunded';
                   return (
-                    <tr class="order-row-clickable" data-order={JSON.stringify(order)}>
+                    <tr class="order-row-clickable" data-order-id={order.id} data-order={JSON.stringify(order)} data-project-name={projName}>
                       <td style="white-space: nowrap;">
                         <div style="font-weight: 700; color: var(--admin-ink);">{order.id}</div>
-                        <div style="font-size: 12px; color: var(--admin-muted);">{new Date(order.created_at).toLocaleDateString()}</div>
+                        <div style="font-size: 12px; color: var(--admin-muted);">{formatDate(order.created_at)}</div>
                       </td>
                       <td style="min-width: 0; max-width: 220px;">
                         <div style="font-weight: 600;" class="admin-cell-truncate" title={order.name || 'Anonymous'}>{order.name || 'Anonymous'}</div>
@@ -166,9 +170,9 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
                       <td style="font-weight: 500; min-width: 0; max-width: 300px;">
                         <div class="admin-cell-truncate" title={projName}>{projName}</div>
                       </td>
-                      <td style="font-weight: 700; white-space: nowrap;">₹{(order.amount_inr / 100).toFixed(2)}</td>
+                      <td style="font-weight: 700; white-space: nowrap;">{formatINR(order.amount_inr)}</td>
                       <td style="white-space: nowrap;">
-                        <span class:list={['admin-chip', order.status === 'paid' ? 'admin-chip--live' : 'admin-chip--draft']}>
+                        <span class:list={['admin-chip', isPaid ? 'admin-chip--live' : isRefunded ? 'admin-chip--danger' : 'admin-chip--draft']}>
                           {order.status}
                         </span>
                       </td>
@@ -240,7 +244,7 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
             <div class="mobile-order-card">
               <div class="mobile-order-top">
                 <span class="order-card-email">{c.email}</span>
-                <span class="order-card-amount">₹{(c.amount_inr / 100).toFixed(2)}</span>
+                <span class="order-card-amount">{formatINR(c.amount_inr)}</span>
               </div>
               <div class="mobile-order-sub">
                 <span class="order-card-meta">{c.count} {c.count === 1 ? 'order' : 'orders'}</span>
@@ -255,19 +259,21 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
         <div class="admin-card mobile-orders-list-card">
           {orders.map((order) => {
             const projName = projectMap.get(order.project_id) || `Project #${order.project_id}`;
+            const isPaid = order.status === 'paid';
+            const isRefunded = order.status === 'refunded';
             return (
-              <div class="mobile-order-card order-row-clickable" data-order={JSON.stringify(order)}>
+              <div class="mobile-order-card order-row-clickable" data-order-id={order.id} data-order={JSON.stringify(order)} data-project-name={projName}>
                 <div class="mobile-order-top">
                   <span class="order-card-project">{projName}</span>
-                  <span class="order-card-amount">₹{(order.amount_inr / 100).toFixed(2)}</span>
+                  <span class="order-card-amount">{formatINR(order.amount_inr)}</span>
                 </div>
                 <div class="mobile-order-middle">
                   <span class="order-card-customer">{order.name || 'Anonymous'}</span>
                   <span class="order-card-email">{order.email}</span>
                 </div>
                 <div class="mobile-order-bottom">
-                  <span class="order-card-date">{new Date(order.created_at).toLocaleDateString()}</span>
-                  <span class:list={['admin-chip', order.status === 'paid' ? 'admin-chip--live' : 'admin-chip--draft']}>
+                  <span class="order-card-date">{formatDate(order.created_at)}</span>
+                  <span class:list={['admin-chip', isPaid ? 'admin-chip--live' : isRefunded ? 'admin-chip--danger' : 'admin-chip--draft']}>
                     {order.status}
                   </span>
                 </div>
@@ -295,6 +301,22 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
       </div>
       <div class="drawer-body" id="drawerContent">
         <!-- Injected via JS -->
+      </div>
+
+      <!-- CUSTOM REFUND CONFIRM MODAL (Inside Dialog) -->
+      <div id="refundConfirmModal" class="refund-modal" hidden>
+        <div class="refund-modal-backdrop" id="refundModalBackdrop"></div>
+        <div class="refund-modal-content" role="dialog" aria-modal="true" aria-labelledby="refundModalHeading">
+          <h3 id="refundModalHeading" class="refund-modal-title">Confirm Refund</h3>
+          <p id="refundModalMessage" class="refund-modal-body"></p>
+          <div id="refundModalError" class="admin-alert admin-alert--danger" style="display:none; margin: 0; font-size: 13px;"></div>
+          <div class="refund-modal-actions">
+            <button type="button" id="cancelRefundBtn" class="admin-btn admin-btn--secondary">Cancel</button>
+            <button type="button" id="confirmRefundBtn" class="admin-btn admin-btn--danger">
+              <span class="btn-text">Confirm Refund</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </dialog>
@@ -349,6 +371,13 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
   }
   .order-row-clickable:hover {
     background: #FAFBFD;
+  }
+
+  /* Chip danger for refunded */
+  :global(.admin-chip--danger) {
+    background: #FEE2E2 !important;
+    color: #991B1B !important;
+    border-color: #FCA5A5 !important;
   }
 
   /* Mobile Layout */
@@ -452,7 +481,7 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
     top: 0;
     right: 0;
     bottom: 0;
-    width: 440px;
+    width: 460px;
     max-width: 100vw;
     background: var(--admin-card);
     display: flex;
@@ -487,55 +516,395 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Drawer Timeline */
+  :global(.drawer-timeline-card) {
+    background: #F8FAFC;
+    border: 1px solid var(--admin-line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  :global(.drawer-timeline-title) {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--admin-muted);
+  }
+  :global(.drawer-timeline) {
+    position: relative;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
+  }
+  :global(.drawer-timeline::before) {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 6px;
+    width: 2px;
+    background: var(--admin-line);
+  }
+  :global(.timeline-step) {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  :global(.timeline-dot) {
+    position: absolute;
+    left: -20px;
+    top: 4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #CBD5E1;
+    box-sizing: border-box;
+  }
+  :global(.timeline-step.is-done .timeline-dot) {
+    border-color: #10B981;
+    background: #10B981;
+  }
+  :global(.timeline-step.is-refunded .timeline-dot) {
+    border-color: #EF4444;
+    background: #EF4444;
+  }
+  :global(.timeline-label) {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--admin-ink);
+  }
+  :global(.timeline-time) {
+    font-size: 12px;
+    color: var(--admin-muted);
+  }
+  :global(.timeline-meta) {
+    font-size: 11.5px;
+    font-family: var(--admin-font-mono);
+    color: var(--admin-muted);
+  }
+  :global(.resend-info-label) {
+    font-size: 12px;
+    color: var(--admin-muted);
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  /* Refund Modal */
+  .refund-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .refund-modal[hidden] {
+    display: none;
+  }
+  .refund-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 17, 21, 0.6);
+    backdrop-filter: blur(4px);
+  }
+  .refund-modal-content {
+    position: relative;
+    background: var(--admin-card);
+    border: var(--admin-border);
+    border-radius: 14px;
+    max-width: 440px;
+    width: 100%;
+    padding: 24px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: modalScale 0.18s var(--admin-ease);
+  }
+  @keyframes modalScale {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .refund-modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--admin-ink);
+    margin: 0;
+  }
+  .refund-modal-body {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--admin-muted);
+    margin: 0;
+  }
+  .refund-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
   }
 </style>
 
 <script>
+  // CSRF token from meta or fallback
+  function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  }
+
+  // Money formatting client helper
+  function formatINRClient(rupees) {
+    const n = Number(rupees);
+    if (!n || n <= 0 || isNaN(n)) return 'Free';
+    return '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  }
+
+  // Date parsing client helper: handles legacy seconds (<1e12) and ISO strings
+  function parseDateClient(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+    if (typeof val === 'number') {
+      if (val <= 0) return null;
+      const ms = val < 1e12 ? val * 1000 : val;
+      const d = new Date(ms);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof val === 'string') {
+      const s = val.trim();
+      if (!s) return null;
+      if (/^\d+$/.test(s)) {
+        const num = Number(s);
+        if (num <= 0) return null;
+        const ms = num < 1e12 ? num * 1000 : num;
+        const d = new Date(ms);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+
+  // Format in Asia/Kolkata timezone as "14 Oct 2026, 11:14 PM"
+  function formatDateTimeClient(val) {
+    const d = parseDateClient(val);
+    if (!d) return '—';
+    const raw = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(d);
+    return raw.replace(/am|pm/i, m => m.toUpperCase());
+  }
+
+  // In-memory data store for live updates
+  const ordersMap = new Map();
+  document.querySelectorAll('.order-row-clickable').forEach(el => {
+    const raw = el.getAttribute('data-order');
+    if (raw) {
+      try {
+        const order = JSON.parse(raw);
+        if (order && order.id && !ordersMap.has(order.id)) {
+          order._projectName = el.getAttribute('data-project-name') || '';
+          ordersMap.set(order.id, order);
+        }
+      } catch {}
+    }
+  });
+
   // CSV Export
   const exportBtn = document.getElementById('exportCsvBtn');
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
-      const table = document.getElementById('dataTable') as HTMLTableElement | null;
-      if (!table) return;
+      const table = document.getElementById('dataTable');
+      const isCustomers = table?.getAttribute('data-view') === 'customers';
       let csv = [];
-      const rows = table.querySelectorAll('tr');
-      for (const row of rows) {
-        const cols = row.querySelectorAll('th, td');
-        const rowData = [];
-        for (const col of cols) {
-          let text = (col as HTMLElement).innerText.replace(/"/g, '""');
-          rowData.push(`"${text}"`);
+      if (isCustomers) {
+        csv.push(['"Customer Email"', '"Total Spent"', '"Orders Count"'].join(','));
+        const custRows = document.querySelectorAll('#dataTable tbody tr[data-customer-email]');
+        custRows.forEach(tr => {
+          const email = tr.getAttribute('data-customer-email') || '';
+          const amt = tr.getAttribute('data-customer-amount') || '0';
+          const cnt = tr.getAttribute('data-customer-count') || '0';
+          csv.push([
+            `"${email.replace(/"/g, '""')}"`,
+            `"${formatINRClient(amt)}"`,
+            `"${cnt}"`
+          ].join(','));
+        });
+      } else {
+        csv.push([
+          '"Order ID"',
+          '"Date"',
+          '"Customer Name"',
+          '"Customer Email"',
+          '"Project"',
+          '"Amount"',
+          '"Status"',
+          '"Razorpay Order ID"',
+          '"Razorpay Payment ID"'
+        ].join(','));
+        for (const order of ordersMap.values()) {
+          const projName = order._projectName || `Project #${order.project_id}`;
+          csv.push([
+            `"${(order.id || '').replace(/"/g, '""')}"`,
+            `"${formatDateTimeClient(order.created_at)}"`,
+            `"${(order.name || 'Anonymous').replace(/"/g, '""')}"`,
+            `"${(order.email || '').replace(/"/g, '""')}"`,
+            `"${(projName || '').replace(/"/g, '""')}"`,
+            `"${formatINRClient(order.amount_inr)}"`,
+            `"${order.status || ''}"`,
+            `"${(order.razorpay_order_id || '').replace(/"/g, '""')}"`,
+            `"${(order.razorpay_payment_id || '').replace(/"/g, '""')}"`
+          ].join(','));
         }
-        csv.push(rowData.join(','));
       }
-      const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+      const blob = new Blob([csv.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.setAttribute('href', url);
       a.setAttribute('download', `orders-export-${new Date().toISOString().slice(0, 10)}.csv`);
       a.click();
+      window.URL.revokeObjectURL(url);
     });
   }
 
-  // Drawer Open/Close
-  const drawer = document.getElementById('orderDrawer') as HTMLDialogElement | null;
+  // Drawer Elements
+  const drawer = document.getElementById('orderDrawer');
   const drawerContent = document.getElementById('drawerContent');
   const closeBtn = document.getElementById('closeDrawer');
 
-  function openOrderDrawer(order: any) {
+  // Refund Modal Elements
+  const refundModal = document.getElementById('refundConfirmModal');
+  const refundModalBackdrop = document.getElementById('refundModalBackdrop');
+  const refundModalMessage = document.getElementById('refundModalMessage');
+  const refundModalError = document.getElementById('refundModalError');
+  const cancelRefundBtn = document.getElementById('cancelRefundBtn');
+  const confirmRefundBtn = document.getElementById('confirmRefundBtn');
+
+  let activeOrderForRefund = null;
+
+  function closeRefundConfirm() {
+    if (!refundModal) return;
+    refundModal.hidden = true;
+    if (refundModalError) {
+      refundModalError.style.display = 'none';
+      refundModalError.textContent = '';
+    }
+    activeOrderForRefund = null;
+    if (confirmRefundBtn) {
+      confirmRefundBtn.disabled = false;
+      confirmRefundBtn.innerHTML = '<span class="btn-text">Confirm Refund</span>';
+    }
+  }
+
+  cancelRefundBtn?.addEventListener('click', closeRefundConfirm);
+  refundModalBackdrop?.addEventListener('click', closeRefundConfirm);
+
+  function openRefundConfirm(order) {
+    if (!refundModal || !refundModalMessage || !confirmRefundBtn) return;
+    activeOrderForRefund = order;
+    const formattedAmt = formatINRClient(order.amount_inr);
+    refundModalMessage.textContent = `Refund ${formattedAmt} to ${order.email}? The money returns through Razorpay and download access is revoked. This cannot be undone.`;
+    confirmRefundBtn.innerHTML = `<span class="btn-text">Refund ${formattedAmt}</span>`;
+    if (refundModalError) {
+      refundModalError.style.display = 'none';
+      refundModalError.textContent = '';
+    }
+    refundModal.hidden = false;
+  }
+
+  confirmRefundBtn?.addEventListener('click', async () => {
+    if (!activeOrderForRefund || !confirmRefundBtn) return;
+    const order = activeOrderForRefund;
+    confirmRefundBtn.disabled = true;
+    confirmRefundBtn.innerHTML = '<span class="btn-text">Processing refund...</span>';
+    if (refundModalError) refundModalError.style.display = 'none';
+
+    try {
+      const csrf = getCsrfToken();
+      const res = await fetch(`/api/admin/orders/${order.id}/refund`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-Token': csrf
+        },
+        body: JSON.stringify({ csrf })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to refund order');
+      }
+
+      // Update state
+      order.status = 'refunded';
+      order.refund_id = data.refund_id || 'rfnd_' + Date.now();
+      order.refunded_at = data.refunded_at || new Date().toISOString();
+      order.download_token = '';
+      ordersMap.set(order.id, order);
+
+      // Update UI row/cards in DOM
+      document.querySelectorAll(`[data-order-id="${order.id}"]`).forEach(el => {
+        el.dataset.order = JSON.stringify(order);
+        const chip = el.querySelector('.admin-chip');
+        if (chip) {
+          chip.className = 'admin-chip admin-chip--danger';
+          chip.textContent = 'refunded';
+        }
+      });
+
+      closeRefundConfirm();
+      openOrderDrawer(order);
+
+      if (window.toast) {
+        window.toast(`Refund of ${formatINRClient(order.amount_inr)} to ${order.email} completed.`, 'success');
+      }
+    } catch (e) {
+      if (refundModalError) {
+        refundModalError.textContent = e.message || 'Refund error occurred.';
+        refundModalError.style.display = 'block';
+      }
+      confirmRefundBtn.disabled = false;
+      const formattedAmt = formatINRClient(order.amount_inr);
+      confirmRefundBtn.innerHTML = `<span class="btn-text">Refund ${formattedAmt}</span>`;
+    }
+  });
+
+  function openOrderDrawer(order) {
     if (!drawer || !drawerContent) return;
+    const projName = order._projectName || (document.querySelector(`[data-order-id="${order.id}"]`)?.getAttribute('data-project-name')) || `Project #${order.project_id}`;
+    const isPaid = order.status === 'paid';
+    const isRefunded = order.status === 'refunded';
+    const isPaidOrRefunded = isPaid || isRefunded;
+
     drawerContent.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Top Status Card -->
         <div style="background: #F8FAFC; border: 1px solid var(--admin-line); border-radius: 12px; padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
             <span style="font-size: 12px; color: var(--admin-muted); font-weight: 600;">ORDER ID</span>
-            <span class="admin-chip ${order.status === 'paid' ? 'admin-chip--live' : 'admin-chip--draft'}">${order.status}</span>
+            <span class="admin-chip ${isPaid ? 'admin-chip--live' : isRefunded ? 'admin-chip--danger' : 'admin-chip--draft'}">${order.status}</span>
           </div>
           <div style="font-size: 18px; font-weight: 700; color: var(--admin-ink);">${order.id}</div>
-          <div style="font-size: 13px; color: var(--admin-muted); margin-top: 4px;">${new Date(order.created_at).toLocaleString()}</div>
+          <div style="font-size: 13px; color: var(--admin-muted); margin-top: 4px;">${formatDateTimeClient(order.created_at)}</div>
         </div>
 
+        <!-- Details Grid -->
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <div class="admin-field">
             <span class="admin-label">Customer</span>
@@ -544,8 +913,13 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
           </div>
 
           <div class="admin-field">
+            <span class="admin-label">Project</span>
+            <div style="font-size: 14.5px; font-weight: 600; color: var(--admin-ink);">${projName}</div>
+          </div>
+
+          <div class="admin-field">
             <span class="admin-label">Amount</span>
-            <div style="font-size: 20px; font-weight: 700;">₹${(order.amount_inr / 100).toFixed(2)}</div>
+            <div style="font-size: 20px; font-weight: 700; color: var(--admin-ink);">${formatINRClient(order.amount_inr)}</div>
           </div>
 
           <div class="admin-field">
@@ -557,37 +931,141 @@ const statuses = ['all', 'paid', 'pending', 'abandoned', 'failed', 'refunded'];
             <span class="admin-label">Razorpay Payment ID</span>
             <div style="font-size: 13px; font-family: var(--admin-font-mono); color: var(--admin-muted); word-break: break-all;">${order.razorpay_payment_id || '—'}</div>
           </div>
+
+          ${isRefunded ? `
+            <div class="admin-field">
+              <span class="admin-label">Refund ID</span>
+              <div style="font-size: 13px; font-family: var(--admin-font-mono); color: #991B1B; word-break: break-all;">${order.refund_id || '—'}</div>
+            </div>
+          ` : ''}
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: var(--admin-border);">
-          <form method="post" action="/api/admin/order/resend" style="width: 100%;">
-            <input type="hidden" name="order_id" value="${order.id}" />
-            <button type="submit" class="admin-btn admin-btn--secondary" style="width: 100%;">
-              Resend Download Email
-            </button>
-          </form>
+        <!-- Order Timeline -->
+        <div class="drawer-timeline-card">
+          <div class="drawer-timeline-title">Order Timeline</div>
+          <div class="drawer-timeline">
+            <div class="timeline-step is-done">
+              <div class="timeline-dot"></div>
+              <div class="timeline-label">Order created</div>
+              <div class="timeline-time">${formatDateTimeClient(order.created_at)}</div>
+            </div>
+            <div class="timeline-step ${isPaidOrRefunded ? 'is-done' : ''}">
+              <div class="timeline-dot"></div>
+              <div class="timeline-label">Payment captured</div>
+              <div class="timeline-time">${isPaidOrRefunded ? formatDateTimeClient(order.paid_at || order.created_at) : 'Awaiting payment'}</div>
+              ${order.razorpay_payment_id ? `<div class="timeline-meta">${order.razorpay_payment_id}</div>` : ''}
+            </div>
+            <div class="timeline-step ${isPaidOrRefunded ? 'is-done' : ''}">
+              <div class="timeline-dot"></div>
+              <div class="timeline-label">Download email sent</div>
+              <div class="timeline-time" id="timelineEmailSentTime">
+                ${order.last_resent_at ? ('Resent ' + formatDateTimeClient(order.last_resent_at)) : (isPaidOrRefunded ? formatDateTimeClient(order.paid_at || order.created_at) : 'Pending payment')}
+              </div>
+            </div>
+            ${isRefunded ? `
+              <div class="timeline-step is-refunded">
+                <div class="timeline-dot"></div>
+                <div class="timeline-label" style="color: #991B1B;">Refunded</div>
+                <div class="timeline-time">${formatDateTimeClient(order.refunded_at || order.created_at)}</div>
+                ${order.refund_id ? `<div class="timeline-meta">ID: ${order.refund_id}</div>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        </div>
 
-          ${order.status === 'paid' ? `
-            <form method="post" action="/api/admin/order/refund" onsubmit="return confirm('Refund this order via Razorpay?');" style="width: 100%;">
-              <input type="hidden" name="order_id" value="${order.id}" />
-              <button type="submit" class="admin-btn admin-btn--danger" style="width: 100%;">
-                Refund via Razorpay API
+        <!-- Actions -->
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px; padding-top: 16px; border-top: var(--admin-border);">
+          ${isPaid ? `
+            <div>
+              <button type="button" id="drawerResendBtn" class="admin-btn admin-btn--secondary" style="width: 100%;">
+                <span class="btn-text">Resend Download Email</span>
               </button>
-            </form>
+              <div class="resend-info-label" id="drawerLastResentLabel">
+                ${order.last_resent_at ? `Last sent: ${formatDateTimeClient(order.last_resent_at)}` : `Initial email sent on purchase`}
+              </div>
+            </div>
+
+            <button type="button" id="drawerOpenRefundBtn" class="admin-btn admin-btn--danger" style="width: 100%;">
+              Refund via Razorpay API
+            </button>
+          ` : ''}
+
+          ${isRefunded ? `
+            <div class="admin-alert admin-alert--warning" style="margin: 0; font-size: 13px;">
+              This order has been refunded. Download access has been revoked.
+            </div>
           ` : ''}
         </div>
       </div>
     `;
+
+    // Wire up Resend in Drawer
+    const resendBtn = document.getElementById('drawerResendBtn');
+    const lastResentLabel = document.getElementById('drawerLastResentLabel');
+    const timelineEmailSentTime = document.getElementById('timelineEmailSentTime');
+
+    if (resendBtn) {
+      resendBtn.addEventListener('click', async () => {
+        resendBtn.disabled = true;
+        resendBtn.innerHTML = '<span class="btn-text">Sending download email...</span>';
+        try {
+          const csrf = getCsrfToken();
+          const res = await fetch(`/api/admin/orders/${order.id}/resend`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-Token': csrf
+            },
+            body: JSON.stringify({ csrf })
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Failed to resend download email');
+          }
+
+          const nowIso = data.last_resent_at || new Date().toISOString();
+          order.last_resent_at = nowIso;
+          order.resend_count = (order.resend_count || 0) + 1;
+          ordersMap.set(order.id, order);
+
+          const formattedTime = formatDateTimeClient(nowIso);
+          if (lastResentLabel) lastResentLabel.textContent = `Last sent: ${formattedTime}`;
+          if (timelineEmailSentTime) timelineEmailSentTime.textContent = `Resent ${formattedTime}`;
+
+          if (window.toast) {
+            window.toast(`Download email sent to ${order.email}`, 'success');
+          }
+        } catch (e) {
+          if (window.toast) {
+            window.toast(e.message || 'Failed to resend download email', 'error');
+          }
+        } finally {
+          resendBtn.disabled = false;
+          resendBtn.innerHTML = '<span class="btn-text">Resend Download Email</span>';
+        }
+      });
+    }
+
+    // Wire up Refund in Drawer
+    const openRefundBtn = document.getElementById('drawerOpenRefundBtn');
+    if (openRefundBtn) {
+      openRefundBtn.addEventListener('click', () => {
+        openRefundConfirm(order);
+      });
+    }
+
     drawer.showModal();
   }
 
+  // Row / card click event listeners
   document.querySelectorAll('.order-row-clickable').forEach((row) => {
     row.addEventListener('click', () => {
-      const orderData = (row as HTMLElement).dataset.order;
-      if (orderData) {
-        try {
-          openOrderDrawer(JSON.parse(orderData));
-        } catch {}
+      const orderId = row.dataset.orderId;
+      const order = (orderId && ordersMap.get(orderId)) || (row.dataset.order ? JSON.parse(row.dataset.order) : null);
+      if (order) {
+        openOrderDrawer(order);
       }
     });
   });

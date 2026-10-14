@@ -1,24 +1,70 @@
 /** Small, dependency-light formatting & text helpers. */
 import { marked } from 'marked';
 
-const INR = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+const INR = new Intl.NumberFormat('en-IN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
-/** ₹1,499 — whole rupees (no paise). */
-export function formatINR(rupees: number): string {
-  return String.fromCharCode(8377) + INR.format(Math.round(rupees || 0));
-}
-export function formatDate(unixSeconds: number | null | undefined): string {
-  if (!unixSeconds) return '—';
-  return new Date(unixSeconds * 1000).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
+/** Formats whole rupees as "₹23.00", or "Free" when 0/null/undefined. */
+export function formatINR(rupees: number | null | undefined): string {
+  const n = Number(rupees);
+  if (!n || n <= 0 || isNaN(n)) return 'Free';
+  return String.fromCharCode(8377) + INR.format(n);
 }
 
-export function formatDateTime(unixSeconds: number | null | undefined): string {
-  if (!unixSeconds) return '—';
-  return new Date(unixSeconds * 1000).toLocaleString('en-IN', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+/** Parse legacy Unix seconds, millisecond epochs, or ISO date strings. */
+export function parseDate(val: number | string | Date | null | undefined): Date | null {
+  if (val === null || val === undefined || val === '') return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (typeof val === 'number') {
+    if (val <= 0) return null;
+    const ms = val < 1e12 ? val * 1000 : val;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof val === 'string') {
+    const s = val.trim();
+    if (!s) return null;
+    if (/^\d+$/.test(s)) {
+      const num = Number(s);
+      if (num <= 0) return null;
+      const ms = num < 1e12 ? num * 1000 : num;
+      const d = new Date(ms);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/** Formats a timestamp in Asia/Kolkata timezone as "14 Oct 2026, 11:14 PM". */
+export function formatDateTime(val: number | string | Date | null | undefined): string {
+  const d = parseDate(val);
+  if (!d) return '—';
+  const raw = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return raw.replace(/am|pm/i, (m) => m.toUpperCase());
+}
+
+/** Short date format in Asia/Kolkata: "14 Oct 2026". */
+export function formatDate(val: number | string | Date | null | undefined): string {
+  const d = parseDate(val);
+  if (!d) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(d);
 }
 
 export function formatBytes(bytes: number | null | undefined): string {
