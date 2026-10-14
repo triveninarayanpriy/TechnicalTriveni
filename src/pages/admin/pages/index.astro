@@ -8,7 +8,6 @@ import { formatDate } from '../../../lib/format';
 const pages = await getAllPages(env.DB);
 const defaultPages = ['about', 'contact', 'how-it-works'];
 
-// Ensure standard pages exist in the array (even if not in DB yet) to give a quick access link
 const displayPages = [...pages];
 for (const slug of defaultPages) {
   if (!displayPages.some(p => p.slug === slug)) {
@@ -19,202 +18,149 @@ displayPages.sort((a, b) => a.slug.localeCompare(b.slug));
 ---
 
 <Admin title="Pages" active="pages">
-  <!-- Desktop Pages View -->
-  <div class="pages-desktop">
-    <div class="page-actions">
-      <p class="dim">Manage your static pages like About, Contact, and How it works.</p>
-    </div>
+  <!-- Desktop / Tablet Pages View (>= 769px) -->
+  <div class="pages-desktop-view">
+    <header class="admin-desktop-topbar">
+      <h1 class="admin-desktop-topbar__title">Pages</h1>
+      <p style="margin: 0; color: var(--admin-muted); font-size: 14px;">Manage custom static pages</p>
+    </header>
 
-    <div class="table-wrap card-table">
-      <table class="admin-table">
-        <thead>
-          <tr><th>Page</th><th>Status</th><th>Published</th><th>Last Updated</th><th></th></tr>
-        </thead>
-        <tbody>
-          {displayPages.map((p) => (
-            <tr>
-              <td>
-                <a href={`/admin/pages/${p.slug}`} class="proj-title">{p.title}</a>
-                <span class="mono dim proj-slug">/{p.slug}</span>
-              </td>
-              <td>
-                {p.updated_at === 0 ? <span class="status is-draft">Not configured</span> : <span class="status is-live">Active</span>}
-              </td>
-              <td>
-                {p.published === 1 ? <span class="badge" style="background:var(--success);color:#fff;padding:0.15rem 0.4rem;border-radius:4px;font-size:0.75rem;">Published</span> : <span class="badge" style="background:var(--surface-3);color:var(--text-dim);padding:0.15rem 0.4rem;border-radius:4px;font-size:0.75rem;">Draft</span>}
-              </td>
-              <td class="dim">{p.updated_at > 0 ? formatDate(p.updated_at) : '—'}</td>
-              <td class="row-actions">
-                <a href={`/admin/pages/${p.slug}`} class="btn btn-ghost btn-xs">Edit</a>
-                <a href={`/${p.slug}`} target="_blank" class="btn btn-ghost btn-xs" aria-label="Preview"><Icon name="external" size={14} /></a>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div class="admin-desktop-content">
+      <div class="admin-table-card">
+        <div class="admin-table-wrap">
+          <table class="admin-table-standard">
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>Status</th>
+                <th>Published</th>
+                <th>Last Updated</th>
+                <th style="text-align: right;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayPages.map((p) => (
+                <tr>
+                  <td>
+                    <a href={`/admin/pages/${p.slug}`} class="proj-table-title">{p.title}</a>
+                    <span class="proj-table-slug">/{p.slug}</span>
+                  </td>
+                  <td>
+                    <span class:list={['admin-chip', p.updated_at === 0 ? 'admin-chip--draft' : 'admin-chip--live']}>
+                      {p.updated_at === 0 ? 'Not configured' : 'Active'}
+                    </span>
+                  </td>
+                  <td>
+                    <span class:list={['admin-chip', p.published === 1 ? 'admin-chip--live' : 'admin-chip--draft']}>
+                      {p.published === 1 ? 'Published' : 'Draft'}
+                    </span>
+                  </td>
+                  <td style="color: var(--admin-muted); font-size: 13px;">
+                    {p.updated_at > 0 ? formatDate(p.updated_at) : '—'}
+                  </td>
+                  <td style="text-align: right;">
+                    <a href={`/admin/pages/${p.slug}`} class="admin-btn admin-btn--secondary admin-btn--sm">Edit</a>
+                    <a href={`/${p.slug}`} target="_blank" rel="noopener noreferrer" class="admin-btn admin-btn--ghost admin-btn--sm admin-btn--icon" aria-label="Preview">
+                      <Icon name="external" size={16} />
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Mobile Pages View -->
-  <div class="pages-mobile">
-    <div class="mobile-pages-header">
-      <h1 class="mobile-pages-title">Pages</h1>
-      <span class="mobile-pages-count">{displayPages.length} pages</span>
-    </div>
+  <!-- Mobile Pages View (<= 768px) -->
+  <div class="admin-mobile-shell">
+    <header class="admin-mobile-topbar">
+      <h1 class="admin-mobile-topbar__title">Pages</h1>
+    </header>
 
-    <div class="mobile-pages-list">
-      {displayPages.map((p) => (
-        <a href={`/admin/pages/${p.slug}`} class="mobile-page-card">
-          <div class="mobile-page-card__main">
-            <strong class="mobile-page-card__title">{p.title}</strong>
-            <span class="mobile-page-card__slug mono">/{p.slug}</span>
-            <div class="mobile-page-card__meta">
-              <span class:list={['mobile-page-chip', p.published === 1 ? 'is-published' : 'is-draft']}>
-                {p.published === 1 ? 'Published' : 'Draft'}
-              </span>
-              <span class="mobile-page-card__date">
-                {p.updated_at > 0 ? `Updated ${formatDate(p.updated_at)}` : 'Not configured'}
-              </span>
+    <div class="admin-mobile-content">
+      <div class="admin-card mobile-pages-list">
+        {displayPages.map((p) => (
+          <a href={`/admin/pages/${p.slug}`} class="mobile-page-row">
+            <div class="mobile-page-info">
+              <strong class="mobile-page-title">{p.title}</strong>
+              <span class="mobile-page-slug">/{p.slug}</span>
+              <div class="mobile-page-meta">
+                <span class:list={['admin-chip', p.published === 1 ? 'admin-chip--live' : 'admin-chip--draft']}>
+                  {p.published === 1 ? 'Published' : 'Draft'}
+                </span>
+                <span style="font-size: 12px; color: var(--admin-muted);">
+                  {p.updated_at > 0 ? formatDate(p.updated_at) : 'Not configured'}
+                </span>
+              </div>
             </div>
-          </div>
-          <Icon name="chevron-right" size={20} class="mobile-page-chevron" />
-        </a>
-      ))}
+            <Icon name="chevron-right" size={18} class="mobile-page-arrow" />
+          </a>
+        ))}
+      </div>
     </div>
   </div>
 </Admin>
 
 <style>
-  /* Desktop styles */
-  @media (min-width: 769px) {
-    .pages-mobile { display: none !important; }
-    .pages-desktop { display: block; }
+  @media (max-width: 768px) {
+    .pages-desktop-view { display: none !important; }
   }
 
-  .page-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
-  .card-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
-  .admin-table { width: 100%; border-collapse: collapse; min-width: 640px; }
-  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
-  .admin-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); vertical-align: middle; }
-  .admin-table tr:last-child td { border-bottom: 0; }
-  .proj-title { font-weight: 600; }
-  .proj-title:hover { color: var(--brand-red); }
-  .proj-slug { display: block; font-size: var(--fs-xs); margin-top: 2px; }
-  .status { display: inline-block; padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); margin-right: 0.3rem; }
-  .status.is-live { background: rgba(52,211,153,0.14); color: var(--success); }
-  .status.is-draft { background: var(--surface-3); color: var(--text-muted); }
-  .row-actions { display: flex; gap: 0.35rem; align-items: center; justify-content: flex-end; }
-  .btn-xs { padding: 0.35rem 0.6rem; font-size: var(--fs-xs); }
+  .proj-table-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--admin-ink);
+    text-decoration: none;
+    display: block;
+  }
+  .proj-table-title:hover {
+    color: var(--admin-red);
+  }
+  .proj-table-slug {
+    font-size: 12px;
+    color: var(--admin-muted);
+    font-family: var(--admin-font-mono);
+  }
 
-  /* Mobile styles (<= 768px) */
-  @media (max-width: 768px) {
-    .pages-desktop { display: none !important; }
-    .pages-mobile {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      width: 100%;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-
-    .mobile-pages-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.25rem;
-    }
-
-    .mobile-pages-title {
-      font-size: 1.75rem;
-      font-weight: 800;
-      color: #14171C;
-      margin: 0;
-      letter-spacing: -0.02em;
-    }
-
-    .mobile-pages-count {
-      font-size: 0.85rem;
-      color: #5B6472;
-    }
-
-    .mobile-pages-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .mobile-page-card {
-      background: #FFFFFF;
-      border-radius: 16px;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-      padding: 1.15rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      text-decoration: none;
-      color: inherit;
-      min-height: 72px;
-      box-sizing: border-box;
-      transition: background 0.12s ease;
-    }
-
-    .mobile-page-card:active {
-      background: #F8FAFC;
-    }
-
-    .mobile-page-card__main {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .mobile-page-card__title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #14171C;
-    }
-
-    .mobile-page-card__slug {
-      font-size: 0.8rem;
-      color: #5B6472;
-    }
-
-    .mobile-page-card__meta {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      margin-top: 0.25rem;
-    }
-
-    .mobile-page-chip {
-      padding: 0.15rem 0.55rem;
-      border-radius: 9999px;
-      font-size: 0.72rem;
-      font-weight: 600;
-    }
-
-    .mobile-page-chip.is-published {
-      background: #DCFCE7;
-      color: #15803D;
-    }
-
-    .mobile-page-chip.is-draft {
-      background: #F1F5F9;
-      color: #475569;
-    }
-
-    .mobile-page-card__date {
-      font-size: 0.78rem;
-      color: #5B6472;
-    }
-
-    .mobile-page-chevron {
-      color: #14171C;
-      flex-shrink: 0;
-    }
+  /* Mobile */
+  .mobile-pages-list {
+    padding: 8px 16px;
+  }
+  .mobile-page-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--admin-line-subtle);
+    text-decoration: none;
+    color: var(--admin-ink);
+  }
+  .mobile-page-row:last-child {
+    border-bottom: none;
+  }
+  .mobile-page-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mobile-page-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .mobile-page-slug {
+    font-size: 12px;
+    color: var(--admin-muted);
+    font-family: var(--admin-font-mono);
+  }
+  .mobile-page-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .mobile-page-arrow {
+    color: var(--admin-muted);
   }
 </style>

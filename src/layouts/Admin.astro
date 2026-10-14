@@ -1,6 +1,8 @@
 ---
 import '../styles/global.css';
+import '../styles/admin.css';
 import Icon from '../components/Icon.astro';
+import { env } from 'cloudflare:workers';
 
 interface Props {
   title: string;
@@ -9,198 +11,216 @@ interface Props {
 }
 const { title, active = '', hideTabBar = false } = Astro.props;
 const admin = Astro.locals.admin;
+const csrf = Astro.locals.csrfToken;
+
+// Fetch unread messages count for the mobile badge and desktop badge
+let unreadMessages = 0;
+try {
+  const unreadRes = await env.DB.prepare("SELECT COUNT(*) as count FROM contact_messages WHERE status = 'new'").first<{ count: number }>();
+  if (unreadRes?.count) {
+    unreadMessages = unreadRes.count;
+  }
+} catch {}
 
 const nav = [
-  { key: 'dashboard', label: 'Dashboard', href: '/admin', icon: 'layers' },
-  { key: 'projects', label: 'Projects', href: '/admin/projects', icon: 'cpu' },
-  { key: 'components', label: 'Components', href: '/admin/components', icon: 'cart' },
-  { key: 'orders', label: 'Orders', href: '/admin/orders', icon: 'cart' },
-  { key: 'messages', label: 'Messages', href: '/admin/messages', icon: 'mail' },
+  { key: 'dashboard', label: 'Dashboard', href: '/admin', icon: 'grid' },
+  { key: 'projects', label: 'Projects', href: '/admin/projects', icon: 'cube' },
+  { key: 'orders', label: 'Orders', href: '/admin/orders', icon: 'shopping-bag' },
+  { key: 'messages', label: 'Messages', href: '/admin/messages', icon: 'message-square', badge: unreadMessages },
   { key: 'pages', label: 'Pages', href: '/admin/pages', icon: 'file' },
-  { key: 'coupons', label: 'Coupons', href: '/admin/coupons', icon: 'star' },
-  { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'spark' },
+  { key: 'coupons', label: 'Coupons', href: '/admin/coupons', icon: 'tag' },
+  { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'sliders' },
 ];
 
 const mobileBottomNav = [
   { key: 'dashboard', label: 'Dashboard', href: '/admin', icon: 'grid' },
   { key: 'projects', label: 'Projects', href: '/admin/projects', icon: 'cube' },
   { key: 'orders', label: 'Orders', href: '/admin/orders', icon: 'shopping-bag' },
-  { key: 'messages', label: 'Messages', href: '/admin/messages', icon: 'message-square' },
+  { key: 'messages', label: 'Messages', href: '/admin/messages', icon: 'message-square', badge: unreadMessages },
   { key: 'more', label: 'More', href: '/admin/more', icon: 'menu' },
 ];
-
-const csrf = Astro.locals.csrfToken;
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <title>{title} · Admin · Technical Triveni</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     />
   </head>
   <body class="admin-body">
-    <div class="admin">
+    <div class="admin-layout-root">
+      <!-- ==============================================
+           DESKTOP (>=1024px) & TABLET (769-1023px) SIDEBAR
+           ============================================== -->
       <aside class="admin-sidebar" data-sidebar>
-        <a href="/admin" class="admin-brand">
-          <svg viewBox="-4 -4 120 100" aria-hidden="true">
+        <a href="/admin" class="admin-brand" title="Technical Triveni Admin">
+          <svg viewBox="-4 -4 120 100" width="28" height="24" aria-hidden="true" style="flex-shrink:0;">
             <defs><path id="ab" d="M12 0 L62 0 L62 18 L41 18 L41 74 L31 92 L21 74 L21 18 L0 18 L0 7 L12 7 Z"/></defs>
-            <use href="#ab" x="0" fill="var(--brand-red)"/>
-            <use href="#ab" x="50" fill="#0e0f12"/>
+            <use href="#ab" x="0" fill="var(--admin-red)"/>
+            <use href="#ab" x="50" fill="#0F1115"/>
           </svg>
-          <span>Triveni <em>Admin</em></span>
+          <div class="admin-brand__logo">
+            <span class="admin-brand__name">TECHNICAL <span>TRIVENI</span></span>
+            <span class="admin-brand__sub">Admin</span>
+          </div>
         </a>
-        <nav class="admin-nav">
+
+        <nav class="admin-nav" aria-label="Admin Navigation">
           {nav.map((n) => (
-            <a href={n.href} class:list={['admin-nav__link', { 'is-active': active === n.key }]}>
-              <Icon name={n.icon} size={18} /> {n.label}
+            <a
+              href={n.href}
+              class:list={['admin-nav__item', { 'is-active': active === n.key }]}
+              title={n.label}
+            >
+              <Icon name={n.icon} size={20} />
+              <span>{n.label}</span>
+              {n.badge ? n.badge > 0 && <span class="admin-badge-count">{n.badge}</span> : null}
             </a>
           ))}
         </nav>
-        <div class="admin-sidebar__foot">
-          <a href="/" target="_blank" class="admin-nav__link"><Icon name="external" size={18} /> View site</a>
-          <form method="post" action="/api/admin/logout">
+
+        <div class="admin-sidebar__footer">
+          <a href="/" target="_blank" rel="noopener noreferrer" class="admin-nav__item" title="View public site">
+            <Icon name="external" size={18} />
+            <span>View site</span>
+          </a>
+          <form method="post" action="/api/admin/logout" class="admin-logout-form" style="width:100%;">
             <input type="hidden" name="csrf" value={csrf} />
-            <button type="submit" class="admin-nav__link admin-logout"><Icon name="logout" size={18} /> Log out</button>
+            <button type="submit" class="admin-nav__item admin-logout-btn" title="Log out">
+              <Icon name="logout" size={18} />
+              <span>Log out</span>
+            </button>
           </form>
+          {admin?.email && (
+            <div class="admin-user-pill mono" title={admin.email}>
+              {admin.email}
+            </div>
+          )}
         </div>
       </aside>
 
-      <div class:list={['admin-main', { 'no-tabbar': hideTabBar }]}>
-        <header class="admin-topbar">
-          <button class="admin-burger" data-sidebar-toggle aria-label="Toggle menu"><Icon name="menu" size={22} /></button>
-          <h1 class="admin-topbar__title">{title}</h1>
-          <span class="admin-user mono">{admin?.email}</span>
-        </header>
-        <div class="admin-content">
-          <slot />
-        </div>
+      <!-- ==============================================
+           DESKTOP MAIN CANVAS
+           ============================================== -->
+      <div class="admin-main-wrap">
+        <slot />
       </div>
     </div>
 
+    <!-- ==============================================
+         MOBILE BOTTOM TAB BAR (<=768px)
+         ============================================== -->
     {!hideTabBar && (
-      <nav class="admin-mobile-tabbar" aria-label="Mobile navigation">
+      <nav class="admin-mobile-tabbar" aria-label="Mobile admin navigation">
         {mobileBottomNav.map((item) => (
           <a
             href={item.href}
             class:list={['admin-mobile-tabbar__item', { 'is-active': active === item.key }]}
+            style="position: relative;"
           >
             <Icon name={item.icon} size={22} />
             <span>{item.label}</span>
+            {item.badge ? item.badge > 0 && <span class="admin-tabbar-badge">{item.badge}</span> : null}
           </a>
         ))}
       </nav>
     )}
 
+    <!-- Global Toast Container -->
     <div class="toast-wrap" id="toast-wrap" aria-live="polite"></div>
 
     <style>
-      .admin-body { background: var(--bg); }
-      .admin { display: grid; grid-template-columns: 250px 1fr; min-height: 100dvh; }
-      .admin-sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: 0.5rem; padding: 1.25rem 1rem; border-right: 1px solid var(--border); background: var(--bg-2); }
-      .admin-brand { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem; font-family: var(--font-display); font-weight: 700; }
-      .admin-brand svg { width: 30px; }
-      .admin-brand em { color: var(--brand-red); font-style: normal; }
-      .admin-nav { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 1rem; }
-      .admin-nav__link { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.85rem; border-radius: var(--r-sm); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 550; width: 100%; background: none; border: none; cursor: pointer; text-align: left; }
-      .admin-nav__link:hover { background: var(--surface); color: var(--text); }
-      .admin-nav__link.is-active { background: var(--surface-2); color: var(--text); box-shadow: inset 2px 0 0 var(--brand-red); }
-      .admin-nav__link :global(svg) { flex-shrink: 0; }
-      .admin-sidebar__foot { margin-top: auto; display: flex; flex-direction: column; gap: 0.2rem; padding-top: 1rem; border-top: 1px solid var(--hairline); }
-      .admin-logout { color: var(--danger); }
-
-      .admin-main { min-width: 0; display: flex; flex-direction: column; }
-      .admin-topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 1rem; padding: 1rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); }
-      .admin-topbar__title { font-size: var(--fs-md); flex: 1; }
-      .admin-user { font-size: var(--fs-xs); color: var(--text-dim); }
-      .admin-burger { display: none; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: var(--r-sm); padding: 0.35rem; cursor: pointer; }
-      .admin-content { padding: clamp(1.25rem, 3vw, 2rem); flex: 1; }
-
-      .admin-mobile-tabbar { display: none; }
-
-      /* Mobile shell for <=768px */
+      .admin-badge-count {
+        margin-left: auto;
+        background: var(--admin-red);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 999px;
+        line-height: 1.2;
+      }
+      .admin-logout-btn {
+        color: #C5221F !important;
+      }
+      .admin-logout-btn:hover {
+        background: #FEECEB !important;
+      }
+      .toast-wrap {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 1000;
+        pointer-events: none;
+      }
       @media (max-width: 768px) {
-        .admin-body { background: #F3F5F8; color: #14171C; }
-        .admin { display: block; min-height: 100dvh; background: #F3F5F8; }
-        .admin-sidebar { display: none !important; }
-        .admin-burger { display: none !important; }
-        .admin-user { display: none; }
-        .admin-topbar { padding: 0.85rem 1rem; background: #FFFFFF; border-bottom: 1px solid #E5E7EB; }
-        .admin-topbar__title { font-size: 1.25rem; font-weight: 700; color: #14171C; }
-        .admin-content { padding: 1rem 0.85rem; max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
-        
-        .admin-main {
-          padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        .toast-wrap {
+          bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+          left: 16px;
+          right: 16px;
         }
-        .admin-main.no-tabbar {
-          padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      :global(.toast) {
+        padding: 12px 18px;
+        background: var(--admin-ink);
+        color: #fff;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        pointer-events: auto;
+        animation: toastIn 0.2s ease-out;
+      }
+      :global(.toast.is-success) {
+        background: #14663A;
+      }
+      :global(.toast.is-error) {
+        background: var(--admin-red);
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
         }
-
-        .admin-mobile-tabbar {
-          display: flex;
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: calc(56px + env(safe-area-inset-bottom, 0px));
-          padding-bottom: env(safe-area-inset-bottom, 0px);
-          background: #FFFFFF;
-          border-top: 1px solid #E5E7EB;
-          z-index: 100;
-          justify-content: space-around;
-          align-items: center;
-          box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
-        }
-
-        .admin-mobile-tabbar__item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          flex: 1;
-          height: 52px;
-          min-height: 44px;
-          gap: 3px;
-          color: #5B6472;
-          text-decoration: none;
-          font-size: 11px;
-          font-weight: 500;
-          transition: color 0.15s ease;
-          -webkit-tap-highlight-color: transparent;
-        }
-
-        .admin-mobile-tabbar__item.is-active {
-          color: #D81F26;
-          font-weight: 600;
-        }
-
-        .admin-mobile-tabbar__item :global(svg) {
-          flex-shrink: 0;
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
       }
     </style>
 
     <script>
-      const sb = document.querySelector('[data-sidebar]');
-      document.querySelector('[data-sidebar-toggle]')?.addEventListener('click', () => sb?.classList.toggle('is-open'));
       (window as any).toast = (message: string, type = 'info') => {
-        const wrap = document.getElementById('toast-wrap'); if (!wrap) return;
-        const el = document.createElement('div'); el.className = `toast is-${type}`; el.textContent = message;
-        wrap.appendChild(el); setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; setTimeout(() => el.remove(), 400); }, 4000);
+        const wrap = document.getElementById('toast-wrap');
+        if (!wrap) return;
+        const el = document.createElement('div');
+        el.className = `toast is-${type}`;
+        el.textContent = message;
+        wrap.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity .3s ease-out';
+          setTimeout(() => el.remove(), 300);
+        }, 3500);
       };
-      // Surface ?ok= / ?err= flash messages as toasts.
-      const p = new URLSearchParams(location.search);
-      if (p.get('ok')) (window as any).toast(decodeURIComponent(p.get('ok')!), 'success');
-      if (p.get('err')) (window as any).toast(decodeURIComponent(p.get('err')!), 'error');
+
+      // Surface ?ok= / ?err= flash messages as toasts
+      const params = new URLSearchParams(location.search);
+      if (params.get('ok')) (window as any).toast(decodeURIComponent(params.get('ok')!), 'success');
+      if (params.get('err')) (window as any).toast(decodeURIComponent(params.get('err')!), 'error');
     </script>
   </body>
 </html>

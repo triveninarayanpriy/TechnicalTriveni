@@ -15,320 +15,602 @@ const tabs = [
   { id: 'replied', label: 'Replied' },
   { id: 'spam', label: 'Spam' },
   { id: 'archived', label: 'Archived' },
-  { id: 'all', label: 'All' }
+  { id: 'all', label: 'All' },
 ];
 
 const savedReplies = [
   { label: 'Select a saved reply...', value: '' },
   { label: 'Thank you - Looking into it', value: 'Hi there,\n\nThank you for reaching out. We have received your message and are currently looking into it. We will get back to you shortly.\n\nBest regards,\nTechnical Triveni' },
   { label: 'Check the FAQ', value: 'Hi,\n\nThanks for your message! Please check our FAQ section on the website, as it might already answer your question.\n\nBest,\nTechnical Triveni' },
-  { label: 'Not a good fit right now', value: 'Hi,\n\nThanks for reaching out. Unfortunately, this is not something we are able to assist with at this time.\n\nBest regards,\nTechnical Triveni' }
+  { label: 'Not a good fit right now', value: 'Hi,\n\nThanks for reaching out. Unfortunately, this is not something we are able to assist with at this time.\n\nBest regards,\nTechnical Triveni' },
 ];
+
+const activeMessageId = Astro.url.searchParams.get('id') ? Number(Astro.url.searchParams.get('id')) : (messages[0]?.id || 0);
+const selectedMessage = messages.find((m) => m.id === activeMessageId) || messages[0] || null;
 ---
 
 <Admin title="Messages" active="messages">
-  <div class="msg-board">
-    <div class="msg-header">
-      <div class="tabs">
-        {tabs.map((t) => (
-          <a
-            href={`?status=${t.id}${search ? `&q=${encodeURIComponent(search)}` : ''}`}
-            class:list={['tab', { active: status === t.id }]}
-          >
-            {t.label}
-          </a>
-        ))}
+  <!-- ==============================================
+       DESKTOP / TABLET TWO-PANE VIEW (>= 769px)
+       ============================================== -->
+  <div class="msg-desktop-view">
+    <header class="admin-desktop-topbar">
+      <h1 class="admin-desktop-topbar__title">Messages</h1>
+      <div class="admin-desktop-topbar__actions">
+        <!-- Filter Tabs as Segmented Control -->
+        <div class="admin-segmented">
+          {tabs.map((t) => (
+            <a
+              href={`?status=${t.id}${search ? `&q=${encodeURIComponent(search)}` : ''}`}
+              class:list={['admin-segment-item', { 'is-active': status === t.id }]}
+            >
+              {t.label}
+            </a>
+          ))}
+        </div>
       </div>
-      <form class="search-form" method="get" action="/admin/messages">
+    </header>
+
+    <div class="admin-desktop-content">
+      <!-- Search Bar -->
+      <form class="msg-search-bar" method="get">
         <input type="hidden" name="status" value={status} />
-        <div class="search-input-wrapper">
-          <Icon name="search" size={16} class="search-icon" />
+        <div class="search-wrap">
+          <Icon name="search" size={18} class="search-icon" />
           <input
             type="search"
             name="q"
-            placeholder="Search name, email, subject..."
             value={search}
-            class="input search-input"
+            placeholder="Search name, email, subject..."
+            class="admin-input search-input"
+            autocomplete="off"
           />
         </div>
       </form>
-    </div>
 
-    {messages.length > 0 ? (
-      <div class="msgs">
-        {messages.map((m) => (
-          <article class:list={['msg', `status-${m.status}`]} data-msg-id={m.id}>
-            <div class="msg__head" role="button" tabindex="0">
-              <div class="msg__sender">
-                <strong>{m.name}</strong>
-                <a href={`mailto:${m.email}`} class="mono dim msg__email" aria-label="Email">{m.email}</a>
-              </div>
-              <div class="msg__meta">
-                <span class="dim msg__date">{formatDateTime(m.created_at)}</span>
-                <Icon name="chevron-down" size={16} class="expand-icon" />
-              </div>
+      <!-- Split 2-Pane Container -->
+      <div class="admin-card msg-two-pane">
+        <!-- Left Pane: Message List -->
+        <div class="msg-pane-list">
+          {messages.map((m) => {
+            const isSelected = selectedMessage && selectedMessage.id === m.id;
+            return (
+              <a
+                href={`?status=${status}&id=${m.id}${search ? `&q=${encodeURIComponent(search)}` : ''}`}
+                class:list={['msg-list-item', { 'is-selected': isSelected }]}
+              >
+                <div class="msg-item-top">
+                  <span class="msg-item-sender">{m.name}</span>
+                  <span class="msg-item-date">{formatDateTime(m.created_at)}</span>
+                </div>
+                <span class="msg-item-email">{m.email}</span>
+                <span class="msg-item-subject">{m.subject || 'No subject'}</span>
+                <p class="msg-item-preview">{m.message.slice(0, 90)}...</p>
+                <div class="msg-item-footer">
+                  <span class:list={['admin-chip', m.status === 'new' ? 'admin-chip--warning' : m.status === 'replied' ? 'admin-chip--live' : 'admin-chip--draft']}>
+                    {m.status}
+                  </span>
+                </div>
+              </a>
+            );
+          })}
+          {messages.length === 0 && (
+            <div class="msg-empty-state">
+              <Icon name="mail" size={28} />
+              <p>No messages found in this folder.</p>
             </div>
-            
-            <div class="msg__content">
-              {m.subject && <h4 class="msg__subject">{m.subject}</h4>}
-              <p class="msg__body">{m.message}</p>
-              
-              {m.reply_body && m.status === 'replied' && (
-                <div class="msg__reply-history">
-                  <h5>Previous Reply</h5>
-                  <p>{m.reply_body}</p>
+          )}
+        </div>
+
+        <!-- Right Pane: Detail & Reply -->
+        <div class="msg-pane-detail">
+          {selectedMessage ? (
+            <div class="msg-detail-wrap">
+              <div class="msg-detail-header">
+                <div>
+                  <h2 class="msg-detail-title">{selectedMessage.subject || 'General Inquiry'}</h2>
+                  <div class="msg-detail-sender">
+                    <strong>{selectedMessage.name}</strong>
+                    <span class="dim">&lt;{selectedMessage.email}&gt;</span>
+                  </div>
+                  <div class="msg-detail-time dim">{formatDateTime(selectedMessage.created_at)}</div>
+                </div>
+
+                <div class="msg-detail-actions">
+                  <form method="post" action="/api/admin/message/action">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={selectedMessage.id} />
+                    <input type="hidden" name="action" value="archive" />
+                    <button type="submit" class="admin-btn admin-btn--secondary admin-btn--sm">Archive</button>
+                  </form>
+                  <form method="post" action="/api/admin/message/action">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={selectedMessage.id} />
+                    <input type="hidden" name="action" value="spam" />
+                    <button type="submit" class="admin-btn admin-btn--secondary admin-btn--sm">Mark Spam</button>
+                  </form>
+                </div>
+              </div>
+
+              <div class="msg-detail-body">
+                <p>{selectedMessage.message}</p>
+              </div>
+
+              {selectedMessage.reply_body && (
+                <div class="msg-previous-reply">
+                  <h4>Previous Reply</h4>
+                  <p>{selectedMessage.reply_body}</p>
                 </div>
               )}
 
-              <div class="msg__actions">
-                <form method="post" action="/api/admin/message/action" class="inline-form">
+              <!-- Inline Reply Box -->
+              <div class="msg-reply-section">
+                <h3 class="msg-reply-title">Reply to {selectedMessage.name}</h3>
+                <form method="post" action="/api/admin/message/reply" class="msg-reply-form">
                   <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={m.id} />
-                  <input type="hidden" name="action" value="archive" />
-                  <button class="btn btn-ghost btn-sm" type="submit">Archive</button>
-                </form>
-                <form method="post" action="/api/admin/message/action" class="inline-form">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={m.id} />
-                  <input type="hidden" name="action" value="spam" />
-                  <button class="btn btn-ghost btn-sm" type="submit">Mark Spam</button>
-                </form>
-                {m.status !== 'new' && (
-                  <form method="post" action="/api/admin/message/action" class="inline-form">
-                    <input type="hidden" name="csrf" value={csrf} />
-                    <input type="hidden" name="id" value={m.id} />
-                    <input type="hidden" name="action" value="new" />
-                    <button class="btn btn-ghost btn-sm" type="submit">Mark New</button>
-                  </form>
-                )}
-                <button class="btn btn-primary btn-sm btn-reply-toggle" type="button">
-                  <Icon name="mail" size={14} /> Reply
-                </button>
-              </div>
+                  <input type="hidden" name="id" value={selectedMessage.id} />
+                  <input type="hidden" name="email" value={selectedMessage.email} />
+                  <input type="hidden" name="subject" value={selectedMessage.subject} />
 
-              <div class="msg__reply-box" style="display: none;">
-                <form method="post" action="/api/admin/message/reply" class="reply-form">
-                  <input type="hidden" name="csrf" value={csrf} />
-                  <input type="hidden" name="id" value={m.id} />
-                  <input type="hidden" name="email" value={m.email} />
-                  <input type="hidden" name="subject" value={m.subject} />
-                  
-                  <div class="form-group">
-                    <select class="select saved-replies">
+                  <div class="admin-field">
+                    <label class="admin-label">Quick Saved Reply</label>
+                    <select class="admin-select desktop-saved-replies">
                       {savedReplies.map(r => (
                         <option value={r.value}>{r.label}</option>
                       ))}
                     </select>
                   </div>
-                  <div class="form-group">
-                    <textarea 
-                      name="reply_body" 
-                      class="input reply-textarea" 
-                      rows="5" 
-                      required 
+
+                  <div class="admin-field">
+                    <label class="admin-label">Message Body</label>
+                    <textarea
+                      name="reply_body"
+                      class="admin-textarea desktop-reply-text"
+                      rows="6"
+                      required
                       placeholder="Write your reply here..."
-                    >{m.reply_body || ''}</textarea>
+                    ></textarea>
                   </div>
-                  <div class="reply-actions">
-                    <button type="button" class="btn btn-ghost btn-cancel-reply">Cancel</button>
-                    <button type="submit" class="btn btn-primary"><Icon name="send" size={14} /> Send Reply</button>
+
+                  <div class="reply-button-row">
+                    <button type="submit" class="admin-btn admin-btn--primary">
+                      <Icon name="mail" size={16} />
+                      <span>Send Reply</span>
+                    </button>
                   </div>
                 </form>
               </div>
             </div>
-          </article>
+          ) : (
+            <div class="msg-detail-empty">
+              <Icon name="mail" size={36} />
+              <p>Select a message on the left to read and reply.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MOBILE MESSAGES VIEW (<= 768px)
+       Dedicated layout with cards & full-screen viewer
+       ============================================== -->
+  <div class="admin-mobile-shell">
+    <header class="admin-mobile-topbar">
+      <h1 class="admin-mobile-topbar__title">Messages</h1>
+    </header>
+
+    <div class="admin-mobile-content">
+      <!-- Search Input -->
+      <form class="mobile-search-form" method="get">
+        <input type="hidden" name="status" value={status} />
+        <div class="mobile-search-wrap">
+          <Icon name="search" size={18} class="mobile-search-icon" />
+          <input
+            type="search"
+            name="q"
+            value={search}
+            placeholder="Search name, email..."
+            class="admin-input mobile-search-field"
+            autocomplete="off"
+          />
+        </div>
+      </form>
+
+      <!-- Filter Chips -->
+      <div class="mobile-chips-track">
+        {tabs.map((t) => (
+          <a
+            href={`?status=${t.id}${search ? `&q=${encodeURIComponent(search)}` : ''}`}
+            class:list={['admin-chip admin-chip--filter', { 'is-active': status === t.id }]}
+          >
+            {t.label}
+          </a>
         ))}
       </div>
-    ) : (
-      <div class="empty-admin">
-        <div class="empty-admin__icon"><Icon name="mail" size={28} /></div>
-        <h3>No messages found</h3>
-        <p class="dim">Try changing the search or tab.</p>
+
+      <!-- Mobile Message Cards -->
+      <div class="admin-card mobile-msg-card-list">
+        {messages.map((m) => (
+          <article class="mobile-msg-item">
+            <details class="mobile-msg-details">
+              <summary class="mobile-msg-summary">
+                <div class="mobile-msg-head">
+                  <span class="mobile-msg-sender">{m.name}</span>
+                  <span class="mobile-msg-date">{formatDateTime(m.created_at)}</span>
+                </div>
+                <span class="mobile-msg-subject">{m.subject || 'No subject'}</span>
+                <div class="mobile-msg-status-row">
+                  <span class:list={['admin-chip', m.status === 'new' ? 'admin-chip--warning' : m.status === 'replied' ? 'admin-chip--live' : 'admin-chip--draft']}>
+                    {m.status}
+                  </span>
+                  <span class="dim" style="font-size: 12px; margin-left: auto;">Tap to read</span>
+                </div>
+              </summary>
+
+              <div class="mobile-msg-body">
+                <p class="mobile-msg-text">{m.message}</p>
+
+                {m.reply_body && (
+                  <div class="msg-previous-reply">
+                    <h4>Previous Reply</h4>
+                    <p>{m.reply_body}</p>
+                  </div>
+                )}
+
+                <div class="mobile-msg-actions">
+                  <form method="post" action="/api/admin/message/action">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="action" value="archive" />
+                    <button type="submit" class="admin-btn admin-btn--secondary admin-btn--sm">Archive</button>
+                  </form>
+                  <form method="post" action="/api/admin/message/action">
+                    <input type="hidden" name="csrf" value={csrf} />
+                    <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="action" value="spam" />
+                    <button type="submit" class="admin-btn admin-btn--secondary admin-btn--sm">Mark Spam</button>
+                  </form>
+                </div>
+
+                <!-- Reply Form -->
+                <form method="post" action="/api/admin/message/reply" class="mobile-reply-form">
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="id" value={m.id} />
+                  <input type="hidden" name="email" value={m.email} />
+                  <input type="hidden" name="subject" value={m.subject} />
+
+                  <div class="admin-field">
+                    <label class="admin-label">Quick Saved Reply</label>
+                    <select class="admin-select mobile-saved-replies">
+                      {savedReplies.map(r => (
+                        <option value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div class="admin-field">
+                    <label class="admin-label">Reply</label>
+                    <textarea
+                      name="reply_body"
+                      class="admin-textarea mobile-reply-text"
+                      rows="4"
+                      required
+                      placeholder="Write your reply..."
+                    ></textarea>
+                  </div>
+
+                  <button type="submit" class="admin-btn admin-btn--primary" style="width: 100%;">
+                    Send Reply
+                  </button>
+                </form>
+              </div>
+            </details>
+          </article>
+        ))}
+
+        {messages.length === 0 && (
+          <div class="mobile-empty-orders">No messages found.</div>
+        )}
       </div>
-    )}
+    </div>
   </div>
 </Admin>
 
 <style>
-  .msg-board { max-width: 900px; display: flex; flex-direction: column; gap: 1.5rem; }
-  .msg-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; align-items: center; background: var(--surface); padding: 1rem; border-radius: var(--r-lg); border: 1px solid var(--border); }
-  .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .tab { padding: 0.4rem 0.8rem; border-radius: var(--r-md); font-size: var(--fs-sm); font-weight: 500; color: var(--text-dim); text-decoration: none; transition: background 0.2s, color 0.2s; }
-  .tab:hover { background: var(--surface-2); color: var(--text); }
-  .tab.active { background: var(--brand-red); color: white; }
-  
-  .search-form { flex: 1; min-width: 200px; max-width: 300px; }
-  .search-input-wrapper { position: relative; display: flex; align-items: center; }
-  .search-icon { position: absolute; left: 0.8rem; color: var(--text-muted); pointer-events: none; }
-  .search-input { width: 100%; padding-left: 2.2rem; }
-  
-  .msgs { display: flex; flex-direction: column; gap: 1rem; }
-  .msg { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; transition: box-shadow 0.2s; }
-  .msg.status-new { border-left: 3px solid var(--brand-red); }
-  .msg.status-replied { border-left: 3px solid var(--success); }
-  .msg.status-spam { border-left: 3px solid var(--danger); opacity: 0.7; }
-  .msg.status-archived { border-left: 3px solid var(--text-muted); opacity: 0.8; }
-  
-  .msg__head { display: flex; justify-content: space-between; align-items: flex-start; padding: 1.2rem 1.5rem; cursor: pointer; gap: 1rem; user-select: none; }
-  .msg__head:hover { background: var(--surface-2); }
-  .msg__sender { display: flex; flex-direction: column; }
-  .msg__email { font-size: var(--fs-xs); margin-top: 2px; }
-  .msg__meta { display: flex; align-items: center; gap: 1rem; }
-  .msg__date { font-size: var(--fs-xs); }
-  .expand-icon { transition: transform 0.2s; }
-  .msg.expanded .expand-icon { transform: rotate(180deg); }
-  
-  .msg__content { display: none; padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border); }
-  .msg.expanded .msg__content { display: block; padding-top: 1.2rem; }
-  
-  .msg__subject { margin-bottom: 0.5rem; font-size: var(--fs-md); font-weight: 600; }
-  .msg__body { color: var(--text-muted); font-size: var(--fs-sm); white-space: pre-wrap; line-height: 1.5; }
-  
-  .msg__reply-history { margin-top: 1.5rem; padding: 1rem; background: var(--surface-2); border-radius: var(--r-md); border-left: 2px solid var(--success); }
-  .msg__reply-history h5 { margin-bottom: 0.5rem; font-size: var(--fs-sm); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-  .msg__reply-history p { font-size: var(--fs-sm); white-space: pre-wrap; color: var(--text); }
-  
-  .msg__actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border); flex-wrap: wrap; }
-  .inline-form { display: inline; }
-  
-  .msg__reply-box { margin-top: 1.5rem; padding: 1rem; background: var(--surface-2); border-radius: var(--r-md); border: 1px solid var(--border); }
-  .form-group { margin-bottom: 1rem; }
-  .reply-textarea { width: 100%; font-family: inherit; }
-  .reply-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-  .saved-replies { width: 100%; max-width: 300px; }
-  
-  .empty-admin { text-align: center; padding: 4rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
-  .empty-admin__icon { width: 60px; height: 60px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--surface-2); color: var(--text-dim); }
-
-  /* Mobile layout (<= 768px) */
+  /* Desktop Layout */
   @media (max-width: 768px) {
-    .msg-board {
-      width: 100%;
-      max-width: 100%;
-      box-sizing: border-box;
-      gap: 1rem;
+    .msg-desktop-view { display: none !important; }
+  }
+
+  .msg-search-bar {
+    margin-bottom: 20px;
+    max-width: 420px;
+  }
+  .search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--admin-muted);
+    pointer-events: none;
+  }
+  .search-input {
+    padding-left: 40px !important;
+  }
+
+  .msg-two-pane {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    padding: 0;
+    overflow: hidden;
+    min-height: 600px;
+  }
+  @media (max-width: 1023px) {
+    .msg-two-pane {
+      grid-template-columns: 280px 1fr;
     }
-    .msg-header {
-      background: transparent;
-      border: none;
-      padding: 0;
-      flex-direction: column-reverse;
-      align-items: stretch;
-      gap: 0.75rem;
-    }
-    .search-form {
-      max-width: 100%;
-      width: 100%;
-    }
-    .search-input {
-      height: 48px;
-      border-radius: 12px;
-      font-size: 16px !important;
-      background: #FFFFFF;
-      border: 1px solid #E5E7EB;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-    }
-    .tabs {
-      overflow-x: auto;
-      flex-wrap: nowrap;
-      padding-bottom: 0.25rem;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      gap: 0.5rem;
-    }
-    .tabs::-webkit-scrollbar {
-      display: none;
-    }
-    .tab {
-      padding: 0.5rem 1.15rem;
-      border-radius: 9999px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      background: #FFFFFF;
-      color: #14171C;
-      border: 1px solid #D1D5DB;
-      white-space: nowrap;
-      min-height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .tab.active {
-      background: #14171C !important;
-      color: #FFFFFF !important;
-      border-color: #14171C !important;
-    }
-    .msg {
-      border-radius: 16px;
-      background: #FFFFFF;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-    }
-    .msg__head {
-      padding: 1rem 1.15rem;
-      min-height: 56px;
-    }
-    .msg__content {
-      padding: 0 1.15rem 1.15rem;
-    }
-    .reply-textarea {
-      font-size: 16px !important;
-      border-radius: 12px;
-    }
-    .saved-replies {
-      max-width: 100%;
-      height: 48px;
-      font-size: 16px !important;
-      border-radius: 12px;
-    }
-    .msg__actions button,
-    .reply-actions button {
-      min-height: 44px;
-      border-radius: 10px;
-    }
+  }
+
+  .msg-pane-list {
+    border-right: var(--admin-border);
+    overflow-y: auto;
+    max-height: 750px;
+    background: #FAFBFD;
+  }
+  .msg-list-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--admin-line-subtle);
+    text-decoration: none;
+    color: var(--admin-ink);
+    transition: background var(--admin-duration) var(--admin-ease);
+  }
+  .msg-list-item:hover {
+    background: #F0F3F7;
+  }
+  .msg-list-item.is-selected {
+    background: #FFFFFF;
+    border-left: 3px solid var(--admin-red);
+  }
+  .msg-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .msg-item-sender {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .msg-item-date {
+    font-size: 11px;
+    color: var(--admin-muted);
+  }
+  .msg-item-email {
+    font-size: 12px;
+    color: var(--admin-muted);
+  }
+  .msg-item-subject {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--admin-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+  .msg-item-preview {
+    font-size: 12.5px;
+    color: var(--admin-muted);
+    margin: 2px 0 6px 0;
+    line-height: 1.4;
+  }
+  .msg-empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--admin-muted);
+  }
+
+  .msg-pane-detail {
+    padding: 28px 32px;
+    overflow-y: auto;
+    background: #FFFFFF;
+  }
+  .msg-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 20px;
+    border-bottom: var(--admin-border);
+  }
+  .msg-detail-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+  }
+  .msg-detail-sender {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .msg-detail-time {
+    font-size: 12px;
+    color: var(--admin-muted);
+  }
+  .msg-detail-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .msg-detail-body {
+    padding: 24px 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--admin-ink);
+  }
+  .msg-previous-reply {
+    background: #F8FAFC;
+    border-left: 3px solid var(--admin-success-text);
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+  }
+  .msg-previous-reply h4 {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    color: var(--admin-success-text);
+  }
+  .msg-previous-reply p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .msg-reply-section {
+    padding-top: 20px;
+    border-top: var(--admin-border);
+  }
+  .msg-reply-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 16px 0;
+  }
+  .msg-reply-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .reply-button-row {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .msg-detail-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--admin-muted);
+  }
+
+  /* Mobile Layout */
+  .mobile-search-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+  .mobile-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--admin-muted);
+    pointer-events: none;
+  }
+  .mobile-search-field {
+    padding-left: 42px !important;
+  }
+  .mobile-chips-track {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-msg-card-list {
+    padding: 8px 16px;
+  }
+  .mobile-msg-item {
+    border-bottom: 1px solid var(--admin-line-subtle);
+  }
+  .mobile-msg-item:last-child {
+    border-bottom: none;
+  }
+  .mobile-msg-summary {
+    padding: 14px 0;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mobile-msg-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .mobile-msg-sender {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .mobile-msg-date {
+    font-size: 11px;
+    color: var(--admin-muted);
+  }
+  .mobile-msg-subject {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--admin-ink);
+  }
+  .mobile-msg-status-row {
+    display: flex;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .mobile-msg-body {
+    padding: 12px 0 18px 0;
+    border-top: 1px dashed var(--admin-line);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .mobile-msg-text {
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .mobile-msg-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .mobile-reply-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #F8FAFC;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--admin-line);
+  }
+  .mobile-empty-orders {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--admin-muted);
+    font-size: 14px;
   }
 </style>
 
 <script>
-  // Expand/collapse messages
-  document.querySelectorAll('.msg__head').forEach(head => {
-    head.addEventListener('click', () => {
-      const msg = head.closest('.msg');
-      msg.classList.toggle('expanded');
-    });
-    head.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        head.closest('.msg').classList.toggle('expanded');
-      }
-    });
+  // Desktop saved reply auto-fill
+  const desktopSavedSelect = document.querySelector('.desktop-saved-replies') as HTMLSelectElement | null;
+  const desktopReplyText = document.querySelector('.desktop-reply-text') as HTMLTextAreaElement | null;
+  desktopSavedSelect?.addEventListener('change', () => {
+    if (desktopSavedSelect.value && desktopReplyText) {
+      desktopReplyText.value = desktopSavedSelect.value;
+    }
   });
 
-  // Toggle reply box
-  document.querySelectorAll('.btn-reply-toggle').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const box = btn.closest('.msg__content').querySelector('.msg__reply-box');
-      box.style.display = box.style.display === 'none' ? 'block' : 'none';
-      if (box.style.display === 'block') {
-        box.querySelector('textarea').focus();
-      }
-    });
-  });
-
-  // Cancel reply
-  document.querySelectorAll('.btn-cancel-reply').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.msg__reply-box').style.display = 'none';
-    });
-  });
-
-  // Saved replies
-  document.querySelectorAll('.saved-replies').forEach(select => {
-    select.addEventListener('change', (e) => {
-      const val = e.target.value;
-      if (val) {
-        const textarea = select.closest('.msg__reply-box').querySelector('textarea');
-        textarea.value = val;
+  // Mobile saved reply auto-fill
+  document.querySelectorAll('.mobile-reply-form').forEach((form) => {
+    const sel = form.querySelector('.mobile-saved-replies') as HTMLSelectElement | null;
+    const txt = form.querySelector('.mobile-reply-text') as HTMLTextAreaElement | null;
+    sel?.addEventListener('change', () => {
+      if (sel.value && txt) {
+        txt.value = sel.value;
       }
     });
   });

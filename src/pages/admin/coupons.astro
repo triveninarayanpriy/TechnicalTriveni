@@ -21,372 +21,250 @@ const csrf = Astro.locals.csrfToken;
 ---
 
 <Admin title="Coupons" active="coupons">
-  <!-- Desktop Layout (>= 769px) -->
-  <div class="coupons-desktop">
-    <div class="dash-grid">
-      <!-- Left: List of coupons -->
-      <section class="dash-panel card-table">
-        <div class="dash-panel__head" style="padding: 1.25rem; border-bottom: 1px solid var(--border);">
-          <h2 style="font-size: 1.2rem;">Active Coupons</h2>
+  <!-- ==============================================
+       DESKTOP / TABLET COUPONS VIEW (>= 769px)
+       ============================================== -->
+  <div class="coupons-desktop-view">
+    <header class="admin-desktop-topbar">
+      <h1 class="admin-desktop-topbar__title">Coupons</h1>
+    </header>
+
+    <div class="admin-desktop-content">
+      <div class="coupons-grid-layout">
+        <!-- Left: List of coupons -->
+        <div class="admin-table-card">
+          <div style="padding: 20px 24px; border-bottom: var(--admin-border);">
+            <h2 style="font-size: 17px; font-weight: 700; margin: 0;">Active Coupons</h2>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table-standard">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Discount</th>
+                  <th>Uses</th>
+                  <th>Expires</th>
+                  <th style="text-align: right;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {couponList.map((c) => (
+                  <tr>
+                    <td>
+                      <span class="admin-chip admin-chip--draft" style="font-family: var(--admin-font-mono); font-size: 13px;">
+                        {c.code}
+                      </span>
+                    </td>
+                    <td style="font-weight: 700; color: var(--admin-ink);">
+                      {c.discount_pct > 0 ? `${c.discount_pct}% OFF` : `₹${c.discount_inr} OFF`}
+                    </td>
+                    <td>
+                      {c.used} {c.max_uses > 0 ? `/ ${c.max_uses}` : '(Unlimited)'}
+                    </td>
+                    <td style="color: var(--admin-muted); font-size: 13px;">
+                      {c.expires_at ? formatDateTime(c.expires_at) : 'Never'}
+                    </td>
+                    <td style="text-align: right;">
+                      <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');" style="display: inline;">
+                        <input type="hidden" name="csrf" value={csrf} />
+                        <input type="hidden" name="id" value={c.id} />
+                        <button type="submit" class="admin-btn admin-btn--ghost admin-btn--sm admin-btn--icon" style="color: var(--admin-red);" title="Delete coupon">
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+                {couponList.length === 0 && (
+                  <tr>
+                    <td colspan="5" style="text-align: center; padding: 48px; color: var(--admin-muted);">
+                      No coupons found. Create your first discount coupon on the right.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <table class="admin-table">
-          <thead>
-            <tr><th>Code</th><th>Discount</th><th>Uses</th><th>Expires</th><th></th></tr>
-          </thead>
-          <tbody>
-            {couponList.map(c => (
-              <tr>
-                <td><span class="status" style="background: var(--surface-3); font-size: 0.9rem;">{c.code}</span></td>
-                <td>
-                  {c.discount_pct > 0 ? `${c.discount_pct}% OFF` : `₹${c.discount_inr} OFF`}
-                </td>
-                <td>{c.used} {c.max_uses > 0 ? `/ ${c.max_uses}` : '(Unlimited)'}</td>
-                <td class="dim">{c.expires_at ? formatDateTime(c.expires_at) : 'Never'}</td>
-                <td class="row-actions">
-                  <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');">
-                    <input type="hidden" name="csrf" value={csrf} />
-                    <input type="hidden" name="id" value={c.id} />
-                    <button type="submit" class="btn btn-ghost btn-xs" style="color: var(--brand-red);"><Icon name="x" size={14} /></button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-            {!couponList.length && <tr><td colspan="5" class="dim" style="text-align:center; padding: 2rem;">No coupons found. Create one.</td></tr>}
-          </tbody>
-        </table>
-      </section>
 
-      <!-- Right: Create form -->
-      <section class="dash-panel card-table" style="align-self: start;">
-        <div class="dash-panel__head" style="padding: 1.25rem; border-bottom: 1px solid var(--border);">
-          <h2 style="font-size: 1.2rem;">Create Coupon</h2>
+        <!-- Right: Create form -->
+        <div class="admin-card">
+          <h2 style="font-size: 17px; font-weight: 700; margin: 0 0 16px 0;">Create Coupon</h2>
+          <form method="post" action="/api/admin/coupon/save" class="coupon-form">
+            <input type="hidden" name="csrf" value={csrf} />
+            
+            <div class="admin-field">
+              <label class="admin-label">Coupon Code *</label>
+              <input class="admin-input" type="text" name="code" required placeholder="e.g. DIWALI50" style="text-transform: uppercase;" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="admin-field">
+                <label class="admin-label">Discount (%)</label>
+                <input class="admin-input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
+              </div>
+              <div class="admin-field">
+                <label class="admin-label">Discount (INR)</label>
+                <input class="admin-input" type="number" name="discount_inr" min="0" placeholder="0" />
+              </div>
+            </div>
+            <span style="font-size: 12px; color: var(--admin-muted);">Specify EITHER a percentage OR a fixed amount.</span>
+
+            <div class="admin-field">
+              <label class="admin-label">Max Uses</label>
+              <input class="admin-input" type="number" name="max_uses" min="0" placeholder="0 (Unlimited)" />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label">Expiry Date (Optional)</label>
+              <input class="admin-input" type="datetime-local" name="expires_at" />
+            </div>
+
+            <button type="submit" class="admin-btn admin-btn--primary" style="margin-top: 8px;">
+              Create Coupon
+            </button>
+          </form>
         </div>
-        <form method="post" action="/api/admin/coupon/save" class="panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
-          <input type="hidden" name="csrf" value={csrf} />
-          
-          <div class="field">
-            <label class="label">Coupon Code *</label>
-            <input class="input" type="text" name="code" required placeholder="e.g. DIWALI50" style="text-transform: uppercase;" />
-          </div>
-
-          <div class="grid-2">
-            <div class="field">
-              <label class="label">Discount (%)</label>
-              <input class="input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
-            </div>
-            <div class="field">
-              <label class="label">Discount (INR)</label>
-              <input class="input" type="number" name="discount_inr" min="0" placeholder="0" />
-            </div>
-          </div>
-          <span class="field-hint">Specify EITHER a percentage OR a fixed amount.</span>
-
-          <div class="field" style="margin-top: 0.5rem;">
-            <label class="label">Max Uses</label>
-            <input class="input" type="number" name="max_uses" min="0" placeholder="0 (Unlimited)" />
-          </div>
-
-          <div class="field">
-            <label class="label">Expiry Date (Optional)</label>
-            <input class="input" type="datetime-local" name="expires_at" />
-          </div>
-
-          <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">Create Coupon</button>
-        </form>
-      </section>
+      </div>
     </div>
   </div>
 
-  <!-- Mobile Layout (<= 768px) -->
-  <div class="coupons-mobile">
-    <div class="mobile-coupons-header">
-      <h1 class="mobile-coupons-title">Coupons</h1>
-      <span class="mobile-coupons-count">{couponList.length} active</span>
-    </div>
+  <!-- ==============================================
+       MOBILE COUPONS VIEW (<= 768px)
+       ============================================== -->
+  <div class="admin-mobile-shell">
+    <header class="admin-mobile-topbar">
+      <h1 class="admin-mobile-topbar__title">Coupons</h1>
+    </header>
 
-    <!-- Mobile Card List for Coupons -->
-    <div class="mobile-coupon-cards">
-      {couponList.map((c) => (
-        <div class="mobile-coupon-card">
-          <div class="coupon-card-top">
-            <span class="coupon-code-pill mono">{c.code}</span>
-            <span class="coupon-discount-badge">
-              {c.discount_pct > 0 ? `${c.discount_pct}% OFF` : `₹${c.discount_inr} OFF`}
-            </span>
-          </div>
-
-          <div class="coupon-card-bottom">
-            <div class="coupon-meta-info">
-              <span class="coupon-uses">
-                {c.used} used {c.max_uses > 0 ? `/ ${c.max_uses} max` : '(Unlimited)'}
+    <div class="admin-mobile-content">
+      <!-- Active Coupons List -->
+      <div class="admin-card mobile-coupons-list">
+        <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">Active Coupons</h2>
+        {couponList.map((c) => (
+          <div class="mobile-coupon-card">
+            <div class="mobile-coupon-top">
+              <span class="admin-chip admin-chip--draft" style="font-family: var(--admin-font-mono); font-size: 14px; font-weight: 700;">
+                {c.code}
               </span>
-              <span class="coupon-expiry">
-                {c.expires_at ? `Expires ${formatDateTime(c.expires_at)}` : 'Never expires'}
+              <span class="coupon-discount-badge">
+                {c.discount_pct > 0 ? `${c.discount_pct}% OFF` : `₹${c.discount_inr} OFF`}
               </span>
             </div>
-
-            <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');" class="coupon-del-form">
-              <input type="hidden" name="csrf" value={csrf} />
-              <input type="hidden" name="id" value={c.id} />
-              <button type="submit" class="coupon-delete-btn" aria-label="Delete coupon">
-                <Icon name="x" size={16} />
-              </button>
-            </form>
+            <div class="mobile-coupon-bottom">
+              <span class="coupon-meta-text">Used: {c.used} {c.max_uses > 0 ? `/ ${c.max_uses}` : ''}</span>
+              <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');" style="display:inline;">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={c.id} />
+                <button type="submit" class="admin-btn admin-btn--ghost admin-btn--sm" style="color: var(--admin-red);">Delete</button>
+              </form>
+            </div>
           </div>
-        </div>
-      ))}
-      {couponList.length === 0 && (
-        <div class="mobile-empty-coupons">No coupons found. Create your first coupon below.</div>
-      )}
-    </div>
-
-    <!-- Mobile Create Form Card -->
-    <div class="mobile-create-coupon-card">
-      <h2 class="mobile-create-title">Create New Coupon</h2>
-      <form method="post" action="/api/admin/coupon/save" class="mobile-coupon-form">
-        <input type="hidden" name="csrf" value={csrf} />
-
-        <div class="mobile-field">
-          <label class="mobile-label">Coupon Code *</label>
-          <input class="mobile-input uppercase" type="text" name="code" required placeholder="e.g. DIWALI50" />
-        </div>
-
-        <div class="mobile-field-row">
-          <div class="mobile-field">
-            <label class="mobile-label">Discount (%)</label>
-            <input class="mobile-input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
+        ))}
+        {couponList.length === 0 && (
+          <div style="text-align: center; padding: 24px 0; color: var(--admin-muted); font-size: 14px;">
+            No coupons found.
           </div>
-          <div class="mobile-field">
-            <label class="mobile-label">Discount (₹)</label>
-            <input class="mobile-input" type="number" name="discount_inr" min="0" placeholder="0" />
+        )}
+      </div>
+
+      <!-- Create Coupon Mobile Card -->
+      <div class="admin-card" style="margin-top: 16px;">
+        <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 16px 0;">Create New Coupon</h2>
+        <form method="post" action="/api/admin/coupon/save" class="coupon-form">
+          <input type="hidden" name="csrf" value={csrf} />
+          
+          <div class="admin-field">
+            <label class="admin-label">Coupon Code *</label>
+            <input class="admin-input" type="text" name="code" required placeholder="e.g. DIWALI50" style="text-transform: uppercase;" />
           </div>
-        </div>
-        <span class="mobile-field-hint">Specify either % or fixed ₹.</span>
 
-        <div class="mobile-field">
-          <label class="mobile-label">Max Uses (Optional)</label>
-          <input class="mobile-input" type="number" name="max_uses" min="0" placeholder="0 = Unlimited" />
-        </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="admin-field">
+              <label class="admin-label">Discount (%)</label>
+              <input class="admin-input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
+            </div>
+            <div class="admin-field">
+              <label class="admin-label">Discount (INR)</label>
+              <input class="admin-input" type="number" name="discount_inr" min="0" placeholder="0" />
+            </div>
+          </div>
 
-        <div class="mobile-field">
-          <label class="mobile-label">Expiry Date (Optional)</label>
-          <input class="mobile-input" type="datetime-local" name="expires_at" />
-        </div>
+          <div class="admin-field">
+            <label class="admin-label">Max Uses</label>
+            <input class="admin-input" type="number" name="max_uses" min="0" placeholder="0 (Unlimited)" />
+          </div>
 
-        <button type="submit" class="mobile-create-btn">Create Coupon</button>
-      </form>
+          <div class="admin-field">
+            <label class="admin-label">Expiry Date</label>
+            <input class="admin-input" type="datetime-local" name="expires_at" />
+          </div>
+
+          <button type="submit" class="admin-btn admin-btn--primary" style="width: 100%; margin-top: 8px;">
+            Create Coupon
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </Admin>
 
 <style>
-  /* Desktop styles */
-  @media (min-width: 769px) {
-    .coupons-mobile { display: none !important; }
-    .coupons-desktop { display: block; }
+  @media (max-width: 768px) {
+    .coupons-desktop-view { display: none !important; }
   }
 
-  .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
-  .card-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
-  .admin-table { width: 100%; border-collapse: collapse; }
-  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
-  .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
-  .status { padding: 0.2rem 0.55rem; border-radius: var(--r-full); font-size: var(--fs-xs); font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.05em; }
+  .coupons-grid-layout {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 1023px) {
+    .coupons-grid-layout {
+      grid-template-columns: 1fr;
+    }
+  }
 
-  /* Mobile styles (<= 768px) */
-  @media (max-width: 768px) {
-    .coupons-desktop { display: none !important; }
-    .coupons-mobile {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-      width: 100%;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
+  .coupon-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
 
-    .mobile-coupons-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.25rem;
-    }
-
-    .mobile-coupons-title {
-      font-size: 1.75rem;
-      font-weight: 800;
-      color: #14171C;
-      margin: 0;
-      letter-spacing: -0.02em;
-    }
-
-    .mobile-coupons-count {
-      font-size: 0.85rem;
-      color: #5B6472;
-    }
-
-    /* Cards */
-    .mobile-coupon-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .mobile-coupon-card {
-      background: #FFFFFF;
-      border-radius: 16px;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-      padding: 1.15rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .coupon-card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .coupon-code-pill {
-      background: #F1F5F9;
-      color: #14171C;
-      padding: 0.35rem 0.75rem;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-    }
-
-    .coupon-discount-badge {
-      background: #DCFCE7;
-      color: #15803D;
-      padding: 0.25rem 0.65rem;
-      border-radius: 9999px;
-      font-size: 0.85rem;
-      font-weight: 700;
-    }
-
-    .coupon-card-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      padding-top: 0.5rem;
-      border-top: 1px solid #F3F5F8;
-    }
-
-    .coupon-meta-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
-    }
-
-    .coupon-uses {
-      font-size: 0.85rem;
-      color: #14171C;
-      font-weight: 600;
-    }
-
-    .coupon-expiry {
-      font-size: 0.78rem;
-      color: #5B6472;
-    }
-
-    .coupon-del-form {
-      margin: 0;
-    }
-
-    .coupon-delete-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      border: 1px solid #FEE2E2;
-      background: #FFF5F5;
-      color: #D81F26;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .mobile-empty-coupons {
-      padding: 2.5rem 1rem;
-      text-align: center;
-      color: #5B6472;
-      font-size: 0.9rem;
-    }
-
-    /* Create Card */
-    .mobile-create-coupon-card {
-      background: #FFFFFF;
-      border-radius: 16px;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-      padding: 1.25rem;
-    }
-
-    .mobile-create-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #14171C;
-      margin: 0 0 1rem 0;
-    }
-
-    .mobile-coupon-form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .mobile-field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .mobile-field-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-    }
-
-    .mobile-label {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #14171C;
-    }
-
-    .mobile-input {
-      height: 48px;
-      font-size: 16px !important;
-      border-radius: 12px;
-      border: 1px solid #E5E7EB;
-      padding: 0 0.85rem;
-      background: #FFFFFF;
-      color: #14171C;
-      box-sizing: border-box;
-    }
-    .mobile-input.uppercase {
-      text-transform: uppercase;
-    }
-
-    .mobile-field-hint {
-      font-size: 0.78rem;
-      color: #5B6472;
-      margin-top: -0.5rem;
-    }
-
-    .mobile-create-btn {
-      height: 48px;
-      border-radius: 12px;
-      background: #D81F26;
-      border: none;
-      color: #FFFFFF;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 0.5rem;
-    }
+  /* Mobile */
+  .mobile-coupons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mobile-coupon-card {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--admin-line-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mobile-coupon-card:last-child {
+    border-bottom: none;
+  }
+  .mobile-coupon-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .coupon-discount-badge {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-ink);
+  }
+  .mobile-coupon-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .coupon-meta-text {
+    font-size: 12.5px;
+    color: var(--admin-muted);
   }
 </style>

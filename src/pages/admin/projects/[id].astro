@@ -15,14 +15,5 @@ const tags = await listTags(env.DB);
 const csrf = Astro.locals.csrfToken;
 ---
 <Admin title={`Edit · ${project.title}`} active="projects" hideTabBar={true}>
-  <a href="/admin/projects" class="back-link">← All projects</a>
   <ProjectEditor project={project} csrf={csrf} components={components} categories={categories} tags={tags} />
 </Admin>
-
-<style>
-  .back-link { display: inline-block; margin-bottom: 1.25rem; color: var(--text-muted); font-size: var(--fs-sm); }
-  .back-link:hover { color: var(--brand-red); }
-  @media (max-width: 768px) {
-    .back-link { display: none; }
-  }
-</style>

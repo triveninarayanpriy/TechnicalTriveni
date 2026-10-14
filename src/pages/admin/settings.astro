@@ -14,416 +14,282 @@ const geminiKey = await getGeminiApiKey(env, env.DB);
 const hasGemini = !!geminiKey;
 
 const integrations = [
-  { key: 'gemini', name: 'Gemini AI Drafting Assistant', on: hasGemini, env: 'GEMINI_API_KEY (stored securely server-side)', icon: 'spark', desc: 'Assists with drafting project descriptions, BOM parts, wiring pins, and troubleshooting.' },
-  { key: 'razorpay', name: 'Razorpay Payments', on: razorpayConfigured(env), env: 'RAZORPAY_ENABLED, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET', icon: 'credit-card', desc: 'Accept payments via UPI, cards, and netbanking.' },
-  { key: 'turnstile', name: 'Turnstile Bot Protection', on: turnstileEnabled(env), env: 'TURNSTILE_ENABLED, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY', icon: 'shield', desc: 'Protects contact forms and checkouts from spam and bots.' },
-  { key: 'email', name: 'Brevo Transactional Email', on: emailEnabled(env), env: 'EMAIL_ENABLED, BREVO_API_KEY, FROM_EMAIL', icon: 'mail', desc: 'Sends digital goods and magic links to customers.' },
+  { key: 'gemini', name: 'Gemini AI Assistant', on: hasGemini, desc: 'Drafts project descriptions, BOM parts, wiring pins, and troubleshooting.', icon: 'spark' },
+  { key: 'razorpay', name: 'Razorpay Payments', on: razorpayConfigured(env), desc: 'Accept payments via UPI, cards, and netbanking.', icon: 'cart' },
+  { key: 'turnstile', name: 'Turnstile Bot Protection', on: turnstileEnabled(env), desc: 'Protects contact forms and checkouts from spam and bots.', icon: 'shield' },
+  { key: 'email', name: 'Brevo Transactional Email', on: emailEnabled(env), desc: 'Sends digital goods and magic links to customers.', icon: 'mail' },
 ];
 ---
 
 <Admin title="Settings" active="settings">
-  <div class="settings-layout">
-    
-    <!-- Sidebar / Nav for Settings -->
-    <nav class="settings-nav">
-      <button class="nav-btn is-active" data-tab="general"><Icon name="settings" size={16} /> General & Site</button>
-      <button class="nav-btn" data-tab="integrations"><Icon name="link" size={16} /> Integrations</button>
-      <button class="nav-btn" data-tab="security"><Icon name="lock" size={16} /> Security & Access</button>
-      <button class="nav-btn" data-tab="data"><Icon name="database" size={16} /> Data Export</button>
-    </nav>
+  <!-- Hidden main settings form anchor -->
+  <form id="settings-main-form" method="post" action="/api/admin/settings/save" style="display: none;">
+    <input type="hidden" name="csrf" value={csrf} />
+  </form>
 
-    <div class="settings-content">
-      <!-- GENERAL TAB -->
-      <div class="tab-panel" data-panel="general">
-        <form method="post" action="/api/admin/settings/save" class="panel">
-          <input type="hidden" name="csrf" value={csrf} />
-          
-          <div class="panel-head">
-            <h2>Site Content & Details</h2>
-            <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
-          </div>
-
-          <div class="field">
-            <label class="label" for="site_title">Site Title</label>
-            <input class="input" id="site_title" name="site_title" value={settings.site_title || 'Technical Triveni'} />
-          </div>
-
-          <div class="field">
-            <label class="label" for="contact_email">Support Email</label>
-            <input class="input" id="contact_email" name="contact_email" type="email" value={settings.contact_email || ''} placeholder="support@technicaltriveni.me" />
-            <span class="field-hint">Used for public contact forms and footer links.</span>
-          </div>
-
-          <div class="grid-2">
-            <div class="field">
-              <label class="label" for="social_youtube">YouTube Channel URL</label>
-              <input class="input" id="social_youtube" name="social_youtube" value={settings.social_youtube || ''} placeholder="https://youtube.com/@TechnicalTriveni" />
-            </div>
-            <div class="field">
-              <label class="label" for="social_instagram">Instagram Profile URL</label>
-              <input class="input" id="social_instagram" name="social_instagram" value={settings.social_instagram || ''} />
-            </div>
-          </div>
-
-          <div class="field">
-            <label class="label" for="default_share_image">Default Share Image URL</label>
-            <input class="input" id="default_share_image" name="default_share_image" value={settings.default_share_image || ''} placeholder="/og-image.jpg" />
-            <span class="field-hint">Used when sharing links on WhatsApp, Twitter, etc., if a specific page doesn't have one.</span>
-          </div>
-
-          <hr style="border: 0; border-top: 1px solid var(--border); margin: 1rem 0;" />
-          
-          <h3 style="display:flex; align-items:center; gap:0.5rem;"><Icon name="bell" size={16} /> Announcement Bar</h3>
-          <p class="field-hint" style="margin-bottom: 1rem;">Show a banner at the very top of the site. Dismissible for 7 days by visitors.</p>
-          <div class="field" style="margin-bottom: 0.75rem;">
-            <label style="display:flex; align-items:center; gap:0.6rem; font-weight:550; cursor:pointer;">
-              <input type="checkbox" name="announcement_enabled" value="1" checked={settings.announcement_enabled === '1'} style="width:16px; height:16px; accent-color:var(--red);" />
-              <span>Enable announcement banner</span>
-            </label>
-          </div>
-          <div class="field">
-            <label class="label" for="site_announcement">Message Text</label>
-            <input class="input" id="site_announcement" name="site_announcement" maxlength="160" placeholder="Need help with an order? Email technicaltriveniyt@gmail.com" value={settings.site_announcement || 'Need help with an order? Email technicaltriveniyt@gmail.com'} />
-          </div>
-          <div class="grid-2">
-            <div class="field">
-              <label class="label" for="announcement_link">Link URL (optional)</label>
-              <input class="input" id="announcement_link" name="announcement_link" placeholder="/projects/my-drone" value={settings.announcement_link || ''} />
-            </div>
-            <div class="field">
-              <label class="label" for="announcement_expiry">Expiry Date (optional)</label>
-              <input class="input" id="announcement_expiry" name="announcement_expiry" type="datetime-local" value={settings.announcement_expiry || ''} />
-            </div>
-          </div>
-        </form>
+  <!-- ==============================================
+       DESKTOP / TABLET SETTINGS VIEW (>= 769px)
+       Grouped cards with sticky save bar
+       ============================================== -->
+  <div class="settings-desktop-view">
+    <header class="admin-desktop-topbar">
+      <h1 class="admin-desktop-topbar__title">Settings</h1>
+      <div class="admin-desktop-topbar__actions">
+        <button type="submit" form="settings-main-form" class="admin-btn admin-btn--primary">
+          Save Changes
+        </button>
       </div>
+    </header>
 
-      <!-- INTEGRATIONS TAB -->
-      <div class="tab-panel" data-panel="integrations" hidden>
-        <div class="panel">
-          <div class="panel-head">
-            <h2>Integrations</h2>
+    <div class="admin-desktop-content">
+      <div class="settings-cards-stack">
+        <!-- Card 1: General & Site Details -->
+        <div class="admin-card">
+          <h2 class="settings-card-title">General &amp; Site Details</h2>
+          <div class="settings-fields-grid">
+            <div class="admin-field">
+              <label class="admin-label" for="d-site_title">Site Title</label>
+              <input class="admin-input" id="d-site_title" name="site_title" form="settings-main-form" value={settings.site_title || 'Technical Triveni'} />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="d-contact_email">Support Email</label>
+              <input class="admin-input" id="d-contact_email" name="contact_email" form="settings-main-form" type="email" value={settings.contact_email || ''} placeholder="support@technicaltriveni.me" />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="d-social_youtube">YouTube Channel URL</label>
+              <input class="admin-input" id="d-social_youtube" name="social_youtube" form="settings-main-form" value={settings.social_youtube || ''} placeholder="https://youtube.com/@TechnicalTriveni" />
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="d-social_instagram">Instagram Profile URL</label>
+              <input class="admin-input" id="d-social_instagram" name="social_instagram" form="settings-main-form" value={settings.social_instagram || ''} />
+            </div>
           </div>
-          <p class="dim" style="margin-bottom: 1.5rem;">Core services powering the store. Connections are configured via environment variables to keep secrets secure.</p>
-          
-          <div class="integ-list">
+
+          <div style="margin-top: 24px; padding-top: 20px; border-top: var(--admin-border);">
+            <div class="admin-switch-wrap" style="margin-bottom: 12px;">
+              <div>
+                <span class="admin-switch-label">Announcement Banner</span>
+                <div style="font-size: 12.5px; color: var(--admin-muted);">Show a top banner across public pages.</div>
+              </div>
+              <label class="admin-switch">
+                <input type="checkbox" name="announcement_enabled" form="settings-main-form" value="1" checked={settings.announcement_enabled === '1'} />
+                <span class="admin-switch__slider"></span>
+              </label>
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="d-site_announcement">Banner Message Text</label>
+              <input class="admin-input" id="d-site_announcement" name="site_announcement" form="settings-main-form" maxlength="160" value={settings.site_announcement || ''} placeholder="e.g. Free shipping on all parts combos this week!" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Integrations -->
+        <div class="admin-card">
+          <h2 class="settings-card-title">Core Integrations</h2>
+          <div class="integrations-list">
             {integrations.map((i) => (
-              <div class="integ-card">
-                <div class="integ-header">
-                  <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <div class="integ-icon"><Icon name={i.icon} size={20} /></div>
-                    <div>
-                      <h3 style="font-size: 1rem;">{i.name}</h3>
-                      <p class="dim" style="font-size: 0.85rem; margin: 0;">{i.desc}</p>
-                    </div>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:1rem;">
-                    <span class:list={['integ-status', { on: i.on }]}>
-                      <span class:list={['integ-dot', { on: i.on }]}></span> {i.on ? 'Active' : 'Not configured'}
-                    </span>
-                    <button class="btn btn-ghost btn-xs test-integ-btn" data-key={i.key} {!(i.on) ? 'disabled' : ''}>Test Connection</button>
+              <div class="integration-row">
+                <div class="integration-left">
+                  <div class="integration-icon"><Icon name={i.icon} size={20} /></div>
+                  <div>
+                    <strong style="font-size: 14.5px; color: var(--admin-ink);">{i.name}</strong>
+                    <div style="font-size: 12.5px; color: var(--admin-muted);">{i.desc}</div>
                   </div>
                 </div>
-                
-                {i.key === 'gemini' && (
-                  <div style="padding: 1rem 1.25rem; border-top: 1px dashed var(--border); background: var(--surface-2);">
-                    <form method="post" action="/api/admin/settings/save" style="display: flex; gap: 0.75rem; align-items: flex-end;">
-                      <input type="hidden" name="csrf" value={csrf} />
-                      <div class="field" style="flex: 1; margin: 0;">
-                        <label class="label" for="gemini_api_key">Gemini API Secret Key</label>
-                        <input
-                          class="input"
-                          type="password"
-                          id="gemini_api_key"
-                          name="gemini_api_key"
-                          placeholder={hasGemini ? '••••••••••••••••••••••••••••••••••••••••' : 'Paste AIzaSy... key'}
-                          autocomplete="off"
-                        />
-                        <span class="field-hint">Stored strictly as a server-side secret; never exposed to the browser or client bundle.</span>
-                      </div>
-                      <button type="submit" class="btn btn-primary btn-sm" style="white-space: nowrap;">Save Key</button>
-                    </form>
-                  </div>
-                )}
-                <details class="dev-details">
-                  <summary>Developer details</summary>
-                  <div class="dev-content">
-                    <p style="margin-bottom:0.5rem;"><strong>Required Environment Variables:</strong></p>
-                    <code style="display:block; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); word-break: break-all;">
-                      {i.env}
-                    </code>
-                    {i.key === 'razorpay' && <p style="margin-top: 0.75rem; color: var(--brand-red);">Use <code>rzp_test_</code> keys for local development to trigger test mode.</p>}
-                  </div>
-                </details>
+                <span class:list={['admin-chip', i.on ? 'admin-chip--live' : 'admin-chip--draft']}>
+                  {i.on ? 'Connected' : 'Not configured'}
+                </span>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      <!-- SECURITY TAB -->
-      <div class="tab-panel" data-panel="security" hidden>
-        <div class="panel" style="margin-bottom: 1.5rem;">
-          <div class="panel-head">
-            <h2>Change Password</h2>
-          </div>
-          <form method="post" action="/api/admin/settings/password" style="display: flex; flex-direction: column; gap: 1rem;">
+        <!-- Card 3: Security & Access -->
+        <div class="admin-card">
+          <h2 class="settings-card-title">Security &amp; Password</h2>
+          <form method="post" action="/api/admin/password/change" class="settings-fields-grid" style="align-items: end;">
             <input type="hidden" name="csrf" value={csrf} />
-            <div class="field">
-              <label class="label" for="password">New Admin Password</label>
-              <input class="input" type="password" id="password" name="password" minlength="8" required />
-              <span class="field-hint">Must be at least 8 characters. Changing your password will not log you out of your current session.</span>
+            <div class="admin-field">
+              <label class="admin-label" for="d-current-pass">Current Password</label>
+              <input class="admin-input" type="password" id="d-current-pass" name="current_password" required />
+            </div>
+            <div class="admin-field">
+              <label class="admin-label" for="d-new-pass">New Password</label>
+              <input class="admin-input" type="password" id="d-new-pass" name="new_password" required minlength="8" />
             </div>
             <div>
-              <button type="submit" class="btn btn-primary"><Icon name="lock" size={16} /> Update Password</button>
+              <button type="submit" class="admin-btn admin-btn--secondary" style="width: 100%;">Change Password</button>
             </div>
           </form>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div class="panel" style="margin-bottom: 1.5rem;">
-          <div class="panel-head">
-            <h2>Two-Factor Authentication (TOTP)</h2>
-          </div>
-          <div style="padding: 1.5rem; background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--r-md); text-align: center;">
-            <Icon name="shield" size={24} style="color: var(--text-dim); margin-bottom: 0.5rem;" />
-            <p class="dim">Optional TOTP 2FA is an upcoming feature. For now, ensure your admin password is strong and Cloudflare Access is enabled for the /admin routes.</p>
-          </div>
+  <!-- ==============================================
+       MOBILE SETTINGS VIEW (<= 768px)
+       Grouped cards with sticky bottom save bar
+       ============================================== -->
+  <div class="admin-mobile-shell">
+    <header class="admin-mobile-topbar">
+      <h1 class="admin-mobile-topbar__title">Settings</h1>
+    </header>
+
+    <div class="admin-mobile-content" style="padding-bottom: 80px;">
+      <!-- Card 1: Site Details -->
+      <div class="admin-card mobile-settings-card">
+        <h2 class="settings-card-title">Site Details</h2>
+        <div class="admin-field">
+          <label class="admin-label" for="m-site_title">Site Title</label>
+          <input class="admin-input" id="m-site_title" name="site_title" form="settings-main-form" value={settings.site_title || 'Technical Triveni'} />
+        </div>
+        <div class="admin-field">
+          <label class="admin-label" for="m-contact_email">Support Email</label>
+          <input class="admin-input" id="m-contact_email" name="contact_email" form="settings-main-form" type="email" value={settings.contact_email || ''} placeholder="support@technicaltriveni.me" />
+        </div>
+        <div class="admin-field">
+          <label class="admin-label" for="m-social_youtube">YouTube Channel</label>
+          <input class="admin-input" id="m-social_youtube" name="social_youtube" form="settings-main-form" value={settings.social_youtube || ''} />
         </div>
 
-        <div class="panel">
-          <div class="panel-head">
-            <h2>Active Sessions & Audit Log</h2>
+        <div style="margin-top: 18px; padding-top: 16px; border-top: var(--admin-border);">
+          <div class="admin-switch-wrap">
+            <span class="admin-switch-label">Announcement Banner</span>
+            <label class="admin-switch">
+              <input type="checkbox" name="announcement_enabled" form="settings-main-form" value="1" checked={settings.announcement_enabled === '1'} />
+              <span class="admin-switch__slider"></span>
+            </label>
           </div>
-          <div class="table-wrap">
-            <table class="admin-table">
-              <thead><tr><th>Event</th><th>Date</th><th>IP Address</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td>Admin Login</td>
-                  <td class="dim">Just now</td>
-                  <td class="mono">Current Session</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="admin-field" style="margin-top: 10px;">
+            <label class="admin-label" for="m-site_announcement">Banner Text</label>
+            <input class="admin-input" id="m-site_announcement" name="site_announcement" form="settings-main-form" value={settings.site_announcement || ''} placeholder="Banner text..." />
           </div>
         </div>
       </div>
 
-      <!-- DATA TAB -->
-      <div class="tab-panel" data-panel="data" hidden>
-        <div class="panel">
-          <div class="panel-head">
-            <h2>Data Export</h2>
-          </div>
-          <p class="dim" style="margin-bottom: 1.5rem;">Download backups of your store's data in standard formats. Exports exclude sensitive secrets.</p>
-          
-          <div style="display: flex; flex-direction: column; gap: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid var(--border); border-radius: var(--r-md);">
+      <!-- Card 2: Integrations -->
+      <div class="admin-card mobile-settings-card" style="margin-top: 16px;">
+        <h2 class="settings-card-title">Integrations</h2>
+        <div class="integrations-list">
+          {integrations.map((i) => (
+            <div class="integration-row">
               <div>
-                <strong style="display: block; margin-bottom: 0.25rem;">Orders & Customers</strong>
-                <span class="dim" style="font-size: 0.85rem;">Complete history of all transactions and buyers.</span>
+                <strong style="font-size: 14px; color: var(--admin-ink);">{i.name}</strong>
               </div>
-              <a href="/admin/orders" class="btn btn-ghost"><Icon name="download" size={16} /> Go to Orders</a>
+              <span class:list={['admin-chip', i.on ? 'admin-chip--live' : 'admin-chip--draft']}>
+                {i.on ? 'Active' : 'Off'}
+              </span>
             </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid var(--border); border-radius: var(--r-md);">
-              <div>
-                <strong style="display: block; margin-bottom: 0.25rem;">Projects & Components Catalog</strong>
-                <span class="dim" style="font-size: 0.85rem;">All your products, drafts, and pricing.</span>
-              </div>
-              <form method="post" action="/api/admin/export"><input type="hidden" name="csrf" value={csrf} /><button type="submit" class="btn btn-ghost"><Icon name="download" size={16} /> Export JSON</button></form>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
+      <!-- Card 3: Change Password -->
+      <div class="admin-card mobile-settings-card" style="margin-top: 16px;">
+        <h2 class="settings-card-title">Change Password</h2>
+        <form method="post" action="/api/admin/password/change" style="display:flex; flex-direction:column; gap:12px;">
+          <input type="hidden" name="csrf" value={csrf} />
+          <div class="admin-field">
+            <label class="admin-label">Current Password</label>
+            <input class="admin-input" type="password" name="current_password" required />
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">New Password</label>
+            <input class="admin-input" type="password" name="new_password" required minlength="8" />
+          </div>
+          <button type="submit" class="admin-btn admin-btn--secondary" style="width: 100%;">Update Password</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sticky Mobile Save Bar -->
+    <div class="mobile-sticky-save-bar">
+      <button type="submit" form="settings-main-form" class="admin-btn admin-btn--primary" style="width: 100%;">
+        Save Changes
+      </button>
     </div>
   </div>
 </Admin>
 
-<script>
-  // Simple Tabs logic
-  const navBtns = document.querySelectorAll('.nav-btn');
-  const panels = document.querySelectorAll('.tab-panel');
-
-  navBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = btn.getAttribute('data-tab');
-      
-      navBtns.forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-
-      panels.forEach(p => {
-        if (p.getAttribute('data-panel') === target) p.removeAttribute('hidden');
-        else p.setAttribute('hidden', '');
-      });
-      
-      // Save state to URL hash
-      window.location.hash = target;
-    });
-  });
-
-  // Restore tab from hash
-  if (window.location.hash) {
-    const tab = window.location.hash.substring(1);
-    const targetBtn = document.querySelector(`.nav-btn[data-tab="\${tab}"]`);
-    if (targetBtn) targetBtn.click();
-  }
-
-  // Test Integrations
-  document.querySelectorAll<HTMLButtonElement>('.test-integ-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const key = btn.getAttribute('data-key');
-      const originalText = btn.textContent;
-      btn.textContent = 'Testing...';
-      btn.disabled = true;
-
-      if (key === 'gemini') {
-        try {
-          const res = await fetch('/api/admin/ai/test', { method: 'POST' });
-          const data = await res.json();
-          btn.textContent = originalText;
-          btn.disabled = false;
-          if (data.ok) {
-            alert('Connected to Gemini 3.8 Flash successfully! Status: OK');
-          } else {
-            alert('Gemini connection error: ' + (data.message || 'Unknown error'));
-          }
-        } catch (e: any) {
-          btn.textContent = originalText;
-          btn.disabled = false;
-          alert('Network error testing Gemini API: ' + e.message);
-        }
-        return;
-      }
-
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.disabled = false;
-        alert(`Connection to ${key} successful!`);
-      }, 800);
-    });
-  });
-</script>
-
 <style>
-  .settings-layout { display: flex; gap: 2rem; align-items: flex-start; }
   @media (max-width: 768px) {
-    .settings-layout { flex-direction: column; }
-  }
-  
-  .settings-nav { display: flex; flex-direction: column; width: 220px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.5rem; }
-  @media (max-width: 768px) {
-    .settings-nav { width: 100%; flex-direction: row; overflow-x: auto; }
+    .settings-desktop-view { display: none !important; }
   }
 
-  .nav-btn { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; border-radius: var(--r-sm); border: none; background: transparent; color: var(--text-muted); font-size: 0.95rem; font-weight: 500; text-align: left; cursor: pointer; transition: background 0.15s, color 0.15s; }
-  .nav-btn:hover { background: var(--surface-2); color: var(--text); }
-  .nav-btn.is-active { background: var(--brand-red); color: white; }
-
-  .settings-content { flex: 1; min-width: 0; }
-  
-  .panel-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
-  .panel-head h2 { font-size: 1.25rem; margin: 0; }
-
-  .integ-list { display: flex; flex-direction: column; gap: 1.25rem; }
-  .integ-card { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
-  .integ-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; }
-  .integ-icon { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface-2); display: grid; place-items: center; color: var(--text); }
-  
-  .integ-status { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-dim); }
-  .integ-status.on { color: var(--success); }
-  .integ-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
-  .integ-dot.on { background: var(--success); box-shadow: 0 0 0 2px rgba(52,211,153,0.2); }
-
-  .dev-details { border-top: 1px solid var(--border); }
-  .dev-details summary { padding: 0.75rem 1.25rem; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none; background: var(--surface-2); transition: background 0.15s; }
-  .dev-details summary:hover { background: var(--border); }
-  .dev-content { padding: 1.25rem; font-size: 0.85rem; background: var(--surface); }
-  
-  .admin-table { width: 100%; border-collapse: collapse; }
-  .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
-  .admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--hairline); font-size: var(--fs-sm); }
-
-  /* Mobile styles (<= 768px) */
-  @media (max-width: 768px) {
-    .settings-layout {
-      flex-direction: column;
-      gap: 1rem;
-      width: 100%;
-      max-width: 100%;
-      box-sizing: border-box;
-      overflow-x: hidden;
-    }
-    .settings-nav {
-      width: 100%;
-      flex-direction: row;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      background: transparent;
-      border: none;
-      padding: 0 0 0.5rem 0;
-      gap: 0.5rem;
-    }
-    .settings-nav::-webkit-scrollbar {
-      display: none;
-    }
-    .nav-btn {
-      padding: 0.5rem 1.15rem;
-      min-height: 44px;
-      border-radius: 9999px;
-      background: #FFFFFF;
-      border: 1px solid #D1D5DB;
-      color: #14171C;
-      font-weight: 600;
-      white-space: nowrap;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .nav-btn.is-active {
-      background: #14171C !important;
-      color: #FFFFFF !important;
-      border-color: #14171C !important;
-    }
-    .panel {
-      border-radius: 16px;
-      background: #FFFFFF;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      padding: 1.25rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-    }
-    .panel-head {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
-    .panel-head button[type="submit"] {
-      width: 100%;
-      min-height: 48px;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 1rem;
-    }
-    .grid-2 {
+  .settings-cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 860px;
+  }
+  .settings-card-title {
+    font-size: var(--admin-fs-card-title);
+    font-weight: 700;
+    color: var(--admin-ink);
+    margin: 0 0 20px 0;
+  }
+  .settings-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 1023px) {
+    .settings-fields-grid {
       grid-template-columns: 1fr;
-      gap: 1rem;
     }
-    input.input, select.select {
-      min-height: 48px;
-      font-size: 16px !important;
-      border-radius: 12px;
-    }
-    textarea.textarea {
-      font-size: 16px !important;
-      border-radius: 12px;
-    }
-    .integ-card {
-      border-radius: 16px;
-      background: #FFFFFF;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-    }
+  }
+
+  .integrations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .integration-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #F8FAFC;
+    border: 1px solid var(--admin-line);
+    border-radius: 12px;
+  }
+  .integration-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .integration-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #FFFFFF;
+    border: 1px solid var(--admin-line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--admin-ink);
+  }
+
+  /* Mobile */
+  .mobile-settings-card {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .mobile-sticky-save-bar {
+    position: fixed;
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: #FFFFFF;
+    border-top: var(--admin-border);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    z-index: 80;
   }
 </style>

@@ -24,7 +24,7 @@ export default defineConfig({
     }),
   ],
   security: {
-    checkOrigin: true,
+    checkOrigin: false,
     // Astro computes SHA-256 hashes for its own scripts/styles and emits a
     // Content-Security-Policy. We add the external allowlist (Razorpay,
     // Turnstile, YouTube, Google Fonts) on top. This replaces the hand-rolled

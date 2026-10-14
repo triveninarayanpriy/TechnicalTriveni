@@ -15,7 +15,7 @@ const initial = email.charAt(0).toUpperCase() || 'T';
     </div>
 
     <!-- Admin Profile Card -->
-    <div class="more-card profile-card">
+    <div class="admin-card profile-card">
       <div class="profile-avatar">{initial}</div>
       <div class="profile-info">
         <h2 class="profile-name">TechnicalTriveni Admin</h2>
@@ -24,7 +24,7 @@ const initial = email.charAt(0).toUpperCase() || 'T';
     </div>
 
     <!-- Navigation Hub Card -->
-    <div class="more-card list-card">
+    <div class="admin-card list-card">
       <a href="/admin/pages" class="list-row">
         <div class="list-row__left">
           <Icon name="file" size={20} class="row-icon" />
@@ -51,7 +51,7 @@ const initial = email.charAt(0).toUpperCase() || 'T';
     </div>
 
     <!-- Actions Card -->
-    <div class="more-card list-card">
+    <div class="admin-card list-card">
       <a href="/" target="_blank" rel="noopener noreferrer" class="list-row">
         <div class="list-row__left">
           <Icon name="external" size={20} class="row-icon" />
@@ -79,72 +79,68 @@ const initial = email.charAt(0).toUpperCase() || 'T';
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 16px;
+    padding: 8px 0;
   }
 
   .more-header {
-    margin-bottom: 0.25rem;
+    margin-bottom: 4px;
   }
 
   .more-title {
-    font-size: 1.75rem;
+    font-size: 24px;
     font-weight: 700;
-    color: #14171C;
+    color: var(--admin-ink);
     margin: 0;
   }
 
-  .more-card {
-    background: #FFFFFF;
-    border-radius: 16px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-    overflow: hidden;
-  }
-
+  /* Profile Card */
   .profile-card {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1.25rem 1.25rem;
+    gap: 16px;
+    padding: 18px 20px;
   }
 
   .profile-avatar {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: #14171C;
-    color: #FFFFFF;
+    background: #E8ECEF;
+    color: var(--admin-ink);
+    font-size: 20px;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 700;
     flex-shrink: 0;
   }
 
   .profile-info {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 2px;
     min-width: 0;
   }
 
   .profile-name {
-    font-size: 1.05rem;
+    font-size: 16px;
     font-weight: 700;
-    color: #14171C;
+    color: var(--admin-ink);
     margin: 0;
   }
 
   .profile-email {
-    font-size: 0.85rem;
-    color: #5B6472;
+    font-size: 13px;
+    color: var(--admin-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  /* List Card */
   .list-card {
+    padding: 4px 16px;
     display: flex;
     flex-direction: column;
   }
@@ -153,51 +149,48 @@ const initial = email.charAt(0).toUpperCase() || 'T';
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.05rem 1.25rem;
-    color: #14171C;
+    padding: 16px 4px;
     text-decoration: none;
-    background: none;
-    border: none;
+    color: var(--admin-ink);
+    border-bottom: 1px solid var(--admin-line-subtle);
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
     width: 100%;
-    min-height: 48px;
-    box-sizing: border-box;
-    transition: background 0.12s ease;
     cursor: pointer;
+    font-family: inherit;
+    font-size: 15px;
+    transition: background var(--admin-duration) var(--admin-ease);
   }
 
-  .list-row:not(:last-child) {
-    border-bottom: 1px solid #F3F5F8;
-  }
-
-  .list-row:hover,
-  .list-row:active {
-    background: #F8FAFC;
+  .list-row:last-child {
+    border-bottom: none;
   }
 
   .list-row__left {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    gap: 14px;
   }
 
   .row-icon {
-    color: #14171C;
-    flex-shrink: 0;
+    color: var(--admin-muted);
   }
 
   .row-label {
-    font-size: 0.95rem;
     font-weight: 600;
-    color: #14171C;
+    color: var(--admin-ink);
   }
 
   .row-chevron {
-    color: #14171C;
-    flex-shrink: 0;
+    color: var(--admin-muted);
   }
 
+  /* Logout button */
   .logout-form {
     margin: 0;
+    width: 100%;
   }
 
   .logout-btn {
@@ -206,6 +199,6 @@ const initial = email.charAt(0).toUpperCase() || 'T';
 
   .logout-icon,
   .logout-label {
-    color: #D81F26 !important;
+    color: var(--admin-red) !important;
   }
 </style>
