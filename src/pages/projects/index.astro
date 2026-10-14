@@ -2,10 +2,10 @@
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import Icon from '../../components/Icon.astro';
-import { listProjects, countProjects, distinctCategories } from '../../lib/db';
+import { listProjects, countProjects, distinctCategories, type Project } from '../../lib/db';
 import { env } from 'cloudflare:workers';
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 18;
 const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
@@ -15,13 +15,22 @@ const priceMode = rawPrice === 'free' ? 'free' : rawPrice === 'paid' ? 'paid' : 
 const sortMode = (url.searchParams.get('sort') || 'newest').trim();
 const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
 
-let projects: Awaited<ReturnType<typeof listProjects>> = [];
+const incParam = (url.searchParams.get('inc') || '').toLowerCase();
+const selectedInc = incParam ? incParam.split(',').map((s) => s.trim()).filter(Boolean) : [];
+
+let projects: Project[] = [];
 let categories: string[] = [];
+let allProjectsForCounts: Project[] = [];
 let total = 0;
 
 try {
   const opts = { publishedOnly: true, category: cat, search: q || undefined, difficulty, priceMode };
-  [total, categories] = await Promise.all([countProjects(env.DB, opts), distinctCategories(env.DB)]);
+  [total, categories, allProjectsForCounts] = await Promise.all([
+    countProjects(env.DB, opts),
+    distinctCategories(env.DB),
+    listProjects(env.DB, { publishedOnly: true, limit: 100 }),
+  ]);
+
   projects = await listProjects(env.DB, {
     ...opts,
     orderBy: sortMode as any,
@@ -32,745 +41,591 @@ try {
   /* DB not ready */
 }
 
-const cats = ['All', ...categories];
-const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-// Preserve filters across navigation
-const pageUrl = (p: number) => {
-  const params = new URLSearchParams(url.search);
-  if (p > 1) params.set('page', String(p));
-  else params.delete('page');
-  const s = params.toString();
-  return `/projects${s ? `?${s}` : ''}`;
-};
-
-const priceUrl = (m: string) => {
-  const params = new URLSearchParams(url.search);
-  if (m !== 'all') params.set('price', m);
-  else params.delete('price');
-  params.delete('priceMode');
-  params.delete('page');
-  const s = params.toString();
-  return `/projects${s ? `?${s}` : ''}`;
-};
-
-const chipUrl = (c: string) => {
-  const params = new URLSearchParams(url.search);
-  if (c !== 'All') params.set('cat', c);
-  else params.delete('cat');
-  params.delete('page');
-  const s = params.toString();
-  return `/projects${s ? `?${s}` : ''}`;
-};
-
-const sortUrl = (s: string) => {
-  const params = new URLSearchParams(url.search);
-  if (s !== 'newest') params.set('sort', s);
-  else params.delete('sort');
-  params.delete('page');
-  const str = params.toString();
-  return `/projects${str ? `?${str}` : ''}`;
-};
-
-// Windowed page numbers with ellipses
-const pageItems: (number | '…')[] = [];
-if (totalPages <= 7) {
-  for (let i = 1; i <= totalPages; i++) pageItems.push(i);
-} else {
-  const add = (n: number) => pageItems.push(n);
-  add(1);
-  if (page > 3) pageItems.push('…');
-  for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) add(i);
-  if (page < totalPages - 2) pageItems.push('…');
-  add(totalPages);
+// Client includes filter
+if (selectedInc.length > 0) {
+  projects = projects.filter((p) => {
+    const fStr = (p.file_kinds || '').toLowerCase();
+    return selectedInc.every((inc) => {
+      if (inc === 'code') return fStr.includes('code') || fStr.includes('sketch') || fStr.includes('hex');
+      if (inc === 'schematic') return fStr.includes('schematic') || fStr.includes('circuit');
+      if (inc === '3d') return fStr.includes('model') || fStr.includes('3d') || !!p.model_url;
+      if (inc === 'pdf') return fStr.includes('pdf') || fStr.includes('doc');
+      if (inc === 'video') return !!p.video_url;
+      return true;
+    });
+  });
 }
 
-const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-const to = Math.min(page * PAGE_SIZE, total);
+// Compute Category Counts
+const catCounts: Record<string, number> = { All: allProjectsForCounts.length };
+allProjectsForCounts.forEach((p) => {
+  if (p.category) {
+    catCounts[p.category] = (catCounts[p.category] || 0) + 1;
+  }
+});
+
+const cats = ['All', ...categories];
+
+// Filter URL builders
+const filterUrl = (overrides: Record<string, string | null>) => {
+  const params = new URLSearchParams(url.search);
+  Object.entries(overrides).forEach(([key, val]) => {
+    if (val === null || val === '' || val === 'all' || val === 'All' || val === 'newest') {
+      params.delete(key);
+    } else {
+      params.set(key, val);
+    }
+  });
+  params.delete('page');
+  const s = params.toString();
+  return `/projects${s ? `?${s}` : ''}`;
+};
+
+const toggleIncUrl = (key: string) => {
+  const next = selectedInc.includes(key)
+    ? selectedInc.filter((k) => k !== key)
+    : [...selectedInc, key];
+  return filterUrl({ inc: next.length ? next.join(',') : null });
+};
 ---
 
 <Base
   title="Projects | Technical Triveni"
-  description="Browse electronics, robotics, and automation project packs. Each pack includes schematics, code, 3D print models, and verified parts lists."
+  description="Tested schematics, clean code, 3D files and verified parts lists for makers and engineering students."
 >
-  <div class="projects-page">
-    <section class="projects-hero">
-      <div class="container">
-        <div class="projects-hero__header">
-          <h1 class="projects-hero__title">Projects</h1>
-          <p class="projects-hero__subtitle">
-            Tested schematics, clean code, 3D files, and verified parts lists for makers and engineering students.
-          </p>
-        </div>
+  <div class="projects-view-page">
+    <div class="container">
+      <!-- Page Header -->
+      <header class="projects-main-header">
+        <h1 class="projects-main-title">Projects</h1>
+        <p class="projects-main-subtitle">
+          Tested schematics, clean code, 3D files and verified parts lists for makers and engineering students.
+        </p>
+      </header>
 
-        <div class="filter-controls">
-          <form class="search-form" method="get" action="/projects" role="search">
-            <div class="search-input-wrap">
-              <Icon name="search" size={18} />
-              <input
-                type="search"
-                name="q"
-                value={q}
-                placeholder="Search projects (e.g. Drone, ESP32, Robot, LiPo)…"
-                class="search-input"
-                aria-label="Search projects"
-              />
+      <!-- =====================================================================
+           DESKTOP LAYOUT (>= 1024px)
+           Matches media_1791937885513_77ea1be1.png
+           ===================================================================== -->
+      <div class="projects-desktop-layout">
+        <!-- 264px Sticky Filter Sidebar -->
+        <aside class="projects-filter-sidebar">
+          <div class="filter-card">
+            <!-- Search -->
+            <div class="filter-group">
+              <label class="filter-group-title" for="desk-search">Search</label>
+              <form method="get" action="/projects" class="sidebar-search-form">
+                <input
+                  type="search"
+                  id="desk-search"
+                  name="q"
+                  value={q}
+                  placeholder="e.g. Drone"
+                  class="filter-search-input"
+                />
+                {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
+                {priceMode !== 'all' && <input type="hidden" name="price" value={priceMode} />}
+                {selectedInc.length > 0 && <input type="hidden" name="inc" value={selectedInc.join(',')} />}
+              </form>
             </div>
-            {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
-            {priceMode !== 'all' && <input type="hidden" name="price" value={priceMode} />}
-            <button type="submit" class="btn-search">Search</button>
-          </form>
 
-          <div class="price-pills" role="group" aria-label="Filter by price">
-            <span class="filter-label">Price:</span>
-            <div class="price-pills__group">
-              <a href={priceUrl('all')} class:list={['chip', { 'chip--active': priceMode === 'all' }]}>All</a>
-              <a href={priceUrl('free')} class:list={['chip', { 'chip--active': priceMode === 'free' }]}>Free</a>
-              <a href={priceUrl('paid')} class:list={['chip', { 'chip--active': priceMode === 'paid' }]}>Paid</a>
+            <!-- Price Segmented Control -->
+            <div class="filter-group">
+              <span class="filter-group-title">Price</span>
+              <div class="price-segmented-control">
+                <a href={filterUrl({ price: 'all' })} class:list={['seg-item', { 'is-active': priceMode === 'all' }]}>All</a>
+                <a href={filterUrl({ price: 'free' })} class:list={['seg-item', { 'is-active': priceMode === 'free' }]}>Free</a>
+                <a href={filterUrl({ price: 'paid' })} class:list={['seg-item', { 'is-active': priceMode === 'paid' }]}>Paid</a>
+              </div>
+            </div>
+
+            <!-- Category Radios with Counts -->
+            <div class="filter-group">
+              <span class="filter-group-title">Category</span>
+              <div class="category-radio-list">
+                {cats.map((c) => {
+                  const isChecked = c === cat;
+                  const count = catCounts[c] ?? 0;
+                  return (
+                    <a href={filterUrl({ cat: c })} class="category-radio-row">
+                      <span class:list={['radio-circle', { 'is-checked': isChecked }]}></span>
+                      <span class:list={['radio-label', { 'is-checked': isChecked }]}>{c}</span>
+                      <span class="radio-count">{count}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+
+            <!-- Includes Checkboxes -->
+            <div class="filter-group">
+              <span class="filter-group-title">Includes</span>
+              <div class="includes-checkbox-list">
+                {[
+                  { key: 'code', label: 'Code' },
+                  { key: 'schematic', label: 'Schematic' },
+                  { key: '3d', label: '3D' },
+                  { key: 'pdf', label: 'PDF' },
+                  { key: 'video', label: 'Video' },
+                ].map((item) => {
+                  const isChecked = selectedInc.includes(item.key);
+                  return (
+                    <a href={toggleIncUrl(item.key)} class="includes-check-row">
+                      <span class:list={['checkbox-box', { 'is-checked': isChecked }]}>
+                        {isChecked && <Icon name="check" size={12} />}
+                      </span>
+                      <span class:list={['checkbox-label', { 'is-checked': isChecked }]}>{item.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        </aside>
 
-        <!-- Horizontally scrollable category chips -->
-        <nav class="categories-bar" aria-label="Filter by category">
-          <div class="categories-scroll">
+        <!-- Right: Pack Grid Area -->
+        <main class="projects-grid-area">
+          <div class="grid-toolbar-top">
+            <span class="results-count-text">
+              Showing {projects.length === 0 ? 0 : 1} to {projects.length} of {total} packs
+            </span>
+            <div class="sort-control-wrap">
+              <span class="sort-label">Sort</span>
+              <select
+                class="sort-dropdown"
+                onchange="window.location.href=this.value"
+                aria-label="Sort projects"
+              >
+                <option value={filterUrl({ sort: 'newest' })} selected={sortMode === 'newest'}>Newest first</option>
+                <option value={filterUrl({ sort: 'price-asc' })} selected={sortMode === 'price-asc'}>Price: Low to High</option>
+                <option value={filterUrl({ sort: 'price-desc' })} selected={sortMode === 'price-desc'}>Price: High to Low</option>
+              </select>
+            </div>
+          </div>
+
+          {projects.length > 0 ? (
+            <div class="projects-cards-grid">
+              {projects.map((p) => (
+                <ProjectCard project={p} />
+              ))}
+            </div>
+          ) : (
+            <div class="empty-packs-card">
+              <Icon name="search" size={32} />
+              <h3>No matching project packs found</h3>
+              <p>Try clearing your filters or searching for another keyword like "ESP32", "Drone", or "Robot".</p>
+              <a href="/projects" class="btn btn-secondary">Clear all filters</a>
+            </div>
+          )}
+        </main>
+      </div>
+
+      <!-- =====================================================================
+           MOBILE LAYOUT (<= 768px)
+           ===================================================================== -->
+      <div class="projects-mobile-layout">
+        <!-- Search bar -->
+        <form method="get" action="/projects" class="m-projects-search-box">
+          <Icon name="search" size={18} />
+          <input
+            type="search"
+            name="q"
+            value={q}
+            placeholder="Search projects"
+            class="m-projects-search-input"
+          />
+        </form>
+
+        <!-- Filter Chips: All, Free, Paid segmented + Category chips -->
+        <div class="m-filter-bar">
+          <div class="m-price-segmented">
+            <a href={filterUrl({ price: 'all' })} class:list={['m-seg-btn', { 'is-active': priceMode === 'all' }]}>All</a>
+            <a href={filterUrl({ price: 'free' })} class:list={['m-seg-btn', { 'is-active': priceMode === 'free' }]}>Free</a>
+            <a href={filterUrl({ price: 'paid' })} class:list={['m-seg-btn', { 'is-active': priceMode === 'paid' }]}>Paid</a>
+          </div>
+
+          <div class="m-cats-scroll">
             {cats.map((c) => (
               <a
-                href={chipUrl(c)}
-                class:list={['chip', { 'chip--active': c === cat }]}
+                href={filterUrl({ cat: c })}
+                class:list={['m-cat-chip', { 'is-active': c === cat }]}
               >
                 {c}
               </a>
             ))}
           </div>
-        </nav>
-      </div>
-    </section>
-
-    <section class="projects-content">
-      <div class="container">
-        <div class="results-bar">
-          <div class="results-meta">
-            <p class="results-count">
-              {total > 0 ? (
-                <>Showing <strong>{from}–{to}</strong> of <strong>{total}</strong> {total === 1 ? 'pack' : 'packs'}</>
-              ) : (
-                <>0 project packs found</>
-              )}
-            </p>
-            {(q || cat !== 'All' || priceMode !== 'all') && (
-              <div class="active-filter-tags">
-                {q && <span class="filter-tag">“{q}”</span>}
-                {cat !== 'All' && <span class="filter-tag">{cat}</span>}
-                {priceMode !== 'all' && <span class="filter-tag">{priceMode === 'free' ? 'Free only' : 'Paid only'}</span>}
-                <a href="/projects" class="filter-clear-link">Clear filters</a>
-              </div>
-            )}
-          </div>
-
-          <a
-            href={sortUrl(sortMode === 'newest' ? 'popular' : 'newest')}
-            class="sort-badge"
-            aria-label={`Sorted by ${sortMode === 'popular' ? 'Popular' : 'Newest'}. Click to toggle sort.`}
-          >
-            <Icon name="sliders" size={13} />
-            <span>Sort: {sortMode === 'popular' ? 'Popular' : 'Newest'}</span>
-          </a>
         </div>
 
-        {projects.length > 0 ? (
-          <>
-            <div class="projects-grid">
-              {projects.map((p) => (
-                <ProjectCard project={p} />
-              ))}
+        <!-- Single Column Large Pack Cards -->
+        <div class="m-projects-list">
+          {projects.map((p) => (
+            <div class="m-project-card-wrap">
+              <ProjectCard project={p} />
             </div>
-
-            {totalPages > 1 && (
-              <nav class="pagination" aria-label="Pagination">
-                <a
-                  class:list={['page-btn', 'page-prev', { 'is-disabled': page <= 1 }]}
-                  href={page > 1 ? pageUrl(page - 1) : undefined}
-                  aria-label="Previous page"
-                  aria-disabled={page <= 1}
-                >
-                  &larr; Prev
-                </a>
-
-                <div class="page-numbers">
-                  {pageItems.map((it) =>
-                    it === '…' ? (
-                      <span class="page-gap" aria-hidden="true">&hellip;</span>
-                    ) : (
-                      <a
-                        href={pageUrl(it)}
-                        class:list={['page-num', { 'page-num--current': it === page }]}
-                        aria-current={it === page ? 'page' : undefined}
-                      >
-                        {it}
-                      </a>
-                    ),
-                  )}
-                </div>
-
-                <a
-                  class:list={['page-btn', 'page-next', { 'is-disabled': page >= totalPages }]}
-                  href={page < totalPages ? pageUrl(page + 1) : undefined}
-                  aria-label="Next page"
-                  aria-disabled={page >= totalPages}
-                >
-                  Next &rarr;
-                </a>
-              </nav>
-            )}
-          </>
-        ) : (
-          <div class="empty-state">
-            <div class="empty-state__icon">
-              <Icon name="search" size={28} />
-            </div>
-            <h2 class="empty-state__title">No projects found</h2>
-            <p class="empty-state__text">
-              We couldn't find any projects matching your current filters or search query.
-            </p>
-            <a href="/projects" class="btn-reset">
-              Reset all filters
-            </a>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
-    </section>
+    </div>
   </div>
 </Base>
 
 <style>
-  .projects-page {
-    background: var(--bg);
-    min-height: calc(100vh - 64px - 320px);
+  .projects-view-page {
+    padding-top: 40px;
+    padding-bottom: 80px;
+    background: #FFFFFF;
   }
 
-  /* Hero Section */
-  .projects-hero {
-    padding-top: 48px;
-    padding-bottom: 24px;
-    background: var(--bg-soft);
-    border-bottom: 1px solid var(--line);
+  .projects-main-header {
+    margin-bottom: 32px;
   }
-  @media (min-width: 768px) {
-    .projects-hero {
-      padding-top: 64px;
-      padding-bottom: 32px;
-    }
-  }
-
-  .projects-hero__header {
-    margin-bottom: 24px;
-  }
-  .projects-hero__title {
-    font-size: clamp(2rem, 1.4rem + 2.5vw, 3rem);
+  .projects-main-title {
+    font-size: clamp(2.2rem, 1.8rem + 1.8vw, 3.2rem);
     font-weight: 700;
-    line-height: 1.1;
+    color: var(--ink);
+    margin: 0 0 12px 0;
     letter-spacing: -0.02em;
-    color: var(--ink);
-    margin: 0 0 10px;
   }
-  .projects-hero__subtitle {
+  .projects-main-subtitle {
     font-size: 16px;
-    line-height: 1.5;
-    color: var(--ink-2);
-    max-width: 65ch;
+    color: var(--muted);
+    max-width: 68ch;
     margin: 0;
+    line-height: 1.5;
   }
 
-  /* Filter Controls */
-  .filter-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  @media (min-width: 768px) {
-    .filter-controls {
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-    }
-  }
-
-  .search-form {
-    display: flex;
-    gap: 8px;
-    flex: 1;
-    max-width: 540px;
-  }
-  .search-input-wrap {
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: center;
-  }
-  .search-input-wrap :global(svg) {
-    position: absolute;
-    left: 14px;
-    color: var(--ink-3);
-    pointer-events: none;
-  }
-  .search-input {
-    width: 100%;
-    height: 44px;
-    padding: 0 16px 0 42px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: var(--r-btn);
-    color: var(--ink);
-    font-size: 15px;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
-  }
-  .search-input:focus {
-    outline: none;
-    border-color: var(--red);
-    box-shadow: 0 0 0 3px rgba(233, 36, 36, 0.12);
-  }
-  @media (max-width: 640px) {
-    .search-input {
-      height: 48px;
-      font-size: 16px; /* Prevents iOS auto-zoom */
-    }
-  }
-
-  .btn-search {
-    height: 44px;
-    padding: 0 20px;
-    background: var(--red);
-    color: #ffffff;
-    border: none;
-    border-radius: var(--r-btn);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background-color 150ms ease;
-  }
-  .btn-search:hover {
-    background: var(--red-dark);
-  }
-  @media (max-width: 640px) {
-    .btn-search {
-      height: 48px;
-    }
-  }
-
-  /* Price filter pills */
-  .price-pills {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .filter-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ink-3);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .price-pills__group {
-    display: flex;
-    gap: 6px;
-  }
-
-  /* Chips */
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    height: 36px;
-    padding: 0 16px;
-    border-radius: var(--r-chip);
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: all 150ms ease;
-    cursor: pointer;
-  }
-  .chip:hover {
-    background: var(--bg-soft);
-    border-color: var(--ink-3);
-    color: var(--ink);
-  }
-  .chip--active {
-    background: var(--ink) !important;
-    color: #ffffff !important;
-    border-color: var(--ink) !important;
-    font-weight: 600;
-  }
-
-  /* Categories Bar */
-  .categories-bar {
-    margin-top: 16px;
-    width: 100%;
-    overflow: hidden;
-  }
-  .categories-scroll {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 6px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .categories-scroll::-webkit-scrollbar {
+  /* Visibility toggles */
+  .projects-mobile-layout {
     display: none;
   }
-
-  /* Main Content Section */
-  .projects-content {
-    padding-top: 32px;
-    padding-bottom: 64px;
-  }
-  @media (min-width: 768px) {
-    .projects-content {
-      padding-bottom: 96px;
-    }
-  }
-
-  /* Results Bar */
-  .results-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--line);
-  }
-  .results-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .results-count {
-    font-size: 14px;
-    color: var(--ink-2);
-    margin: 0;
-  }
-  .results-count strong {
-    color: var(--ink);
-  }
-  .active-filter-tags {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .filter-tag {
-    font-size: 12px;
-    background: var(--bg-soft);
-    border: 1px solid var(--line);
-    padding: 2px 8px;
-    border-radius: 4px;
-    color: var(--ink-2);
-  }
-  .filter-clear-link {
-    font-size: 12px;
-    color: var(--red);
-    font-weight: 500;
-    text-decoration: underline;
-    margin-left: 4px;
-  }
-  .filter-clear-link:hover {
-    color: var(--red-dark);
-  }
-  .sort-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--ink);
-    font-weight: 600;
-    text-decoration: none;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    transition: all 150ms ease;
-  }
-  .sort-badge:hover {
-    background: var(--bg-soft);
-    border-color: var(--ink-3);
-  }
-
-  /* Grid Layout (Desktop) */
-  .projects-grid {
+  .projects-desktop-layout {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: 36px;
+    align-items: start;
   }
-  @media (max-width: 960px) {
-    .projects-grid {
-      grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 768px) {
+    .projects-desktop-layout {
+      display: none;
+    }
+    .projects-mobile-layout {
+      display: flex;
+      flex-direction: column;
       gap: 16px;
     }
   }
 
-  /* Mobile Native Experience (≤768px): All/Free/Paid Segmented Control & 92px Pack Rows */
-  @media (max-width: 768px) {
-    .filter-controls {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .search-form {
-      max-width: 100%;
-      width: 100%;
-    }
-    .price-pills {
-      width: 100%;
-    }
-    .filter-label {
-      display: none;
-    }
-    .price-pills__group {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      width: 100%;
-      background: var(--bg-soft);
-      padding: 4px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      gap: 4px;
-    }
-    .price-pills__group .chip {
-      height: 38px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: var(--ink-2);
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-    }
-    .price-pills__group .chip--active {
-      background: var(--bg) !important;
-      color: var(--ink) !important;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-
-    /* Mobile pack rows: 92px thumbnail on left, category/title/meta/price on right */
-    .projects-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .projects-grid :global(.pcard) {
-      flex-direction: row;
-      align-items: stretch;
-      padding: 12px;
-      gap: 12px;
-      border-radius: 14px;
-      height: auto;
-      min-height: 116px;
-      background: var(--bg);
-      border: 1px solid var(--line);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    }
-    .projects-grid :global(.pcard__media) {
-      width: 92px;
-      height: 92px;
-      min-width: 92px;
-      max-width: 92px;
-      aspect-ratio: 1;
-      border-radius: 10px;
-      overflow: hidden;
-      flex-shrink: 0;
-      align-self: flex-start;
-    }
-    .projects-grid :global(.pcard__badges),
-    .projects-grid :global(.pcard__video),
-    .projects-grid :global(.pcard__summary) {
-      display: none;
-    }
-    .projects-grid :global(.pcard__body) {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 2px;
-      padding: 0;
-    }
-    .projects-grid :global(.pcard__cat) {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--red);
-      letter-spacing: 0.04em;
-    }
-    .projects-grid :global(.pcard__title) {
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1.25;
-      color: var(--ink);
-      margin: 0;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .projects-grid :global(.pcard__meta-row) {
-      font-size: 12px;
-      color: var(--ink-3);
-      margin-top: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .projects-grid :global(.pcard__foot) {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 6px;
-      padding-top: 0;
-      border-top: none;
-    }
-    .projects-grid :global(.pcard__price) {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--ink);
-    }
-    .projects-grid :global(.pcard__free) {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--success);
-    }
-    .projects-grid :global(.pcard__cta) {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--red);
-    }
+  /* =========================================================================
+     SIDEBAR STYLES (Desktop)
+     ========================================================================= */
+  .projects-filter-sidebar {
+    position: sticky;
+    top: calc(var(--header-h) + 16px);
   }
-
-  /* Pagination */
-  .pagination {
+  .filter-card {
+    background: #F4F5F7;
+    border-radius: 20px;
+    padding: 24px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 48px;
+    flex-direction: column;
+    gap: 24px;
   }
-  .page-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
-    padding: 0 16px;
-    border-radius: var(--r-btn);
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 150ms ease;
-  }
-  .page-btn:hover {
-    border-color: var(--ink-2);
-    background: var(--bg-soft);
-  }
-  .page-btn.is-disabled {
-    opacity: 0.4;
-    pointer-events: none;
-  }
-  .page-numbers {
+  .filter-group {
     display: flex;
-    align-items: center;
-    gap: 4px;
+    flex-direction: column;
+    gap: 10px;
   }
-  .page-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 8px;
-    border-radius: var(--r-btn);
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 150ms ease;
-  }
-  .page-num:hover {
-    border-color: var(--ink);
-  }
-  .page-num--current {
-    background: var(--ink);
-    color: #ffffff;
-    border-color: var(--ink);
-  }
-  .page-gap {
-    padding: 0 6px;
-    color: var(--ink-3);
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 64px 24px;
-    background: var(--bg-soft);
-    border: 1px dashed var(--line);
-    border-radius: var(--r-card);
-    max-width: 540px;
-    margin: 40px auto 0;
-  }
-  .empty-state__icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    color: var(--ink-3);
-    display: grid;
-    place-items: center;
-    margin: 0 auto 16px;
-  }
-  .empty-state__title {
-    font-size: 20px;
+  .filter-group-title {
+    font-size: 13px;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 8px;
   }
-  .empty-state__text {
-    font-size: 15px;
-    color: var(--ink-2);
-    line-height: 1.5;
-    margin: 0 0 24px;
+
+  .filter-search-input {
+    width: 100%;
+    height: 44px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0 14px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 150ms ease;
   }
-  .btn-reset {
+  .filter-search-input:focus {
+    border-color: var(--ink);
+  }
+
+  /* Segmented control */
+  .price-segmented-control {
+    display: flex;
+    background: #E8ECEF;
+    border-radius: 12px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg-item {
+    flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 44px;
-    padding: 0 20px;
-    border-radius: var(--r-btn);
-    border: 1.5px solid var(--ink);
-    color: var(--ink);
-    font-size: 14px;
+    height: 34px;
+    border-radius: 9px;
+    font-size: 13px;
     font-weight: 600;
+    color: var(--muted);
     text-decoration: none;
     transition: all 150ms ease;
   }
-  .btn-reset:hover {
+  .seg-item:hover {
+    color: var(--ink);
+  }
+  .seg-item.is-active {
+    background: #FFFFFF;
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Category radio list */
+  .category-radio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .category-radio-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .radio-circle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid #C0C5CD;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 150ms ease;
+  }
+  .radio-circle.is-checked {
+    border-color: var(--red);
+    background: var(--red);
+    box-shadow: inset 0 0 0 3px #FFFFFF;
+  }
+  .radio-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    flex: 1;
+    transition: color 150ms ease;
+  }
+  .radio-label.is-checked {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .radio-count {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  /* Includes checkboxes */
+  .includes-checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .includes-check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .checkbox-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid #C0C5CD;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    flex-shrink: 0;
+    transition: all 150ms ease;
+  }
+  .checkbox-box.is-checked {
     background: var(--ink);
-    color: #ffffff;
+    border-color: var(--ink);
+  }
+  .checkbox-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .checkbox-label.is-checked {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* =========================================================================
+     RIGHT GRID AREA (Desktop)
+     ========================================================================= */
+  .grid-toolbar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .results-count-text {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .sort-control-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sort-label {
+    font-size: 13.5px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .sort-dropdown {
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: #FFFFFF;
+    padding: 0 12px;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    font-weight: 550;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .projects-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1200px) and (min-width: 769px) {
+    .projects-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .empty-packs-card {
+    background: #F4F5F7;
+    border-radius: 20px;
+    padding: 48px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+  }
+  .empty-packs-card h3 {
+    font-size: 20px;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  /* =========================================================================
+     MOBILE PROJECTS
+     ========================================================================= */
+  .m-projects-search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0 14px;
+    min-height: 48px;
+    color: var(--muted);
+  }
+  .m-projects-search-input {
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    width: 100%;
+    outline: none;
+  }
+
+  .m-filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .m-price-segmented {
+    display: flex;
+    background: #E8ECEF;
+    border-radius: 12px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .m-seg-btn {
+    flex: 1;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .m-seg-btn.is-active {
+    background: #FFFFFF;
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .m-cats-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .m-cats-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .m-cat-chip {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .m-cat-chip.is-active {
+    background: var(--ink);
+    color: #FFFFFF;
+    border-color: var(--ink);
+  }
+
+  .m-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .m-project-card-wrap {
+    width: 100%;
   }
 </style>
