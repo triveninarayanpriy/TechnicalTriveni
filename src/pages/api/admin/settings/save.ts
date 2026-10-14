@@ -3,13 +3,30 @@ import { env } from 'cloudflare:workers';
 import { setSetting } from '../../../../lib/db';
 import { csrfOk, strField, flashRedirect } from '../../../../lib/admin';
 
-const ALLOWED = ['site_announcement', 'contact_email', 'announcement_link', 'announcement_expiry', 'test_emails', 'announcement_enabled', 'gemini_model', 'site_title', 'social_youtube', 'social_instagram'];
+const ALLOWED = [
+  'site_announcement',
+  'contact_email',
+  'announcement_link',
+  'announcement_expiry',
+  'test_emails',
+  'announcement_enabled',
+  'gemini_model',
+  'site_title',
+  'social_youtube',
+  'social_instagram',
+  'contact_notification_email',
+  'contact_email_notify_enabled',
+  'contact_autoack_enabled',
+];
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
   if (!csrfOk(cookies, form)) return flashRedirect('/admin/settings', { err: 'Session expired.' });
 
+  // Handle checkboxes (unchecked checkboxes are omitted from formData)
   await setSetting(env.DB, 'announcement_enabled', form.get('announcement_enabled') === '1' ? '1' : '0');
+  await setSetting(env.DB, 'contact_email_notify_enabled', form.get('contact_email_notify_enabled') === '1' ? '1' : '0');
+  await setSetting(env.DB, 'contact_autoack_enabled', form.get('contact_autoack_enabled') === '1' ? '1' : '0');
 
   if (form.has('gemini_api_key')) {
     const keyVal = strField(form, 'gemini_api_key', 200);
@@ -19,7 +36,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   for (const key of ALLOWED) {
-    if (key === 'announcement_enabled') continue;
+    if (key === 'announcement_enabled' || key === 'contact_email_notify_enabled' || key === 'contact_autoack_enabled') continue;
     if (form.has(key)) {
       await setSetting(env.DB, key, strField(form, key, 500));
     }

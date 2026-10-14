@@ -19,6 +19,9 @@ const integrations = [
   { key: 'turnstile', name: 'Turnstile Bot Protection', on: turnstileEnabled(env), desc: 'Protects contact forms and checkouts from spam and bots.', icon: 'shield' },
   { key: 'email', name: 'Brevo Transactional Email', on: emailEnabled(env), desc: 'Sends digital goods and magic links to customers.', icon: 'mail' },
 ];
+const notifyEmail = settings.contact_notification_email || (env as any).NOTIFICATION_EMAIL || (env as any).CONTACT_NOTIFICATION_EMAIL || '';
+const notifyEnabled = settings.contact_email_notify_enabled === null || settings.contact_email_notify_enabled === undefined || settings.contact_email_notify_enabled === '' || settings.contact_email_notify_enabled === '1';
+const autoAckEnabled = settings.contact_autoack_enabled === '1';
 ---
 
 <Admin title="Settings" active="settings">
@@ -123,7 +126,64 @@ const integrations = [
           </div>
         </div>
 
-        <!-- Card 3: Security & Access -->
+        <!-- Card 3: Notifications -->
+        <div class="admin-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <h2 class="settings-card-title" style="margin: 0;">Notifications</h2>
+              <div style="font-size: 13px; color: var(--admin-muted); margin-top: 2px;">Configure email notifications when visitors submit messages on the site.</div>
+            </div>
+            <form method="post" action="/api/admin/settings/test-email">
+              <input type="hidden" name="csrf" value={csrf} />
+              <button type="submit" class="admin-btn admin-btn--secondary admin-btn--sm">
+                <Icon name="mail" size={15} /> Send test email
+              </button>
+            </form>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="admin-switch-wrap">
+              <div>
+                <span class="admin-switch-label">Message notification email</span>
+                <div style="font-size: 12.5px; color: var(--admin-muted);">Email me when a visitor sends a message from the website contact form.</div>
+              </div>
+              <label class="admin-switch">
+                <input type="checkbox" name="contact_email_notify_enabled" form="settings-main-form" value="1" checked={notifyEnabled} />
+                <span class="admin-switch__slider"></span>
+              </label>
+            </div>
+
+            <div class="admin-field">
+              <label class="admin-label" for="d-contact_notification_email">Notification recipient address(es)</label>
+              <input
+                class="admin-input"
+                id="d-contact_notification_email"
+                name="contact_notification_email"
+                form="settings-main-form"
+                value={settings.contact_notification_email || ''}
+                placeholder="technicaltriveniyt@gmail.com"
+              />
+              <div style="font-size: 12px; color: var(--admin-muted); margin-top: 5px;">
+                Comma-separated addresses allowed. Default: <code>technicaltriveniyt@gmail.com</code> (or <code>NOTIFICATION_EMAIL</code> env var).
+              </div>
+            </div>
+
+            <div style="margin-top: 8px; padding-top: 14px; border-top: var(--admin-border);">
+              <div class="admin-switch-wrap">
+                <div>
+                  <span class="admin-switch-label">Send the visitor an automatic acknowledgement</span>
+                  <div style="font-size: 12.5px; color: var(--admin-muted);">Send the visitor a confirmation email right after they submit (off by default).</div>
+                </div>
+                <label class="admin-switch">
+                  <input type="checkbox" name="contact_autoack_enabled" form="settings-main-form" value="1" checked={autoAckEnabled} />
+                  <span class="admin-switch__slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Security & Access -->
         <div class="admin-card">
           <h2 class="settings-card-title">Security &amp; Password</h2>
           <form method="post" action="/api/admin/password/change" class="settings-fields-grid" style="align-items: end;">
@@ -214,6 +274,58 @@ const integrations = [
               <option value="gemini-2.5-pro" selected={settings.gemini_model === 'gemini-2.5-pro'}>Gemini 2.5 Pro</option>
               <option value="gemini-2.0-flash" selected={settings.gemini_model === 'gemini-2.0-flash'}>Gemini 2.0 Flash</option>
             </select>
+          </div>
+      </div>
+    </div>
+
+      <!-- Card: Notifications (Mobile) -->
+      <div class="admin-card mobile-settings-card" style="margin-top: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h2 class="settings-card-title" style="margin: 0;">Notifications</h2>
+          <form method="post" action="/api/admin/settings/test-email">
+            <input type="hidden" name="csrf" value={csrf} />
+            <button type="submit" class="admin-btn admin-btn--secondary admin-btn--sm" style="font-size: 12px; padding: 5px 10px;">
+              <Icon name="mail" size={14} /> Send test email
+            </button>
+          </form>
+        </div>
+
+        <div class="admin-switch-wrap">
+          <div>
+            <span class="admin-switch-label">Message notification email</span>
+            <div style="font-size: 12px; color: var(--admin-muted);">Email me when a visitor sends a message.</div>
+          </div>
+          <label class="admin-switch">
+            <input type="checkbox" name="contact_email_notify_enabled" form="settings-main-form" value="1" checked={notifyEnabled} />
+            <span class="admin-switch__slider"></span>
+          </label>
+        </div>
+
+        <div class="admin-field" style="margin-top: 12px;">
+          <label class="admin-label" for="m-contact_notification_email">Notification recipient address(es)</label>
+          <input
+            class="admin-input"
+            id="m-contact_notification_email"
+            name="contact_notification_email"
+            form="settings-main-form"
+            value={settings.contact_notification_email || ''}
+            placeholder="technicaltriveniyt@gmail.com"
+          />
+          <div style="font-size: 11.5px; color: var(--admin-muted); margin-top: 4px;">
+            Comma-separated addresses. Default: <code>technicaltriveniyt@gmail.com</code>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; padding-top: 12px; border-top: var(--admin-border);">
+          <div class="admin-switch-wrap">
+            <div>
+              <span class="admin-switch-label">Visitor acknowledgement</span>
+              <div style="font-size: 12px; color: var(--admin-muted);">Send confirmation email to visitor.</div>
+            </div>
+            <label class="admin-switch">
+              <input type="checkbox" name="contact_autoack_enabled" form="settings-main-form" value="1" checked={autoAckEnabled} />
+              <span class="admin-switch__slider"></span>
+            </label>
           </div>
         </div>
       </div>

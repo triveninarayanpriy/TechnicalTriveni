@@ -610,6 +610,10 @@ main.admin-main-wrap {
   background: var(--admin-warning-bg);
   color: var(--admin-warning-text);
 }
+.admin-chip--danger {
+  background: rgba(231, 36, 42, 0.12);
+  color: var(--admin-brand-red);
+}
 .admin-chip--filter {
   background: var(--admin-card);
   border: var(--admin-border);

@@ -1,27 +1,84 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
+import { sendEmailWithDetails, shell, formatDateTimeIST } from '../../lib/email';
+import { getNotificationRecipients, isNotificationEnabled } from '../../lib/contact-notify';
 
 export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   const orderId = url.searchParams.get('order_id');
   const rating = parseInt(url.searchParams.get('rating') || '0', 10);
-  // Ideally there is a secure token or hash here to prevent abuse,
-  // but for the MVP proof-of-concept, we just update the order if it exists.
-  const token = url.searchParams.get('token'); 
 
   if (!orderId || !rating || rating < 1 || rating > 5) {
     return new Response('Invalid request', { status: 400 });
   }
 
   try {
-    // Optionally verify token if implemented, e.g. token === hash(orderId + secret)
-    
-    // Update the rating
     const db = env.DB;
-    const res = await db.prepare('UPDATE orders SET rating = ? WHERE id = ?').bind(rating, parseInt(orderId, 10)).run();
+    // Update the rating
+    const res = await db.prepare('UPDATE orders SET rating = ? WHERE id = ?').bind(rating, orderId).run();
     
     if (res.meta.changes === 0) {
       return new Response('Order not found', { status: 404 });
+    }
+
+    // Best-effort admin notification if notifications are enabled
+    const notifyOn = await isNotificationEnabled(db);
+    if (notifyOn) {
+      try {
+        const order = await db.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first<any>();
+        if (order) {
+          const recipients = await getNotificationRecipients(env, db);
+          const stars = '⭐'.repeat(rating);
+          const istTime = formatDateTimeIST();
+          const adminUrl = `${env.SITE_URL || 'https://www.technicaltriveni.me'}/admin/orders`;
+
+          const html = shell(`New Rating: ${stars}`, `
+            <div style="margin:0 0 16px;padding:12px 16px;background:#f8f9fb;border:1px solid #e2e5eb;border-radius:10px;">
+              <p style="margin:0 0 8px;font-size:16px;color:#111827;"><strong>${stars} (${rating} / 5 stars)</strong></p>
+              <table style="width:100%;font-size:13.5px;line-height:1.6;border-collapse:collapse;">
+                <tr>
+                  <td style="width:110px;color:#6b7280;font-weight:600;padding:3px 0;">Project:</td>
+                  <td style="color:#111827;padding:3px 0;"><strong>${order.project_title || 'Project'}</strong></td>
+                </tr>
+                <tr>
+                  <td style="color:#6b7280;font-weight:600;padding:3px 0;">Customer:</td>
+                  <td style="color:#111827;padding:3px 0;">${order.email || 'N/A'}</td>
+                </tr>
+                <tr>
+                  <td style="color:#6b7280;font-weight:600;padding:3px 0;">Order ID:</td>
+                  <td style="color:#111827;padding:3px 0;"><code>${order.id}</code></td>
+                </tr>
+                <tr>
+                  <td style="color:#6b7280;font-weight:600;padding:3px 0;">Time (IST):</td>
+                  <td style="color:#111827;padding:3px 0;">${istTime}</td>
+                </tr>
+              </table>
+            </div>
+            <p style="margin:20px 0 0;">
+              <a href="${adminUrl}" style="display:inline-block;background:#e7242a;color:#fff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px;font-size:14px;">Open Orders in Admin &rarr;</a>
+            </p>
+          `);
+
+          const text = `New Project Rating: ${rating}/5 stars (${stars})
+Project: ${order.project_title}
+Customer: ${order.email}
+Order ID: ${order.id}
+Time (IST): ${istTime}
+
+View in Admin: ${adminUrl}
+`;
+
+          await sendEmailWithDetails(env, {
+            to: recipients,
+            subject: `New Rating: ${stars} for ${order.project_title}`,
+            html,
+            text,
+          });
+          console.log(`[Rate] Admin notification sent for order id=${orderId}`);
+        }
+      } catch (err: any) {
+        console.error(`[Rate] Failed to send admin notification for order id=${orderId}:`, err.message);
+      }
     }
 
     return new Response(`

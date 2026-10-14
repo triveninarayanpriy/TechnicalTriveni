@@ -119,9 +119,21 @@ export interface Order {
   rating?: number;
 }
 export interface ContactMessage {
-  id: number; name: string; email: string; subject: string; message: string;
-  handled: number; created_at: number;
-  status: string; reply_body: string | null;
+  id: number;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  handled: number;
+  created_at: number;
+  status: string;
+  reply_body: string | null;
+  email_status: 'sent' | 'failed' | 'skipped' | 'pending';
+  email_sent_at: number | null;
+  email_error: string | null;
+  email_attempts: number;
+  order_id?: string;
+  source_page?: string;
 }
 
 export interface ProjectFull extends Project {
@@ -771,10 +783,39 @@ export async function setSetting(db: D1Database, key: string, value: string): Pr
 /* ------------------------------------------------------------ contact ---- */
 
 export async function addContactMessage(db: D1Database, m: {
-  name: string; email: string; subject: string; message: string;
-}): Promise<void> {
-  await db.prepare('INSERT INTO contact_messages (name,email,subject,message,created_at) VALUES (?,?,?,?,?)')
-    .bind(m.name, m.email, m.subject, m.message, now()).run();
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  order_id?: string;
+  source_page?: string;
+  email_status?: 'sent' | 'failed' | 'skipped' | 'pending';
+  email_sent_at?: number | null;
+  email_error?: string | null;
+  email_attempts?: number;
+}): Promise<number> {
+  const res = await db.prepare(
+    'INSERT INTO contact_messages (name, email, subject, message, created_at, order_id, source_page, email_status, email_sent_at, email_error, email_attempts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  )
+    .bind(
+      m.name,
+      m.email,
+      m.subject,
+      m.message,
+      now(),
+      m.order_id || '',
+      m.source_page || '',
+      m.email_status || 'skipped',
+      m.email_sent_at || null,
+      m.email_error || '',
+      m.email_attempts || 0
+    )
+    .run();
+  return (res.meta.last_row_id as number) || 0;
+}
+
+export async function getContactMessageById(db: D1Database, id: number): Promise<ContactMessage | null> {
+  return db.prepare('SELECT * FROM contact_messages WHERE id = ?').bind(id).first<ContactMessage>();
 }
 export async function listContactMessages(db: D1Database, status?: string, search?: string, limit = 100): Promise<ContactMessage[]> {
   let q = 'SELECT * FROM contact_messages';
