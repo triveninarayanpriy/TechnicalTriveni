@@ -125,6 +125,12 @@ const groupedPins = (project.pins || []).reduce((acc, pin) => {
   return acc;
 }, {} as Record<string, typeof project.pins>);
 
+// Distinct modules/boards across diagrams and pin connections
+const wiringModules = Array.from(new Set([
+  ...(project.wiring_diagrams || []).map((d: any) => d.module?.trim()).filter(Boolean),
+  ...(project.pins || []).map((p: any) => p.module?.trim()).filter(Boolean)
+] as string[])).filter(m => m.toLowerCase() !== 'general');
+
 const lastUpdated = formatDate(project.updated_at);
 ---
 
@@ -343,22 +349,51 @@ const lastUpdated = formatDate(project.updated_at);
             <!-- 3. WIRING & CONNECTIONS PANEL -->
             {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
               <div class="p-panel-content" id="panel-wiring" data-tab-panel="wiring" hidden>
-                <h3 class="p-panel-h3">Wiring & circuit connections</h3>
+                <div class="p-wiring-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom: 16px;">
+                  <div>
+                    <h3 class="p-panel-h3" style="margin: 0;">Wiring & circuit connections</h3>
+                    <p style="font-size: 13.5px; color: var(--ink-2); margin: 4px 0 0 0;">Follow the exact circuit connections and pinouts for your board.</p>
+                  </div>
+                  {wiringModules.length > 1 && (
+                    <div class="p-module-filter-bar">
+                      <span class="p-module-filter-label">Select Board:</span>
+                      <div class="p-module-filter-pills" role="tablist">
+                        <button type="button" class="p-module-pill is-active" data-module-filter="all">All Boards</button>
+                        {wiringModules.map((mod) => (
+                          <button type="button" class="p-module-pill" data-module-filter={mod.toLowerCase()}>{mod}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {wiringModules.length > 1 && (
+                  <div class="p-module-info-alert">
+                    <Icon name="spark" size={16} />
+                    <span>Multiple boards supported for this project. Select your board above (e.g. <strong>{wiringModules.join(' vs ')}</strong>) to view the matching pinout & circuit schematic so you don't wire pins incorrectly.</span>
+                  </div>
+                )}
 
                 {project.wiring_diagrams && project.wiring_diagrams.length > 0 && (
                   <div class="p-wiring-diagrams">
                     {project.wiring_diagrams.map((d) => (
-                      <figure class="p-wiring-fig">
+                      <figure class="p-wiring-fig" data-wiring-module={(d.module || '').toLowerCase().trim()}>
+                        <div class="p-wiring-fig-head">
+                          {d.module && <span class="p-wiring-module-badge">{d.module}</span>}
+                          {d.label && <span class="p-wiring-title">{d.label}</span>}
+                        </div>
                         <img src={d.url} alt={d.label || 'Wiring diagram'} loading="lazy" />
-                        {d.label && <figcaption>{d.label}</figcaption>}
                       </figure>
                     ))}
                   </div>
                 )}
 
                 {Object.entries(groupedPins).map(([moduleName, pins]) => (
-                  <div class="p-pin-module-block">
-                    <h4 class="p-pin-module-title">{moduleName} Connections</h4>
+                  <div class="p-pin-module-block" data-pin-module={moduleName.toLowerCase().trim()}>
+                    <div class="p-pin-module-header">
+                      <h4 class="p-pin-module-title">{moduleName} Connections</h4>
+                      {moduleName.toLowerCase() !== 'general' && <span class="p-wiring-module-badge">{moduleName}</span>}
+                    </div>
                     <div class="p-wiring-desktop">
                       <table class="p-wiring-table">
                         <thead>
@@ -696,21 +731,47 @@ const lastUpdated = formatDate(project.updated_at);
       <!-- 3. WIRING (Mobile) -->
       {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
         <div class="m-panel" id="m-panel-wiring" data-m-panel="wiring" hidden>
-          <h3 class="m-section-heading">Wiring connections</h3>
+          <div class="m-wiring-top">
+            <h3 class="m-section-heading">Wiring connections</h3>
+            {wiringModules.length > 1 && (
+              <div class="p-module-filter-bar" style="margin-top: 10px; margin-bottom: 12px; width: 100%; overflow-x: auto;">
+                <span class="p-module-filter-label">Board:</span>
+                <div class="p-module-filter-pills" role="tablist">
+                  <button type="button" class="p-module-pill is-active" data-module-filter="all">All</button>
+                  {wiringModules.map((mod) => (
+                    <button type="button" class="p-module-pill" data-module-filter={mod.toLowerCase()}>{mod}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {wiringModules.length > 1 && (
+            <div class="p-module-info-alert" style="margin-bottom: 14px; font-size: 12.5px;">
+              <Icon name="spark" size={14} />
+              <span>Select your board above to view the matching wiring for your code.</span>
+            </div>
+          )}
+
           {project.wiring_diagrams && project.wiring_diagrams.length > 0 && (
             <div class="m-wiring-imgs">
               {project.wiring_diagrams.map((d) => (
-                <figure class="m-wiring-fig">
+                <figure class="m-wiring-fig" data-wiring-module={(d.module || '').toLowerCase().trim()}>
+                  <div class="p-wiring-fig-head">
+                    {d.module && <span class="p-wiring-module-badge">{d.module}</span>}
+                    {d.label && <span class="p-wiring-title">{d.label}</span>}
+                  </div>
                   <img src={d.url} alt={d.label || 'Wiring diagram'} loading="lazy" />
-                  {d.label && <figcaption>{d.label}</figcaption>}
                 </figure>
               ))}
             </div>
           )}
 
           {Object.entries(groupedPins).map(([moduleName, pins]) => (
-            <div class="m-pin-module-section">
-              <h4 class="m-pin-module-h4">{moduleName}</h4>
+            <div class="m-pin-module-section" data-pin-module={moduleName.toLowerCase().trim()}>
+              <div class="p-pin-module-header">
+                <h4 class="m-pin-module-h4">{moduleName}</h4>
+                {moduleName.toLowerCase() !== 'general' && <span class="p-wiring-module-badge">{moduleName}</span>}
+              </div>
               <div class="m-pin-cards">
                 {pins.map((p) => (
                   <div class="m-pin-card">
@@ -935,6 +996,40 @@ const lastUpdated = formatDate(project.updated_at);
   mobileTabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       if (btn.dataset.mobileTab) activateTab(btn.dataset.mobileTab);
+    });
+  });
+
+  // ==================== WIRING MODULE FILTER ====================
+  const moduleFilterPills = document.querySelectorAll<HTMLButtonElement>('.p-module-pill');
+  moduleFilterPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      const selected = (pill.dataset.moduleFilter || 'all').toLowerCase();
+      // Update active state across all pills with matching filter
+      moduleFilterPills.forEach((p) => {
+        p.classList.toggle('is-active', (p.dataset.moduleFilter || 'all').toLowerCase() === selected);
+      });
+
+      // Filter wiring diagrams
+      const diagrams = document.querySelectorAll<HTMLElement>('.p-wiring-fig, .m-wiring-fig');
+      diagrams.forEach((fig) => {
+        const mod = (fig.dataset.wiringModule || '').toLowerCase();
+        if (selected === 'all' || !mod || mod === selected) {
+          fig.style.display = '';
+        } else {
+          fig.style.display = 'none';
+        }
+      });
+
+      // Filter pin module blocks
+      const pinBlocks = document.querySelectorAll<HTMLElement>('.p-pin-module-block, .m-pin-module-section');
+      pinBlocks.forEach((block) => {
+        const mod = (block.dataset.pinModule || '').toLowerCase();
+        if (selected === 'all' || mod === 'general' || mod === selected) {
+          block.style.display = '';
+        } else {
+          block.style.display = 'none';
+        }
+      });
     });
   });
 
@@ -1630,6 +1725,93 @@ const lastUpdated = formatDate(project.updated_at);
     max-width: 100%;
     border-radius: 16px;
     border: 1px solid var(--line);
+  }
+
+  /* Module Filter & Board Tagging */
+  .p-module-filter-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface, #F8FAFC);
+    border: 1px solid var(--line, #E2E8F0);
+    padding: 5px 12px;
+    border-radius: 30px;
+  }
+  .p-module-filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted, #64748B);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .p-module-filter-pills {
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+  }
+  .p-module-pill {
+    background: #FFFFFF;
+    border: 1px solid var(--line, #CBD5E1);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink, #334155);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .p-module-pill:hover {
+    border-color: var(--muted, #94A3B8);
+    color: var(--ink, #0F172A);
+  }
+  .p-module-pill.is-active {
+    background: var(--red, #D92323);
+    border-color: var(--red, #D92323);
+    color: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(217, 35, 35, 0.25);
+  }
+  .p-module-info-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1E40AF;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .p-wiring-module-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: #EEF2FF;
+    color: #4338CA;
+    border: 1px solid #C7D2FE;
+    letter-spacing: 0.03em;
+  }
+  .p-wiring-fig-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .p-wiring-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink, #0F172A);
+  }
+  .p-pin-module-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
   }
 
   /* Step Accordions (Desktop) */

@@ -39,6 +39,15 @@ if (p?.cost_checked) {
     }
   }
 }
+
+const distinctModules = Array.from(new Set([
+  'ESP32',
+  'NodeMCU ESP8266',
+  'Arduino Uno',
+  'Raspberry Pi Pico',
+  ...(p?.wiring_diagrams?.map((d: any) => d.module).filter(Boolean) || []),
+  ...(p?.pins?.map((pin: any) => pin.module).filter(Boolean) || [])
+]));
 ---
 
 <div class="editor-page-container" data-project-id={p?.id || 0}>
@@ -644,25 +653,136 @@ if (p?.cost_checked) {
             <h3 class="card-section-title">Wiring and connections</h3>
             <p class="field-hint" style="margin: 0;">{p?.pins?.length ? `${p.pins.length} pin connections` : 'No connections yet'}</p>
           </div>
-          <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="toggle-add-pin-btn">
-            <Icon name="plus" size={14} /> Add
-          </button>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="toggle-add-diagram-btn">
+              <Icon name="layers" size={14} /> Add Diagram
+            </button>
+            <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="toggle-add-pin-btn">
+              <Icon name="plus" size={14} /> Add Pin
+            </button>
+          </div>
         </div>
 
         {isNew ? (
           <div class="empty-state-notice">
             <Icon name="spark" size={24} />
-            <p>Save draft first to initialize this project, then you can configure pin connections.</p>
+            <p>Save draft first to initialize this project, then you can configure pin connections and diagrams.</p>
           </div>
         ) : (
           <div class="wiring-container" style="margin-top: 1rem;">
+            <!-- Datalist for modules/boards -->
+            <datalist id="wiring-module-list">
+              {distinctModules.map((m) => (
+                <option value={m} />
+              ))}
+            </datalist>
+
+            <!-- Subpanel: Circuit Diagrams & Schematics by Board/Module -->
+            <div class="wiring-diagrams-subpanel" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--admin-line);">
+              <div style="margin-bottom: 0.75rem;">
+                <h4 style="margin: 0; font-size: 14.5px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px;">
+                  <Icon name="layers" size={16} /> Circuit Diagrams & Schematics
+                </h4>
+                <p class="field-hint" style="margin: 2px 0 0 0; font-size: 12.5px;">
+                  Upload schematics tagged by board (e.g. <strong>ESP32</strong> vs <strong>NodeMCU</strong>) so users follow the right wiring for their board & code.
+                </p>
+              </div>
+
+              <!-- List of uploaded diagrams -->
+              {p.wiring_diagrams && p.wiring_diagrams.length > 0 ? (
+                <div class="wiring-diagram-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 1rem;">
+                  {p.wiring_diagrams.map((d, di) => (
+                    <div class="wiring-diagram-card" style="border: 1px solid var(--admin-line); border-radius: 10px; overflow: hidden; background: #FFF;">
+                      <div style="position: relative; height: 130px; background: #F8FAFC; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <img src={d.url} alt={d.label} style="width: 100%; height: 100%; object-fit: contain;" />
+                        {d.module && (
+                          <span style="position: absolute; top: 6px; left: 6px; background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                            {d.module}
+                          </span>
+                        )}
+                      </div>
+                      <div style="padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <div style="min-width: 0; flex: 1;">
+                          <div style="font-size: 13px; font-weight: 600; color: #0F172A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {d.label || 'Wiring diagram'}
+                          </div>
+                          <div style="font-size: 11.5px; color: #64748B;">Board: <strong>{d.module || 'All Boards'}</strong></div>
+                        </div>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                          {['up', 'down'].map((dir) => (
+                            <form method="post" action="/api/admin/wiring/move" class="inline-form">
+                              <input type="hidden" name="csrf" value={csrf} />
+                              <input type="hidden" name="id" value={d.id} />
+                              <input type="hidden" name="project_id" value={p.id} />
+                              <input type="hidden" name="dir" value={dir} />
+                              <button class="thumb-ctrl-btn" type="submit" disabled={dir === 'up' ? di === 0 : di === p.wiring_diagrams.length - 1} title={dir === 'up' ? 'Move earlier' : 'Move later'}>
+                                <Icon name={dir === 'up' ? 'chevron-up' : 'chevron-down'} size={12} />
+                              </button>
+                            </form>
+                          ))}
+                          <form method="post" action="/api/admin/wiring/delete" class="inline-form">
+                            <input type="hidden" name="csrf" value={csrf} />
+                            <input type="hidden" name="id" value={d.id} />
+                            <input type="hidden" name="project_id" value={p.id} />
+                            <button class="thumb-ctrl-btn thumb-ctrl-btn--del" type="submit" title="Delete diagram">
+                              <Icon name="trash" size={12} />
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style="font-size: 13px; color: #64748B; font-style: italic; margin: 0.5rem 0 1rem 0;">No circuit diagrams uploaded yet. Upload schematics for your target boards (e.g. ESP32, NodeMCU).</p>
+              )}
+
+              <!-- Add Diagram Form -->
+              <form method="post" action="/api/admin/wiring/add" enctype="multipart/form-data" class="add-card-box" id="add-diagram-form" style="display: none; margin-top: 0.75rem; background: #F8FAFC; border: 1px dashed var(--admin-line); padding: 1rem; border-radius: 10px;">
+                <h5 style="margin: 0 0 0.5rem 0; font-size: 14px; font-weight: 700;">Upload Circuit Diagram / Schematic</h5>
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="project_id" value={p.id} />
+                <div class="grid-2">
+                  <div>
+                    <label class="field-label" style="font-size: 12px;">Diagram Label / Title</label>
+                    <input class="input" name="label" placeholder="e.g. ESP32 Pinout & Circuit Schematic" required />
+                  </div>
+                  <div>
+                    <label class="field-label" style="font-size: 12px;">Target Board / Module</label>
+                    <input class="input" name="module" list="wiring-module-list" placeholder="e.g. ESP32 or NodeMCU ESP8266" />
+                  </div>
+                </div>
+                <div class="grid-2" style="margin-top: 0.5rem;">
+                  <div>
+                    <label class="field-label" style="font-size: 12px;">Upload Image File</label>
+                    <input type="file" name="file" accept="image/*" class="input" />
+                  </div>
+                  <div>
+                    <label class="field-label" style="font-size: 12px;">Or Diagram Image URL</label>
+                    <input class="input mono" name="url" placeholder="https://..." />
+                  </div>
+                </div>
+                <div style="display:flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem;">
+                  <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="cancel-add-diagram-btn">Cancel</button>
+                  <button class="admin-btn admin-btn--primary admin-btn--sm" type="submit"><Icon name="upload" size={14} /> Upload Diagram</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Subpanel: Pin Connections List -->
+            <div style="margin-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 14.5px; font-weight: 700; color: #0F172A;">
+                Pin-to-Pin Connections
+              </h4>
+            </div>
+
             <div class="rows">
               {p.pins.map((pin, i) => (
                 <details class="data-row-edit" style="background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 12px; margin-bottom: 0.5rem;">
                   <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                     <div class="data-row__main" style="flex: 1; min-width: 0;">
                       <strong class="mono" style="font-size: 14px;">{pin.from_pin} → {pin.to_pin}</strong>
-                      {pin.module && <span class="mini-tag" style="margin-left: 0.5rem;">{pin.module}</span>}
+                      {pin.module && <span class="mini-tag" style="margin-left: 0.5rem; background: #EEF2FF; color: #4338CA;">{pin.module}</span>}
                       {pin.note && <span class="dim" style="display: block; font-size: 13px; margin-top: 0.2rem;">{pin.note}</span>}
                     </div>
                     <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
@@ -692,7 +812,7 @@ if (p?.cost_checked) {
                     <input type="hidden" name="project_id" value={p.id} />
                     <input class="input mono" name="from_pin" value={pin.from_pin} placeholder="From (ESP32 D5)" required />
                     <input class="input mono" name="to_pin" value={pin.to_pin} placeholder="To (Relay IN1)" required />
-                    <input class="input" name="module" value={pin.module || ''} placeholder="Module / Board (optional)" />
+                    <input class="input" name="module" value={pin.module || ''} list="wiring-module-list" placeholder="Module / Board (e.g. ESP32)" />
                     <input class="input" name="note" value={pin.note || ''} placeholder="Note (optional)" />
                     <button class="admin-btn admin-btn--primary admin-btn--sm" type="submit"><Icon name="check" size={15} /> Save</button>
                   </form>
@@ -710,7 +830,7 @@ if (p?.cost_checked) {
                 <input class="input mono" name="to_pin" id="wiring-to-pin" placeholder="To (e.g. Relay IN1)" required />
               </div>
               <div class="grid-2" style="margin-top: 0.5rem;">
-                <input class="input" name="module" placeholder="Module (e.g. Relay Module)" />
+                <input class="input" name="module" list="wiring-module-list" placeholder="Module / Board (e.g. ESP32 or NodeMCU)" />
                 <input class="input" name="note" id="wiring-note" placeholder="Note (e.g. 10k Pull-up)" />
               </div>
               <div style="display:flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem;">
@@ -1348,27 +1468,39 @@ if (p?.cost_checked) {
               <table class="ai-rev-bom-table">
                 <thead>
                   <tr>
-                    <th>Part from your notes</th>
-                    <th style="width: 50px;">Qty</th>
-                    <th>Library match</th>
-                    <th style="width: 100px; text-align: right;">Price</th>
+                    <th style="min-width: 160px;">Component Name</th>
+                    <th style="width: 55px; text-align: center;">Qty</th>
+                    <th style="min-width: 200px;">Affiliate / Buy URL</th>
+                    <th style="min-width: 140px;">Library match</th>
+                    <th style="width: 85px; text-align: right;">Price (₹)</th>
+                    <th style="width: 38px; text-align: center;"></th>
                   </tr>
                 </thead>
                 <tbody id="ai-rev-bom-tbody"></tbody>
               </table>
+              <div style="margin-top: 0.85rem; display: flex; justify-content: flex-start;">
+                <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="ai-rev-bom-add-btn">
+                  <Icon name="plus" size={14} /> Add Component
+                </button>
+              </div>
             </div>
 
             <!-- Mobile Stack View -->
             <div class="ai-rev-bom-mobile-list mobile-only" id="ai-rev-bom-mobile-list"></div>
+            <div class="mobile-only" style="margin-top: 0.75rem;">
+              <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" id="ai-rev-bom-add-btn-mob" style="width: 100%;">
+                <Icon name="plus" size={14} /> Add Component
+              </button>
+            </div>
 
             <!-- New Component Confirmation Panel -->
-            <div class="ai-rev-new-comp-banner desktop-only" id="ai-rev-new-comp-banner" style="display: none;">
+            <div class="ai-rev-new-comp-banner desktop-only" id="ai-rev-new-comp-banner" style="display: none; margin-top: 1rem;">
               <label class="ai-rev-new-comp-label">
                 <input type="checkbox" id="ai-rev-add-new-components-cb" checked />
-                <span id="ai-rev-new-comp-text">Add 1 new component to the library and use it in this project</span>
+                <span id="ai-rev-new-comp-text">Add new components and affiliate links to library</span>
               </label>
             </div>
-            <p class="ai-rev-card-note mobile-only">New components are added to your library.</p>
+            <p class="ai-rev-card-note mobile-only">New components & affiliate links will be saved to your library.</p>
           </div>
         </div>
 
@@ -2443,6 +2575,45 @@ if (p?.cost_checked) {
     color: #0F172A;
     text-align: right;
   }
+  .ai-rev-bom-table .input--sm {
+    padding: 5px 8px;
+    font-size: 13px;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    background: #FFFFFF;
+    color: #0F172A;
+    box-sizing: border-box;
+  }
+  .ai-rev-bom-table .input--sm:focus {
+    border-color: #E11D48;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.15);
+  }
+  .ai-bom-del-btn {
+    border: none;
+    background: transparent;
+    color: #94A3B8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .ai-bom-del-btn:hover {
+    color: #E11D48;
+    background: #FEE2E2;
+  }
+  .ai-rev-bom-mob-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
   /* BOM Chips */
   .ai-chip-matched {
@@ -3365,6 +3536,7 @@ if (p?.cost_checked) {
   };
 
   setupAddToggle('toggle-add-step-btn', 'add-step-form', 'cancel-add-step-btn');
+  setupAddToggle('toggle-add-diagram-btn', 'add-diagram-form', 'cancel-add-diagram-btn');
   setupAddToggle('toggle-add-pin-btn', 'add-pin-form', 'cancel-add-pin-btn');
   setupAddToggle('toggle-add-trouble-btn', 'add-trouble-form', 'cancel-add-trouble-btn');
   setupAddToggle('toggle-add-link-btn', 'add-link-form', 'cancel-add-link-btn');
@@ -4791,105 +4963,228 @@ if (p?.cost_checked) {
       metaTextEl.innerHTML = `Meta title: ${escapeHtml(draft.seo?.meta_title || draft.title || '')}. Summary: kept as it is.`;
     }
 
-    // 2. Parts List (BOM) Card
-    const matchedCount = matchedBom.filter((m: any) => m.status === 'matched').length;
-    const ambiguousCount = matchedBom.filter((m: any) => m.status === 'ambiguous').length;
-    const newCount = matchedBom.filter((m: any) => m.status === 'new').length;
+    // 2. Parts List (BOM) Card with live inline editing
+    function renderBomReviewCard() {
+      const matchedCount = activeMatchedBom.filter((m: any) => m.status === 'matched').length;
+      const ambiguousCount = activeMatchedBom.filter((m: any) => m.status === 'ambiguous').length;
+      const newCount = activeMatchedBom.filter((m: any) => m.status === 'new').length;
 
-    const bomPillsEl = document.getElementById('ai-rev-bom-pills');
-    if (bomPillsEl) {
-      let pillsHtml = '';
-      if (matchedCount > 0) pillsHtml += `<span class="ai-rev-pill ai-rev-pill--green desktop-only">${matchedCount} matched</span>`;
-      if (ambiguousCount > 0) pillsHtml += `<span class="ai-rev-pill ai-rev-pill--yellow desktop-only">${ambiguousCount} to choose</span>`;
-      if (newCount > 0) {
-        pillsHtml += `<span class="ai-rev-pill ai-rev-pill--gray desktop-only">${newCount} new</span>`;
-        pillsHtml += `<span class="ai-rev-pill ai-rev-pill--peach mobile-only">${newCount} new</span>`;
-      } else {
-        pillsHtml += `<span class="ai-rev-pill ai-rev-pill--green mobile-only">${matchedCount} matched</span>`;
-      }
-      bomPillsEl.innerHTML = pillsHtml;
-    }
-
-    // Desktop BOM Table
-    const bomTbodyEl = document.getElementById('ai-rev-bom-tbody');
-    if (bomTbodyEl) {
-      bomTbodyEl.innerHTML = matchedBom.map((m: any, idx: number) => {
-        let matchHtml = '';
-        const price = m.matched_component?.unit_price_inr || m.bom_item?.approx_price_inr || 0;
-        if (m.status === 'matched') {
-          matchHtml = `<span class="ai-chip-matched">Matched</span> <span class="ai-rev-match-text">${escapeHtml(m.matched_component?.name || m.bom_item.name)}</span>`;
-        } else if (m.status === 'ambiguous') {
-          const candidates = m.candidates || [];
-          matchHtml = `
-            <span class="ai-chip-choose">Choose</span>
-            <select class="ai-rev-bom-select" data-bom-idx="${idx}">
-              ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)} (₹${c.component.unit_price_inr})</option>`).join('')}
-              <option value="0">Keep custom standalone</option>
-            </select>
-          `;
+      const bomPillsEl = document.getElementById('ai-rev-bom-pills');
+      if (bomPillsEl) {
+        let pillsHtml = '';
+        if (matchedCount > 0) pillsHtml += `<span class="ai-rev-pill ai-rev-pill--green desktop-only">${matchedCount} matched</span>`;
+        if (ambiguousCount > 0) pillsHtml += `<span class="ai-rev-pill ai-rev-pill--yellow desktop-only">${ambiguousCount} to choose</span>`;
+        if (newCount > 0) {
+          pillsHtml += `<span class="ai-rev-pill ai-rev-pill--gray desktop-only">${newCount} new</span>`;
+          pillsHtml += `<span class="ai-rev-pill ai-rev-pill--peach mobile-only">${newCount} new</span>`;
         } else {
-          matchHtml = `<span class="ai-chip-new">New</span> <span class="ai-rev-match-text">will be added to library</span>`;
+          pillsHtml += `<span class="ai-rev-pill ai-rev-pill--green mobile-only">${matchedCount} matched</span>`;
         }
+        bomPillsEl.innerHTML = pillsHtml;
+      }
 
-        return `
-          <tr>
-            <td style="font-weight: 600;">${escapeHtml(m.bom_item.name)}</td>
-            <td>${m.bom_item.qty || 1}</td>
-            <td>${matchHtml}</td>
-            <td class="ai-rev-bom-price">₹${price}</td>
-          </tr>
-        `;
-      }).join('');
-    }
+      // Desktop BOM Table
+      const bomTbodyEl = document.getElementById('ai-rev-bom-tbody');
+      if (bomTbodyEl) {
+        bomTbodyEl.innerHTML = activeMatchedBom.map((m: any, idx: number) => {
+          let matchHtml = '';
+          const price = m.matched_component?.unit_price_inr ?? m.bom_item?.approx_price_inr ?? 0;
+          const buyUrl = m.bom_item?.buy_url || m.matched_component?.buy_url || m.prepared_component?.buy_url || '';
 
-    // Mobile BOM Stack
-    const bomMobListEl = document.getElementById('ai-rev-bom-mobile-list');
-    if (bomMobListEl) {
-      bomMobListEl.innerHTML = matchedBom.map((m: any, idx: number) => {
-        let matchHtml = '';
-        const price = m.matched_component?.unit_price_inr || m.bom_item?.approx_price_inr || 0;
-        if (m.status === 'matched') {
-          matchHtml = `<span class="ai-chip-matched">Matched</span> <span class="ai-rev-match-text">${escapeHtml(m.matched_component?.name || m.bom_item.name)}</span>`;
-        } else if (m.status === 'ambiguous') {
-          const candidates = m.candidates || [];
-          matchHtml = `
-            <span class="ai-chip-choose">Choose</span>
-            <select class="ai-rev-bom-select" data-bom-idx="${idx}">
-              ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)}</option>`).join('')}
-              <option value="0">Custom</option>
-            </select>
+          if (m.status === 'matched') {
+            matchHtml = `<span class="ai-chip-matched">Matched</span> <span class="ai-rev-match-text" style="font-size:12px;">${escapeHtml(m.matched_component?.name || m.bom_item.name)}</span>`;
+          } else if (m.status === 'ambiguous') {
+            const candidates = m.candidates || [];
+            matchHtml = `
+              <select class="ai-rev-bom-select input--sm" data-bom-idx="${idx}" style="font-size:12px; max-width: 160px;">
+                ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)} (₹${c.component.unit_price_inr})</option>`).join('')}
+                <option value="0">Standalone Custom</option>
+              </select>
+            `;
+          } else {
+            matchHtml = `<span class="ai-chip-new">New</span> <span class="ai-rev-match-text" style="font-size:11px;">Will save to library</span>`;
+          }
+
+          return `
+            <tr data-bom-row="${idx}">
+              <td>
+                <input type="text" class="input input--sm ai-bom-input-name" data-bom-idx="${idx}" value="${escapeHtml(m.bom_item.name || '')}" placeholder="Component name" style="width: 100%; min-width: 140px; font-weight:600;" />
+              </td>
+              <td style="text-align: center;">
+                <input type="text" class="input input--sm ai-bom-input-qty" data-bom-idx="${idx}" value="${escapeHtml(String(m.bom_item.qty || 1))}" style="width: 45px; text-align: center;" />
+              </td>
+              <td>
+                <input type="url" class="input input--sm mono ai-bom-input-url" data-bom-idx="${idx}" value="${escapeHtml(buyUrl)}" placeholder="https://amzn.to/... or https://robu.in/..." style="width: 100%; min-width: 180px; font-size:12px;" />
+              </td>
+              <td>${matchHtml}</td>
+              <td class="ai-rev-bom-price">
+                <div style="display:flex; align-items:center; justify-content: flex-end; gap: 4px;">
+                  <span>₹</span>
+                  <input type="number" class="input input--sm ai-bom-input-price" data-bom-idx="${idx}" value="${price}" style="width: 65px; text-align: right;" />
+                </div>
+              </td>
+              <td style="text-align: center;">
+                <button type="button" class="ai-bom-del-btn" data-bom-del-idx="${idx}" title="Delete component">
+                  <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </td>
+            </tr>
           `;
-        } else {
-          matchHtml = `<span class="ai-chip-new">New</span> <span class="ai-rev-match-text">will be added to library</span>`;
+        }).join('');
+      }
+
+      // Mobile BOM Stack
+      const bomMobListEl = document.getElementById('ai-rev-bom-mobile-list');
+      if (bomMobListEl) {
+        bomMobListEl.innerHTML = activeMatchedBom.map((m: any, idx: number) => {
+          let matchHtml = '';
+          const price = m.matched_component?.unit_price_inr ?? m.bom_item?.approx_price_inr ?? 0;
+          const buyUrl = m.bom_item?.buy_url || m.matched_component?.buy_url || m.prepared_component?.buy_url || '';
+
+          if (m.status === 'matched') {
+            matchHtml = `<span class="ai-chip-matched">Matched</span> <span class="ai-rev-match-text">${escapeHtml(m.matched_component?.name || m.bom_item.name)}</span>`;
+          } else if (m.status === 'ambiguous') {
+            const candidates = m.candidates || [];
+            matchHtml = `
+              <select class="ai-rev-bom-select input--sm" data-bom-idx="${idx}" style="font-size:12px; width: 100%;">
+                ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)}</option>`).join('')}
+                <option value="0">Custom</option>
+              </select>
+            `;
+          } else {
+            matchHtml = `<span class="ai-chip-new">New</span> <span class="ai-rev-match-text">Will save to library</span>`;
+          }
+
+          return `
+            <div class="ai-rev-bom-mob-card" data-bom-row="${idx}">
+              <div style="display:flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <input type="text" class="input input--sm ai-bom-input-name" data-bom-idx="${idx}" value="${escapeHtml(m.bom_item.name || '')}" placeholder="Component name" style="flex:1; font-weight:700;" />
+                <button type="button" class="ai-bom-del-btn" data-bom-del-idx="${idx}" title="Delete component">
+                  <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div style="display:grid; grid-template-columns: 80px 1fr; gap: 8px;">
+                <div>
+                  <label style="font-size: 11px; color: #64748B;">Qty</label>
+                  <input type="text" class="input input--sm ai-bom-input-qty" data-bom-idx="${idx}" value="${escapeHtml(String(m.bom_item.qty || 1))}" style="width: 100%; text-align:center;" />
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: #64748B;">Price (₹)</label>
+                  <input type="number" class="input input--sm ai-bom-input-price" data-bom-idx="${idx}" value="${price}" style="width: 100%; text-align:right;" />
+                </div>
+              </div>
+              <div>
+                <label style="font-size: 11px; color: #64748B;">Affiliate Link</label>
+                <input type="url" class="input input--sm mono ai-bom-input-url" data-bom-idx="${idx}" value="${escapeHtml(buyUrl)}" placeholder="Affiliate URL" style="width: 100%; font-size:12px;" />
+              </div>
+              <div class="ai-rev-bom-mob-sub" style="margin-top: 4px;">
+                ${matchHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Attach delete row handlers
+      document.querySelectorAll<HTMLButtonElement>('.ai-bom-del-btn').forEach(btn => {
+        btn.onclick = () => {
+          const idx = Number(btn.dataset.bomDelIdx);
+          if (!isNaN(idx) && idx >= 0 && idx < activeMatchedBom.length) {
+            activeMatchedBom.splice(idx, 1);
+            if (activeDraftData?.bom && activeDraftData.bom[idx]) {
+              activeDraftData.bom.splice(idx, 1);
+            }
+            renderBomReviewCard();
+            updateChangeCount();
+          }
+        };
+      });
+
+      // Attach input sync handlers
+      const syncRow = (idx: number) => {
+        const item = activeMatchedBom[idx];
+        if (!item) return;
+        const nameEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-name[data-bom-idx="${idx}"]`);
+        const qtyEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-qty[data-bom-idx="${idx}"]`);
+        const urlEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-url[data-bom-idx="${idx}"]`);
+        const priceEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-price[data-bom-idx="${idx}"]`);
+
+        if (nameEl) {
+          item.bom_item.name = nameEl.value.trim();
+          if (item.prepared_component) item.prepared_component.name = nameEl.value.trim();
         }
+        if (qtyEl) item.bom_item.qty = qtyEl.value.trim() || '1';
+        if (urlEl) {
+          item.bom_item.buy_url = urlEl.value.trim();
+          if (item.prepared_component) item.prepared_component.buy_url = urlEl.value.trim();
+          if (item.matched_component) item.matched_component.buy_url = urlEl.value.trim();
+        }
+        if (priceEl) {
+          const pVal = Number(priceEl.value || 0);
+          item.bom_item.approx_price_inr = pVal;
+          if (item.prepared_component) item.prepared_component.unit_price_inr = pVal;
+        }
+      };
 
-        return `
-          <div class="ai-rev-bom-mob-item">
-            <div class="ai-rev-bom-mob-top">
-              <span class="ai-rev-bom-mob-name">${escapeHtml(m.bom_item.name)}</span>
-              <span class="ai-rev-bom-mob-price">₹${price}</span>
-            </div>
-            <div class="ai-rev-bom-mob-sub">
-              ${matchHtml}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
+      document.querySelectorAll<HTMLInputElement>('.ai-bom-input-name, .ai-bom-input-qty, .ai-bom-input-url, .ai-bom-input-price').forEach(inp => {
+        inp.oninput = () => {
+          const idx = Number(inp.dataset.bomIdx);
+          if (!isNaN(idx)) syncRow(idx);
+        };
+      });
 
-    // New Component Confirmation Banner
-    const newCompBanner = document.getElementById('ai-rev-new-comp-banner');
-    const newCompText = document.getElementById('ai-rev-new-comp-text');
-    const newCompCb = document.getElementById('ai-rev-add-new-components-cb') as HTMLInputElement | null;
-    if (newCompBanner && newCompText) {
-      if (newCount > 0) {
-        newCompBanner.style.display = 'block';
-        newCompText.textContent = `Add ${newCount} new component${newCount > 1 ? 's' : ''} to the library and use it in this project`;
-        if (newCompCb) newCompCb.checked = true;
-      } else {
-        newCompBanner.style.display = 'none';
+      // New Component Confirmation Banner
+      const newCompBanner = document.getElementById('ai-rev-new-comp-banner');
+      const newCompText = document.getElementById('ai-rev-new-comp-text');
+      const newCompCb = document.getElementById('ai-rev-add-new-components-cb') as HTMLInputElement | null;
+      if (newCompBanner && newCompText) {
+        if (newCount > 0) {
+          newCompBanner.style.display = 'block';
+          newCompText.textContent = `Add ${newCount} new component${newCount > 1 ? 's' : ''} and affiliate links to library`;
+          if (newCompCb) newCompCb.checked = true;
+        } else {
+          newCompBanner.style.display = 'none';
+        }
       }
     }
+
+    // Attach Add New Component buttons
+    const bomAddBtn = document.getElementById('ai-rev-bom-add-btn');
+    const bomAddBtnMob = document.getElementById('ai-rev-bom-add-btn-mob');
+    const handleAddNewBomRow = () => {
+      const newItem = {
+        name: '',
+        qty: '1',
+        role: '',
+        approx_price_inr: 0,
+        buy_url: ''
+      };
+      activeMatchedBom.push({
+        bom_item: newItem,
+        status: 'new',
+        prepared_component: {
+          name: '',
+          store: 'Robu / Amazon',
+          category: 'Electronics',
+          unit_price_inr: 0,
+          buy_url: '',
+          notes: ''
+        },
+        similarity: 0
+      });
+      if (activeDraftData?.bom) activeDraftData.bom.push(newItem);
+      renderBomReviewCard();
+      updateChangeCount();
+      const allNames = document.querySelectorAll<HTMLInputElement>('.ai-bom-input-name');
+      if (allNames.length > 0) {
+        allNames[allNames.length - 1].focus();
+      }
+    };
+    if (bomAddBtn) bomAddBtn.onclick = handleAddNewBomRow;
+    if (bomAddBtnMob) bomAddBtnMob.onclick = handleAddNewBomRow;
+
+    // Initial render of BOM card
+    renderBomReviewCard();
 
     // 3. Steps Card
     const stepsPill = document.getElementById('ai-rev-pill-steps');
@@ -5039,32 +5334,67 @@ if (p?.cost_checked) {
       selections.description = true;
     }
 
-    // 3. Gather new components to create
+    // 3. Sync live DOM inputs into activeMatchedBom & activeDraftData
+    activeMatchedBom.forEach((m: any, idx: number) => {
+      const nameInput = document.querySelector<HTMLInputElement>(`.ai-bom-input-name[data-bom-idx="${idx}"]`);
+      const qtyInput = document.querySelector<HTMLInputElement>(`.ai-bom-input-qty[data-bom-idx="${idx}"]`);
+      const urlInput = document.querySelector<HTMLInputElement>(`.ai-bom-input-url[data-bom-idx="${idx}"]`);
+      const priceInput = document.querySelector<HTMLInputElement>(`.ai-bom-input-price[data-bom-idx="${idx}"]`);
+
+      const name = nameInput ? nameInput.value.trim() : (m.bom_item?.name || '');
+      const qty = qtyInput ? qtyInput.value.trim() : (m.bom_item?.qty || '1');
+      const buy_url = urlInput ? urlInput.value.trim() : (m.bom_item?.buy_url || m.matched_component?.buy_url || '');
+      const price = priceInput ? Number(priceInput.value || 0) : (m.bom_item?.approx_price_inr || 0);
+
+      m.bom_item.name = name;
+      m.bom_item.qty = qty;
+      m.bom_item.buy_url = buy_url;
+      m.bom_item.approx_price_inr = price;
+
+      if (m.prepared_component) {
+        m.prepared_component.name = name;
+        m.prepared_component.buy_url = buy_url;
+        m.prepared_component.unit_price_inr = price;
+      }
+    });
+
+    activeDraftData.bom = activeMatchedBom.map((m: any) => ({
+      name: m.bom_item.name,
+      qty: m.bom_item.qty || '1',
+      role: m.bom_item.role || '',
+      approx_price_inr: m.bom_item.approx_price_inr || 0,
+      buy_url: m.bom_item.buy_url || ''
+    }));
+
+    // 4. Gather new components to create
     const newComponents: any[] = [];
     const addNewCb = document.getElementById('ai-rev-add-new-components-cb') as HTMLInputElement | null;
-    if (addNewCb?.checked) {
+    if (addNewCb?.checked !== false) {
       activeMatchedBom.forEach((m: any, idx: number) => {
-        if (m.status === 'new' && m.prepared_component) {
+        if (m.status === 'new' || !m.matched_component?.id) {
           newComponents.push({
             bom_index: idx,
-            name: m.prepared_component.name,
-            store: m.prepared_component.store,
-            category: m.prepared_component.category,
-            unit_price_inr: m.prepared_component.unit_price_inr,
-            buy_url: m.prepared_component.buy_url,
-            notes: m.prepared_component.notes
+            name: m.bom_item.name,
+            store: m.prepared_component?.store || 'Robu / Amazon',
+            category: m.prepared_component?.category || 'Electronics',
+            unit_price_inr: m.bom_item.approx_price_inr || 0,
+            buy_url: m.bom_item.buy_url || '',
+            notes: m.prepared_component?.notes || ''
           });
         }
       });
     }
 
-    // 4. Gather ambiguous BOM selections
+    // 5. Gather ambiguous BOM selections & affiliate link updates for matched components
     const bomResolutions: any[] = [];
-    document.querySelectorAll<HTMLSelectElement>('.ai-rev-bom-select').forEach(sel => {
-      const idx = Number(sel.dataset.bomIdx);
+    activeMatchedBom.forEach((m: any, idx: number) => {
+      const sel = document.querySelector<HTMLSelectElement>(`.ai-rev-bom-select[data-bom-idx="${idx}"]`);
+      const compId = sel ? Number(sel.value || 0) : (m.matched_component?.id || 0);
       bomResolutions.push({
         bom_index: idx,
-        component_id: Number(sel.value || 0)
+        component_id: compId,
+        buy_url: m.bom_item.buy_url || '',
+        unit_price_inr: m.bom_item.approx_price_inr || 0
       });
     });
 
@@ -5082,9 +5412,16 @@ if (p?.cost_checked) {
         })
       });
 
-      const data = await res.json();
+      const resText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(resText);
+      } catch (parseErr) {
+        throw new Error(`Server returned non-JSON response (${res.status}): ${resText.slice(0, 160)}`);
+      }
+
       if (!res.ok || !data.ok) {
-        alert(data?.message || 'Failed to apply AI changes.');
+        alert(data?.message || `Failed to apply AI changes (${res.status}).`);
         return;
       }
 

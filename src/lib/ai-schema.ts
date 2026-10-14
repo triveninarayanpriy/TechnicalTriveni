@@ -26,6 +26,7 @@ export interface AIDraftOutput {
     from: string;
     to: string;
     note: string;
+    module?: string;
   }>;
   troubleshooting: Array<{
     symptom: string;
@@ -184,15 +185,16 @@ export function validateOrRepairDraftOutput(raw: any): AIDraftOutput {
     }
   }
 
-  // 11. Wiring [{from, to, note}]
-  const wiring: Array<{ from: string; to: string; note: string }> = [];
+  // 11. Wiring [{from, to, note, module}]
+  const wiring: Array<{ from: string; to: string; note: string; module?: string }> = [];
   if (Array.isArray(raw.wiring)) {
     for (const wire of raw.wiring) {
       if (wire && (wire.from || wire.to || wire.from_pin || wire.to_pin)) {
         wiring.push({
           from: sanitizeText(wire.from || wire.from_pin || '').trim(),
           to: sanitizeText(wire.to || wire.to_pin || '').trim(),
-          note: sanitizeText(wire.note || wire.module || '').trim()
+          note: sanitizeText(wire.note || '').trim(),
+          module: sanitizeText(wire.module || '').trim() || undefined
         });
       }
     }

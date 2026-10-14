@@ -182,7 +182,7 @@ RULES FOR THE MODEL:
    - 4: Flash firmware and verify serial / test communications
    - 5: High-voltage / mains or mechanical assembly side (if any), with strict safety checks
    Each step is one concrete action a beginner can follow with "title", "instruction_markdown" (1-2 sentences), and "why_or_gotcha".
-4. Wiring entries: 3-6 essential rows using the EXACT pin names found in the code or board pinout (e.g. "GPIO 23", "D4", "SDA (GPIO 21)", "VIN", "GND").
+4. Wiring entries: 3-6 essential rows using the EXACT pin names found in the code or board pinout (e.g. "GPIO 23", "D4", "SDA (GPIO 21)", "VIN", "GND"). Always tag each connection with its specific "module" or board (e.g. "ESP32", "NodeMCU ESP8266", "Relay Module") so multi-board or multi-code setups stay completely distinct.
 5. Troubleshooting entries: 2-3 real hardware/firmware failure modes of this build with actionable root-cause fixes ("symptom" and "fix_markdown").
 6. Prices must be realistic estimates in Indian Rupees (₹), matching typical maker prices in India (Robu.in / Amazon.in).
 7. Safety note is MANDATORY whenever mains voltage (230V AC), LiPo batteries, high-torque motors, propellers, or heat elements are involved; otherwise leave safety_note_markdown as empty string.
@@ -241,6 +241,7 @@ STRICT OUTPUT JSON SCHEMA:
   ],
   "wiring": [
     {
+      "module": string (e.g. "ESP32", "NodeMCU ESP8266", "Relay Module"),
       "from": string (e.g. "ESP32 GPIO 23"),
       "to": string (e.g. "Relay Module IN1"),
       "note": string

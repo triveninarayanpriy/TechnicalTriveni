@@ -20,14 +20,45 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   let is_affiliate = checkbox(form, 'is_affiliate');
   let price_checked = strField(form, 'price_checked', 40);
 
+  let finalCompId = componentId;
+  const formAffUrl = strField(form, 'affiliate_url', 500);
+
   if (componentId > 0) {
     const comp = await getComponent(env.DB, componentId);
     if (!comp) return adminResponse(request, back, { err: 'That component was not found.' });
-    // Snapshot fields for display; live values are re-resolved on the public page.
-    name = comp.name; store = comp.store; affiliate_url = comp.buy_url;
-    unit_price_inr = comp.unit_price_inr; is_affiliate = comp.is_affiliate; price_checked = comp.price_checked;
+    name = comp.name; store = comp.store;
+    affiliate_url = formAffUrl || comp.buy_url;
+    unit_price_inr = unit_price_inr || comp.unit_price_inr;
+    is_affiliate = affiliate_url ? 1 : comp.is_affiliate;
+    price_checked = comp.price_checked;
+
+    if (formAffUrl && formAffUrl !== comp.buy_url) {
+      await env.DB.prepare(`
+        UPDATE components SET buy_url = ?, is_affiliate = 1, unit_price_inr = CASE WHEN ? > 0 THEN ? ELSE unit_price_inr END, updated_at = ? WHERE id = ?
+      `).bind(formAffUrl, unit_price_inr, unit_price_inr, Math.floor(Date.now() / 1000), componentId).run();
+    }
   } else if (!name) {
     return adminResponse(request, back, { err: 'Enter a component name or pick one from the library.' });
+  } else {
+    // New component - save it to the component library too so user never loses their affiliate link
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const insertComp = await env.DB.prepare(`
+        INSERT INTO components (name, store, buy_url, is_affiliate, unit_price_inr, price_checked, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        name,
+        store || 'Robu / Amazon',
+        affiliate_url,
+        affiliate_url ? 1 : 0,
+        unit_price_inr,
+        new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+        '',
+        now,
+        now
+      ).run();
+      finalCompId = (insertComp.meta.last_row_id as number) || 0;
+    } catch {}
   }
 
   const id = await addBom(env.DB, {
@@ -40,7 +71,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     unit_price_inr,
     price_checked,
     is_affiliate,
-    component_id: componentId,
+    component_id: finalCompId,
     sort: 0,
     is_required: checkbox(form, 'is_required'),
     group_name: strField(form, 'group_name', 60),
