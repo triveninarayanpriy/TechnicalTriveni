@@ -674,24 +674,33 @@ const jsonLd = {
   }
 
   /* Meet the Maker Desktop */
+  .maker-section {
+    padding-top: clamp(64px, 7vw, 96px);
+    padding-bottom: clamp(72px, 8vw, 112px);
+    background: #FFFFFF;
+  }
   .maker-grid {
     display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    gap: 48px;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 56px;
     align-items: center;
   }
   .maker-photo-wrap {
     position: relative;
-    border-radius: 20px;
+    border-radius: 24px;
     overflow: hidden;
-    aspect-ratio: 480 / 340;
+    aspect-ratio: 4 / 5;
     background: var(--surface-2);
+    border: 1px solid var(--line);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.07);
+    max-width: 360px;
+    width: 100%;
   }
   .maker-photo {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 20px;
+    object-position: center 20%;
     display: block;
   }
   .maker-photo-fallback {
@@ -709,36 +718,39 @@ const jsonLd = {
   .maker-info {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     min-width: 0;
   }
   .maker-eyebrow {
     font-size: 13px;
     font-weight: 700;
     color: var(--red);
-    text-transform: capitalize;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
   .maker-title {
-    font-size: 32px;
+    font-size: clamp(28px, 3.2vw, 36px);
     font-weight: 700;
     color: var(--ink);
     margin: 0;
+    line-height: 1.15;
   }
   .maker-bio {
     font-size: 16px;
     color: var(--muted);
-    line-height: 1.6;
-    margin: 0 0 8px 0;
+    line-height: 1.65;
+    margin: 0;
+    max-width: 62ch;
   }
   .maker-socials {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 8px 0 16px;
+    margin: 6px 0 14px;
   }
   .maker-social-btn {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 12px;
     background: var(--surface);
     border: 1px solid var(--line);
@@ -756,10 +768,38 @@ const jsonLd = {
     transform: translateY(-2px);
   }
   .maker-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 15px;
     font-weight: 600;
     color: var(--red);
     text-decoration: none;
+    transition: transform 180ms ease;
+  }
+  .maker-link:hover {
+    transform: translateX(4px);
+  }
+
+  @media (max-width: 960px) {
+    .maker-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 36px;
+      text-align: center;
+    }
+    .maker-photo-wrap {
+      max-width: 320px;
+      margin-inline: auto;
+    }
+    .maker-bio {
+      margin-inline: auto;
+    }
+    .maker-socials {
+      justify-content: center;
+    }
+    .maker-link {
+      justify-content: center;
+    }
   }
 
   /* =========================================================================
