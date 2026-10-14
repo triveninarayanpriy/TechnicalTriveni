@@ -4,7 +4,6 @@ import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE } from '../lib/site';
 import { getPage } from '../lib/db';
-import { renderMarkdown } from '../lib/format';
 
 const page = await getPage(env.DB, 'how-it-works');
 
@@ -13,13 +12,13 @@ const steps = [
     n: '1',
     icon: 'play',
     title: 'Watch the build',
-    text: 'Every project is documented end to end on YouTube, so you see it working before you spend anything.',
+    text: 'Every project is documented end-to-end on YouTube, so you see it working before you spend anything.',
   },
   {
     n: '2',
-    icon: 'doc',
+    icon: 'cube',
     title: 'Choose your pack',
-    text: 'Open a pack to see its prerequisites and build steps. Filter by price, category and format.',
+    text: 'Open a pack to see its parts list, wiring and build steps. Filter by price, category and format.',
   },
   {
     n: '3',
@@ -31,30 +30,40 @@ const steps = [
     n: '4',
     icon: 'download',
     title: 'Get your files',
-    text: 'Your download link is emailed instantly. Re-visit via My downloads; no password needed.',
+    text: 'Your download link is emailed instantly. Lost it? Use My downloads, no password needed.',
   },
   {
     n: '5',
     icon: 'check-circle',
     title: 'Build and get help',
-    text: 'Follow the parts list, wiring tables and staged steps. Issues? Email the maker within 7-day build guarantee.',
+    text: 'Follow the parts list, wiring tables and staged steps. Stuck? Email the maker, with a 7-day build guarantee.',
   },
+];
+
+const mobileInsidePack = [
+  { icon: 'code', title: 'Tested source code' },
+  { icon: 'schematic', title: 'Wiring and schematics' },
+  { icon: 'cart', title: 'Parts list with buy links' },
+  { icon: 'play', title: 'Full build videos' },
 ];
 
 const assurances = [
   {
     icon: 'lock',
     title: 'Secure checkout',
+    sub: 'Razorpay: UPI, cards, net banking',
     text: 'Razorpay handles payment: UPI, cards and net banking.',
   },
   {
     icon: 'check-circle',
     title: '7-day build guarantee',
+    sub: 'Email the maker if a pack fails',
     text: 'If a pack does not work as described, email the maker and get it sorted.',
   },
   {
-    icon: 'mail',
+    icon: 'message-square',
     title: 'Direct support',
+    sub: 'Help from the person who built it',
     text: 'Ask questions and get help from the person who built it.',
   },
 ];
@@ -85,11 +94,6 @@ const faqs = [
     a: 'Every project has a 7-day build guarantee. If you encounter an issue, email technicaltriveniyt@gmail.com with your order details and get direct maker support.',
     open: false,
   },
-  {
-    q: 'Are free packs really free?',
-    a: 'Yes! Free packs contain full firmware and wiring diagrams for open-source learning. Simply enter your email to get the direct download link.',
-    open: false,
-  },
 ];
 ---
 
@@ -98,35 +102,40 @@ const faqs = [
   description="From video demonstration to verified workbench build in five simple steps. No account, no subscription."
 >
   <div class="hiw-page">
-    <!-- HERO SECTION (media_1791937969571_be4d4038.png) -->
+    <!-- HERO SECTION -->
     <section class="hiw-hero">
-      <div class="container text-center">
-        <span class="hiw-pill-eyebrow">How it works</span>
-        <h1 class="hiw-title">From video to working build in five steps.</h1>
-        <p class="hiw-sub">
-          Watch it work, grab the pack, build it with verified files. No account, no subscription.
-        </p>
-        <div class="hiw-hero-actions">
-          <a href="/projects" class="btn-hiw-primary">Browse packs</a>
-          <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn-hiw-secondary">
-            <Icon name="play" size={16} /> Watch on YouTube
-          </a>
+      <div class="container">
+        <div class="hiw-hero__content">
+          <span class="hiw-eyebrow">How it works</span>
+          <h1 class="hiw-title">From video to working build in five steps.</h1>
+          <p class="hiw-sub">
+            Watch it work, grab the pack, build it with verified files. No account, no subscription.
+          </p>
+          <div class="hiw-hero-actions">
+            <a href="/projects" class="btn-hiw-primary">Browse packs</a>
+            <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn-hiw-secondary">
+              <Icon name="play" size={16} /> <span>Watch</span>
+            </a>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 5-STEP HORIZONTAL STEPPER -->
+    <!-- 5-STEP STEPPER (Horizontal Desktop, Vertical Timeline Mobile) -->
     <section class="hiw-stepper-section">
       <div class="container">
         <div class="hiw-stepper-wrap">
           <div class="hiw-stepper-line" aria-hidden="true"></div>
-          <div class="hiw-steps-grid">
-            {steps.map((s) => (
-              <div class="hiw-step-card">
-                <div class="hiw-step-badge">{s.n}</div>
-                <div class="hiw-step-card__inner">
+          <div class="hiw-steps-track">
+            {steps.map((s, idx) => (
+              <div class="hiw-step-item">
+                <div class="hiw-step-badge-col">
+                  <div class="hiw-step-badge">{s.n}</div>
+                  {idx < steps.length - 1 && <div class="hiw-v-line" aria-hidden="true"></div>}
+                </div>
+                <div class="hiw-step-body">
                   <div class="hiw-step-icon">
-                    <Icon name={s.icon} size={18} />
+                    <Icon name={s.icon} size={20} />
                   </div>
                   <h3 class="hiw-step-title">{s.title}</h3>
                   <p class="hiw-step-text">{s.text}</p>
@@ -138,8 +147,40 @@ const faqs = [
       </div>
     </section>
 
-    <!-- SPLIT FEATURE SHOWCASE: PACK IMAGE WITH 3 FLOATING CHIPS & 4-ITEM CHECKLIST -->
-    <section class="hiw-showcase-section">
+    <!-- MOBILE: "INSIDE EVERY PACK" 2x2 TILES (media_1791940525157_df7b57cb.png) -->
+    <section class="hiw-mobile-inside-section">
+      <div class="container">
+        <h2 class="hiw-mobile-section-heading">Inside every pack</h2>
+        <div class="hiw-mobile-tiles-grid">
+          {mobileInsidePack.map((tile) => (
+            <div class="hiw-mobile-tile">
+              <span class="hiw-mobile-tile-icon"><Icon name={tile.icon} size={20} /></span>
+              <span class="hiw-mobile-tile-title">{tile.title}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- MOBILE: SINGLE ASSURANCE CARD WITH 3 ROWS (media_1791940525157_df7b57cb.png) -->
+    <section class="hiw-mobile-assurance-section">
+      <div class="container">
+        <div class="hiw-mobile-assurance-card">
+          {assurances.map((a) => (
+            <div class="hiw-mobile-assure-row">
+              <span class="hiw-mobile-assure-icon"><Icon name={a.icon} size={20} /></span>
+              <div class="hiw-mobile-assure-text">
+                <h4 class="hiw-mobile-assure-title">{a.title}</h4>
+                <p class="hiw-mobile-assure-sub">{a.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- DESKTOP: SPLIT FEATURE SHOWCASE (media_1791937969571_be4d4038.png) -->
+    <section class="hiw-desktop-showcase-section">
       <div class="container">
         <div class="hiw-showcase-grid">
           <!-- Left: Image with 3 floating pills -->
@@ -154,7 +195,6 @@ const faqs = [
                 loading="lazy"
                 onerror="this.src='/brand/og-image.png'"
               />
-              <!-- Floating chips -->
               <div class="hiw-float-chip hiw-float-chip--top">
                 <Icon name="code" size={14} /> Tested source code
               </div>
@@ -205,8 +245,8 @@ const faqs = [
       </div>
     </section>
 
-    <!-- 3 ASSURANCE TILES -->
-    <section class="hiw-assurances-section">
+    <!-- DESKTOP: 3 ASSURANCE TILES (media_1791937969571_be4d4038.png) -->
+    <section class="hiw-desktop-assurances-section">
       <div class="container">
         <div class="hiw-assurances-grid">
           {assurances.map((a) => (
@@ -222,24 +262,25 @@ const faqs = [
       </div>
     </section>
 
-    <!-- 2-COLUMN FAQ SECTION -->
+    <!-- FAQ SECTION (media_1791940525157_df7b57cb.png & media_1791937969571_be4d4038.png) -->
     <section class="hiw-faq-section">
       <div class="container">
         <div class="hiw-faq-grid">
-          <!-- Left Col -->
+          <!-- Left Desktop Col -->
           <div class="hiw-faq-intro">
             <h2 class="hiw-faq-h2">Questions, answered</h2>
             <p class="hiw-faq-lead">Cannot find what you need? Write to the maker directly.</p>
             <a href="/contact" class="hiw-contact-link">Contact the maker &rarr;</a>
           </div>
 
-          <!-- Right Col -->
+          <!-- Accordion list -->
           <div class="hiw-faq-accordion">
+            <h2 class="hiw-faq-mobile-title">Questions, answered</h2>
             {faqs.map((f) => (
               <details class="hiw-faq-details" open={f.open}>
                 <summary class="hiw-faq-summary">
                   <span>{f.q}</span>
-                  <span class="hiw-faq-chevron"><Icon name="chevron-down" size={16} /></span>
+                  <span class="hiw-faq-chevron"><Icon name="chevron-down" size={18} /></span>
                 </summary>
                 <div class="hiw-faq-answer">
                   <p>{f.a}</p>
@@ -261,7 +302,7 @@ const faqs = [
           </div>
           <div class="hiw-cta-buttons">
             <a href="/projects" class="btn-cta-red">Browse packs</a>
-            <a href="/contact" class="btn-cta-white">Contact us</a>
+            <a href="/contact" class="btn-cta-white hiw-desktop-only">Contact us</a>
           </div>
         </div>
       </div>
@@ -275,14 +316,14 @@ const faqs = [
     color: var(--ink);
   }
 
-  /* Hero */
+  /* ==================== HERO ==================== */
   .hiw-hero {
-    padding: 64px 0 48px;
+    padding: 64px 0 44px;
   }
-  .text-center {
+  .hiw-hero__content {
     text-align: center;
   }
-  .hiw-pill-eyebrow {
+  .hiw-eyebrow {
     display: inline-block;
     background: var(--surface);
     border: 1px solid var(--line);
@@ -311,6 +352,7 @@ const faqs = [
   .hiw-hero-actions {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 14px;
     flex-wrap: wrap;
   }
@@ -323,6 +365,9 @@ const faqs = [
     border-radius: 14px;
     text-decoration: none;
     transition: opacity 150ms ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .btn-hiw-primary:hover {
     opacity: 0.92;
@@ -338,6 +383,7 @@ const faqs = [
     text-decoration: none;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     transition: all 150ms ease;
   }
@@ -345,9 +391,9 @@ const faqs = [
     border-color: var(--ink);
   }
 
-  /* Stepper */
+  /* ==================== 5-STEP STEPPER ==================== */
   .hiw-stepper-section {
-    padding: 40px 0 64px;
+    padding: 36px 0 60px;
   }
   .hiw-stepper-wrap {
     position: relative;
@@ -361,18 +407,24 @@ const faqs = [
     background: var(--line);
     z-index: 1;
   }
-  .hiw-steps-grid {
+  .hiw-steps-track {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 16px;
     position: relative;
     z-index: 2;
   }
-  .hiw-step-card {
+  .hiw-step-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+  .hiw-step-badge-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
   }
   .hiw-step-badge {
     width: 36px;
@@ -386,8 +438,12 @@ const faqs = [
     place-items: center;
     margin-bottom: 20px;
     box-shadow: 0 0 0 4px #FFFFFF;
+    z-index: 2;
   }
-  .hiw-step-card__inner {
+  .hiw-v-line {
+    display: none;
+  }
+  .hiw-step-body {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 18px;
@@ -402,9 +458,10 @@ const faqs = [
   .hiw-step-icon {
     color: var(--red);
     margin-bottom: 12px;
+    display: inline-flex;
   }
   .hiw-step-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--ink);
     margin: 0 0 8px;
@@ -416,32 +473,14 @@ const faqs = [
     margin: 0;
   }
 
-  @media (max-width: 1023px) {
-    .hiw-stepper-line {
-      display: none;
-    }
-    .hiw-steps-grid {
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-    .hiw-step-card {
-      flex-direction: row;
-      gap: 16px;
-      text-align: left;
-      align-items: flex-start;
-    }
-    .hiw-step-badge {
-      margin-bottom: 0;
-      flex-shrink: 0;
-    }
-    .hiw-step-card__inner {
-      align-items: flex-start;
-      min-height: auto;
-    }
+  /* ==================== MOBILE TILES & ASSURANCE ==================== */
+  .hiw-mobile-inside-section,
+  .hiw-mobile-assurance-section {
+    display: none;
   }
 
-  /* Split Showcase */
-  .hiw-showcase-section {
+  /* ==================== DESKTOP SHOWCASE ==================== */
+  .hiw-desktop-showcase-section {
     padding: 48px 0 64px;
   }
   .hiw-showcase-grid {
@@ -449,12 +488,6 @@ const faqs = [
     grid-template-columns: repeat(2, 1fr);
     gap: 48px;
     align-items: center;
-  }
-  @media (max-width: 900px) {
-    .hiw-showcase-grid {
-      grid-template-columns: 1fr;
-      gap: 32px;
-    }
   }
   .hiw-image-card {
     position: relative;
@@ -483,19 +516,9 @@ const faqs = [
     align-items: center;
     gap: 8px;
   }
-  .hiw-float-chip--top {
-    top: 24px;
-    left: 24px;
-  }
-  .hiw-float-chip--mid {
-    top: 50%;
-    right: 24px;
-    transform: translateY(-50%);
-  }
-  .hiw-float-chip--bot {
-    bottom: 24px;
-    left: 24px;
-  }
+  .hiw-float-chip--top { top: 24px; left: 24px; }
+  .hiw-float-chip--mid { top: 50%; right: 24px; transform: translateY(-50%); }
+  .hiw-float-chip--bot { bottom: 24px; left: 24px; }
 
   .hiw-showcase-h2 {
     font-size: 32px;
@@ -533,20 +556,14 @@ const faqs = [
     margin: 0;
   }
 
-  /* 3 Assurances */
-  .hiw-assurances-section {
-    padding: 40px 0 64px;
+  /* ==================== DESKTOP 3 ASSURANCES ==================== */
+  .hiw-desktop-assurances-section {
+    padding: 36px 0 64px;
   }
   .hiw-assurances-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
-  }
-  @media (max-width: 768px) {
-    .hiw-assurances-grid {
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
   }
   .hiw-assurance-card {
     background: var(--surface);
@@ -572,9 +589,9 @@ const faqs = [
     margin: 0;
   }
 
-  /* 2-Col FAQ */
+  /* ==================== FAQ ==================== */
   .hiw-faq-section {
-    padding: 64px 0 80px;
+    padding: 60px 0 76px;
     border-top: 1px solid var(--line);
   }
   .hiw-faq-grid {
@@ -583,11 +600,11 @@ const faqs = [
     gap: 64px;
     align-items: start;
   }
-  @media (max-width: 900px) {
-    .hiw-faq-grid {
-      grid-template-columns: 1fr;
-      gap: 32px;
-    }
+  .hiw-faq-intro {
+    display: block;
+  }
+  .hiw-faq-mobile-title {
+    display: none;
   }
   .hiw-faq-h2 {
     font-size: 32px;
@@ -637,6 +654,7 @@ const faqs = [
   .hiw-faq-chevron {
     color: var(--muted);
     transition: transform 150ms ease;
+    display: inline-flex;
   }
   .hiw-faq-details[open] .hiw-faq-chevron {
     transform: rotate(180deg);
@@ -651,7 +669,7 @@ const faqs = [
     margin: 0;
   }
 
-  /* Dark CTA Band */
+  /* ==================== CTA BAND ==================== */
   .hiw-cta-band {
     padding: 0 0 80px;
   }
@@ -690,6 +708,13 @@ const faqs = [
     padding: 14px 28px;
     border-radius: 14px;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 150ms ease;
+  }
+  .btn-cta-red:hover {
+    opacity: 0.92;
   }
   .btn-cta-white {
     background: #FFFFFF;
@@ -699,5 +724,312 @@ const faqs = [
     padding: 14px 28px;
     border-radius: 14px;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ==================== RESPONSIVE: MOBILE (<= 768px) ==================== */
+  @media (max-width: 768px) {
+    /* Hero */
+    .hiw-hero {
+      padding: 36px 0 28px;
+    }
+    .hiw-hero__content {
+      text-align: left;
+    }
+    .hiw-eyebrow {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .hiw-title {
+      font-size: 30px;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .hiw-sub {
+      font-size: 15px;
+      line-height: 1.5;
+      margin: 0 0 24px 0;
+      max-width: none;
+    }
+    .hiw-hero-actions {
+      justify-content: flex-start;
+      gap: 10px;
+    }
+    .btn-hiw-primary {
+      padding: 12px 22px;
+      font-size: 14px;
+    }
+    .btn-hiw-secondary {
+      padding: 12px 20px;
+      font-size: 14px;
+    }
+
+    /* Stepper Vertical Timeline */
+    .hiw-stepper-section {
+      padding: 28px 0 40px;
+    }
+    .hiw-stepper-line {
+      display: none;
+    }
+    .hiw-steps-track {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .hiw-step-item {
+      flex-direction: row;
+      align-items: flex-start;
+      text-align: left;
+      gap: 16px;
+      position: relative;
+      padding-bottom: 24px;
+    }
+    .hiw-step-item:last-child {
+      padding-bottom: 0;
+    }
+    .hiw-step-badge-col {
+      width: 32px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .hiw-step-badge {
+      width: 30px;
+      height: 30px;
+      font-size: 14px;
+      margin-bottom: 0;
+      box-shadow: none;
+    }
+    .hiw-v-line {
+      display: block;
+      width: 2px;
+      background: var(--line);
+      flex: 1;
+      min-height: 100%;
+      position: absolute;
+      top: 30px;
+      bottom: -6px;
+      left: 14px;
+      z-index: 1;
+    }
+    .hiw-step-body {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      min-height: auto;
+      align-items: flex-start;
+      flex: 1;
+    }
+    .hiw-step-icon {
+      color: var(--red);
+      margin-bottom: 6px;
+    }
+    .hiw-step-title {
+      font-size: 17px;
+      margin-bottom: 4px;
+    }
+    .hiw-step-text {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Mobile Inside Every Pack Section */
+    .hiw-mobile-inside-section {
+      display: block;
+      padding: 12px 0 28px;
+    }
+    .hiw-mobile-section-heading {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0 0 16px;
+      letter-spacing: -0.01em;
+    }
+    .hiw-mobile-tiles-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .hiw-mobile-tile {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 100px;
+      box-sizing: border-box;
+    }
+    .hiw-mobile-tile-icon {
+      color: var(--red);
+      display: inline-flex;
+    }
+    .hiw-mobile-tile-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+
+    /* Mobile Single Assurance Card with 3 rows */
+    .hiw-mobile-assurance-section {
+      display: block;
+      padding: 0 0 36px;
+    }
+    .hiw-mobile-assurance-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .hiw-mobile-assure-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .hiw-mobile-assure-icon {
+      color: var(--red);
+      flex-shrink: 0;
+      display: inline-flex;
+      margin-top: 1px;
+    }
+    .hiw-mobile-assure-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .hiw-mobile-assure-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0;
+    }
+    .hiw-mobile-assure-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    /* Hide Desktop Showcase & 3-card Assurances */
+    .hiw-desktop-showcase-section,
+    .hiw-desktop-assurances-section {
+      display: none;
+    }
+
+    /* FAQ */
+    .hiw-faq-section {
+      padding: 36px 0 44px;
+      border-top: none;
+    }
+    .hiw-faq-grid {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .hiw-faq-intro {
+      display: none;
+    }
+    .hiw-faq-mobile-title {
+      display: block;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0 0 16px;
+      letter-spacing: -0.01em;
+    }
+    .hiw-faq-accordion {
+      border-top: 1px solid var(--line);
+    }
+    .hiw-faq-summary {
+      padding: 16px 0;
+      font-size: 15px;
+    }
+    .hiw-faq-answer {
+      font-size: 14px;
+      padding-bottom: 16px;
+    }
+
+    /* CTA Card */
+    .hiw-cta-band {
+      padding: 0 0 48px;
+    }
+    .hiw-cta-card {
+      padding: 24px 20px;
+      border-radius: 20px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 20px;
+    }
+    .hiw-cta-title {
+      font-size: 22px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+    .hiw-cta-sub {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .hiw-cta-buttons {
+      width: 100%;
+    }
+    .btn-cta-red {
+      width: 100%;
+      height: 48px;
+      border-radius: 12px;
+      font-size: 15px;
+    }
+    .hiw-desktop-only {
+      display: none;
+    }
+  }
+
+  /* ==================== RESPONSIVE: TABLET (769px - 1023px) ==================== */
+  @media (min-width: 769px) and (max-width: 1023px) {
+    .hiw-stepper-line {
+      display: none;
+    }
+    .hiw-steps-track {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .hiw-step-item {
+      flex-direction: row;
+      gap: 16px;
+      text-align: left;
+      align-items: flex-start;
+    }
+    .hiw-step-badge {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .hiw-step-body {
+      align-items: flex-start;
+      min-height: auto;
+    }
+    .hiw-showcase-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .hiw-assurances-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .hiw-faq-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
   }
 </style>
