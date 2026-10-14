@@ -144,6 +144,20 @@ const mailOn = emailEnabled(env);
     flex-direction: column;
     gap: 12px;
   }
+  @media (min-width: 640px) {
+    .mydl--form {
+      max-width: 560px;
+    }
+    .mydl__request {
+      flex-direction: row;
+    }
+    .mydl__btn {
+      width: auto;
+      white-space: nowrap;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+  }
   .mydl__input {
     height: 48px;
     border-radius: 10px;

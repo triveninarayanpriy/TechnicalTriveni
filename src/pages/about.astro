@@ -3,12 +3,23 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE, PROFILE } from '../lib/site';
-import { getPage } from '../lib/db';
+import { getPage, listProjects } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 
 const pageData = await getPage(env.DB, 'about');
 const profilePhoto = pageData?.image_url || '/brand/profile.jpg';
 const customBioHtml = pageData?.content_md ? renderMarkdown(pageData.content_md) : null;
+
+// Fetch projects for count and closing card covers
+let packCount = 5;
+let featuredCovers: string[] = ['/covers/drone-pack.jpg', '/covers/blynk-iot.jpg', '/covers/esp32-cam.jpg'];
+try {
+  const allProjects = await listProjects(env.DB, { publishedOnly: true, limit: 3 });
+  if (allProjects.length > 0) {
+    packCount = allProjects.length;
+    featuredCovers = allProjects.map((p) => p.cover_image).filter(Boolean) as string[];
+  }
+} catch {}
 
 const socials = [
   { label: 'YouTube', href: SITE.socials.youtube, icon: 'youtube' },
@@ -17,21 +28,21 @@ const socials = [
   { label: 'LinkedIn', href: SITE.socials.linkedin, icon: 'linkedin' },
 ].filter((s) => s.href);
 
-const values = [
+const proofCards = [
   {
     icon: 'check-circle',
-    title: 'Hardware Verified',
-    text: 'Every project is built on a real breadboard or PCB, programmed, and bench-tested in the physical world before any files are released.',
+    title: 'Hardware verified',
+    text: 'Built on a real breadboard or PCB, programmed and bench-tested before any files are released.',
   },
   {
     icon: 'play',
-    title: 'Video Proof',
-    text: 'Each hardware build is demonstrated in action on YouTube. You see the final working project before ordering parts or downloading files.',
+    title: 'Video proof',
+    text: 'Every build is demonstrated on YouTube. You see it working before you order parts.',
   },
   {
     icon: 'layers',
-    title: 'Complete Project Packs',
-    text: 'Full Arduino/ESP32 source code, complete wiring pinouts, verified BOM with direct store links, and 3D printable STL files with zero missing pieces.',
+    title: 'Complete project packs',
+    text: 'Source code, wiring pinouts, a verified parts list with store links, and 3D printable STL files.',
   },
 ];
 
@@ -46,398 +57,415 @@ const jsonLd = {
 };
 ---
 
-<Base title={pageData?.title || 'About'} description={`About ${PROFILE.name} — the maker behind Technical Triveni. ${PROFILE.lead}`} jsonLd={jsonLd}>
-  <!-- HERO -->
-  <section class="about-hero">
-    <div class="container center">
-      <span class="about-eyebrow">ABOUT THE MAKER</span>
-      <h1 class="about-title">Real builds. Tested on the workbench.</h1>
-      <p class="about-lead">{PROFILE.lead || 'Hands-on electronics, robotics, and embedded systems project packs verified and documented for makers and engineering students.'}</p>
-    </div>
-  </section>
+<Base
+  title={pageData?.title || 'About | Technical Triveni'}
+  description={`About ${PROFILE.name} — the maker behind Technical Triveni. Real builds tested on the workbench.`}
+  jsonLd={jsonLd}
+>
+  <div class="about-page">
+    <!-- HERO: SPLIT MAKER BIO & PHOTO (media_1791937896363_108477b4.png) -->
+    <section class="about-hero">
+      <div class="container">
+        <div class="about-hero-grid">
+          <!-- Left: Bio & Stats -->
+          <div class="about-bio-col">
+            <span class="about-eyebrow">About the maker</span>
+            <h1 class="about-title">Real builds. Tested on the workbench.</h1>
+            <p class="about-lead">
+              {PROFILE.lead || "I'm Triveni, a B.Tech ECE (VLSI) student at NIT Patna. Every electronics, software and AI project on Technical Triveni is built and tested by me."}
+            </p>
 
-  <!-- STORY & VALUES -->
-  <section class="about-section">
-    <div class="container about-grid">
-      <div class="about-photo-col">
-        <div class="about-photo-frame">
-          <img src={profilePhoto} alt={PROFILE.name} class="about-photo" width="400" height="400" loading="eager" />
-        </div>
-        <div class="about-badges-box">
-          <div class="about-badge-item">
-            <span class="about-badge-num">100%</span>
-            <span class="about-badge-label">Hardware Tested</span>
+            <div class="about-stats-row">
+              <div class="about-stat-tile">
+                <span class="stat-number">100%</span>
+                <span class="stat-label">Hardware verified</span>
+              </div>
+              <div class="about-stat-tile">
+                <span class="stat-number">Direct</span>
+                <span class="stat-label">Maker support</span>
+              </div>
+              <div class="about-stat-tile">
+                <span class="stat-number">{packCount}</span>
+                <span class="stat-label">Project packs</span>
+              </div>
+            </div>
           </div>
-          <div class="about-badge-item">
-            <span class="about-badge-num">Direct</span>
-            <span class="about-badge-label">Maker Support</span>
+
+          <!-- Right: Portrait Photo -->
+          <div class="about-photo-col">
+            <div class="about-photo-wrap">
+              <img
+                src={profilePhoto}
+                alt={PROFILE.name}
+                class="about-portrait"
+                width="480"
+                height="560"
+                loading="eager"
+              />
+            </div>
           </div>
         </div>
       </div>
+    </section>
 
-      <div class="about-content-col">
-        <h2 class="about-h2">Why I build Technical Triveni</h2>
-        <div class="about-prose">
-          {customBioHtml ? (
-            <Fragment set:html={customBioHtml} />
-          ) : (
-            <>
-              <p>
-                I started Technical Triveni because I was tired of electronics tutorials that don't actually work. Most guides online leave out critical pinouts, skip power decoupling, or share untested code that throws compiler errors the moment you clone it.
-              </p>
-              <p>
-                Technical Triveni is built on a single promise: <strong>complete transparency and physical proof</strong>. Every pack includes tested source code, precise module wiring tables, real component buy links with Indian retail prices, and step-by-step assembly guides.
-              </p>
-            </>
-          )}
+    <!-- DARK STORY BAND (#111418, 2 COLUMNS) -->
+    <section class="about-story-section">
+      <div class="container">
+        <div class="about-story-band">
+          <div class="story-left">
+            <h2 class="story-headline">
+              I was tired of electronics tutorials that don't actually work.
+            </h2>
+          </div>
+          <div class="story-right">
+            <p class="story-body">
+              Most guides leave out critical pinouts, skip power decoupling, or share untested code that throws errors the moment you clone it.
+            </p>
+            <p class="story-body">
+              So there is one promise here: <span class="story-highlight">complete transparency and physical proof</span>.
+            </p>
+          </div>
         </div>
+      </div>
+    </section>
 
-        <div class="about-values">
-          {values.map((v) => (
-            <div class="value-card">
-              <div class="value-card__icon">
-                <Icon name={v.icon} size={22} />
-              </div>
-              <div class="value-card__text">
-                <h3 class="value-card__title">{v.title}</h3>
-                <p class="value-card__desc">{v.text}</p>
-              </div>
+    <!-- PROOF, NOT PROMISES SECTION -->
+    <section class="about-proof-section">
+      <div class="container">
+        <h2 class="about-sec-heading">Proof, not promises</h2>
+        <div class="about-proof-grid">
+          {proofCards.map((c) => (
+            <div class="about-proof-card">
+              <span class="proof-card-icon">
+                <Icon name={c.icon} size={20} />
+              </span>
+              <h3 class="proof-card-title">{c.title}</h3>
+              <p class="proof-card-text">{c.text}</p>
             </div>
           ))}
         </div>
+      </div>
+    </section>
 
-        {socials.length > 0 && (
-          <div class="about-socials">
-            <span class="about-socials__label">Follow builds & demonstrations:</span>
-            <div class="about-socials__list">
-              {socials.map((s) => (
-                <a href={s.href} target="_blank" rel="noopener" class="social-chip">
-                  <Icon name={s.icon} size={18} />
-                  <span>{s.label}</span>
-                </a>
-              ))}
-            </div>
+    <!-- FOLLOW THE BUILDS (4 SOCIAL PILLS) -->
+    <section class="about-socials-section">
+      <div class="container">
+        <h2 class="about-sec-heading">Follow the builds</h2>
+        <div class="about-socials-grid">
+          {socials.map((s) => (
+            <a href={s.href} target="_blank" rel="noopener noreferrer" class="social-pill-card">
+              <span>{s.label}</span>
+              <span class="social-arrow">&gt;</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- EXPLORE THE PROJECT PACKS CLOSING CARD -->
+    <section class="about-closing-section">
+      <div class="container">
+        <div class="about-closing-card">
+          <div class="closing-text-col">
+            <h2 class="closing-title">Explore the project packs</h2>
+            <p class="closing-desc">
+              From flight controllers to autonomous robotics, full documentation ready for your workbench.
+            </p>
+            <a href="/projects" class="btn-closing-red">Browse all projects</a>
           </div>
-        )}
-      </div>
-    </div>
-  </section>
 
-  <!-- CTA -->
-  <section class="about-cta-section">
-    <div class="container center">
-      <div class="about-cta-card">
-        <h2 class="about-cta-title">Explore the project packs</h2>
-        <p class="about-cta-sub">From flight controllers to autonomous robotics, discover full documentation ready for your workbench.</p>
-        <a href="/projects" class="btn btn-primary btn-lg">Browse all projects &rarr;</a>
+          <div class="closing-covers-col">
+            {featuredCovers.map((src, i) => (
+              <img
+                src={src}
+                alt={`Project pack ${i + 1}`}
+                class="closing-thumb"
+                width="160"
+                height="100"
+                loading="lazy"
+                onerror="this.src='/brand/og-image.png'"
+              />
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </Base>
 
 <style>
+  .about-page {
+    background: #FFFFFF;
+    color: var(--ink);
+  }
+
+  /* Hero Section */
   .about-hero {
-    padding: clamp(48px, 6vw, 80px) 0 clamp(24px, 4vw, 40px);
-    background: var(--bg);
+    padding: 64px 0 48px;
   }
-  .center {
-    text-align: center;
+  .about-hero-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 56px;
+    align-items: center;
   }
+  @media (max-width: 900px) {
+    .about-hero-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+  }
+
   .about-eyebrow {
-    display: inline-block;
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--red);
+    display: block;
     margin-bottom: 12px;
   }
   .about-title {
-    font-size: clamp(2rem, 1.2rem + 3.6vw, 3.75rem);
-    font-weight: 700;
-    line-height: 1.08;
-    letter-spacing: -0.02em;
-    color: var(--ink);
-    margin: 0 0 16px;
-  }
-  .about-lead {
-    font-size: clamp(1rem, 0.95rem + 0.3vw, 1.125rem);
-    color: var(--ink-2);
-    line-height: 1.6;
-    max-width: 58ch;
-    margin: 0 auto;
-  }
-
-  .about-section {
-    padding: clamp(32px, 5vw, 64px) 0;
-  }
-  .about-grid {
-    display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 48px;
-    align-items: start;
-  }
-  @media (max-width: 900px) {
-    .about-grid {
-      grid-template-columns: 1fr;
-      gap: 32px;
-    }
-  }
-
-  /* Photo Column */
-  .about-photo-col {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .about-photo-frame {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 16px;
-    overflow: hidden;
-    border: 1px solid var(--line);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    background: var(--bg-soft);
-  }
-  .about-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .about-badges-box {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  .about-badge-item {
-    background: var(--bg-soft);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px 16px;
-    text-align: center;
-  }
-  .about-badge-num {
-    display: block;
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--ink);
-  }
-  .about-badge-label {
-    display: block;
-    font-size: 0.75rem;
-    color: var(--ink-3);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 2px;
-  }
-
-  /* Content Column */
-  .about-content-col {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-  .about-h2 {
-    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+    font-size: clamp(32px, 4.5vw, 48px);
     font-weight: 700;
     line-height: 1.15;
     letter-spacing: -0.02em;
     color: var(--ink);
-    margin: 0;
+    margin: 0 0 18px;
   }
-  .about-prose {
-    font-size: 1rem;
-    color: var(--ink-2);
-    line-height: 1.65;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .about-prose strong {
-    color: var(--ink);
+  .about-lead {
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0 0 32px;
   }
 
-  /* Values Cards */
-  .about-values {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin-top: 8px;
-  }
-  .value-card {
+  .about-stats-row {
     display: flex;
     gap: 16px;
-    padding: 18px 20px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    align-items: flex-start;
-  }
-  .value-card__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: rgba(233, 36, 36, 0.08);
-    color: var(--red);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .value-card__text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .value-card__title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0;
-  }
-  .value-card__desc {
-    font-size: 0.875rem;
-    color: var(--ink-2);
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  /* Socials */
-  .about-socials {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 8px;
-  }
-  .about-socials__label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--ink);
-  }
-  .about-socials__list {
-    display: flex;
-    gap: 10px;
     flex-wrap: wrap;
   }
-  .social-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 999px;
+  .about-stat-tile {
+    background: var(--surface);
     border: 1px solid var(--line);
-    background: var(--bg);
+    border-radius: 16px;
+    padding: 18px 24px;
+    display: flex;
+    flex-direction: column;
+    min-width: 120px;
+  }
+  .stat-number {
+    font-size: 26px;
+    font-weight: 700;
     color: var(--ink);
-    font-size: 0.875rem;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 13px;
     font-weight: 500;
+    color: var(--muted);
+  }
+
+  .about-photo-wrap {
+    border-radius: 24px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  }
+  .about-portrait {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 4.6;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Dark Story Band */
+  .about-story-section {
+    padding: 24px 0 64px;
+  }
+  .about-story-band {
+    background: var(--dark);
+    border-radius: 24px;
+    padding: 56px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  @media (max-width: 820px) {
+    .about-story-band {
+      grid-template-columns: 1fr;
+      padding: 36px 24px;
+      gap: 24px;
+    }
+  }
+  .story-headline {
+    font-size: clamp(24px, 3vw, 32px);
+    font-weight: 700;
+    line-height: 1.25;
+    color: #FFFFFF;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .story-body {
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0 0 16px;
+  }
+  .story-body:last-child {
+    margin-bottom: 0;
+  }
+  .story-highlight {
+    color: #FFFFFF;
+    font-weight: 600;
+    border-bottom: 2px solid var(--red);
+    padding-bottom: 2px;
+  }
+
+  /* Proof Section */
+  .about-proof-section {
+    padding: 24px 0 64px;
+  }
+  .about-sec-heading {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    margin: 0 0 28px;
+  }
+  .about-proof-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 820px) {
+    .about-proof-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+  .about-proof-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px 24px;
+  }
+  .proof-card-icon {
+    color: var(--red);
+    display: inline-flex;
+    margin-bottom: 16px;
+  }
+  .proof-card-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .proof-card-text {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* Socials Section */
+  .about-socials-section {
+    padding: 0 0 64px;
+  }
+  .about-socials-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 820px) {
+    .about-socials-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 480px) {
+    .about-socials-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .social-pill-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 15px;
     text-decoration: none;
     transition: all 150ms ease;
   }
-  .social-chip:hover {
+  .social-pill-card:hover {
     border-color: var(--ink);
-    background: var(--bg-soft);
+  }
+  .social-arrow {
+    color: var(--muted);
+    font-weight: 700;
   }
 
-  /* Bottom CTA Card */
-  .about-cta-section {
-    background: var(--bg-soft);
-    border-top: 1px solid var(--line);
-    padding: clamp(40px, 6vw, 80px) 0;
+  /* Closing Card */
+  .about-closing-section {
+    padding: 0 0 80px;
   }
-  .about-cta-card {
-    background: var(--bg);
+  .about-closing-card {
+    background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: 20px;
-    padding: clamp(28px, 5vw, 48px);
-    max-width: 680px;
-    margin: 0 auto;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    border-radius: 24px;
+    padding: 40px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 40px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   }
-  .about-cta-title {
-    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+  .closing-text-col {
+    max-width: 480px;
+  }
+  .closing-title {
+    font-size: 26px;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 10px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
   }
-  .about-cta-sub {
-    font-size: 1rem;
-    color: var(--ink-2);
-    max-width: 52ch;
-    margin: 0 auto 24px;
+  .closing-desc {
+    font-size: 15px;
+    color: var(--muted);
+    margin: 0 0 24px;
     line-height: 1.5;
   }
-  .btn-lg {
-    height: 48px;
-    padding: 0 28px;
-    font-size: 1rem;
+  .btn-closing-red {
+    background: var(--red);
+    color: #FFFFFF;
     font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 15px;
+    padding: 12px 26px;
+    border-radius: 14px;
     text-decoration: none;
-    border-radius: var(--r-btn);
+    display: inline-block;
   }
-  @media (max-width: 768px) {
-    .btn-lg {
-      width: 100%;
-    }
-    .about-hero {
-      padding: 36px 0 20px;
-    }
-    .about-title {
-      font-size: 2rem;
-    }
-    .about-lead {
-      font-size: 0.9375rem;
-    }
-    .about-section {
-      padding: 24px 0 40px;
-    }
-    .about-grid {
-      grid-template-columns: 1fr;
-      gap: 28px;
-    }
-    .about-photo-col {
-      max-width: 340px;
-      margin: 0 auto;
-      width: 100%;
-    }
-    .about-badges-box {
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .about-badge-item {
-      padding: 12px 10px;
-    }
-    .about-badge-num {
-      font-size: 1.125rem;
-    }
-    .about-badge-label {
-      font-size: 0.6875rem;
-    }
-    .about-values {
-      gap: 12px;
-    }
-    .value-card {
-      padding: 14px 16px;
-      gap: 14px;
-      border-radius: 14px;
-    }
-    .value-card__icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-    }
-    .social-chip {
-      height: 44px;
-      padding: 0 16px;
-      font-size: 0.875rem;
-    }
-    .about-cta-card {
-      padding: 24px 18px;
-      border-radius: 16px;
-    }
+
+  .closing-covers-col {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .closing-thumb {
+    width: 140px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--line);
   }
 </style>

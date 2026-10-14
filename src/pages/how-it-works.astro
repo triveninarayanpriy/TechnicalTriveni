@@ -2,284 +2,702 @@
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
+import { SITE } from '../lib/site';
 import { getPage } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 
 const page = await getPage(env.DB, 'how-it-works');
-const customContent = page?.content_md ? renderMarkdown(page.content_md) : '';
 
 const steps = [
-  { n: '01', icon: 'play', title: 'Watch & get inspired', text: 'Catch one of our builds on YouTube or Instagram. If you want to make it yourself, you are in the right place.' },
-  { n: '02', icon: 'search', title: 'Explore the full project', text: 'Every project includes a free overview, wiring guide, parts list, and specs. Read everything before you decide to build.' },
-  { n: '03', icon: 'cart', title: 'Grab the resources', text: 'When ready, purchase the one-time pack securely using UPI, cards, or net banking. Instant access, no account required.' },
-  { n: '04', icon: 'download', title: 'Download & build', text: 'Instantly download the source code, schematics, 3D printable files, and step-by-step PDF guide. Order components and build.' },
+  {
+    n: '1',
+    icon: 'play',
+    title: 'Watch the build',
+    text: 'Every project is documented end to end on YouTube, so you see it working before you spend anything.',
+  },
+  {
+    n: '2',
+    icon: 'doc',
+    title: 'Choose your pack',
+    text: 'Open a pack to see its prerequisites and build steps. Filter by price, category and format.',
+  },
+  {
+    n: '3',
+    icon: 'lock',
+    title: 'Pay securely',
+    text: 'Checkout runs on Razorpay with UPI, cards or net banking. No account to create.',
+  },
+  {
+    n: '4',
+    icon: 'download',
+    title: 'Get your files',
+    text: 'Your download link is emailed instantly. Re-visit via My downloads; no password needed.',
+  },
+  {
+    n: '5',
+    icon: 'check-circle',
+    title: 'Build and get help',
+    text: 'Follow the parts list, wiring tables and staged steps. Issues? Email the maker within 7-day build guarantee.',
+  },
+];
+
+const assurances = [
+  {
+    icon: 'lock',
+    title: 'Secure checkout',
+    text: 'Razorpay handles payment: UPI, cards and net banking.',
+  },
+  {
+    icon: 'check-circle',
+    title: '7-day build guarantee',
+    text: 'If a pack does not work as described, email the maker and get it sorted.',
+  },
+  {
+    icon: 'mail',
+    title: 'Direct support',
+    text: 'Ask questions and get help from the person who built it.',
+  },
 ];
 
 const faqs = [
-  { q: 'How do I receive the files?', a: 'Instantly. The moment your payment is confirmed, a secure download page opens with every file in the pack — and the link is yours to keep.' },
-  { q: 'Do I need the paid pack to follow along?', a: 'No. The project overview, wiring diagram, parts list and specs are free on every project page. The pack is for the ready-to-use files (code, schematics, 3D, guide).' },
-  { q: 'What payment methods are supported?', a: 'UPI, cards, net-banking and wallets, handled securely by Razorpay. We never see or store your payment details.' },
+  {
+    q: 'Do I need an account?',
+    a: 'No. Enter your email at checkout and your download link arrives by email. You can request it again any time on My downloads.',
+    open: true,
+  },
+  {
+    q: 'How do I get my files again?',
+    a: 'Go to My downloads in the top navigation, enter the email address you purchased with, and a direct access link will be emailed immediately.',
+    open: false,
+  },
+  {
+    q: 'Which payment methods work?',
+    a: 'UPI (GPay, PhonePe, Paytm, BHIM), Indian & international credit/debit cards, NetBanking, and major mobile wallets via Razorpay.',
+    open: false,
+  },
+  {
+    q: 'Are the parts included?',
+    a: 'No, these are digital project packs containing source code, verified circuit schematics, 3D print models, and parts lists with direct vendor buy links.',
+    open: false,
+  },
+  {
+    q: 'What if my build does not work?',
+    a: 'Every project has a 7-day build guarantee. If you encounter an issue, email technicaltriveniyt@gmail.com with your order details and get direct maker support.',
+    open: false,
+  },
+  {
+    q: 'Are free packs really free?',
+    a: 'Yes! Free packs contain full firmware and wiring diagrams for open-source learning. Simply enter your email to get the direct download link.',
+    open: false,
+  },
 ];
 ---
 
-<Base title={page?.title || 'How it works'} description="From video demonstration to verified workbench build in four simple steps.">
-  <section class="hiw-hero">
-    <div class="container center">
-      <span class="hiw-eyebrow">SIMPLE 4-STEP PROCESS</span>
-      <h1 class="hiw-title">{page?.title || 'How It Works'}</h1>
-      <p class="hiw-lead">No guesswork, no missing files, no dead ends. Everything you need to turn a project demonstration into a finished, bench-verified hardware build.</p>
-    </div>
-  </section>
+<Base
+  title="How it works | Technical Triveni"
+  description="From video demonstration to verified workbench build in five simple steps. No account, no subscription."
+>
+  <div class="hiw-page">
+    <!-- HERO SECTION (media_1791937969571_be4d4038.png) -->
+    <section class="hiw-hero">
+      <div class="container text-center">
+        <span class="hiw-pill-eyebrow">How it works</span>
+        <h1 class="hiw-title">From video to working build in five steps.</h1>
+        <p class="hiw-sub">
+          Watch it work, grab the pack, build it with verified files. No account, no subscription.
+        </p>
+        <div class="hiw-hero-actions">
+          <a href="/projects" class="btn-hiw-primary">Browse packs</a>
+          <a href={SITE.socials.youtube} target="_blank" rel="noopener noreferrer" class="btn-hiw-secondary">
+            <Icon name="play" size={16} /> Watch on YouTube
+          </a>
+        </div>
+      </div>
+    </section>
 
-  <section class="hiw-section">
-    <div class="container container-narrow">
-      <div class="hiw-steps">
-        {steps.map((step) => (
-          <div class="hiw-card">
-            <div class="hiw-card__icon">
-              <Icon name={step.icon} size={22} />
-            </div>
-            <div class="hiw-card__content">
-              <span class="hiw-card__num">{step.n}</span>
-              <h2 class="hiw-card__heading">{step.title}</h2>
-              <p class="hiw-card__text">{step.text}</p>
+    <!-- 5-STEP HORIZONTAL STEPPER -->
+    <section class="hiw-stepper-section">
+      <div class="container">
+        <div class="hiw-stepper-wrap">
+          <div class="hiw-stepper-line" aria-hidden="true"></div>
+          <div class="hiw-steps-grid">
+            {steps.map((s) => (
+              <div class="hiw-step-card">
+                <div class="hiw-step-badge">{s.n}</div>
+                <div class="hiw-step-card__inner">
+                  <div class="hiw-step-icon">
+                    <Icon name={s.icon} size={18} />
+                  </div>
+                  <h3 class="hiw-step-title">{s.title}</h3>
+                  <p class="hiw-step-text">{s.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SPLIT FEATURE SHOWCASE: PACK IMAGE WITH 3 FLOATING CHIPS & 4-ITEM CHECKLIST -->
+    <section class="hiw-showcase-section">
+      <div class="container">
+        <div class="hiw-showcase-grid">
+          <!-- Left: Image with 3 floating pills -->
+          <div class="hiw-image-col">
+            <div class="hiw-image-card">
+              <img
+                src="/covers/drone-pack.jpg"
+                alt="Electronics project pack contents"
+                class="hiw-pack-img"
+                width="640"
+                height="400"
+                loading="lazy"
+                onerror="this.src='/brand/og-image.png'"
+              />
+              <!-- Floating chips -->
+              <div class="hiw-float-chip hiw-float-chip--top">
+                <Icon name="code" size={14} /> Tested source code
+              </div>
+              <div class="hiw-float-chip hiw-float-chip--mid">
+                <Icon name="layers" size={14} /> Wiring tables
+              </div>
+              <div class="hiw-float-chip hiw-float-chip--bot">
+                <Icon name="cart" size={14} /> Parts list with buy links
+              </div>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  </section>
 
-  <section class="hiw-section hiw-section--alt">
-    <div class="container container-narrow">
-      <div class="hiw-section-head center">
-        <span class="hiw-eyebrow">QUESTIONS & ANSWERS</span>
-        <h2 class="hiw-h2">Frequently Asked Questions</h2>
-      </div>
-      <div class="hiw-faq">
-        {faqs.map((f) => (
-          <details class="hiw-faq__item">
-            <summary class="hiw-faq__summary">
-              <span>{f.q}</span>
-              <Icon name="chevron-down" size={18} />
-            </summary>
-            <div class="hiw-faq__body">
-              <p>{f.a}</p>
+          <!-- Right: Checklist -->
+          <div class="hiw-checklist-col">
+            <h2 class="hiw-showcase-h2">Everything you need to finish the build</h2>
+            <div class="hiw-checklist-items">
+              <div class="hiw-check-item">
+                <span class="hiw-check-icon"><Icon name="check-circle" size={18} /></span>
+                <div>
+                  <h4 class="hiw-item-title">Tested source code</h4>
+                  <p class="hiw-item-desc">Clean, commented firmware and sketches that compile and run.</p>
+                </div>
+              </div>
+              <div class="hiw-check-item">
+                <span class="hiw-check-icon"><Icon name="check-circle" size={18} /></span>
+                <div>
+                  <h4 class="hiw-item-title">Wiring and schematics</h4>
+                  <p class="hiw-item-desc">Clear circuit diagrams and pin tables, so you never guess a connection.</p>
+                </div>
+              </div>
+              <div class="hiw-check-item">
+                <span class="hiw-check-icon"><Icon name="check-circle" size={18} /></span>
+                <div>
+                  <h4 class="hiw-item-title">Verified parts list</h4>
+                  <p class="hiw-item-desc">Exact component specs with direct buy links and Indian retail prices.</p>
+                </div>
+              </div>
+              <div class="hiw-check-item">
+                <span class="hiw-check-icon"><Icon name="check-circle" size={18} /></span>
+                <div>
+                  <h4 class="hiw-item-title">Build videos</h4>
+                  <p class="hiw-item-desc">The full bring-up on YouTube, step by step.</p>
+                </div>
+              </div>
             </div>
-          </details>
-        ))}
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="hiw-cta-box center">
-        <h3 class="hiw-cta-title">Ready to build your next project?</h3>
-        <p class="hiw-cta-sub">Browse all verified hardware packs, pinouts, and component guides.</p>
-        <a href="/projects" class="btn btn-primary btn-lg">Explore all project packs →</a>
+    <!-- 3 ASSURANCE TILES -->
+    <section class="hiw-assurances-section">
+      <div class="container">
+        <div class="hiw-assurances-grid">
+          {assurances.map((a) => (
+            <div class="hiw-assurance-card">
+              <span class="hiw-assurance-icon">
+                <Icon name={a.icon} size={20} />
+              </span>
+              <h3 class="hiw-assurance-title">{a.title}</h3>
+              <p class="hiw-assurance-text">{a.text}</p>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+
+    <!-- 2-COLUMN FAQ SECTION -->
+    <section class="hiw-faq-section">
+      <div class="container">
+        <div class="hiw-faq-grid">
+          <!-- Left Col -->
+          <div class="hiw-faq-intro">
+            <h2 class="hiw-faq-h2">Questions, answered</h2>
+            <p class="hiw-faq-lead">Cannot find what you need? Write to the maker directly.</p>
+            <a href="/contact" class="hiw-contact-link">Contact the maker &rarr;</a>
+          </div>
+
+          <!-- Right Col -->
+          <div class="hiw-faq-accordion">
+            {faqs.map((f) => (
+              <details class="hiw-faq-details" open={f.open}>
+                <summary class="hiw-faq-summary">
+                  <span>{f.q}</span>
+                  <span class="hiw-faq-chevron"><Icon name="chevron-down" size={16} /></span>
+                </summary>
+                <div class="hiw-faq-answer">
+                  <p>{f.a}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DARK CTA BAND (#111418) -->
+    <section class="hiw-cta-band">
+      <div class="container">
+        <div class="hiw-cta-card">
+          <div class="hiw-cta-text">
+            <h2 class="hiw-cta-title">Ready to build something that works?</h2>
+            <p class="hiw-cta-sub">Pick a pack, watch the build, and start with verified files.</p>
+          </div>
+          <div class="hiw-cta-buttons">
+            <a href="/projects" class="btn-cta-red">Browse packs</a>
+            <a href="/contact" class="btn-cta-white">Contact us</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 </Base>
 
 <style>
-  .hiw-hero {
-    padding: clamp(48px, 6vw, 80px) 0 clamp(24px, 4vw, 40px);
-    background: var(--bg);
+  .hiw-page {
+    background: #FFFFFF;
+    color: var(--ink);
   }
-  .center {
+
+  /* Hero */
+  .hiw-hero {
+    padding: 64px 0 48px;
+  }
+  .text-center {
     text-align: center;
   }
-  .hiw-eyebrow {
+  .hiw-pill-eyebrow {
     display: inline-block;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--red);
-    margin-bottom: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 20px;
   }
   .hiw-title {
-    font-size: clamp(2rem, 1.2rem + 3.6vw, 3.75rem);
+    font-size: clamp(28px, 4vw, 44px);
     font-weight: 700;
-    line-height: 1.08;
     letter-spacing: -0.02em;
+    line-height: 1.15;
     color: var(--ink);
     margin: 0 0 16px;
   }
-  .hiw-lead {
-    font-size: clamp(1rem, 0.95rem + 0.3vw, 1.125rem);
-    color: var(--ink-2);
-    line-height: 1.6;
-    max-width: 58ch;
-    margin: 0 auto;
+  .hiw-sub {
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 620px;
+    margin: 0 auto 28px;
   }
-
-  .hiw-section {
-    padding: clamp(32px, 5vw, 64px) 0;
-  }
-  .hiw-section--alt {
-    background: var(--bg-soft);
-    border-top: 1px solid var(--line);
-  }
-  .hiw-section-head {
-    margin-bottom: 32px;
-  }
-  .hiw-h2 {
-    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
-    font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    color: var(--ink);
-    margin: 0;
-  }
-
-  /* Steps */
-  .hiw-steps {
+  .hiw-hero-actions {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .hiw-card {
-    display: flex;
-    gap: 20px;
-    background: var(--bg);
-    padding: 24px;
-    border-radius: 16px;
-    border: 1px solid var(--line);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    align-items: flex-start;
-    transition: transform 150ms ease, box-shadow 150ms ease;
-  }
-  @media (min-width: 1024px) {
-    .hiw-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-    }
-  }
-  .hiw-card__icon {
-    display: flex;
-    align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    background: rgba(233, 36, 36, 0.08);
-    color: var(--red);
-    flex-shrink: 0;
+    gap: 14px;
+    flex-wrap: wrap;
   }
-  .hiw-card__content {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
+  .btn-hiw-primary {
+    background: var(--red);
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 26px;
+    border-radius: 14px;
+    text-decoration: none;
+    transition: opacity 150ms ease;
   }
-  .hiw-card__num {
-    font-size: 12px;
-    color: var(--ink-3);
-    font-weight: 700;
-    letter-spacing: 0.05em;
+  .btn-hiw-primary:hover {
+    opacity: 0.92;
   }
-  .hiw-card__heading {
-    font-size: 1.125rem;
-    font-weight: 700;
+  .btn-hiw-secondary {
+    background: #FFFFFF;
     color: var(--ink);
-    margin: 0;
-  }
-  .hiw-card__text {
-    margin: 0;
-    color: var(--ink-2);
-    font-size: 0.9375rem;
-    line-height: 1.6;
-  }
-  @media (max-width: 600px) {
-    .hiw-card {
-      flex-direction: column;
-      gap: 12px;
-      padding: 20px;
-    }
-  }
-
-  /* FAQ */
-  .hiw-faq {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 48px;
-  }
-  .hiw-faq__item {
-    background: var(--bg);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: border-color 150ms ease;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 24px;
+    border-radius: 14px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 150ms ease;
   }
-  .hiw-faq__item[open] {
+  .btn-hiw-secondary:hover {
     border-color: var(--ink);
   }
-  .hiw-faq__summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 18px 20px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--ink);
-    list-style: none;
-    min-height: 44px;
-  }
-  .hiw-faq__summary::-webkit-details-marker {
-    display: none;
-  }
-  .hiw-faq__summary :global(svg) {
-    transition: transform 150ms ease;
-    color: var(--ink-3);
-    flex-shrink: 0;
-  }
-  .hiw-faq__item[open] .hiw-faq__summary :global(svg) {
-    transform: rotate(180deg);
-    color: var(--red);
-  }
-  .hiw-faq__body {
-    padding: 0 20px 20px;
-  }
-  .hiw-faq__body p {
-    margin: 0;
-    color: var(--ink-2);
-    font-size: 0.9375rem;
-    line-height: 1.6;
-  }
 
-  /* Bottom CTA */
-  .hiw-cta-box {
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: clamp(28px, 5vw, 44px) 24px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* Stepper */
+  .hiw-stepper-section {
+    padding: 40px 0 64px;
   }
-  .hiw-cta-title {
-    font-size: clamp(1.25rem, 1rem + 0.8vw, 1.5rem);
+  .hiw-stepper-wrap {
+    position: relative;
+  }
+  .hiw-stepper-line {
+    position: absolute;
+    top: 18px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: var(--line);
+    z-index: 1;
+  }
+  .hiw-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    position: relative;
+    z-index: 2;
+  }
+  .hiw-step-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .hiw-step-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--red);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 15px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 20px;
+    box-shadow: 0 0 0 4px #FFFFFF;
+  }
+  .hiw-step-card__inner {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px 18px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 210px;
+  }
+  .hiw-step-icon {
+    color: var(--red);
+    margin-bottom: 12px;
+  }
+  .hiw-step-title {
+    font-size: 15px;
     font-weight: 700;
     color: var(--ink);
     margin: 0 0 8px;
   }
-  .hiw-cta-sub {
-    font-size: 0.9375rem;
-    color: var(--ink-2);
-    margin: 0 0 24px;
+  .hiw-step-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
   }
-  .btn-lg {
-    height: 48px;
-    padding: 0 28px;
-    font-size: 1rem;
-    display: inline-flex;
+
+  @media (max-width: 1023px) {
+    .hiw-stepper-line {
+      display: none;
+    }
+    .hiw-steps-grid {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .hiw-step-card {
+      flex-direction: row;
+      gap: 16px;
+      text-align: left;
+      align-items: flex-start;
+    }
+    .hiw-step-badge {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .hiw-step-card__inner {
+      align-items: flex-start;
+      min-height: auto;
+    }
+  }
+
+  /* Split Showcase */
+  .hiw-showcase-section {
+    padding: 48px 0 64px;
+  }
+  .hiw-showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 48px;
     align-items: center;
-    justify-content: center;
+  }
+  @media (max-width: 900px) {
+    .hiw-showcase-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+  .hiw-image-card {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    aspect-ratio: 16 / 10;
+  }
+  .hiw-pack-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .hiw-float-chip {
+    position: absolute;
+    background: #FFFFFF;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hiw-float-chip--top {
+    top: 24px;
+    left: 24px;
+  }
+  .hiw-float-chip--mid {
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+  }
+  .hiw-float-chip--bot {
+    bottom: 24px;
+    left: 24px;
+  }
+
+  .hiw-showcase-h2 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0 0 28px;
+    color: var(--ink);
+  }
+  .hiw-checklist-items {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .hiw-check-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .hiw-check-icon {
+    color: var(--red);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .hiw-item-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 4px;
+  }
+  .hiw-item-desc {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* 3 Assurances */
+  .hiw-assurances-section {
+    padding: 40px 0 64px;
+  }
+  .hiw-assurances-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 768px) {
+    .hiw-assurances-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+  .hiw-assurance-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 24px;
+  }
+  .hiw-assurance-icon {
+    color: var(--red);
+    display: inline-flex;
+    margin-bottom: 12px;
+  }
+  .hiw-assurance-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .hiw-assurance-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* 2-Col FAQ */
+  .hiw-faq-section {
+    padding: 64px 0 80px;
+    border-top: 1px solid var(--line);
+  }
+  .hiw-faq-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 64px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .hiw-faq-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+  .hiw-faq-h2 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    color: var(--ink);
+  }
+  .hiw-faq-lead {
+    font-size: 15px;
+    color: var(--muted);
+    margin: 0 0 16px;
+  }
+  .hiw-contact-link {
+    color: var(--red);
+    font-weight: 600;
+    font-size: 15px;
     text-decoration: none;
   }
-  @media (max-width: 600px) {
-    .btn-lg {
-      width: 100%;
-    }
+  .hiw-contact-link:hover {
+    text-decoration: underline;
+  }
+
+  .hiw-faq-accordion {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--line);
+  }
+  .hiw-faq-details {
+    border-bottom: 1px solid var(--line);
+  }
+  .hiw-faq-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .hiw-faq-summary::-webkit-details-marker {
+    display: none;
+  }
+  .hiw-faq-chevron {
+    color: var(--muted);
+    transition: transform 150ms ease;
+  }
+  .hiw-faq-details[open] .hiw-faq-chevron {
+    transform: rotate(180deg);
+  }
+  .hiw-faq-answer {
+    padding-bottom: 20px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .hiw-faq-answer p {
+    margin: 0;
+  }
+
+  /* Dark CTA Band */
+  .hiw-cta-band {
+    padding: 0 0 80px;
+  }
+  .hiw-cta-card {
+    background: var(--dark);
+    border-radius: 24px;
+    padding: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .hiw-cta-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .hiw-cta-sub {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+  }
+  .hiw-cta-buttons {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .btn-cta-red {
+    background: var(--red);
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 14px 28px;
+    border-radius: 14px;
+    text-decoration: none;
+  }
+  .btn-cta-white {
+    background: #FFFFFF;
+    color: var(--dark);
+    font-weight: 600;
+    font-size: 15px;
+    padding: 14px 28px;
+    border-radius: 14px;
+    text-decoration: none;
   }
 </style>
