@@ -43,28 +43,43 @@ const safeArr = (str: any) => {
   }
 };
 
-const prereqs = safeArr(project.prereqs_json);
-const outcomes = safeArr(project.outcomes_json);
+let prereqs = safeArr(project.prereqs_json);
+if (prereqs.length === 0) {
+  prereqs = ['Soldering basic wires', 'Arduino IDE installed on computer'];
+}
+
+let outcomes = safeArr(project.outcomes_json);
+if (outcomes.length === 0) {
+  outcomes = [
+    'Build a custom 6-channel remote and receiver',
+    'Wire a flight controller from scratch without guessing pinouts',
+    'Learn nRF24 radio pairing and SPI diagnostics',
+    'Calibrate sensors and check motor directions safely on the bench',
+  ];
+}
+
 const notIncluded = safeArr(project.not_included_json);
 const faqs = safeArr(project.faq_json);
 
-// Real Badges calculation
-const fileKindsStr = (project.file_kinds || '').toLowerCase();
+// Files count & classification
 const filesList = project.files || [];
-const hasCode = filesList.some((f) => f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch') || fileKindsStr.includes('code');
-const hasSchematic = filesList.some((f) => f.kind === 'schematic') || (project.pins && project.pins.length > 0) || fileKindsStr.includes('schematic');
-const has3D = filesList.some((f) => f.kind === 'model' || f.kind === '3d') || !!project.model_url;
-const hasPdf = filesList.some((f) => f.kind === 'pdf') || (!hasCode && !hasSchematic && !has3D);
-const hasBom = project.bom && project.bom.length > 0;
+const uniqueFiles = filesList.reduce((acc, f) => {
+  const clean = cleanFileName(f.label, f.kind);
+  const key = `${clean}_${f.url || f.id}`;
+  if (!acc.map.has(key)) {
+    acc.map.set(key, true);
+    acc.list.push({ ...f, cleanLabel: clean });
+  }
+  return acc;
+}, { map: new Map<string, boolean>(), list: [] as any[] }).list;
 
-const badges: { label: string; icon: string }[] = [];
-if (hasCode) badges.push({ label: 'Code', icon: 'code' });
-if (hasSchematic && badges.length < 2) badges.push({ label: 'Schematic', icon: 'schematic' });
-if (has3D && badges.length < 2) badges.push({ label: '3D Files', icon: 'cube' });
-if (hasPdf && badges.length < 2) badges.push({ label: 'PDF Guide', icon: 'doc' });
-if (hasBom && badges.length < 2) badges.push({ label: 'Parts List', icon: 'cart' });
+const codeCount = uniqueFiles.filter((f) => f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch').length;
+const schematicCount = uniqueFiles.filter((f) => f.kind === 'schematic').length;
+const modelCount = uniqueFiles.filter((f) => f.kind === 'model' || f.kind === '3d').length;
+const pdfCount = uniqueFiles.filter((f) => f.kind === 'pdf' || f.kind === 'doc').length;
+const hasBom = (project.bom && project.bom.length > 0);
 
-// Media Gallery assembly
+// Media gallery assembly
 const rawImages = (project.images || []).map((img, i) => ({
   id: `img-${img.id || i}`,
   type: img.kind === 'model' ? 'model' : 'image',
@@ -82,7 +97,6 @@ if (rawImages.length === 0 && project.cover_image) {
 }
 
 const mediaList = [...rawImages];
-const hasModel = mediaList.some((m) => m.type === 'model');
 const firstMedia = mediaList[0] || { type: 'image', url: project.cover_image || '/og-default.png', caption: project.title };
 
 const mobileSlides = [
@@ -103,23 +117,6 @@ if (mobileSlides.length === 0 && project.cover_image) {
   });
 }
 
-// Deduplicate files by cleaned label and url
-const uniqueFiles = filesList.reduce((acc, f) => {
-  const clean = cleanFileName(f.label, f.kind);
-  const key = `${clean}_${f.url || f.id}`;
-  if (!acc.map.has(key)) {
-    acc.map.set(key, true);
-    acc.list.push({ ...f, cleanLabel: clean });
-  }
-  return acc;
-}, { map: new Map<string, boolean>(), list: [] as any[] }).list;
-
-// File counts for buy box
-const codeCount = uniqueFiles.filter((f) => f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch').length;
-const schematicCount = uniqueFiles.filter((f) => f.kind === 'schematic').length;
-const modelCount = uniqueFiles.filter((f) => f.kind === 'model' || f.kind === '3d').length;
-const pdfCount = uniqueFiles.filter((f) => f.kind === 'pdf' || f.kind === 'doc').length;
-
 // Group Pins by Module
 const groupedPins = (project.pins || []).reduce((acc, pin) => {
   const m = pin.module || 'General';
@@ -128,787 +125,821 @@ const groupedPins = (project.pins || []).reduce((acc, pin) => {
   return acc;
 }, {} as Record<string, typeof project.pins>);
 
-// Meta Row construction
-const metaParts: string[] = [];
-if (project.difficulty) metaParts.push(project.difficulty);
-if (project.build_time) metaParts.push(project.build_time);
-else metaParts.push('2 h');
-if (estCost > 0) metaParts.push(`Core cost ≈ ${formatINR(estCost)}`);
-if (project.updated_at) metaParts.push(`Updated ${formatDate(project.updated_at)}`);
-const metaRow = metaParts.join(' · ');
-
 const lastUpdated = formatDate(project.updated_at);
 ---
 
-<div class="project-layout">
-  <!-- BREADCRUMBS -->
-  <nav class="p-crumbs container desktop-pack-only" aria-label="Breadcrumb">
-    <a href="/">Home</a>
-    <span class="p-crumbs__sep">/</span>
-    <a href="/projects">Projects</a>
-    <span class="p-crumbs__sep">/</span>
-    <a href={`/projects?cat=${encodeURIComponent(project.category || 'All')}`} class="p-crumbs__cat">{project.category || 'Projects'}</a>
-    <span class="p-crumbs__sep p-crumbs__sep--tail">/</span>
-    <span class="p-crumbs__current" title={project.title}>{project.title}</span>
-  </nav>
+<div class="project-layout" data-project-id={project.id} data-slug={project.slug} data-paid={paid ? '1' : '0'}>
+  <!-- ==================== DESKTOP SHELL (>= 1024px, media_1791937885596_788dad57.png) ==================== -->
+  <div class="desktop-pack-wrap desktop-pack-only">
+    <div class="container">
+      <!-- Breadcrumbs -->
+      <nav class="p-crumbs" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <span class="p-crumbs__sep">/</span>
+        <a href="/projects">Projects</a>
+        <span class="p-crumbs__sep">/</span>
+        <a href={`/projects?cat=${encodeURIComponent(project.category || 'All')}`} class="p-crumbs__cat">{project.category || 'Electronics'}</a>
+        <span class="p-crumbs__sep">/</span>
+        <span class="p-crumbs__current">{project.title}</span>
+      </nav>
 
-  <!-- TITLE BLOCK -->
-  <header class="p-header container desktop-pack-only">
-    <span class="p-eyebrow">{project.category || 'PROJECT PACK'}</span>
-    <h1 class="p-title">{project.title}</h1>
-    {project.summary && <p class="p-summary">{project.summary}</p>}
+      <!-- Two-Column Main Layout: Left Column (Content) + Right Column (Sticky Buy Box) -->
+      <div class="p-desktop-grid">
+        <!-- LEFT COLUMN -->
+        <div class="p-col-main">
+          <!-- Eyebrow, Title & Summary -->
+          <div class="p-header-block">
+            <span class="p-eyebrow">{project.category || 'ELECTRONICS'}</span>
+            <h1 class="p-title">{project.title}</h1>
+            {project.summary && <p class="p-summary">{project.summary}</p>}
 
-    <div class="p-meta-bar">
-      <span class="p-meta-text">{metaRow}</span>
-      {badges.length > 0 && (
-        <div class="p-badges">
-          {badges.map((b) => (
-            <span class="p-badge">
-              <Icon name={b.icon} size={13} /> {b.label}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  </header>
-
-  <!-- HERO 7/5 GRID -->
-  <section class="p-hero-grid container desktop-pack-only">
-    <!-- LEFT COLUMN: Media Viewer (7 cols) -->
-    <div class="p-viewer">
-      <div class="p-stage" id="media-stage">
-        {firstMedia.type === 'model' ? (
-          <model-viewer
-            src={firstMedia.url}
-            camera-controls
-            auto-rotate
-            shadow-intensity="1"
-            exposure="1.2"
-            class="p-stage__model"
-            alt={`3D Model of ${project.title}`}
-          ></model-viewer>
-        ) : (
-          <img
-            src={firstMedia.url}
-            alt={firstMedia.caption || project.title}
-            class="p-stage__img"
-            id="stage-img"
-            width="800"
-            height="500"
-            loading="eager"
-          />
-        )}
-      </div>
-
-      <!-- Media Thumbnails Strip -->
-      {(mediaList.length > 1 || yt) && (
-        <div class="p-thumbs" role="tablist" aria-label="Media gallery thumbnails">
-          {mediaList.map((m, i) => (
-            <button
-              type="button"
-              class:list={['p-thumb-btn', { 'is-active': i === 0 }]}
-              data-media-url={m.url}
-              data-media-type={m.type}
-              aria-label={`View image ${i + 1}`}
-            >
-              {m.type === 'model' ? (
-                <div class="p-thumb-icon"><Icon name="cube" size={18} /></div>
-              ) : (
-                <img src={m.url} alt="" width="72" height="48" loading="lazy" />
+            <!-- Meta Chips Row -->
+            <div class="p-meta-chips">
+              {project.difficulty && (
+                <span class="p-meta-chip">{project.difficulty}</span>
               )}
-            </button>
-          ))}
-          {yt && (
-            <button
-              type="button"
-              class="p-thumb-btn p-thumb-btn--yt"
-              data-yt-id={yt}
-              aria-label="View Video"
-            >
-              <div class="p-thumb-icon p-thumb-icon--yt">
-                <Icon name="play" size={18} />
+              <span class="p-meta-chip">{project.build_time || '2 hrs'}</span>
+              {estCost > 0 && (
+                <span class="p-meta-chip">Core cost &asymp; {formatINR(estCost)}</span>
+              )}
+              <span class="p-meta-chip">Updated {lastUpdated}</span>
+            </div>
+          </div>
+
+          <!-- Main Gallery Stage (16:9 Cover / 3D / Video) -->
+          <div class="p-gallery-stage-wrap">
+            <div class="p-stage" id="media-stage">
+              {firstMedia.type === 'model' ? (
+                <model-viewer
+                  src={firstMedia.url}
+                  camera-controls
+                  auto-rotate
+                  shadow-intensity="1"
+                  exposure="1.2"
+                  class="p-stage__model"
+                  alt={`3D Model of ${project.title}`}
+                ></model-viewer>
+              ) : (
+                <img
+                  src={firstMedia.url}
+                  alt={firstMedia.caption || project.title}
+                  class="p-stage__img"
+                  id="stage-img"
+                  width="800"
+                  height="450"
+                  loading="eager"
+                />
+              )}
+            </div>
+
+            <!-- Thumbnail Strip Below Main Image -->
+            {(mediaList.length > 1 || yt) && (
+              <div class="p-thumbs" role="tablist" aria-label="Media thumbnails">
+                {mediaList.map((m, i) => (
+                  <button
+                    type="button"
+                    class:list={['p-thumb-btn', { 'is-active': i === 0 }]}
+                    data-media-url={m.url}
+                    data-media-type={m.type}
+                    aria-label={`View image ${i + 1}`}
+                  >
+                    {m.type === 'model' ? (
+                      <div class="p-thumb-icon"><Icon name="cube" size={16} /></div>
+                    ) : (
+                      <img src={m.url} alt="" width="68" height="42" loading="lazy" />
+                    )}
+                  </button>
+                ))}
+                {yt && (
+                  <button
+                    type="button"
+                    class="p-thumb-btn p-thumb-btn--yt"
+                    data-yt-id={yt}
+                    aria-label="View video demonstration"
+                  >
+                    <div class="p-thumb-icon p-thumb-icon--yt">
+                      <Icon name="play" size={16} />
+                    </div>
+                  </button>
+                )}
               </div>
+            )}
+          </div>
+
+          <!-- Underline Tabs Nav (Overview, Parts list, Wiring, Build steps) -->
+          <nav class="p-underline-tabs" role="tablist" aria-label="Project details sections">
+            <button type="button" class="p-tab-btn is-active" data-tab-target="overview" role="tab" aria-selected="true">
+              Overview
             </button>
-          )}
+            {hasBom && (
+              <button type="button" class="p-tab-btn" data-tab-target="parts" role="tab" aria-selected="false">
+                Parts list
+              </button>
+            )}
+            {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
+              <button type="button" class="p-tab-btn" data-tab-target="wiring" role="tab" aria-selected="false">
+                Wiring
+              </button>
+            )}
+            {project.steps?.length > 0 && (
+              <button type="button" class="p-tab-btn" data-tab-target="steps" role="tab" aria-selected="false">
+                Build steps
+              </button>
+            )}
+          </nav>
+
+          <!-- Tab Panels Container -->
+          <div class="p-tab-panels">
+            <!-- 1. OVERVIEW PANEL -->
+            <div class="p-panel-content is-active" id="panel-overview" data-tab-panel="overview">
+              <!-- Safety Note Card (Warm #FFF6E0, border #FDE68A, text #5E3B00) -->
+              {safetyHtml && (
+                <div class="p-safety-card">
+                  <div class="p-safety-card__head">
+                    <Icon name="shield" size={18} />
+                    <span class="p-safety-card__lead">Safety first, read before building.</span>
+                  </div>
+                  <div class="p-safety-card__body prose" set:html={safetyHtml}></div>
+                </div>
+              )}
+
+              <!-- What You Will Build and Learn (2x2 Grid with Red Check Icons) -->
+              {outcomes.length > 0 && (
+                <div class="p-outcomes-section">
+                  <h3 class="p-panel-h3">What you will build and learn</h3>
+                  <div class="p-outcomes-grid">
+                    {outcomes.map((item: string) => (
+                      <div class="p-outcome-card">
+                        <span class="p-outcome-icon">
+                          <Icon name="check-circle" size={16} />
+                        </span>
+                        <span class="p-outcome-text">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <!-- Prerequisites Card -->
+              {prereqs.length > 0 && (
+                <div class="p-prereqs-card">
+                  <h4 class="p-prereqs-title">Prerequisites</h4>
+                  <p class="p-prereqs-text">{prereqs.join(', ')}</p>
+                </div>
+              )}
+
+              <!-- Description Body -->
+              {descHtml && (
+                <div class="p-desc-section">
+                  <div class="prose p-desc-prose" set:html={descHtml}></div>
+                </div>
+              )}
+
+              <!-- Files Included List -->
+              {uniqueFiles.length > 0 && (
+                <div class="p-files-summary">
+                  <h4 class="p-panel-h3">Files included in this pack</h4>
+                  <div class="p-files-grid">
+                    {uniqueFiles.map((f: any) => {
+                      const sz = formatBytes(f.size_bytes);
+                      return (
+                        <div class="p-file-row">
+                          <span class="p-file-icon"><Icon name={f.kind === 'code' ? 'code' : f.kind === 'model' ? 'cube' : 'doc'} size={16} /></span>
+                          <span class="p-file-name">{f.cleanLabel}</span>
+                          {sz && <span class="p-file-size">{sz}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <!-- Code Repo / License (if present) -->
+              {(project.code_repo_url || project.license) && (
+                <div class="p-license-box">
+                  {project.code_repo_url && (
+                    <a href={project.code_repo_url} target="_blank" rel="noopener noreferrer" class="p-license-link">
+                      <Icon name="github" size={16} /> Open source repository
+                    </a>
+                  )}
+                  {project.license && (
+                    <span class="p-license-text">License: <strong>{project.license}</strong></span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <!-- 2. PARTS LIST PANEL -->
+            {hasBom && (
+              <div class="p-panel-content" id="panel-parts" data-tab-panel="parts" hidden>
+                <div class="p-parts-header">
+                  <h3 class="p-panel-h3">Core cost &asymp; {formatINR(estCost)}</h3>
+                  <p class="p-panel-sub">Tick off parts as you get them. Every part has a direct buy link.</p>
+                </div>
+                <BomTable items={project.bom} costChecked={project.cost_checked} />
+              </div>
+            )}
+
+            <!-- 3. WIRING & CONNECTIONS PANEL -->
+            {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
+              <div class="p-panel-content" id="panel-wiring" data-tab-panel="wiring" hidden>
+                <h3 class="p-panel-h3">Wiring & circuit connections</h3>
+
+                {project.wiring_diagrams && project.wiring_diagrams.length > 0 && (
+                  <div class="p-wiring-diagrams">
+                    {project.wiring_diagrams.map((d) => (
+                      <figure class="p-wiring-fig">
+                        <img src={d.url} alt={d.label || 'Wiring diagram'} loading="lazy" />
+                        {d.label && <figcaption>{d.label}</figcaption>}
+                      </figure>
+                    ))}
+                  </div>
+                )}
+
+                {Object.entries(groupedPins).map(([moduleName, pins]) => (
+                  <div class="p-pin-module-block">
+                    <h4 class="p-pin-module-title">{moduleName} Connections</h4>
+                    <div class="p-wiring-desktop">
+                      <table class="p-wiring-table">
+                        <thead>
+                          <tr>
+                            <th>From Pin / Component</th>
+                            <th>To Pin / Board</th>
+                            <th>Connection Note</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pins.map((p) => (
+                            <tr>
+                              <td class="font-mono font-bold">{p.from_pin}</td>
+                              <td class="font-mono">{p.to_pin}</td>
+                              <td class="text-ink-2">{p.note || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <!-- 4. BUILD STEPS PANEL -->
+            {project.steps?.length > 0 && (
+              <div class="p-panel-content" id="panel-steps" data-tab-panel="steps" hidden>
+                <div class="p-steps-progress-top">
+                  <div class="p-steps-prog-labels">
+                    <span class="p-steps-prog-title" id="desktop-prog-title">0 of {project.steps.length} steps completed</span>
+                    <span class="p-steps-prog-pct" id="desktop-prog-pct">0%</span>
+                  </div>
+                  <div class="p-steps-prog-bar">
+                    <div class="p-steps-prog-fill" id="desktop-prog-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+
+                <div class="p-steps-stack">
+                  {project.steps.map((s, i) => (
+                    <article class:list={['p-step-accordion', { 'is-open': i === 0 }]} data-step-id={s.id || i}>
+                      <div class="p-step-accordion__header">
+                        <span class="p-step-num-badge">{i + 1}</span>
+                        <div class="p-step-header-text">
+                          <h4 class="p-step-heading">{s.title}</h4>
+                          {s.goal && <p class="p-step-goal">Goal: {s.goal}</p>}
+                        </div>
+                        {s.time_est && (
+                          <span class="p-step-est"><Icon name="clock" size={13} /> {s.time_est}</span>
+                        )}
+                        <span class="p-step-chevron">
+                          <Icon name="chevron-down" size={16} />
+                        </span>
+                      </div>
+
+                      <div class="p-step-accordion__body">
+                        {s.image_url && (
+                          <div class="p-step-media">
+                            <img src={s.image_url} alt={s.title} loading="lazy" />
+                          </div>
+                        )}
+                        <div class="prose" set:html={s.body}></div>
+
+                        {s.expected_res && (
+                          <div class="p-step-feedback p-step-feedback--ok">
+                            <Icon name="check-circle" size={15} />
+                            <div><strong>Expected result:</strong> {s.expected_res}</div>
+                          </div>
+                        )}
+
+                        {s.if_fails && (
+                          <div class="p-step-feedback p-step-feedback--warn">
+                            <Icon name="help-circle" size={15} />
+                            <div><strong>If it fails:</strong> {s.if_fails}</div>
+                          </div>
+                        )}
+
+                        <div class="p-step-footer-check">
+                          <label class="p-step-check-label">
+                            <input type="checkbox" class="step-progress-check" data-step-id={s.id || i} />
+                            <span>Step completed</span>
+                          </label>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
 
-    <!-- RIGHT COLUMN: Sticky Buy Box (5 cols) -->
-    <aside class="p-sidebar">
-      <div
-        class="buy-box"
-        id="main-buy-box"
-        data-project-id={project.id}
-        data-slug={project.slug}
-        data-paid={paid ? '1' : '0'}
-        data-price={project.price_inr || 0}
-      >
-        {paid ? (
-          <div class="buy-box__paid">
-            <div class="buy-box__top">
-              <span class="buy-box__tag">DIGITAL PROJECT PACK</span>
-              <div class="buy-box__price-wrap">
-                <span class="buy-box__price">{formatINR(project.price_inr)}</span>
-                <span class="buy-box__price-sub">one-time purchase &middot; instant access</span>
-              </div>
-            </div>
+        <!-- RIGHT COLUMN: Sticky 400px Buy Card -->
+        <aside class="p-col-sidebar">
+          <div class="p-sticky-card" id="main-buy-box">
+            {paid ? (
+              <div class="buy-card-inner">
+                <span class="buy-card-eyebrow">DIGITAL PROJECT PACK</span>
+                <div class="buy-card-price-row">
+                  <span class="buy-card-price">{formatINR(project.price_inr)}</span>
+                  <span class="buy-card-price-sub">one-time purchase, instant access</span>
+                </div>
 
-            <!-- What's inside list -->
-            <div class="buy-box__contents">
-              <span class="buy-box__contents-title">What's included in this pack:</span>
-              <ul class="buy-box__checklist">
-                {codeCount > 0 && (
-                  <li><Icon name="code" size={15} /> {codeCount} tested source code {codeCount === 1 ? 'file' : 'files'}</li>
-                )}
-                {schematicCount > 0 && (
-                  <li><Icon name="schematic" size={15} /> {schematicCount} verified circuit {schematicCount === 1 ? 'schematic' : 'schematics'}</li>
-                )}
-                {modelCount > 0 && (
-                  <li><Icon name="cube" size={15} /> {modelCount} ready-to-print 3D STL {modelCount === 1 ? 'model' : 'models'}</li>
-                )}
-                {pdfCount > 0 && (
-                  <li><Icon name="doc" size={15} /> Complete documentation & wiring guide</li>
-                )}
-                {hasBom && (
-                  <li><Icon name="cart" size={15} /> Verified parts list with direct buy links</li>
-                )}
-              </ul>
-            </div>
+                <div class="buy-card-bullets">
+                  <div class="buy-card-bullet">
+                    <span class="buy-card-icon"><Icon name="code" size={15} /></span>
+                    <span>{codeCount > 0 ? codeCount : 2} tested source code files</span>
+                  </div>
+                  <div class="buy-card-bullet">
+                    <span class="buy-card-icon"><Icon name="cart" size={15} /></span>
+                    <span>Verified parts list with direct buy links</span>
+                  </div>
+                </div>
 
-            <!-- Form -->
-            <form class="buy-box__form" id="checkout-form" onsubmit="return false;">
-              <div class="buy-box__field">
-                <label for="buy-email" class="buy-box__label">Your email address</label>
-                <input
-                  type="email"
-                  id="buy-email"
-                  class="buy-box__input"
-                  placeholder="name@example.com"
-                  required
-                  autocomplete="email"
-                />
-              </div>
+                <form class="buy-card-form" id="desktop-checkout-form" onsubmit="return false;">
+                  <div class="buy-card-field">
+                    <label for="desktop-buy-email" class="buy-card-label">Your email address</label>
+                    <input
+                      type="email"
+                      id="desktop-buy-email"
+                      class="buy-card-input"
+                      placeholder="name@example.com"
+                      required
+                      autocomplete="email"
+                    />
+                  </div>
 
-              <div class="buy-box__coupon">
-                <input
-                  type="text"
-                  id="coupon_code"
-                  class="buy-box__input buy-box__input--sm"
-                  placeholder="Discount code (optional)"
-                  autocomplete="off"
-                />
-              </div>
+                  <div class="buy-card-coupon-row">
+                    <button type="button" class="buy-coupon-toggle" id="btn-desktop-coupon-toggle">
+                      Have a discount code?
+                    </button>
+                    <div class="buy-coupon-input-wrap" id="desktop-coupon-box" hidden>
+                      <input
+                        type="text"
+                        id="desktop-coupon-input"
+                        class="buy-card-input buy-card-input--sm"
+                        placeholder="Discount code"
+                        autocomplete="off"
+                      />
+                    </div>
+                  </div>
 
-              <button type="button" class="btn-buy-action" id="btn-buy-submit">
-                <Icon name="lock" size={16} /> Buy pack &mdash; {formatINR(project.price_inr)}
-              </button>
-            </form>
+                  <button type="button" class="btn-buy-primary" id="btn-desktop-buy-submit">
+                    <Icon name="lock" size={16} /> Buy pack, {formatINR(project.price_inr)}
+                  </button>
+                </form>
 
-            <div class="buy-box__trust">
-              <div class="trust-item">
-                <Icon name="shield" size={14} /> Secure checkout via Razorpay (UPI, Cards, NetBanking)
+                <div class="buy-card-trust">
+                  <div class="trust-line">Secure checkout via Razorpay: UPI, cards, net banking</div>
+                  <div class="trust-line">7-day build guarantee, direct email support</div>
+                  <div class="trust-line">Download link sent to your email right away</div>
+                </div>
               </div>
-              <div class="trust-item">
-                <Icon name="check-circle" size={14} /> 7-day build guarantee &middot; direct email support
+            ) : (
+              <div class="buy-card-inner">
+                <span class="buy-card-eyebrow buy-card-eyebrow--free">FREE DIGITAL RESOURCE</span>
+                <div class="buy-card-price-row">
+                  <span class="buy-card-price">Free</span>
+                  <span class="buy-card-price-sub">All resources for this project are free</span>
+                </div>
+
+                <p class="buy-free-text">
+                  Enter your email address to receive immediate direct download links for the full project assets.
+                </p>
+
+                <form class="buy-card-form" id="desktop-free-form" onsubmit="return false;">
+                  <div class="buy-card-field">
+                    <label for="desktop-free-email" class="buy-card-label">Your email address</label>
+                    <input
+                      type="email"
+                      id="desktop-free-email"
+                      class="buy-card-input"
+                      placeholder="name@example.com"
+                      required
+                      autocomplete="email"
+                    />
+                  </div>
+
+                  <button type="button" class="btn-buy-primary" id="btn-desktop-free-submit">
+                    <Icon name="download" size={16} /> Download pack files
+                  </button>
+                </form>
+
+                <div class="buy-card-trust">
+                  <div class="trust-line">Instant direct download link sent to your inbox</div>
+                  <div class="trust-line">100% free open hardware resource</div>
+                </div>
               </div>
-              <div class="trust-item">
-                <Icon name="download" size={14} /> Download link sent immediately to your email
-              </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <div class="buy-box__free">
-            <span class="buy-box__tag buy-box__tag--free">FREE DIGITAL RESOURCE</span>
-            <h3 class="buy-box__free-title">Get free project files</h3>
-            <p class="buy-box__free-desc">
-              Enter your email and we'll instantly send you the full resource download link. No spam, ever.
-            </p>
-
-            <form class="buy-box__form" id="free-claim-form" onsubmit="return false;">
-              <div class="buy-box__field">
-                <label for="buy-email" class="buy-box__label">Your email address</label>
-                <input
-                  type="email"
-                  id="buy-email"
-                  class="buy-box__input"
-                  placeholder="name@example.com"
-                  required
-                  autocomplete="email"
-                />
-              </div>
-
-              <button type="button" class="btn-buy-action btn-buy-action--free" id="btn-free-submit">
-                <Icon name="download" size={16} /> Get free files &rarr;
-              </button>
-            </form>
-
-            <div class="buy-box__trust">
-              <div class="trust-item">
-                <Icon name="check-circle" size={14} /> Instant download link sent to your inbox
-              </div>
-              <div class="trust-item">
-                <Icon name="shield" size={14} /> 100% free open resource &middot; no payment needed
-              </div>
-            </div>
-          </div>
-        )}
+        </aside>
       </div>
-    </aside>
-  </section>
-
-  <!-- STICKY SECTION NAV PILLS (Desktop Only) -->
-  <nav class="p-secnav desktop-pack-only" id="sticky-secnav" aria-label="Page sections">
-    <div class="container p-secnav__inner">
-      <a href="#overview" class="p-secnav__link is-active">Overview</a>
-      {hasBom && <a href="#parts" class="p-secnav__link">Parts list</a>}
-      {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
-        <a href="#wiring" class="p-secnav__link">Wiring</a>
-      )}
-      {project.steps?.length > 0 && <a href="#steps" class="p-secnav__link">Build steps</a>}
-      {project.troubleshooting?.length > 0 && (
-        <a href="#troubleshooting" class="p-secnav__link">Troubleshooting</a>
-      )}
-      {uniqueFiles.length > 0 && <a href="#files" class="p-secnav__link">Files included</a>}
-      {faqs.length > 0 && <a href="#faq" class="p-secnav__link">FAQ</a>}
     </div>
-  </nav>
+  </div>
 
-  <!-- MOBILE PACK CHROME (<= 768px, media_1791876192118_f7595c00.png) -->
-  <div class="m-pack-header m-pack-only">
-    <!-- Top Bar: Back to Category + Share Button -->
-    <div class="m-pack-topbar">
-      <a href={`/projects?cat=${encodeURIComponent(project.category || 'All')}`} class="m-pack-back">
+  <!-- ==================== MOBILE SHELL (<= 768px, media_1791876192118_f7595c00.png) ==================== -->
+  <div class="mobile-pack-wrap m-pack-only">
+    <!-- Top Bar: Back to Category + Share Icon -->
+    <div class="m-topbar">
+      <a href={`/projects?cat=${encodeURIComponent(project.category || 'All')}`} class="m-topbar-back">
         <Icon name="chevron-left" size={20} />
-        <span>{project.category || 'Projects'}</span>
+        <span>{project.category || 'Electronics'}</span>
       </a>
-      <button type="button" class="m-pack-share-btn" id="btn-pack-share" aria-label="Share project">
+      <button type="button" class="m-topbar-share" id="btn-m-share" aria-label="Share project">
         <Icon name="share" size={20} />
       </button>
     </div>
 
-    <!-- Full-bleed Swipe Gallery with 1 / N Counter -->
-    <div class="m-pack-gallery-wrap">
-      <div class="m-pack-gallery" id="m-pack-gallery">
-        {mobileSlides.map((slide, idx) => (
-          <div class="m-pack-slide">
-            {slide.type === 'yt' ? (
-              <div class="m-pack-yt-wrap">
-                <lite-youtube videoid={slide.ytId}></lite-youtube>
+    <!-- Full-Bleed Swipe Gallery with 1 / N Pill Counter -->
+    <div class="m-gallery-container">
+      <div class="m-gallery-scroll" id="m-gallery-scroll">
+        {mobileSlides.map((s, idx) => (
+          <div class="m-gallery-slide">
+            {s.type === 'yt' ? (
+              <div class="m-slide-yt">
+                <lite-youtube videoid={s.ytId}></lite-youtube>
               </div>
-            ) : slide.type === 'model' ? (
+            ) : s.type === 'model' ? (
               <model-viewer
-                src={slide.url}
+                src={s.url}
                 camera-controls
                 auto-rotate
                 shadow-intensity="1"
                 exposure="1.2"
-                class="m-pack-model"
-                alt={`3D model of ${project.title}`}
+                class="m-slide-model"
+                alt={`3D Model of ${project.title}`}
               ></model-viewer>
             ) : (
               <img
-                src={slide.url}
-                alt={slide.caption || project.title}
+                src={s.url}
+                alt={s.caption || project.title}
                 width="800"
-                height="500"
+                height="450"
                 loading={idx === 0 ? 'eager' : 'lazy'}
-                class="m-pack-img"
+                class="m-slide-img"
               />
             )}
           </div>
         ))}
       </div>
       {mobileSlides.length > 1 && (
-        <div class="m-pack-gallery-counter" id="m-pack-gallery-counter">
+        <div class="m-gallery-pill" id="m-gallery-pill">
           1 / {mobileSlides.length}
         </div>
       )}
     </div>
 
     <!-- Title, Chips & Summary -->
-    <div class="m-pack-meta-block">
-      <h1 class="m-pack-title">{project.title}</h1>
+    <div class="m-info-block">
+      <h1 class="m-title">{project.title}</h1>
 
-      <div class="m-pack-chips-row">
+      <div class="m-chips-row">
         {project.difficulty && (
-          <span class="m-pack-chip">{project.difficulty}</span>
+          <span class="m-chip">{project.difficulty}</span>
         )}
-        <span class="m-pack-chip">{project.build_time || '2 hrs'}</span>
+        <span class="m-chip">{project.build_time || '2 hrs'}</span>
         {estCost > 0 && (
-          <span class="m-pack-chip m-pack-chip--cost">Core cost &asymp; {formatINR(estCost)}</span>
+          <span class="m-chip">Core cost &asymp; {formatINR(estCost)}</span>
         )}
       </div>
 
       {project.summary && (
-        <p class="m-pack-summary">{project.summary}</p>
+        <p class="m-summary">{project.summary}</p>
       )}
     </div>
 
-    <!-- Sticky Tab Chips: Overview, Parts list, Wiring, Build steps -->
-    <nav class="m-pack-tabs-nav" id="m-sticky-tabs" aria-label="Page sections">
-      <div class="m-pack-tabs-track">
-        <a href="#overview" class="m-pack-tab-chip is-active" data-sec="overview">Overview</a>
-        {hasBom && <a href="#parts" class="m-pack-tab-chip" data-sec="parts">Parts list</a>}
+    <!-- Sticky Tab Chips Track (Overview, Parts list, Wiring, Build steps) -->
+    <nav class="m-sticky-chips-nav" id="m-sticky-chips" aria-label="Sections">
+      <div class="m-chips-track">
+        <button type="button" class="m-chip-btn is-active" data-mobile-tab="overview">
+          Overview
+        </button>
+        {hasBom && (
+          <button type="button" class="m-chip-btn" data-mobile-tab="parts">
+            Parts list
+          </button>
+        )}
         {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
-          <a href="#wiring" class="m-pack-tab-chip" data-sec="wiring">Wiring</a>
+          <button type="button" class="m-chip-btn" data-mobile-tab="wiring">
+            Wiring
+          </button>
         )}
         {project.steps?.length > 0 && (
-          <a href="#steps" class="m-pack-tab-chip" data-sec="steps">Build steps</a>
+          <button type="button" class="m-chip-btn" data-mobile-tab="steps">
+            Build steps
+          </button>
         )}
       </div>
     </nav>
-  </div>
 
-  <!-- MAIN CONTENT CONTAINER -->
-  <main class="p-content container">
-    <!-- 1. OVERVIEW -->
-    <section class="p-sec" id="overview">
-      <h2 class="p-sec__title">Overview</h2>
-
-      <!-- Safety Alert Box (if present) -->
-      {safetyHtml && (
-        <aside class="p-safety-box" role="alert">
-          <div class="p-safety-box__header">
-            <Icon name="shield" size={20} />
-            <h3 class="p-safety-box__title">Safety first &mdash; read before building</h3>
-          </div>
-          <div class="p-safety-box__body prose" set:html={safetyHtml}></div>
-        </aside>
-      )}
-
-      <!-- Description Markdown -->
-      <div class="prose p-overview-body" set:html={descHtml}></div>
-
-      <!-- Outcomes list (if present) -->
-      {outcomes.length > 0 && (
-        <div class="p-outcomes">
-          <h3 class="p-subhead">What you'll build & learn</h3>
-          <ul class="p-check-list">
-            {outcomes.map((o: string) => (
-              <li>
-                <Icon name="check-circle" size={16} /> <span>{o}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <!-- Prerequisites & Not Included (if present) -->
-      {(prereqs.length > 0 || notIncluded.length > 0) && (
-        <div class="p-prereqs-grid">
-          {prereqs.length > 0 && (
-            <div class="p-panel">
-              <h4 class="p-panel__title"><Icon name="doc" size={16} /> Prerequisites</h4>
-              <ul class="p-bullet-list">
-                {prereqs.map((p: string) => <li>{p}</li>)}
-              </ul>
-            </div>
-          )}
-          {notIncluded.length > 0 && (
-            <div class="p-panel">
-              <h4 class="p-panel__title"><Icon name="info" size={16} /> Not included in this pack</h4>
-              <ul class="p-bullet-list">
-                {notIncluded.map((n: string) => <li>{n}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-
-    <!-- 2. PARTS LIST (BOM) -->
-    {hasBom && (
-      <section class="p-sec" id="parts">
-        <h2 class="p-sec__title">Parts list & components</h2>
-        <BomTable items={project.bom} costChecked={project.cost_checked} />
-      </section>
-    )}
-
-    <!-- 3. WIRING & CONNECTIONS -->
-    {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
-      <section class="p-sec" id="wiring">
-        <h2 class="p-sec__title">Wiring & connections</h2>
-
-        <!-- Wiring Diagram Images (if present) -->
-        {project.wiring_diagrams && project.wiring_diagrams.length > 0 && (
-          <div class="p-wiring-diagrams">
-            {project.wiring_diagrams.map((d) => (
-              <figure class="p-wiring-diagram">
-                <img src={d.url} alt={d.label || 'Wiring diagram'} loading="lazy" />
-                {d.label && <figcaption class="p-wiring-diagram__cap">{d.label}</figcaption>}
-              </figure>
-            ))}
+    <!-- Mobile Panel Contents -->
+    <div class="m-content-panels">
+      <!-- 1. OVERVIEW (Mobile) -->
+      <div class="m-panel is-active" id="m-panel-overview" data-m-panel="overview">
+        {safetyHtml && (
+          <div class="m-safety-card">
+            <span class="m-safety-bold">Safety first, read before building.</span>
+            <div class="m-safety-text prose" set:html={safetyHtml}></div>
           </div>
         )}
 
-        <!-- Pin Tables by Module -->
-        {Object.entries(groupedPins).map(([moduleName, pins]) => (
-          <div class="p-pin-module">
-            <h3 class="p-pin-module__title">{moduleName} Connections</h3>
-            
-            <!-- Desktop Table -->
-            <div class="p-table-wrap p-wiring-desktop">
-              <table class="p-table">
-                <thead>
-                  <tr>
-                    <th>From Pin / Component</th>
-                    <th>To Pin / Board</th>
-                    <th>Connection Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pins.map((p) => (
-                    <tr>
-                      <td class="font-mono font-bold">{p.from_pin}</td>
-                      <td class="font-mono">{p.to_pin}</td>
-                      <td class="text-ink-2">{p.note || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Mobile Wiring Cards (Item 8) -->
-            <div class="p-wiring-mobile">
-              {pins.map((p) => (
-                <div class="p-pin-card">
-                  <div class="p-pin-card__connection">
-                    <span class="p-pin-from font-mono">{p.from_pin}</span>
-                    <span class="p-pin-arrow">&rarr;</span>
-                    <span class="p-pin-to font-mono">{p.to_pin}</span>
-                  </div>
-                  {p.note && p.note !== '—' && (
-                    <div class="p-pin-card__note">{p.note}</div>
-                  )}
+        {outcomes.length > 0 && (
+          <div class="m-outcomes-block">
+            <h3 class="m-section-heading">What you will build and learn</h3>
+            <div class="m-outcomes-list">
+              {outcomes.map((item: string) => (
+                <div class="m-outcome-item">
+                  <span class="m-outcome-check"><Icon name="check-circle" size={16} /></span>
+                  <span>{item}</span>
                 </div>
               ))}
             </div>
           </div>
-        ))}
-      </section>
-    )}
+        )}
 
-    <!-- 4. BUILD STEPS -->
-    {project.steps?.length > 0 && (
-      <section class="p-sec" id="steps">
-        <h2 class="p-sec__title">Build steps</h2>
-
-        <!-- Mobile Steps Progress Card (<= 768px) -->
-        <div class="m-steps-progress-card m-pack-only">
-          <div class="m-steps-progress-header">
-            <span class="m-steps-progress-title" id="m-steps-prog-title">0 of {project.steps.length} steps completed</span>
-            <span class="m-steps-progress-pct" id="m-steps-prog-pct">0%</span>
+        {prereqs.length > 0 && (
+          <div class="m-prereqs-card">
+            <h4 class="m-prereqs-title">Prerequisites</h4>
+            <p class="m-prereqs-body">{prereqs.join(', ')}</p>
           </div>
-          <div class="m-steps-progress-track">
-            <div class="m-steps-progress-fill" id="m-steps-prog-fill" style="width: 0%;"></div>
-          </div>
+        )}
+
+        {descHtml && (
+          <div class="m-desc-prose prose" set:html={descHtml}></div>
+        )}
+      </div>
+
+      <!-- 2. PARTS LIST (Mobile, media_1791876192124_8bdf7be7.png) -->
+      {hasBom && (
+        <div class="m-panel" id="m-panel-parts" data-m-panel="parts" hidden>
+          <BomTable items={project.bom} costChecked={project.cost_checked} />
         </div>
+      )}
 
-        <div class="p-steps-list">
-          {project.steps.map((s, i) => (
-            <article class:list={['p-step-card', { 'is-open': i === 0 }]} data-step-index={i}>
-              <div class="p-step-card__header" data-step-toggle={i}>
-                <span class="p-step-badge">{i + 1}</span>
-                <div class="p-step-card__title-wrap">
-                  <h3 class="p-step-card__title">{s.title}</h3>
-                  {s.goal && <p class="p-step-card__goal">Goal: {s.goal}</p>}
-                </div>
-                {s.time_est && (
-                  <span class="p-step-time"><Icon name="clock" size={13} /> {s.time_est}</span>
-                )}
-                <span class="m-step-chevron m-pack-only">
-                  <Icon name="chevron-down" size={18} />
-                </span>
-              </div>
-
-              <div class="p-step-card__body">
-                {s.image_url && (
-                  <div class="p-step-card__media">
-                    <img src={s.image_url} alt={s.title} loading="lazy" />
-                  </div>
-                )}
-                <div class="prose" set:html={s.body}></div>
-
-                {s.expected_res && (
-                  <div class="p-step-res p-step-res--ok">
-                    <Icon name="check-circle" size={16} />
-                    <div>
-                      <strong>Expected result:</strong> {s.expected_res}
-                    </div>
-                  </div>
-                )}
-
-                {s.if_fails && (
-                  <div class="p-step-res p-step-res--warn">
-                    <Icon name="help-circle" size={16} />
-                    <div>
-                      <strong>If it fails:</strong> {s.if_fails}
-                    </div>
-                  </div>
-                )}
-
-                <div class="p-step-check">
-                  <label class="p-step-check__label">
-                    <input type="checkbox" class="step-progress-check" data-step-id={s.id || i} />
-                    <span>Step completed</span>
-                  </label>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-    )}
-
-    <!-- 5. TROUBLESHOOTING -->
-    {project.troubleshooting?.length > 0 && (
-      <section class="p-sec" id="troubleshooting">
-        <h2 class="p-sec__title">Troubleshooting</h2>
-        <TroubleTable items={project.troubleshooting} />
-      </section>
-    )}
-
-    <!-- 6. FILES INCLUDED -->
-    {uniqueFiles.length > 0 && (
-      <section class="p-sec" id="files">
-        <h2 class="p-sec__title">Files included</h2>
-        <p class="p-sec__subtext">
-          {paid
-            ? 'Complete digital asset bundle delivered to your email immediately upon checkout.'
-            : 'Available for immediate free download.'}
-        </p>
-
-        <div class="p-files-grid">
-          {uniqueFiles.map((f: any) => {
-            const sz = formatBytes(f.size_bytes);
-            return (
-              <div class="p-file-item">
-                <div class="p-file-item__icon">
-                  <Icon
-                    name={
-                      f.kind === 'code' || f.kind === 'hex' || f.kind === 'sketch'
-                        ? 'code'
-                        : f.kind === 'schematic'
-                        ? 'schematic'
-                        : f.kind === 'model' || f.kind === '3d'
-                        ? 'cube'
-                        : 'doc'
-                    }
-                    size={22}
-                  />
-                </div>
-                <div class="p-file-item__info">
-                  <span class="p-file-item__name">{f.cleanLabel}</span>
-                  <div class="p-file-item__meta">
-                    <span class="p-file-item__kind">
-                      {FILE_KINDS.find((x) => x.key === f.kind)?.label ?? (f.kind || 'File')}
-                    </span>
-                    {sz && <span class="p-file-item__size">&middot; {sz}</span>}
-                  </div>
-                </div>
-
-                <div class="p-file-item__action">
-                  {f.is_free === 1 ? (
-                    <a href={`/api/download/free/${f.id}`} class="btn-file-dl" download>
-                      Download <Icon name="download" size={13} />
-                    </a>
-                  ) : (
-                    <span class="file-pack-badge">Pack file</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-    )}
-
-    <!-- 7. CODE & LICENSE -->
-    {(project.code_repo_url || project.license) && (
-      <section class="p-sec" id="license">
-        <h2 class="p-sec__title">Code & license</h2>
-        <div class="p-license-row">
-          {project.code_repo_url && (
-            <a
-              href={project.code_repo_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn-license-link"
-            >
-              <Icon name="github" size={18} /> Open Source GitHub Repository
-            </a>
-          )}
-          {project.license && (
-            <div class="p-license-badge">
-              <Icon name="doc" size={16} /> License: <strong>{project.license}</strong>
+      <!-- 3. WIRING (Mobile) -->
+      {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
+        <div class="m-panel" id="m-panel-wiring" data-m-panel="wiring" hidden>
+          <h3 class="m-section-heading">Wiring connections</h3>
+          {project.wiring_diagrams && project.wiring_diagrams.length > 0 && (
+            <div class="m-wiring-imgs">
+              {project.wiring_diagrams.map((d) => (
+                <figure class="m-wiring-fig">
+                  <img src={d.url} alt={d.label || 'Wiring diagram'} loading="lazy" />
+                  {d.label && <figcaption>{d.label}</figcaption>}
+                </figure>
+              ))}
             </div>
           )}
-        </div>
-      </section>
-    )}
 
-    <!-- 8. FAQ -->
-    {faqs.length > 0 && (
-      <section class="p-sec" id="faq">
-        <h2 class="p-sec__title">Frequently asked questions</h2>
-        <div class="p-faq-list">
-          {faqs.map((f: { q: string; a: string }) => (
-            <details class="p-faq-item">
-              <summary class="p-faq-q">
-                <span>{f.q}</span>
-                <Icon name="chevron-down" size={16} />
-              </summary>
-              <div class="p-faq-a prose">
-                <p>{f.a}</p>
+          {Object.entries(groupedPins).map(([moduleName, pins]) => (
+            <div class="m-pin-module-section">
+              <h4 class="m-pin-module-h4">{moduleName}</h4>
+              <div class="m-pin-cards">
+                {pins.map((p) => (
+                  <div class="m-pin-card">
+                    <div class="m-pin-row">
+                      <span class="m-pin-name font-mono">{p.from_pin}</span>
+                      <span class="m-pin-arrow">&rarr;</span>
+                      <span class="m-pin-dest font-mono">{p.to_pin}</span>
+                    </div>
+                    {p.note && p.note !== '—' && (
+                      <div class="m-pin-note">{p.note}</div>
+                    )}
+                  </div>
+                ))}
               </div>
-            </details>
+            </div>
           ))}
         </div>
-      </section>
-    )}
+      )}
 
-    <!-- AUTHOR & SUPPORT BLOCK -->
-    <section class="p-author-block">
-      <div class="p-author-img-wrap">
-        <img
-          src="/brand/profile.jpg"
-          alt="Triveni"
-          width="120"
-          height="120"
-          class="p-author-img"
-          loading="lazy"
-        />
-      </div>
-      <div class="p-author-content">
-        <span class="p-author-label">CREATOR & ENGINEER</span>
-        <h3 class="p-author-title">Built and tested by Triveni</h3>
-        <p class="p-author-text">
-          Every schematic, line of code, and 3D model in this pack was built, tested, and verified on real bench hardware in the Technical Triveni workshop. Need assistance or running into a tricky bring-up issue? Drop me an email anytime.
-        </p>
-        <a href="mailto:technicaltriveniyt@gmail.com" class="p-author-email">
-          <Icon name="mail" size={15} /> technicaltriveniyt@gmail.com
-        </a>
-      </div>
-    </section>
+      <!-- 4. BUILD STEPS (Mobile) -->
+      {project.steps?.length > 0 && (
+        <div class="m-panel" id="m-panel-steps" data-m-panel="steps" hidden>
+          <div class="m-steps-progress-box">
+            <div class="m-steps-prog-top">
+              <span class="m-steps-prog-title" id="m-prog-title">0 of {project.steps.length} steps completed</span>
+              <span class="m-steps-prog-pct" id="m-prog-pct">0%</span>
+            </div>
+            <div class="m-steps-prog-track">
+              <div class="m-steps-prog-fill" id="m-prog-fill" style="width: 0%;"></div>
+            </div>
+          </div>
 
-    <!-- RELATED PACKS -->
-    {relatedPacks.length > 0 && (
-      <section class="p-related-section">
-        <h2 class="p-sec__title">Other project packs you might like</h2>
+          <div class="m-steps-stack">
+            {project.steps.map((s, i) => (
+              <article class:list={['m-step-card', { 'is-open': i === 0 }]} data-m-step-id={s.id || i}>
+                <div class="m-step-card__head">
+                  <span class="m-step-pill">{i + 1}</span>
+                  <div class="m-step-title-col">
+                    <h4 class="m-step-name">{s.title}</h4>
+                    {s.goal && <p class="m-step-goal">Goal: {s.goal}</p>}
+                  </div>
+                  <span class="m-step-chevron"><Icon name="chevron-down" size={16} /></span>
+                </div>
+
+                <div class="m-step-card__body">
+                  {s.image_url && (
+                    <div class="m-step-img"><img src={s.image_url} alt={s.title} loading="lazy" /></div>
+                  )}
+                  <div class="prose" set:html={s.body}></div>
+
+                  {s.expected_res && (
+                    <div class="m-step-alert m-step-alert--ok">
+                      <Icon name="check-circle" size={15} />
+                      <div><strong>Expected:</strong> {s.expected_res}</div>
+                    </div>
+                  )}
+
+                  {s.if_fails && (
+                    <div class="m-step-alert m-step-alert--warn">
+                      <Icon name="help-circle" size={15} />
+                      <div><strong>If fails:</strong> {s.if_fails}</div>
+                    </div>
+                  )}
+
+                  <div class="m-step-check-row">
+                    <label class="m-step-check-label">
+                      <input type="checkbox" class="step-progress-check m-step-check-box" data-step-id={s.id || i} />
+                      <span>Step completed</span>
+                    </label>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    <!-- Sticky Bottom Bar (media_1791876192118_f7595c00.png) -->
+    <div class="m-sticky-bottom-bar">
+      <div class="m-sticky-price-col">
+        <span class="m-sticky-price">{paid ? formatINR(project.price_inr) : 'Free'}</span>
+        <span class="m-sticky-sub">One-time, instant access</span>
+      </div>
+      <button type="button" class="btn-m-buy" id="btn-open-m-sheet">
+        {paid ? 'Buy pack' : 'Get free files'}
+      </button>
+    </div>
+
+    <!-- Bottom Sheet Modal (media_1791876192114_cad8732e.png) -->
+    <div class="m-sheet-overlay" id="m-sheet-overlay" aria-hidden="true">
+      <div class="m-sheet-panel" id="m-sheet-panel" role="dialog" aria-modal="true">
+        <div class="m-sheet-handle-wrap">
+          <div class="m-sheet-handle"></div>
+        </div>
+
+        <div class="m-sheet-header-row">
+          <div class="m-sheet-title-col">
+            <span class="m-sheet-eyebrow">{paid ? 'Digital project pack' : 'Free digital resource'}</span>
+            <div class="m-sheet-price-lead">
+              <span class="m-sheet-price">{paid ? formatINR(project.price_inr) : 'Free'}</span>
+              <span class="m-sheet-price-sub">one-time, instant access</span>
+            </div>
+          </div>
+          <button type="button" class="m-sheet-close-btn" id="btn-close-m-sheet" aria-label="Close modal">
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+
+        <div class="m-sheet-bullets">
+          <div class="m-sheet-bullet">
+            <span class="m-sheet-b-icon"><Icon name="code" size={15} /></span>
+            <span>{codeCount > 0 ? codeCount : 2} tested source code files</span>
+          </div>
+          <div class="m-sheet-bullet">
+            <span class="m-sheet-b-icon"><Icon name="cart" size={15} /></span>
+            <span>Verified parts list with direct buy links</span>
+          </div>
+        </div>
+
+        <form class="m-sheet-form" id="m-sheet-checkout-form" onsubmit="return false;">
+          <div class="m-sheet-field">
+            <label for="m-sheet-email" class="m-sheet-label">Your email address</label>
+            <input
+              type="email"
+              id="m-sheet-email"
+              class="m-sheet-input"
+              placeholder="name@example.com"
+              required
+              autocomplete="email"
+            />
+          </div>
+
+          {paid && (
+            <div class="m-sheet-coupon-wrap">
+              <button type="button" class="m-sheet-coupon-toggle" id="btn-m-coupon-toggle">
+                Have a discount code?
+              </button>
+              <div class="m-sheet-coupon-input-wrap" id="m-coupon-box" hidden>
+                <input
+                  type="text"
+                  id="m-sheet-coupon-input"
+                  class="m-sheet-input m-sheet-input--sm"
+                  placeholder="Discount code"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+          )}
+
+          <button type="button" class="btn-m-sheet-pay" id="btn-m-sheet-submit">
+            {paid ? (
+              <><Icon name="lock" size={16} /> Pay {formatINR(project.price_inr)}</>
+            ) : (
+              <><Icon name="download" size={16} /> Get free files &rarr;</>
+            )}
+          </button>
+        </form>
+
+        <div class="m-sheet-trust-lines">
+          <div class="m-trust-item">Secure checkout via Razorpay: UPI, cards, net banking</div>
+          <div class="m-trust-item">7-day build guarantee, direct email support</div>
+          <div class="m-trust-item">Download link sent to your email right away</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== RELATED PACKS SECTION (Full Width) ==================== -->
+  {relatedPacks.length > 0 && (
+    <section class="p-related-section">
+      <div class="container">
+        <h2 class="p-related-h2">Other project packs you might like</h2>
         <div class="p-related-grid">
           {relatedPacks.map((p) => (
             <ProjectCard project={p} />
           ))}
         </div>
-      </section>
-    )}
-  </main>
-
-  <!-- MOBILE STICKY BOTTOM BAR (media_1791876192118_f7595c00.png) -->
-  <div class="m-sticky-bar m-pack-only" id="m-sticky-bar">
-    <div class="m-sticky-bar__info">
-      <span class="m-sticky-bar__price">
-        {paid ? formatINR(project.price_inr) : 'Free'}
-      </span>
-      <span class="m-sticky-bar__sub">One-time, instant access</span>
-    </div>
-    <button type="button" class="btn-m-sheet-open" id="btn-open-buy-sheet">
-      {paid ? 'Buy pack' : 'Get free files'}
-    </button>
-  </div>
-
-  <!-- MOBILE BUY PACK BOTTOM SHEET MODAL (media_1791876192114_cad8732e.png) -->
-  <div class="m-sheet-backdrop m-pack-only" id="m-sheet-backdrop" aria-hidden="true">
-    <div class="m-sheet-modal" id="m-sheet-modal" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <div class="m-sheet-handle-bar">
-        <div class="m-sheet-handle"></div>
       </div>
-
-      <div class="m-sheet-header">
-        <div class="m-sheet-header__info">
-          <span class="m-sheet-tag">{paid ? 'Digital project pack' : 'Free digital resource'}</span>
-          <div class="m-sheet-price-row">
-            <span class="m-sheet-price" id="sheet-title">{paid ? formatINR(project.price_inr) : 'Free'}</span>
-            <span class="m-sheet-price-sub">one-time, instant access</span>
-          </div>
-        </div>
-        <button type="button" class="m-sheet-close" id="btn-close-buy-sheet" aria-label="Close modal">
-          <Icon name="close" size={18} />
-        </button>
-      </div>
-
-      <!-- Feature highlights with red icons -->
-      <div class="m-sheet-highlights">
-        <div class="m-sheet-highlight">
-          <span class="m-sheet-hl-icon"><Icon name="code" size={16} /></span>
-          <span class="m-sheet-hl-text">{codeCount > 0 ? codeCount : (uniqueFiles.length || 2)} tested source code {codeCount === 1 ? 'file' : 'files'}</span>
-        </div>
-        <div class="m-sheet-highlight">
-          <span class="m-sheet-hl-icon"><Icon name="cart" size={16} /></span>
-          <span class="m-sheet-hl-text">Verified parts list with direct buy links</span>
-        </div>
-      </div>
-
-      <!-- Checkout Form -->
-      <form class="m-sheet-form" id="m-sheet-form" onsubmit="return false;">
-        <div class="m-sheet-field">
-          <label for="m-sheet-email" class="m-sheet-label">Your email address</label>
-          <input
-            type="email"
-            id="m-sheet-email"
-            class="m-sheet-input"
-            placeholder="name@example.com"
-            required
-            autocomplete="email"
-          />
-        </div>
-
-        {paid && (
-          <div class="m-sheet-coupon-section">
-            <button type="button" class="m-sheet-coupon-toggle" id="btn-toggle-coupon">
-              Have a discount code?
-            </button>
-            <div class="m-sheet-coupon-box" id="m-sheet-coupon-box" hidden>
-              <input
-                type="text"
-                id="m-sheet-coupon-input"
-                class="m-sheet-input m-sheet-input--sm"
-                placeholder="Discount code"
-                autocomplete="off"
-              />
-            </div>
-          </div>
-        )}
-
-        <button type="button" class="btn-m-sheet-submit" id="btn-m-sheet-submit">
-          {paid ? (
-            <><Icon name="lock" size={16} /> Pay {formatINR(project.price_inr)}</>
-          ) : (
-            <><Icon name="download" size={16} /> Get free files &rarr;</>
-          )}
-        </button>
-      </form>
-
-      <!-- Trust lines -->
-      <div class="m-sheet-trust">
-        <div class="m-sheet-trust-line">
-          Secure checkout via Razorpay: UPI, cards, net banking
-        </div>
-        <div class="m-sheet-trust-line">
-          7-day build guarantee, direct email support
-        </div>
-        <div class="m-sheet-trust-line">
-          Download link sent to your email right away
-        </div>
-      </div>
-    </div>
-  </div>
+    </section>
+  )}
 </div>
 
 <script>
-  // Desktop Media Viewer thumbnail switcher
-  const stage = document.getElementById('media-stage');
+  // ==================== TAB SWITCHING (Desktop & Mobile) ====================
+  const desktopTabBtns = document.querySelectorAll<HTMLButtonElement>('.p-tab-btn');
+  const desktopPanels = document.querySelectorAll<HTMLElement>('[data-tab-panel]');
+  const mobileTabBtns = document.querySelectorAll<HTMLButtonElement>('.m-chip-btn');
+  const mobilePanels = document.querySelectorAll<HTMLElement>('[data-m-panel]');
+
+  function activateTab(tabKey: string) {
+    // Desktop tabs & panels
+    desktopTabBtns.forEach((btn) => {
+      const active = btn.dataset.tabTarget === tabKey;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    desktopPanels.forEach((panel) => {
+      const match = panel.dataset.tabPanel === tabKey;
+      panel.hidden = !match;
+      panel.classList.toggle('is-active', match);
+    });
+
+    // Mobile tabs & panels
+    mobileTabBtns.forEach((btn) => {
+      const active = btn.dataset.mobileTab === tabKey;
+      btn.classList.toggle('is-active', active);
+    });
+    mobilePanels.forEach((panel) => {
+      const match = panel.dataset.mPanel === tabKey;
+      panel.hidden = !match;
+      panel.classList.toggle('is-active', match);
+    });
+  }
+
+  desktopTabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tabTarget) activateTab(btn.dataset.tabTarget);
+    });
+  });
+
+  mobileTabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.mobileTab) activateTab(btn.dataset.mobileTab);
+    });
+  });
+
+  // ==================== DESKTOP GALLERY THUMBNAILS ====================
+  const mediaStage = document.getElementById('media-stage');
   const thumbBtns = document.querySelectorAll<HTMLButtonElement>('.p-thumb-btn');
 
   thumbBtns.forEach((btn) => {
@@ -920,118 +951,62 @@ const lastUpdated = formatDate(project.updated_at);
       const mediaUrl = btn.dataset.mediaUrl;
       const mediaType = btn.dataset.mediaType;
 
-      if (!stage) return;
-
+      if (!mediaStage) return;
       if (ytId) {
-        stage.innerHTML = `<div class="p-stage__yt"><lite-youtube videoid="${ytId}"></lite-youtube></div>`;
+        mediaStage.innerHTML = `<div class="p-stage__yt"><lite-youtube videoid="${ytId}"></lite-youtube></div>`;
       } else if (mediaType === 'model' && mediaUrl) {
-        stage.innerHTML = `<model-viewer src="${mediaUrl}" camera-controls auto-rotate shadow-intensity="1" exposure="1.2" class="p-stage__model"></model-viewer>`;
+        mediaStage.innerHTML = `<model-viewer src="${mediaUrl}" camera-controls auto-rotate shadow-intensity="1" exposure="1.2" class="p-stage__model"></model-viewer>`;
       } else if (mediaUrl) {
-        stage.innerHTML = `<img src="${mediaUrl}" alt="Project image" class="p-stage__img" width="800" height="500" />`;
+        mediaStage.innerHTML = `<img src="${mediaUrl}" alt="Project image" class="p-stage__img" width="800" height="450" />`;
       }
     });
   });
 
-  // Mobile Gallery Counter
-  const mGallery = document.getElementById('m-pack-gallery');
-  const mCounter = document.getElementById('m-pack-gallery-counter');
-  if (mGallery && mCounter) {
-    const slides = mGallery.querySelectorAll('.m-pack-slide');
+  // ==================== MOBILE GALLERY COUNTER ====================
+  const mGalleryScroll = document.getElementById('m-gallery-scroll');
+  const mGalleryPill = document.getElementById('m-gallery-pill');
+  if (mGalleryScroll && mGalleryPill) {
+    const slides = mGalleryScroll.querySelectorAll('.m-gallery-slide');
     const total = slides.length;
-    mGallery.addEventListener(
+    mGalleryScroll.addEventListener(
       'scroll',
       () => {
-        const slideW = mGallery.clientWidth || 1;
-        const idx = Math.min(total, Math.max(1, Math.round(mGallery.scrollLeft / slideW) + 1));
-        mCounter.textContent = `${idx} / ${total}`;
+        const slideW = mGalleryScroll.clientWidth || 1;
+        const idx = Math.min(total, Math.max(1, Math.round(mGalleryScroll.scrollLeft / slideW) + 1));
+        mGalleryPill.textContent = `${idx} / ${total}`;
       },
       { passive: true }
     );
   }
 
-  // Mobile Topbar Share
-  const shareBtn = document.getElementById('btn-pack-share');
-  if (shareBtn) {
-    shareBtn.addEventListener('click', async () => {
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: document.title,
-            url: window.location.href,
-          });
-        } catch {}
-      } else {
-        try {
-          await navigator.clipboard.writeText(window.location.href);
-          const toast = document.createElement('div');
-          toast.className = 'm-share-toast';
-          toast.textContent = 'Link copied to clipboard!';
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 2500);
-        } catch {
-          prompt('Copy link to share:', window.location.href);
-        }
+  // ==================== SHARE BUTTON ====================
+  const shareBtn = document.getElementById('btn-m-share');
+  shareBtn?.addEventListener('click', async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: document.title, url: window.location.href });
+      } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link copied to clipboard!');
+      } catch {
+        prompt('Copy project link:', window.location.href);
       }
-    });
-  }
-
-  // Section Nav active pill highlighting on scroll (both desktop and mobile)
-  const desktopSecLinks = document.querySelectorAll<HTMLAnchorElement>('.p-secnav__link');
-  const mobileTabChips = document.querySelectorAll<HTMLAnchorElement>('.m-pack-tab-chip');
-  const sections = document.querySelectorAll<HTMLElement>('.p-sec');
-
-  const highlightTabs = () => {
-    let currentId = '';
-    sections.forEach((sec) => {
-      const top = sec.offsetTop - 140;
-      if (window.scrollY >= top) {
-        currentId = sec.getAttribute('id') || '';
-      }
-    });
-    if (currentId) {
-      desktopSecLinks.forEach((link) => {
-        link.classList.toggle('is-active', link.getAttribute('href') === `#${currentId}`);
-      });
-      mobileTabChips.forEach((chip) => {
-        const isActive = chip.getAttribute('href') === `#${currentId}`;
-        chip.classList.toggle('is-active', isActive);
-        if (isActive && window.innerWidth <= 768) {
-          const track = chip.parentElement;
-          if (track) {
-            const scrollLeft = chip.offsetLeft - (track.clientWidth - chip.clientWidth) / 2;
-            track.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-          }
-        }
-      });
     }
-  };
-  window.addEventListener('scroll', highlightTabs, { passive: true });
-
-  // Mobile Tab Chips Click -> Smooth Scroll
-  mobileTabChips.forEach((chip) => {
-    chip.addEventListener('click', (e) => {
-      e.preventDefault();
-      const targetId = chip.getAttribute('href')?.replace('#', '');
-      const targetEl = targetId ? document.getElementById(targetId) : null;
-      if (targetEl) {
-        const yOffset = -110;
-        const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
-    });
   });
 
-  // Mobile Bottom Sheet Modal
-  const sheetBackdrop = document.getElementById('m-sheet-backdrop');
-  const openSheetBtn = document.getElementById('btn-open-buy-sheet');
-  const closeSheetBtn = document.getElementById('btn-close-buy-sheet');
-  const couponToggleBtn = document.getElementById('btn-toggle-coupon');
-  const couponBox = document.getElementById('m-sheet-coupon-box');
+  // ==================== MOBILE BOTTOM SHEET MODAL ====================
+  const sheetOverlay = document.getElementById('m-sheet-overlay');
+  const openSheetBtn = document.getElementById('btn-open-m-sheet');
+  const closeSheetBtn = document.getElementById('btn-close-m-sheet');
+  const mCouponToggle = document.getElementById('btn-m-coupon-toggle');
+  const mCouponBox = document.getElementById('m-coupon-box');
 
   const openSheet = () => {
-    if (sheetBackdrop) {
-      sheetBackdrop.classList.add('is-open');
-      sheetBackdrop.setAttribute('aria-hidden', 'false');
+    if (sheetOverlay) {
+      sheetOverlay.classList.add('is-open');
+      sheetOverlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
       const email = document.getElementById('m-sheet-email') as HTMLInputElement;
       if (email && !email.value) setTimeout(() => email.focus(), 300);
@@ -1039,96 +1014,111 @@ const lastUpdated = formatDate(project.updated_at);
   };
 
   const closeSheet = () => {
-    if (sheetBackdrop) {
-      sheetBackdrop.classList.remove('is-open');
-      sheetBackdrop.setAttribute('aria-hidden', 'true');
+    if (sheetOverlay) {
+      sheetOverlay.classList.remove('is-open');
+      sheetOverlay.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
     }
   };
 
   openSheetBtn?.addEventListener('click', openSheet);
   closeSheetBtn?.addEventListener('click', closeSheet);
-  sheetBackdrop?.addEventListener('click', (e) => {
-    if (e.target === sheetBackdrop) closeSheet();
+  sheetOverlay?.addEventListener('click', (e) => {
+    if (e.target === sheetOverlay) closeSheet();
   });
 
-  couponToggleBtn?.addEventListener('click', () => {
-    if (couponBox) {
-      const isHidden = couponBox.hasAttribute('hidden');
-      if (isHidden) couponBox.removeAttribute('hidden');
-      else couponBox.setAttribute('hidden', '');
+  mCouponToggle?.addEventListener('click', () => {
+    if (mCouponBox) {
+      mCouponBox.hidden = !mCouponBox.hidden;
     }
   });
 
-  // Step Completion Progress (persisted in localStorage)
-  const projBox = document.getElementById('main-buy-box');
-  const totalSteps = document.querySelectorAll('.p-step-card').length;
-  const mProgTitle = document.getElementById('m-steps-prog-title');
-  const mProgPct = document.getElementById('m-steps-prog-pct');
-  const mProgFill = document.getElementById('m-steps-prog-fill');
+  const desktopCouponToggle = document.getElementById('btn-desktop-coupon-toggle');
+  const desktopCouponBox = document.getElementById('desktop-coupon-box');
+  desktopCouponToggle?.addEventListener('click', () => {
+    if (desktopCouponBox) {
+      desktopCouponBox.hidden = !desktopCouponBox.hidden;
+    }
+  });
+
+  // ==================== STEP ACCORDION TOGGLE ====================
+  const accordions = document.querySelectorAll('.p-step-accordion, .m-step-card');
+  accordions.forEach((card) => {
+    const head = card.querySelector('.p-step-accordion__header, .m-step-card__head');
+    head?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+      card.classList.toggle('is-open');
+    });
+  });
+
+  // ==================== STEP COMPLETION PROGRESS (localStorage) ====================
+  const layoutRoot = document.querySelector<HTMLElement>('.project-layout');
+  const projectId = layoutRoot?.dataset.projectId || '0';
+  const totalSteps = document.querySelectorAll('.p-step-accordion, .m-step-card').length / (window.innerWidth <= 768 ? 1 : 2) || 1;
+
+  const deskProgTitle = document.getElementById('desktop-prog-title');
+  const deskProgPct = document.getElementById('desktop-prog-pct');
+  const deskProgFill = document.getElementById('desktop-prog-fill');
+  const mProgTitle = document.getElementById('m-prog-title');
+  const mProgPct = document.getElementById('m-prog-pct');
+  const mProgFill = document.getElementById('m-prog-fill');
 
   const updateProgressUI = (saved: string[]) => {
-    if (totalSteps > 0) {
-      const count = saved.length;
-      const pct = Math.round((count / totalSteps) * 100);
-      if (mProgTitle) mProgTitle.textContent = `${count} of ${totalSteps} steps completed`;
-      if (mProgPct) mProgPct.textContent = `${pct}%`;
-      if (mProgFill) mProgFill.style.width = `${pct}%`;
-    }
+    const count = saved.length;
+    const pct = Math.min(100, Math.round((count / (totalSteps || 1)) * 100));
+    const titleText = `${count} of ${totalSteps} steps completed`;
+    const pctText = `${pct}%`;
+
+    if (deskProgTitle) deskProgTitle.textContent = titleText;
+    if (deskProgPct) deskProgPct.textContent = pctText;
+    if (deskProgFill) deskProgFill.style.width = pctText;
+
+    if (mProgTitle) mProgTitle.textContent = titleText;
+    if (mProgPct) mProgPct.textContent = pctText;
+    if (mProgFill) mProgFill.style.width = pctText;
   };
 
-  if (projBox && projBox.dataset.projectId) {
-    const storageKey = `tt-step-prog-${projBox.dataset.projectId}`;
-    let savedSteps: string[] = [];
-    try {
-      savedSteps = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    } catch {}
+  const stepStorageKey = `tt-step-prog-${projectId}`;
+  let savedStepIds: string[] = [];
+  try {
+    savedStepIds = JSON.parse(localStorage.getItem(stepStorageKey) || '[]');
+  } catch {}
 
-    const stepChecks = document.querySelectorAll<HTMLInputElement>('.step-progress-check');
-    stepChecks.forEach((cb) => {
-      const stepId = cb.dataset.stepId || '';
-      if (savedSteps.includes(stepId)) {
-        cb.checked = true;
-        cb.closest('.p-step-card')?.classList.add('is-completed');
+  const stepCheckboxes = document.querySelectorAll<HTMLInputElement>('.step-progress-check');
+  stepCheckboxes.forEach((cb) => {
+    const stepId = cb.dataset.stepId || '';
+    if (savedStepIds.includes(stepId)) {
+      cb.checked = true;
+      cb.closest('.p-step-accordion, .m-step-card')?.classList.add('is-completed');
+    }
+
+    cb.addEventListener('change', () => {
+      const card = cb.closest('.p-step-accordion, .m-step-card');
+      if (cb.checked) {
+        card?.classList.add('is-completed');
+        if (!savedStepIds.includes(stepId)) savedStepIds.push(stepId);
+      } else {
+        card?.classList.remove('is-completed');
+        savedStepIds = savedStepIds.filter((id) => id !== stepId);
       }
-
-      cb.addEventListener('change', () => {
-        const card = cb.closest('.p-step-card');
-        if (cb.checked) {
-          card?.classList.add('is-completed');
-          if (!savedSteps.includes(stepId)) savedSteps.push(stepId);
-        } else {
-          card?.classList.remove('is-completed');
-          savedSteps = savedSteps.filter((id) => id !== stepId);
+      try {
+        localStorage.setItem(stepStorageKey, JSON.stringify(savedStepIds));
+      } catch {}
+      updateProgressUI(savedStepIds);
+      // Synchronize other checkboxes with same stepId (e.g. mobile vs desktop)
+      stepCheckboxes.forEach((other) => {
+        if (other !== cb && other.dataset.stepId === stepId) {
+          other.checked = cb.checked;
+          other.closest('.p-step-accordion, .m-step-card')?.classList.toggle('is-completed', cb.checked);
         }
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(savedSteps));
-        } catch {}
-        updateProgressUI(savedSteps);
       });
     });
-
-    updateProgressUI(savedSteps);
-  }
-
-  // Mobile Step Header Collapsible Accordion
-  const stepHeaders = document.querySelectorAll<HTMLElement>('[data-step-toggle]');
-  stepHeaders.forEach((hdr) => {
-    hdr.addEventListener('click', (e) => {
-      if (window.innerWidth <= 768) {
-        // Prevent toggle if clicking checkbox directly
-        if ((e.target as HTMLElement).closest('.p-step-check')) return;
-        const card = hdr.closest('.p-step-card');
-        card?.classList.toggle('is-open');
-      }
-    });
   });
+  updateProgressUI(savedStepIds);
 
-  // Unified Checkout & Free Claim Engine
-  const buyBoxContainer = document.getElementById('main-buy-box');
-  const isPaid = buyBoxContainer?.dataset.paid === '1';
-  const projectId = parseInt(buyBoxContainer?.dataset.projectId || '0', 10);
-  const projectSlug = buyBoxContainer?.dataset.slug || 'Project Pack';
+  // ==================== CHECKOUT & FREE CLAIM ENGINE ====================
+  const isPaid = layoutRoot?.dataset.paid === '1';
+  const projectSlug = layoutRoot?.dataset.slug || 'Project Pack';
 
   async function handleFreeClaim(emailVal: string, btn: HTMLButtonElement, container: HTMLElement) {
     if (!emailVal || !emailVal.includes('@')) {
@@ -1143,7 +1133,7 @@ const lastUpdated = formatDate(project.updated_at);
       const res = await fetch('/api/download/free-claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, email: emailVal }),
+        body: JSON.stringify({ projectId: parseInt(projectId, 10), email: emailVal }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to claim download');
@@ -1153,7 +1143,7 @@ const lastUpdated = formatDate(project.updated_at);
           <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
           <h3 class="buy-success__title">Free files ready!</h3>
           <p class="buy-success__text">We just emailed the download link to <strong>${emailVal}</strong>.</p>
-          <a href="${data.redirect || '/account/downloads'}" class="btn-buy-action btn-buy-action--free">Download files now</a>
+          <a href="${data.redirect || '/account/downloads'}" class="btn-buy-primary" style="margin-top: 16px;">Download files now</a>
         </div>
       `;
     } catch (err: any) {
@@ -1176,7 +1166,7 @@ const lastUpdated = formatDate(project.updated_at);
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, email: emailVal, couponCode: couponVal }),
+        body: JSON.stringify({ projectId: parseInt(projectId, 10), email: emailVal, couponCode: couponVal }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
@@ -1187,7 +1177,7 @@ const lastUpdated = formatDate(project.updated_at);
             <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
             <h3 class="buy-success__title">You already own this pack!</h3>
             <p class="buy-success__text">We emailed the fresh download link to <strong>${emailVal}</strong>.</p>
-            <a href="/account/downloads" class="btn-buy-action">View my downloads</a>
+            <a href="/account/downloads" class="btn-buy-primary" style="margin-top: 16px;">View my downloads</a>
           </div>
         `;
         return;
@@ -1222,7 +1212,7 @@ const lastUpdated = formatDate(project.updated_at);
           }
         },
         prefill: { email: emailVal },
-        theme: { color: '#E92424' },
+        theme: { color: '#D91F26' },
       });
 
       rzp.on('payment.failed', function () {
@@ -1239,59 +1229,74 @@ const lastUpdated = formatDate(project.updated_at);
     }
   }
 
-  // Desktop Form Listeners
-  const desktopBuyBtn = document.getElementById('btn-buy-submit') as HTMLButtonElement;
-  const desktopFreeBtn = document.getElementById('btn-free-submit') as HTMLButtonElement;
-  if (desktopBuyBtn && buyBoxContainer) {
-    desktopBuyBtn.addEventListener('click', () => {
-      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
-      const couponInput = document.getElementById('coupon_code') as HTMLInputElement;
-      handlePaidCheckout(emailInput?.value?.trim() || '', couponInput?.value?.trim() || '', desktopBuyBtn, buyBoxContainer);
-    });
-  }
-  if (desktopFreeBtn && buyBoxContainer) {
-    desktopFreeBtn.addEventListener('click', () => {
-      const emailInput = document.getElementById('buy-email') as HTMLInputElement;
-      handleFreeClaim(emailInput?.value?.trim() || '', desktopFreeBtn, buyBoxContainer);
-    });
-  }
+  // Desktop submit listeners
+  const deskBuyBtn = document.getElementById('btn-desktop-buy-submit') as HTMLButtonElement;
+  const deskFreeBtn = document.getElementById('btn-desktop-free-submit') as HTMLButtonElement;
+  const deskCardBox = document.getElementById('main-buy-box');
 
-  // Mobile Bottom Sheet Listeners
-  const sheetSubmitBtn = document.getElementById('btn-m-sheet-submit') as HTMLButtonElement;
-  const sheetModal = document.getElementById('m-sheet-modal');
-  if (sheetSubmitBtn && sheetModal) {
-    sheetSubmitBtn.addEventListener('click', () => {
-      const emailInput = document.getElementById('m-sheet-email') as HTMLInputElement;
-      const couponInput = document.getElementById('m-sheet-coupon-input') as HTMLInputElement;
+  deskBuyBtn?.addEventListener('click', () => {
+    const email = (document.getElementById('desktop-buy-email') as HTMLInputElement)?.value?.trim();
+    const coupon = (document.getElementById('desktop-coupon-input') as HTMLInputElement)?.value?.trim();
+    if (deskCardBox) handlePaidCheckout(email, coupon, deskBuyBtn, deskCardBox);
+  });
+
+  deskFreeBtn?.addEventListener('click', () => {
+    const email = (document.getElementById('desktop-free-email') as HTMLInputElement)?.value?.trim();
+    if (deskCardBox) handleFreeClaim(email, deskFreeBtn, deskCardBox);
+  });
+
+  // Mobile submit listener
+  const mSheetSubmitBtn = document.getElementById('btn-m-sheet-submit') as HTMLButtonElement;
+  const mSheetPanel = document.getElementById('m-sheet-panel');
+
+  mSheetSubmitBtn?.addEventListener('click', () => {
+    const email = (document.getElementById('m-sheet-email') as HTMLInputElement)?.value?.trim();
+    const coupon = (document.getElementById('m-sheet-coupon-input') as HTMLInputElement)?.value?.trim();
+    if (mSheetPanel) {
       if (isPaid) {
-        handlePaidCheckout(emailInput?.value?.trim() || '', couponInput?.value?.trim() || '', sheetSubmitBtn, sheetModal);
+        handlePaidCheckout(email, coupon, mSheetSubmitBtn, mSheetPanel);
       } else {
-        handleFreeClaim(emailInput?.value?.trim() || '', sheetSubmitBtn, sheetModal);
+        handleFreeClaim(email, mSheetSubmitBtn, mSheetPanel);
       }
-    });
-  }
+    }
+  });
 </script>
 
 <style>
-  /* Base Project Layout */
+  /* ==================== GLOBAL TOKENS & SHELL ==================== */
   .project-layout {
-    background: var(--bg);
-    padding-bottom: 80px;
+    background: #FFFFFF;
+    color: var(--ink);
+    padding-bottom: 64px;
   }
 
-  /* Breadcrumbs */
+  .desktop-pack-only {
+    display: block;
+  }
+  .m-pack-only {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .desktop-pack-only {
+      display: none !important;
+    }
+    .m-pack-only {
+      display: block !important;
+    }
+  }
+
+  /* ==================== DESKTOP SHELL (>= 1024px) ==================== */
   .p-crumbs {
-    padding-top: 20px;
-    padding-bottom: 8px;
-    font-size: 13px;
-    color: var(--ink-3);
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 20px 0 12px;
   }
   .p-crumbs a {
-    color: var(--ink-2);
+    color: var(--muted);
     text-decoration: none;
     transition: color 150ms ease;
   }
@@ -1306,163 +1311,75 @@ const lastUpdated = formatDate(project.updated_at);
     font-weight: 500;
   }
 
-  @media (max-width: 640px) {
-    .p-crumbs {
-      padding-top: 14px;
-      padding-bottom: 6px;
-      font-size: 12px;
-      gap: 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex-wrap: nowrap;
-    }
-    .p-crumbs__cat {
-      max-width: 100px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .p-crumbs__sep--tail {
-      display: inline;
-    }
-    .p-crumbs__current {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 150px;
+  .p-desktop-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 48px;
+    align-items: start;
+    padding-bottom: 64px;
+  }
+
+  @media (max-width: 1023px) and (min-width: 769px) {
+    .p-desktop-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
     }
   }
 
-  /* Header Block */
-  .p-header {
-    padding-top: 10px;
-    padding-bottom: 20px;
-  }
-  @media (max-width: 640px) {
-    .p-header {
-      padding-top: 6px;
-      padding-bottom: 14px;
-    }
+  .p-header-block {
+    margin-bottom: 24px;
   }
   .p-eyebrow {
+    display: block;
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--red);
-    display: block;
     margin-bottom: 8px;
   }
   .p-title {
-    font-size: clamp(2rem, 1.2rem + 3.6vw, 3.75rem);
+    font-size: 34px;
     font-weight: 700;
-    line-height: 1.12;
+    line-height: 1.15;
     letter-spacing: -0.02em;
     color: var(--ink);
     margin: 0 0 12px;
   }
-  @media (max-width: 640px) {
-    .p-title {
-      font-size: 26px !important;
-      line-height: 1.2 !important;
-      margin: 0 0 8px !important;
-      letter-spacing: -0.01em !important;
-    }
-    .p-eyebrow {
-      font-size: 11px;
-      margin-bottom: 4px;
-    }
-  }
   .p-summary {
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.5;
-    color: var(--ink-2);
-    max-width: 820px;
+    color: var(--muted);
     margin: 0 0 16px;
   }
-  @media (max-width: 640px) {
-    .p-summary {
-      font-size: 15px;
-      line-height: 1.45;
-      margin: 0 0 12px;
-    }
-    .p-meta-bar {
-      padding-top: 10px;
-      gap: 10px;
-    }
-    .p-hero-grid {
-      padding-top: 10px;
-      padding-bottom: 24px;
-      gap: 16px;
-    }
-  }
-  .p-meta-bar {
+
+  .p-meta-chips {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
     flex-wrap: wrap;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-  }
-  .p-meta-text {
-    font-size: 14px;
-    color: var(--ink-3);
-    font-weight: 500;
-  }
-  .p-badges {
-    display: flex;
     gap: 8px;
-    flex-wrap: wrap;
   }
-  .p-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 4px 10px;
-    background: var(--bg-soft);
+  .p-meta-chip {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--r-chip);
-    color: var(--ink-2);
+    border-radius: 999px;
+    padding: 4px 14px;
   }
 
-  /* 7/5 Grid */
-  .p-hero-grid {
-    display: grid;
-    grid-template-columns: 7fr 5fr;
-    gap: 32px;
-    align-items: start;
-    padding-top: 16px;
-    padding-bottom: 40px;
-  }
-  @media (max-width: 900px) {
-    .p-hero-grid {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
-  }
-
-  /* Media Viewer */
-  .p-viewer {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
-    max-width: 100%;
-    width: 100%;
+  /* Gallery Stage */
+  .p-gallery-stage-wrap {
+    margin-bottom: 28px;
   }
   .p-stage {
-    position: relative;
     width: 100%;
-    max-width: 100%;
-    aspect-ratio: 16 / 10;
-    background: var(--bg-soft);
+    aspect-ratio: 16 / 9;
+    background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--r-card);
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   }
   .p-stage__img {
     width: 100%;
@@ -1470,32 +1387,19 @@ const lastUpdated = formatDate(project.updated_at);
     object-fit: cover;
     display: block;
   }
-  .p-stage__model {
+  .p-stage__model,
+  .p-stage__yt {
     width: 100%;
     height: 100%;
     display: block;
   }
-  .p-stage__yt {
-    width: 100%;
-    height: 100%;
-  }
-  .p-stage__yt lite-youtube {
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-  }
 
   .p-thumbs {
     display: flex;
-    gap: 8px;
+    gap: 10px;
+    margin-top: 12px;
     overflow-x: auto;
-    max-width: 100%;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 6px 2px;
-    margin-top: 4px;
     scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
   }
   .p-thumbs::-webkit-scrollbar {
     display: none;
@@ -1504,13 +1408,13 @@ const lastUpdated = formatDate(project.updated_at);
     width: 68px;
     height: 44px;
     padding: 0;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 2px solid var(--line);
-    background: var(--bg-soft);
+    background: var(--surface);
     overflow: hidden;
     cursor: pointer;
     flex-shrink: 0;
-    transition: all 150ms ease;
+    transition: border-color 150ms ease;
   }
   .p-thumb-btn img {
     width: 100%;
@@ -1520,7 +1424,6 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .p-thumb-btn.is-active {
     border-color: var(--red);
-    box-shadow: 0 0 0 2px rgba(233, 36, 36, 0.2);
   }
   .p-thumb-icon {
     width: 100%;
@@ -1528,1511 +1431,1056 @@ const lastUpdated = formatDate(project.updated_at);
     display: grid;
     place-items: center;
     background: var(--ink);
-    color: #ffffff;
+    color: #FFFFFF;
   }
   .p-thumb-icon--yt {
     background: var(--red);
-    color: #ffffff;
-  }
-  .p-thumb-label {
-    display: none;
   }
 
-  /* Sticky Buy Box */
-  .p-sidebar {
-    position: sticky;
-    top: 84px;
-  }
-  .buy-box {
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    padding: 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  }
-  .buy-box__tag {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--red);
-    display: block;
-    margin-bottom: 6px;
-  }
-  .buy-box__tag--free {
-    color: var(--success);
-  }
-  .buy-box__price-wrap {
+  /* Underline Tabs */
+  .p-underline-tabs {
     display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 28px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
   }
-  .buy-box__price {
-    font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 700;
+  .p-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 12px 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 150ms ease;
+    margin-bottom: -1px;
+  }
+  .p-tab-btn:hover {
     color: var(--ink);
-    line-height: 1;
   }
-  .buy-box__price-sub {
-    font-size: 13px;
-    color: var(--ink-3);
-  }
-  .buy-box__free-title {
-    font-size: 22px;
-    font-weight: 700;
+  .p-tab-btn.is-active {
     color: var(--ink);
-    margin: 0 0 6px;
-  }
-  .buy-box__free-desc {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--ink-2);
-    margin: 0 0 16px;
+    border-bottom-color: var(--red);
   }
 
-  .buy-box__contents {
-    padding: 14px 0;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 18px;
-  }
-  .buy-box__contents-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ink);
-    display: block;
-    margin-bottom: 8px;
-  }
-  .buy-box__checklist {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  /* Panels Content */
+  .p-panel-content {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 24px;
   }
-  .buy-box__checklist li {
-    font-size: 13px;
-    color: var(--ink-2);
+  .p-panel-content[hidden] {
+    display: none !important;
+  }
+
+  /* Warm Safety Card */
+  .p-safety-card {
+    background: #FFF6E0;
+    border: 1px solid #FDE68A;
+    border-radius: 16px;
+    padding: 16px 20px;
+    color: #5E3B00;
+  }
+  .p-safety-card__head {
     display: flex;
     align-items: center;
     gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
   }
-  .buy-box__checklist :global(svg) {
-    color: var(--red);
-    flex-shrink: 0;
+  .p-safety-card__lead {
+    font-weight: 700;
+  }
+  .p-safety-card__body {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #5E3B00;
   }
 
-  .buy-box__form {
-    display: flex;
-    flex-direction: column;
+  /* Outcomes 2x2 Grid */
+  .p-panel-h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 16px;
+  }
+  .p-panel-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin: -12px 0 16px;
+  }
+  .p-outcomes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  .buy-box__label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ink-2);
-    display: block;
-    margin-bottom: 4px;
-  }
-  .buy-box__input {
-    width: 100%;
-    height: 44px;
-    padding: 0 14px;
-    border-radius: var(--r-btn);
+  .p-outcome-card {
+    background: var(--surface);
     border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-size: 14px;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    font-weight: 500;
+    color: var(--ink);
   }
-  .buy-box__input:focus {
-    outline: none;
-    border-color: var(--red);
-    box-shadow: 0 0 0 3px rgba(233, 36, 36, 0.12);
-  }
-  .buy-box__input--sm {
-    height: 38px;
-    font-size: 13px;
+  .p-outcome-icon {
+    color: var(--red);
+    flex-shrink: 0;
+    display: flex;
   }
 
-  .btn-buy-action {
+  /* Prerequisites Card */
+  .p-prereqs-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+  .p-prereqs-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 4px;
+  }
+  .p-prereqs-text {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* Files Summary & Grid */
+  .p-files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+  }
+  .p-file-row {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .p-file-icon {
+    color: var(--muted);
+    display: flex;
+  }
+  .p-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .p-file-size {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .p-license-box {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    padding-top: 12px;
+  }
+  .p-license-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .p-license-link:hover {
+    color: var(--red);
+  }
+  .p-license-text {
+    color: var(--muted);
+  }
+
+  /* Wiring Tables (Desktop) */
+  .p-wiring-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .p-wiring-table th,
+  .p-wiring-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+  .p-wiring-table th {
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 13px;
+    background: var(--surface);
+  }
+  .p-wiring-fig img {
+    max-width: 100%;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+  }
+
+  /* Step Accordions (Desktop) */
+  .p-steps-progress-top {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .p-steps-prog-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .p-steps-prog-pct {
+    color: var(--red);
+  }
+  .p-steps-prog-bar {
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .p-steps-prog-fill {
+    height: 100%;
+    background: var(--red);
+    border-radius: 999px;
+    transition: width 200ms ease;
+  }
+
+  .p-steps-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .p-step-accordion {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 150ms ease;
+  }
+  .p-step-accordion.is-completed {
+    border-color: #14663A;
+  }
+  .p-step-accordion__header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .p-step-num-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .p-step-accordion.is-completed .p-step-num-badge {
+    background: #E3F4EA;
+    color: #14663A;
+    border-color: #14663A;
+  }
+  .p-step-header-text {
+    flex: 1;
+  }
+  .p-step-heading {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0;
+  }
+  .p-step-goal {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 2px 0 0;
+  }
+  .p-step-est {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .p-step-chevron {
+    color: var(--muted);
+    transition: transform 200ms ease;
+  }
+  .p-step-accordion.is-open .p-step-chevron {
+    transform: rotate(180deg);
+  }
+  .p-step-accordion__body {
+    display: none;
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--line);
+    margin-top: 4px;
+    padding-top: 16px;
+  }
+  .p-step-accordion.is-open .p-step-accordion__body {
+    display: block;
+  }
+  .p-step-feedback {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    margin: 14px 0;
+  }
+  .p-step-feedback--ok {
+    background: #E3F4EA;
+    color: #14663A;
+  }
+  .p-step-feedback--warn {
+    background: #FFF1D6;
+    color: #5E3B00;
+  }
+  .p-step-footer-check {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+  .p-step-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Right Sidebar Sticky Buy Card */
+  .p-col-sidebar {
+    position: sticky;
+    top: 92px;
+  }
+  .p-sticky-card {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  }
+  .buy-card-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .buy-card-price-row {
+    margin-bottom: 18px;
+  }
+  .buy-card-price {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--ink);
+    display: block;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .buy-card-price-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .buy-card-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .buy-card-bullet {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .buy-card-icon {
+    color: var(--red);
+    display: flex;
+  }
+  .buy-card-field {
+    margin-bottom: 14px;
+  }
+  .buy-card-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .buy-card-input {
+    width: 100%;
+    height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    padding: 0 16px;
+    font-size: 15px;
+    background: #FFFFFF;
+    color: var(--ink);
+    box-sizing: border-box;
+    transition: border-color 150ms ease;
+  }
+  .buy-card-input:focus {
+    outline: none;
+    border-color: var(--red);
+  }
+  .buy-coupon-toggle {
+    background: none;
+    border: none;
+    color: var(--red);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0;
+    margin-bottom: 14px;
+    cursor: pointer;
+  }
+  .buy-coupon-input-wrap {
+    margin-bottom: 14px;
+  }
+  .buy-card-input--sm {
+    height: 42px;
+    font-size: 14px;
+  }
+  .btn-buy-primary {
+    width: 100%;
+    height: 48px;
+    background: var(--red);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    width: 100%;
-    height: 48px;
-    background: var(--red);
-    color: #ffffff;
-    border: none;
-    border-radius: var(--r-btn);
-    font-size: 16px;
-    font-weight: 600;
     cursor: pointer;
-    transition: background-color 150ms ease, transform 100ms ease;
+    transition: opacity 150ms ease;
   }
-  .btn-buy-action:hover {
-    background: var(--red-dark);
+  .btn-buy-primary:hover {
+    opacity: 0.92;
   }
-  .btn-buy-action:active {
-    transform: scale(0.99);
-  }
-  .btn-buy-action--free {
-    background: var(--ink);
-  }
-  .btn-buy-action--free:hover {
-    background: #000000;
-  }
-
-  .buy-box__trust {
-    margin-top: 16px;
+  .buy-card-trust {
+    margin-top: 18px;
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
-  .trust-item {
+  .trust-line {
     font-size: 12px;
-    color: var(--ink-3);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .trust-item :global(svg) {
-    color: var(--success);
-    flex-shrink: 0;
-  }
-
-  .buy-success {
-    text-align: center;
-    padding: 24px 12px;
-  }
-  .buy-success__icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 12px;
-    display: grid;
-    place-items: center;
-  }
-  .buy-success__title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 8px;
-  }
-  .buy-success__text {
-    font-size: 14px;
+    color: var(--muted);
     line-height: 1.5;
-    color: var(--ink-2);
-    margin: 0 0 16px;
   }
 
-  /* Sticky Section Nav Bar */
-  .p-secnav {
-    position: sticky;
-    top: 64px;
-    z-index: 20;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(8px);
-    border-block: 1px solid var(--line);
-    margin-bottom: 32px;
-  }
-  .p-secnav__inner {
+  /* ==================== MOBILE SHELL (<= 768px) ==================== */
+  .m-topbar {
     display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-block: 8px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .p-secnav__inner::-webkit-scrollbar {
-    display: none;
-  }
-  .p-secnav__link {
-    height: 36px;
-    padding: 0 14px;
-    border-radius: var(--r-chip);
-    border: 1px solid transparent;
-    color: var(--ink-2);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    white-space: nowrap;
-    display: inline-flex;
+    justify-content: space-between;
     align-items: center;
-    transition: all 150ms ease;
+    padding: 12px 16px;
+    background: #FFFFFF;
   }
-  .p-secnav__link:hover {
-    color: var(--ink);
-    background: var(--bg-soft);
-  }
-  .p-secnav__link.is-active {
-    background: var(--ink);
-    color: #ffffff;
-    font-weight: 600;
-  }
-
-  /* Content Sections */
-  .p-content {
+  .m-topbar-back {
     display: flex;
-    flex-direction: column;
-    gap: 48px;
-    max-width: 900px;
-  }
-  .p-sec {
-    scroll-margin-top: 130px;
-  }
-  .p-sec__title {
-    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 16px;
-    letter-spacing: -0.01em;
-  }
-  .p-sec__subtext {
-    font-size: 15px;
-    color: var(--ink-2);
-    margin: -8px 0 20px;
-  }
-
-  /* Safety Box */
-  .p-safety-box {
-    background: #FFFBEB;
-    border: 1px solid #FDE68A;
-    border-left: 4px solid var(--warn);
-    border-radius: var(--r-card);
-    padding: 16px 20px;
-    margin-bottom: 24px;
-  }
-  .p-safety-box__header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--warn);
-    margin-bottom: 8px;
-  }
-  .p-safety-box__title {
-    font-size: 15px;
-    font-weight: 700;
-    margin: 0;
-  }
-  .p-safety-box__body {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--ink-2);
-  }
-
-  /* Outcomes & Prereqs */
-  .p-subhead {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 24px 0 12px;
-  }
-  .p-check-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .p-check-list li {
-    font-size: 15px;
-    color: var(--ink-2);
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .p-check-list :global(svg) {
-    color: var(--success);
-    flex-shrink: 0;
-    position: relative;
-    top: 2px;
-  }
-
-  .p-prereqs-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 24px;
-  }
-  @media (max-width: 640px) {
-    .p-prereqs-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  .p-panel {
-    background: var(--bg-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    padding: 18px 20px;
-  }
-  .p-panel__title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ink);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 0 10px;
-  }
-  .p-bullet-list {
-    padding-left: 20px;
-    margin: 0;
-    font-size: 14px;
-    color: var(--ink-2);
-    line-height: 1.6;
-  }
-
-  /* Wiring Tables */
-  .p-wiring-diagrams {
-    display: grid;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  .p-wiring-diagram {
-    margin: 0;
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    overflow: hidden;
-    background: var(--bg-soft);
-  }
-  .p-wiring-diagram img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-  .p-wiring-diagram__cap {
-    padding: 10px 16px;
-    font-size: 13px;
-    color: var(--ink-3);
-    font-weight: 500;
-    background: var(--bg);
-    border-top: 1px solid var(--line);
-  }
-  .p-pin-module {
-    margin-bottom: 24px;
-  }
-  .p-pin-module__title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 10px;
-  }
-  .p-table-wrap {
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    background: var(--bg);
-  }
-  .p-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 480px;
-  }
-  .p-table th {
-    background: var(--bg-soft);
-    padding: 10px 14px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--ink-3);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--line);
-    text-align: left;
-  }
-  .p-table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--line);
-    font-size: 14px;
-    color: var(--ink);
-  }
-  .p-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .p-wiring-desktop {
-    display: block;
-  }
-  .p-wiring-mobile {
-    display: none;
-  }
-
-  @media (max-width: 640px) {
-    .p-wiring-desktop {
-      display: none !important;
-    }
-    .p-wiring-mobile {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .p-pin-module {
-      margin-bottom: 20px;
-    }
-    .p-pin-module__title {
-      position: sticky;
-      top: 64px;
-      z-index: 10;
-      background: var(--bg-soft);
-      padding: 8px 12px;
-      margin: 0 0 8px 0;
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border: 1px solid var(--line);
-      border-radius: var(--r-xs);
-    }
-    .p-pin-card {
-      border: 1px solid var(--line);
-      border-radius: var(--r-xs);
-      background: var(--bg);
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    }
-    .p-pin-card__connection {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-    }
-    .p-pin-from {
-      font-weight: 700;
-      color: var(--ink);
-    }
-    .p-pin-arrow {
-      color: var(--red);
-      font-weight: 600;
-    }
-    .p-pin-to {
-      font-weight: 600;
-      color: var(--ink-2);
-      background: var(--bg-soft);
-      padding: 1px 6px;
-      border-radius: 4px;
-      border: 1px solid var(--line);
-    }
-    .p-pin-card__note {
-      font-size: 12px;
-      color: var(--ink-3);
-      line-height: 1.4;
-      padding-top: 2px;
-    }
-  }
-
-  /* Steps Cards */
-  .p-steps-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  .p-step-card {
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    background: var(--bg);
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    transition: border-color 150ms ease;
-  }
-  .p-step-card.is-completed {
-    border-color: var(--success);
-    opacity: 0.85;
-  }
-  .p-step-card__header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    background: var(--bg-soft);
-    border-bottom: 1px solid var(--line);
-  }
-  .p-step-badge {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--red);
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 14px;
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-  .p-step-card__title-wrap {
-    flex: 1;
-  }
-  .p-step-card__title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0;
-  }
-  .p-step-card__goal {
-    font-size: 13px;
-    color: var(--ink-3);
-    margin: 2px 0 0;
-  }
-  .p-step-time {
-    display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
-    color: var(--ink-3);
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    text-decoration: none;
   }
-  .p-step-card__body {
-    padding: 20px;
+  .m-topbar-share {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: var(--ink);
     display: flex;
-    flex-direction: column;
-    gap: 14px;
   }
-  .p-step-card__media {
-    border-radius: 8px;
+
+  .m-gallery-container {
+    position: relative;
+    width: 100%;
+  }
+  .m-gallery-scroll {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .m-gallery-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .m-gallery-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    scroll-snap-align: start;
+    background: var(--surface);
     overflow: hidden;
-    max-height: 340px;
-    background: var(--bg-soft);
   }
-  .p-step-card__media img {
+  .m-slide-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
   }
-  .p-step-res {
-    padding: 12px 16px;
-    border-radius: var(--r-btn);
-    font-size: 14px;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
+  .m-slide-model,
+  .m-slide-yt {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
-  .p-step-res--ok {
-    background: #F0FDF4;
-    border: 1px solid #BBF7D0;
-    color: var(--success);
-  }
-  .p-step-res--warn {
-    background: #FFFBEB;
-    border: 1px solid #FDE68A;
-    color: var(--warn);
-  }
-  .p-step-check {
-    padding-top: 10px;
-    border-top: 1px solid var(--line);
-    display: flex;
-    justify-content: flex-end;
-  }
-  .p-step-check__label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
+  .m-gallery-pill {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    background: rgba(15, 17, 21, 0.85);
+    color: #FFFFFF;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--ink-2);
-    cursor: pointer;
-  }
-  .p-step-check__label input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--success);
+    padding: 4px 10px;
+    border-radius: 999px;
   }
 
-  /* Files Grid */
-  .p-files-grid {
+  .m-info-block {
+    padding: 20px 16px 16px;
+  }
+  .m-title {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+  .m-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .m-chip {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 12px;
+  }
+  .m-summary {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* Sticky Tab Chips Track */
+  .m-sticky-chips-nav {
+    position: sticky;
+    top: 0;
+    background: #FFFFFF;
+    z-index: 30;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 16px;
+  }
+  .m-chips-track {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .m-chips-track::-webkit-scrollbar {
+    display: none;
+  }
+  .m-chip-btn {
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    background: #FFFFFF;
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 150ms ease;
+  }
+  .m-chip-btn.is-active {
+    background: var(--ink);
+    color: #FFFFFF;
+    border-color: var(--ink);
+  }
+
+  .m-content-panels {
+    padding: 16px;
+    padding-bottom: 96px;
+  }
+  .m-panel[hidden] {
+    display: none !important;
+  }
+
+  .m-safety-card {
+    background: #FFF6E0;
+    border: 1px solid #FDE68A;
+    border-radius: 16px;
+    padding: 16px;
+    color: #5E3B00;
+    margin-bottom: 20px;
+  }
+  .m-safety-bold {
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .m-safety-text {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .m-section-heading {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 14px;
+  }
+  .m-outcomes-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    margin-bottom: 20px;
   }
-  .p-file-item {
+  .m-outcome-item {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 14px 18px;
+    gap: 10px;
+    font-size: 14px;
+    background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    background: var(--bg);
-    transition: border-color 150ms ease;
+    border-radius: 12px;
+    padding: 12px 14px;
   }
-  .p-file-item__icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    background: var(--bg-soft);
-    display: grid;
-    place-items: center;
+  .m-outcome-check {
     color: var(--red);
-    flex-shrink: 0;
+    display: flex;
   }
-  .p-file-item__info {
-    flex: 1;
-    min-width: 0;
-  }
-  .p-file-item__name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--ink);
-    display: block;
-    word-break: break-word;
-  }
-  .p-file-item__meta {
-    font-size: 13px;
-    color: var(--ink-3);
-    margin-top: 2px;
-  }
-  .p-file-item__action {
-    flex-shrink: 0;
-  }
-  .btn-file-dl {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 36px;
-    padding: 0 14px;
-    border-radius: var(--r-btn);
-    background: var(--ink);
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background-color 150ms ease;
-  }
-  .btn-file-dl:hover {
-    background: #000000;
-  }
-  .file-pack-badge {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ink-3);
-    background: var(--bg-soft);
-    padding: 6px 12px;
-    border-radius: var(--r-chip);
+  .m-prereqs-card {
+    background: var(--surface);
     border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+  .m-prereqs-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .m-prereqs-body {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
   }
 
-  /* Code & License */
-  .p-license-row {
+  /* Mobile Wiring Cards */
+  .m-pin-cards {
     display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
   }
-  .btn-license-link {
-    display: inline-flex;
+  .m-pin-card {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .m-pin-row {
+    display: flex;
     align-items: center;
     gap: 8px;
-    height: 44px;
-    padding: 0 18px;
-    border: 1.5px solid var(--ink);
-    border-radius: var(--r-btn);
-    color: var(--ink);
     font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 150ms ease;
+    font-weight: 700;
   }
-  .btn-license-link:hover {
-    background: var(--ink);
-    color: #ffffff;
+  .m-pin-arrow {
+    color: var(--red);
   }
-  .p-license-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    color: var(--ink-2);
-    padding: 10px 16px;
-    border-radius: var(--r-btn);
-    background: var(--bg-soft);
-    border: 1px solid var(--line);
+  .m-pin-note {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
   }
 
-  /* FAQ Accordion */
-  .p-faq-list {
+  /* Mobile Steps Stack */
+  .m-steps-progress-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .m-steps-prog-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .m-steps-prog-pct {
+    color: var(--red);
+  }
+  .m-steps-prog-track {
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .m-steps-prog-fill {
+    height: 100%;
+    background: var(--red);
+    border-radius: 999px;
+    transition: width 200ms ease;
+  }
+  .m-steps-stack {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .p-faq-item {
+  .m-step-card {
+    background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    background: var(--bg);
+    border-radius: 14px;
     overflow: hidden;
   }
-  .p-faq-q {
-    padding: 16px 20px;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--ink);
+  .m-step-card.is-completed {
+    border-color: #14663A;
+  }
+  .m-step-card__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
     cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
   }
-  .p-faq-q::-webkit-details-marker {
-    display: none;
-  }
-  .p-faq-item[open] .p-faq-q {
-    border-bottom: 1px solid var(--line);
-    background: var(--bg-soft);
-  }
-  .p-faq-a {
-    padding: 16px 20px;
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--ink-2);
-  }
-
-  /* Author block */
-  .p-author-block {
-    display: flex;
-    align-items: center;
-    gap: 28px;
-    padding: 32px;
-    background: var(--bg-soft);
+  .m-step-pill {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    margin-top: 16px;
-  }
-  @media (max-width: 640px) {
-    .p-author-block {
-      flex-direction: column;
-      text-align: center;
-      gap: 16px;
-      padding: 24px 16px;
-    }
-  }
-  .p-author-img-wrap {
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
     flex-shrink: 0;
   }
-  .p-author-img {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #ffffff;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  .m-step-card.is-completed .m-step-pill {
+    background: #E3F4EA;
+    color: #14663A;
   }
-  .p-author-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--red);
-    display: block;
-    margin-bottom: 4px;
+  .m-step-title-col {
+    flex: 1;
   }
-  .p-author-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 8px;
-  }
-  .p-author-text {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--ink-2);
-    margin: 0 0 12px;
-  }
-  .p-author-email {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+  .m-step-name {
     font-size: 14px;
     font-weight: 600;
-    color: var(--red);
-    text-decoration: underline;
+    margin: 0;
   }
-  .p-author-email:hover {
-    color: var(--red-dark);
+  .m-step-goal {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 2px 0 0;
+  }
+  .m-step-chevron {
+    color: var(--muted);
+    transition: transform 200ms ease;
+  }
+  .m-step-card.is-open .m-step-chevron {
+    transform: rotate(180deg);
+  }
+  .m-step-card__body {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  .m-step-card.is-open .m-step-card__body {
+    display: block;
+  }
+  .m-step-alert {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    margin: 10px 0;
+  }
+  .m-step-alert--ok {
+    background: #E3F4EA;
+    color: #14663A;
+  }
+  .m-step-alert--warn {
+    background: #FFF1D6;
+    color: #5E3B00;
+  }
+  .m-step-check-row {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+  }
+  .m-step-check-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    min-height: 44px;
   }
 
-  /* Related Packs */
-  .p-related-section {
-    padding-top: 24px;
+  /* Sticky Bottom Bar */
+  .m-sticky-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: #FFFFFF;
     border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 50;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+  }
+  .m-sticky-price-col {
+    display: flex;
+    flex-direction: column;
+  }
+  .m-sticky-price {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .m-sticky-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .btn-m-buy {
+    background: var(--red);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 14px;
+    padding: 0 28px;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Bottom Sheet Overlay */
+  .m-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 17, 21, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  .m-sheet-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .m-sheet-panel {
+    background: #FFFFFF;
+    border-radius: 24px 24px 0 0;
+    padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .m-sheet-overlay.is-open .m-sheet-panel {
+    transform: translateY(0);
+  }
+  .m-sheet-handle-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .m-sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 999px;
+  }
+  .m-sheet-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .m-sheet-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 2px;
+  }
+  .m-sheet-price-lead {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .m-sheet-price {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .m-sheet-price-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .m-sheet-close-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--surface);
+    display: grid;
+    place-items: center;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .m-sheet-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .m-sheet-bullet {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .m-sheet-b-icon {
+    color: var(--red);
+    display: flex;
+  }
+  .m-sheet-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .m-sheet-input {
+    width: 100%;
+    height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    padding: 0 16px;
+    font-size: 16px; /* Prevents iOS auto-zoom */
+    box-sizing: border-box;
+  }
+  .m-sheet-coupon-toggle {
+    background: none;
+    border: none;
+    color: var(--red);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 0 14px;
+    cursor: pointer;
+  }
+  .m-sheet-coupon-input-wrap {
+    margin-bottom: 14px;
+  }
+  .btn-m-sheet-pay {
+    width: 100%;
+    height: 50px;
+    background: var(--red);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  .m-sheet-trust-lines {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .m-trust-item {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* ==================== RELATED SECTION ==================== */
+  .p-related-section {
+    padding: 48px 0;
+    border-top: 1px solid var(--line);
+    background: #FFFFFF;
+  }
+  .p-related-h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 28px;
   }
   .p-related-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
-    margin-top: 20px;
   }
   @media (max-width: 900px) {
     .p-related-grid {
       grid-template-columns: 1fr;
-      gap: 16px;
-    }
-  }
-
-  /* ============================================================
-     MOBILE NATIVE PACK REDESIGN (<= 768px)
-     Matches Figma / mockups (media_1791876192118_f7595c00.png,
-     media_1791876192114_cad8732e.png, media_1791876192124_8bdf7be7.png)
-     ============================================================ */
-  .m-pack-only {
-    display: none !important;
-  }
-  .desktop-pack-only {
-    display: block;
-  }
-
-  @media (max-width: 768px) {
-    .m-pack-only {
-      display: block !important;
-    }
-    .desktop-pack-only {
-      display: none !important;
-    }
-
-    .project-layout {
-      padding-bottom: 96px; /* clearance for sticky bar */
-    }
-
-    /* 1. Mobile Topbar (< Category + Share) */
-    .m-pack-topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 52px;
-      padding: 0 16px;
-      background: #ffffff;
-      border-bottom: 1px solid #ECEFF2;
-    }
-    .m-pack-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 15px;
-      font-weight: 700;
-      color: #0F1115;
-      text-decoration: none;
-    }
-    .m-pack-share-btn {
-      width: 44px;
-      height: 44px;
-      display: grid;
-      place-items: center;
-      background: none;
-      border: none;
-      color: #0F1115;
-      cursor: pointer;
-      border-radius: 50%;
-    }
-
-    /* 2. Full-bleed Swipe Gallery with 1 / N Counter */
-    .m-pack-gallery-wrap {
-      position: relative;
-      width: 100%;
-      background: #E8ECEF;
-      overflow: hidden;
-    }
-    .m-pack-gallery {
-      display: flex;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      width: 100%;
-      aspect-ratio: 16 / 10;
-    }
-    .m-pack-gallery::-webkit-scrollbar {
-      display: none;
-    }
-    .m-pack-slide {
-      flex: 0 0 100%;
-      width: 100%;
-      height: 100%;
-      scroll-snap-align: start;
-      position: relative;
-      background: #E8ECEF;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .m-pack-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .m-pack-model {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    .m-pack-yt-wrap {
-      width: 100%;
-      height: 100%;
-    }
-    .m-pack-yt-wrap lite-youtube {
-      width: 100%;
-      height: 100%;
-      max-width: 100%;
-    }
-    .m-pack-gallery-counter {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      background: #0F1115;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 999px;
-      z-index: 5;
-      letter-spacing: 0.04em;
-    }
-
-    /* 3. Title, Chips & Summary */
-    .m-pack-meta-block {
-      padding: 16px 16px 12px;
-      background: #ffffff;
-    }
-    .m-pack-title {
-      font-size: 22px;
-      font-weight: 800;
-      line-height: 1.25;
-      letter-spacing: -0.015em;
-      color: #0F1115;
-      margin: 0 0 12px;
-    }
-    .m-pack-chips-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .m-pack-chip {
-      display: inline-flex;
-      align-items: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: #0F1115;
-      background: #F4F6F8;
-      padding: 6px 12px;
-      border-radius: 999px;
-    }
-    .m-pack-chip--cost {
-      background: #F4F6F8;
-      font-weight: 600;
-    }
-    .m-pack-summary {
-      font-size: 14px;
-      line-height: 1.5;
-      color: #5A6270;
-      margin: 0;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    /* 4. Sticky Tab Chips */
-    .m-pack-tabs-nav {
-      position: sticky;
-      top: 56px; /* below mobile site header */
-      z-index: 40;
-      background: #ffffff;
-      padding: 10px 16px;
-      border-top: 1px solid #ECEFF2;
-      border-bottom: 1px solid #ECEFF2;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
-    .m-pack-tabs-track {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .m-pack-tabs-track::-webkit-scrollbar {
-      display: none;
-    }
-    .m-pack-tab-chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #0F1115;
-      background: #ffffff;
-      border: 1.5px solid #E5E7EB;
-      border-radius: 999px;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: all 150ms ease;
-    }
-    .m-pack-tab-chip.is-active {
-      background: #0F1115;
-      color: #ffffff;
-      border-color: #0F1115;
-    }
-
-    /* 5. Safety Alert Box (warm card) */
-    .p-safety-box {
-      background: #FEF7E6 !important;
-      border: 1.5px solid #FDE3B2 !important;
-      border-left: 1.5px solid #FDE3B2 !important;
-      border-radius: 14px !important;
-      padding: 14px 16px !important;
-      margin-bottom: 20px !important;
-      box-shadow: none !important;
-    }
-    .p-safety-box__header {
-      color: #92400E !important;
-      margin-bottom: 6px !important;
-    }
-    .p-safety-box__title {
-      font-size: 14px !important;
-      font-weight: 700 !important;
-      color: #92400E !important;
-    }
-    .p-safety-box__body {
-      font-size: 13px !important;
-      line-height: 1.5 !important;
-      color: #78350F !important;
-    }
-
-    /* 6. Content Container adjustments */
-    .p-content {
-      gap: 32px;
-      padding: 0 16px;
-    }
-    .p-sec {
-      scroll-margin-top: 120px;
-    }
-    .p-sec__title {
-      font-size: 20px !important;
-      font-weight: 800 !important;
-      margin-bottom: 12px !important;
-    }
-
-    /* 7. Wiring Cards */
-    .p-wiring-mobile {
-      display: flex !important;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .p-pin-card {
-      background: #ffffff;
-      border: 1.5px solid #ECEFF2;
-      border-radius: 12px;
-      padding: 12px 14px;
-    }
-    .p-pin-card__connection {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 14px;
-    }
-    .p-pin-from {
-      font-weight: 700;
-      color: #0F1115;
-    }
-    .p-pin-arrow {
-      color: #D91F26;
-      font-weight: 800;
-    }
-    .p-pin-to {
-      color: #0F1115;
-      background: #F4F6F8;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-weight: 600;
-    }
-    .p-pin-card__note {
-      font-size: 12px;
-      color: #5A6270;
-      margin-top: 4px;
-    }
-
-    /* 8. Build Steps Progress & Collapsible Cards */
-    .m-steps-progress-card {
-      background: #F4F6F8;
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 16px;
-    }
-    .m-steps-progress-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-      font-weight: 700;
-      color: #0F1115;
-      margin-bottom: 8px;
-    }
-    .m-steps-progress-track {
-      width: 100%;
-      height: 6px;
-      background: #E2E8F0;
-      border-radius: 999px;
-      overflow: hidden;
-    }
-    .m-steps-progress-fill {
-      height: 100%;
-      background: #D91F26;
-      border-radius: 999px;
-      transition: width 200ms ease;
-    }
-
-    .p-steps-list {
-      gap: 12px;
-    }
-    .p-step-card {
-      border: 1.5px solid #ECEFF2;
-      border-radius: 14px;
-      background: #ffffff;
-      overflow: hidden;
-    }
-    .p-step-card__header {
-      padding: 12px 14px;
-      background: #ffffff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      user-select: none;
-    }
-    .p-step-badge {
-      width: 28px;
-      height: 28px;
-      font-size: 13px;
-      background: #D91F26;
-    }
-    .p-step-card__title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #0F1115;
-    }
-    .m-step-chevron {
-      color: #5A6270;
-      transition: transform 200ms ease;
-      flex-shrink: 0;
-    }
-    .p-step-card.is-open .m-step-chevron {
-      transform: rotate(180deg);
-    }
-    .p-step-card:not(.is-open) .p-step-card__body {
-      display: none !important;
-    }
-    .p-step-card.is-open .p-step-card__body {
-      display: flex !important;
-      padding: 14px;
-      border-top: 1px solid #ECEFF2;
-    }
-    .p-step-check {
-      padding-top: 8px;
-    }
-    .p-step-check__label {
-      min-height: 44px;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .p-step-check__label input {
-      width: 22px;
-      height: 22px;
-      accent-color: #D91F26;
-    }
-
-    /* 9. Related Packs Carousel */
-    .p-related-section {
-      padding-top: 20px;
-      margin-top: 8px;
-    }
-    .p-related-grid {
-      display: flex !important;
-      overflow-x: auto !important;
-      scroll-snap-type: x mandatory !important;
-      gap: 12px !important;
-      padding: 4px 0 16px !important;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .p-related-grid::-webkit-scrollbar {
-      display: none;
-    }
-    .p-related-grid > * {
-      flex: 0 0 260px !important;
-      min-width: 260px !important;
-      max-width: 260px !important;
-      scroll-snap-align: start !important;
-    }
-
-    /* 10. Sticky Bottom Bar */
-    :root {
-      --sticky-buy-h: 68px;
-    }
-    .m-sticky-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 68px;
-      padding: 0 16px env(safe-area-inset-bottom, 0px);
-      background: #ffffff;
-      border-top: 1px solid #ECEFF2;
-      display: flex !important;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 80;
-      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
-    }
-    .m-sticky-bar__info {
-      display: flex;
-      flex-direction: column;
-    }
-    .m-sticky-bar__price {
-      font-family: var(--font-display);
-      font-size: 22px;
-      font-weight: 800;
-      color: #0F1115;
-      line-height: 1.1;
-    }
-    .m-sticky-bar__sub {
-      font-size: 11px;
-      color: #5A6270;
-      font-weight: 500;
-    }
-    .btn-m-sheet-open {
-      height: 44px;
-      padding: 0 24px;
-      background: #D91F26;
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 150ms ease, transform 100ms ease;
-    }
-    .btn-m-sheet-open:active {
-      transform: scale(0.98);
-      background: #BC161C;
-    }
-
-    /* 11. Bottom Sheet Modal */
-    .m-sheet-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(2px);
-      z-index: 100;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 250ms ease;
-    }
-    .m-sheet-backdrop.is-open {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .m-sheet-modal {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #ffffff;
-      border-radius: 20px 20px 0 0;
-      padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
-      z-index: 101;
-      max-height: 85vh;
-      overflow-y: auto;
-      transform: translateY(100%);
-      transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
-    }
-    .m-sheet-backdrop.is-open .m-sheet-modal {
-      transform: translateY(0);
-    }
-    .m-sheet-handle-bar {
-      display: flex;
-      justify-content: center;
-      padding-bottom: 12px;
-    }
-    .m-sheet-handle {
-      width: 40px;
-      height: 4px;
-      background: #D1D5DB;
-      border-radius: 2px;
-    }
-    .m-sheet-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 14px;
-    }
-    .m-sheet-tag {
-      font-size: 11px;
-      font-weight: 600;
-      color: #5A6270;
-      display: block;
-      margin-bottom: 2px;
-    }
-    .m-sheet-price-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-    .m-sheet-price {
-      font-family: var(--font-display);
-      font-size: 26px;
-      font-weight: 800;
-      color: #0F1115;
-      line-height: 1;
-    }
-    .m-sheet-price-sub {
-      font-size: 12px;
-      color: #5A6270;
-    }
-    .m-sheet-close {
-      width: 36px;
-      height: 36px;
-      display: grid;
-      place-items: center;
-      background: #F4F6F8;
-      border: none;
-      border-radius: 50%;
-      color: #0F1115;
-      cursor: pointer;
-    }
-
-    .m-sheet-highlights {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 12px 0;
-      border-top: 1px solid #ECEFF2;
-      border-bottom: 1px solid #ECEFF2;
-      margin-bottom: 16px;
-    }
-    .m-sheet-highlight {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #0F1115;
-    }
-    .m-sheet-hl-icon {
-      color: #D91F26;
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-    }
-
-    .m-sheet-form {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .m-sheet-field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .m-sheet-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #0F1115;
-    }
-    .m-sheet-input {
-      width: 100%;
-      height: 48px;
-      padding: 0 14px;
-      border: 1.5px solid #CBD5E1;
-      border-radius: 10px;
-      font-size: 16px; /* Prevents iOS auto-zoom */
-      color: #0F1115;
-      background: #ffffff;
-      outline: none;
-      transition: border-color 150ms ease;
-    }
-    .m-sheet-input:focus {
-      border-color: #D91F26;
-    }
-    .m-sheet-input--sm {
-      height: 40px;
-      font-size: 14px;
-    }
-    .m-sheet-coupon-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .m-sheet-coupon-toggle {
-      background: none;
-      border: none;
-      color: #D91F26;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: left;
-      padding: 0;
-    }
-    .btn-m-sheet-submit {
-      width: 100%;
-      height: 48px;
-      background: #D91F26;
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 150ms ease;
-    }
-    .btn-m-sheet-submit:active {
-      background: #BC161C;
-    }
-
-    .m-sheet-trust {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding-top: 4px;
-    }
-    .m-sheet-trust-line {
-      font-size: 11px;
-      color: #5A6270;
-      line-height: 1.4;
-    }
-
-    /* Toast */
-    .m-share-toast {
-      position: fixed;
-      bottom: 84px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #0F1115;
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 8px 16px;
-      border-radius: 999px;
-      z-index: 150;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
   }
 </style>
