@@ -21,7 +21,7 @@ const socials = [
         <div class="footer-socials">
           {socials.map((s) => (
             <a href={s.href} class="social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
-              <Icon name={s.icon} size={20} />
+              <span class="social-btn-txt">{s.key === 'youtube' ? 'YT' : s.key === 'instagram' ? 'IG' : s.key === 'github' ? 'GH' : 'in'}</span>
             </a>
           ))}
         </div>
@@ -110,11 +110,9 @@ const socials = [
     --hairline: rgba(255, 255, 255, 0.08);
     margin-top: auto;
     color: #ffffff;
-    background:
-      radial-gradient(760px 340px at 100% 0%, rgba(233, 36, 36, 0.14), transparent 62%),
-      #151314;
+    background: #111418;
     padding-block: 48px 24px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
   @media (min-width: 1024px) {
     .site-footer {
@@ -133,26 +131,29 @@ const socials = [
     gap: 2.5rem;
   }
   .footer-brand { max-width: 320px; }
-  .footer-tagline { color: var(--text-muted); margin-top: 1rem; font-size: var(--fs-sm); line-height: 1.5; }
+  .footer-tagline { color: var(--text-muted); margin-top: 1rem; font-size: 14px; line-height: 1.5; }
   .footer-socials { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
   .social-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px; height: 44px;
-    border-radius: var(--r-btn);
-    border: 1px solid var(--border);
-    background: var(--surface);
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #1B1E24;
     color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
     transition: color 180ms, border-color 180ms, transform 180ms, background 180ms;
   }
   .social-btn:hover {
     color: #ffffff;
     border-color: var(--red);
     transform: translateY(-2px);
-    background: var(--surface-2);
+    background: #252A33;
   }
-  .footer-streams { margin-top: 1.25rem; font-size: var(--fs-xs); color: var(--text-dim); letter-spacing: 0.1em; }
+  .footer-streams { display: none; }
 
   /* Desktop Header for link columns: static, no chevron */
   .footer-col__header {

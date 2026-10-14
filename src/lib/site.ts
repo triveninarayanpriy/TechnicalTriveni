@@ -93,23 +93,19 @@ export const FOOTER_LINKS: { title: string; links: { label: string; href: string
   {
     title: 'Explore',
     links: [
-      { label: 'All projects', href: '/projects' },
+      { label: 'Projects', href: '/projects' },
       { label: 'How it works', href: '/how-it-works' },
-      { label: 'My downloads', href: '/account/downloads' },
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },
+      { label: 'My downloads', href: '/account/downloads' },
     ],
   },
   {
     title: 'Legal',
     links: [
-      { label: 'Terms of Service', href: '/legal/terms' },
-      { label: 'Privacy Policy', href: '/legal/privacy' },
-      { label: 'Disclaimer', href: '/legal/disclaimer' },
-      { label: 'Affiliate Disclosure', href: '/legal/affiliate' },
-      { label: 'Cookie Policy', href: '/legal/cookies' },
-      { label: 'Refund Policy', href: '/legal/refund' },
-      { label: 'Digital Delivery', href: '/legal/digital-delivery' },
+      { label: 'Privacy policy', href: '/legal/privacy' },
+      { label: 'Terms of use', href: '/legal/terms' },
+      { label: 'Refund policy', href: '/legal/refund' },
     ],
   },
 ];

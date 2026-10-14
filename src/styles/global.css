@@ -9,68 +9,78 @@
   color-scheme: light;
 
   /* Canonical Design System Tokens */
-  --red: #E92424;
-  --red-dark: #C41818;
-  --ink: #151314;
-  --ink-2: #4A4749;
-  --ink-3: #6E6A6C;
-  --line: #E7E5E6;
+  --red: #D91F26;
+  --red-dark: #B3151B;
+  --brand-red: #D91F26;
+  --ink: #0F1115;
+  --ink-2: #5A6270;
+  --ink-3: #8C96A5;
+  --muted: #5A6270;
+  --line: #E4E7EB;
+  --white: #FFFFFF;
   --bg: #FFFFFF;
-  --bg-soft: #F6F5F6;
-  --bg-dark: #151314;
-  --success: #0E8F4F;
-  --warn: #B45309;
+  --bg-soft: #F4F5F7;
+  --surface: #F4F5F7;
+  --bg-dark: #111418;
+  --dark: #111418;
+  --success: #14663A;
+  --warn: #5E3B00;
+  --warn-bg: #FFF6E0;
+  --warn-text: #5E3B00;
+  --video-chip-bg: #FDE9EA;
+  --video-chip-text: #B3151B;
 
   /* Compatibility Aliases */
-  --brand-red: var(--red);
   --brand-red-600: var(--red-dark);
   --accent: var(--red);
   --accent-600: var(--red-dark);
   --text: var(--ink);
-  --text-muted: var(--ink-2);
+  --text-muted: var(--muted);
   --text-dim: var(--ink-3);
   --border: var(--line);
-  --border-strong: var(--ink-2);
+  --border-strong: var(--ink);
   --hairline: var(--line);
-  --surface: var(--bg);
-  --surface-2: var(--bg-soft);
-  --surface-3: #dedede;
+  --surface-2: #ECEEF2;
+  --surface-3: #E0E3E8;
   --text-inverse: #ffffff;
 
   /* Radius */
-  --r-btn: 10px;
-  --r-card: 16px;
+  --r-input: 12px;
+  --r-btn: 14px;
+  --r-card: 20px;
+  --r-panel: 24px;
   --r-chip: 999px;
   --r-xs: 6px;
   --r-sm: 10px;
-  --r-md: 16px;
+  --r-md: 14px;
   --r-lg: 20px;
   --r-full: 999px;
 
   /* Shadows */
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
 
   /* Typography */
-  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Courier New', monospace;
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-body: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 
-  /* Fluid Type Scale (exact clamp formulas) */
-  --fs-h1: clamp(2rem, 1.2rem + 3.6vw, 3.75rem);
-  --fs-h2: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
-  --fs-h3: clamp(1.125rem, 1rem + 0.4vw, 1.25rem);
+  /* Type Scale */
+  --fs-h1: clamp(2.1rem, 1.4rem + 3.2vw, 3.5rem);
+  --fs-h2: clamp(1.5rem, 1.1rem + 1.8vw, 2.5rem);
+  --fs-h3: clamp(1.15rem, 1rem + 0.5vw, 1.35rem);
   --fs-base: 1rem;       /* 16px */
   --fs-sm: 0.875rem;     /* 14px */
-  --fs-xs: 0.75rem;      /* 12px legal micro-text */
+  --fs-xs: 0.75rem;      /* 12px */
   --fs-3xl: var(--fs-h1);
   --fs-2xl: var(--fs-h2);
   --fs-xl: var(--fs-h3);
   --fs-lg: 1.125rem;
   --fs-md: 1rem;
 
-  /* Spacing Scale: 4, 8, 12, 16, 24, 32, 48, 64, 96 */
+  /* Spacing Scale: 8px grid */
   --sp-4: 4px;
   --sp-8: 8px;
   --sp-12: 12px;
@@ -82,11 +92,11 @@
   --sp-96: 96px;
 
   /* Header & Containers */
-  --header-h: 64px;
+  --header-h: 72px;
   --container: 1200px;
   --container-wide: 1200px;
   --container-narrow: 720px;
-  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --ring: 0 0 0 2px #ffffff, 0 0 0 4px var(--red);
 }
 
@@ -231,21 +241,26 @@ small { font-size: var(--fs-sm); }
 /* --------------------------------------------------------------- Layout ---- */
 .container {
   width: 100%;
-  max-width: var(--container);
+  max-width: 1440px;
   margin-inline: auto;
   padding-inline: 16px;
 }
-@media (min-width: 640px) {
-  .container {
-    padding-inline: 24px;
-  }
-}
-@media (min-width: 1024px) {
+@media (min-width: 769px) {
   .container {
     padding-inline: 32px;
   }
 }
-.container-wide { max-width: 1200px; }
+@media (min-width: 1024px) {
+  .container {
+    padding-inline: 64px;
+  }
+}
+@media (min-width: 1440px) {
+  .container {
+    padding-inline: 120px;
+  }
+}
+.container-wide { max-width: 1440px; }
 .container-narrow { max-width: 720px; }
 
 .section {
