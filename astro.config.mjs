@@ -18,6 +18,10 @@ export default defineConfig({
     },
     imageService: 'compile',
   }),
+  redirects: {
+    '/resources/free-tools-for-students-india-2026': '/projects/free-tools-for-students-india-2026',
+    '/resources': '/projects?cat=Resource',
+  },
   integrations: [
     sitemap({
       filter: (page) => !page.includes('/admin') && !page.includes('/account'),
