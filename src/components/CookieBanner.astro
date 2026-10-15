@@ -45,14 +45,14 @@
     flex-shrink: 0;
   }
 
-  /* Desktop: bottom-left, max-width 360px */
+  /* Desktop: bottom-left, max-width 28rem */
   @media (min-width: 641px) {
     .cookie {
       bottom: 1.5rem;
       left: 1.5rem;
       right: auto;
-      max-width: 22.5rem;
-      padding: 0.85rem 1rem;
+      max-width: min(calc(100vw - 3rem), 28rem);
+      padding: 0.85rem 1.15rem;
       border-radius: var(--r-card);
     }
   }
@@ -80,13 +80,38 @@
   const KEY = 'tt-cookie-ack';
   const banner = document.getElementById('cookie-banner');
   const ok = document.getElementById('cookie-ok');
+
+  function updateFooterClearance() {
+    if (!banner || banner.hidden || banner.style.display === 'none') {
+      document.body.style.paddingBottom = '';
+      return;
+    }
+    const bannerH = banner.offsetHeight || 0;
+    if (bannerH > 0) {
+      document.body.style.paddingBottom = `${bannerH + 24}px`;
+    }
+  }
+
   try {
-    if (banner && localStorage.getItem(KEY) !== '1') banner.hidden = false;
+    if (banner && localStorage.getItem(KEY) !== '1') {
+      banner.hidden = false;
+      updateFooterClearance();
+
+      if ('ResizeObserver' in window) {
+        const ro = new ResizeObserver(() => updateFooterClearance());
+        ro.observe(banner);
+        window.addEventListener('resize', updateFooterClearance, { passive: true });
+      }
+    }
   } catch {
     /* storage blocked -> keep hidden */
   }
+
   ok?.addEventListener('click', () => {
-    if (banner) banner.hidden = true;
+    if (banner) {
+      banner.hidden = true;
+      document.body.style.paddingBottom = '';
+    }
     try { localStorage.setItem(KEY, '1'); } catch { /* ignore */ }
   });
 </script>

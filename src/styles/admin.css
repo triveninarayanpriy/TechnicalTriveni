@@ -28,7 +28,8 @@
   --admin-font: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --admin-font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --admin-fs-caption: max(12px, 0.8125rem);
-  --admin-fs-body: max(12px, 0.9063rem);
+  --admin-fs-small: max(12px, 0.875rem);
+  --admin-fs-body: max(13px, 1rem);
   --admin-fs-card-title: 1.0625rem;
   --admin-fs-page-title: 1.625rem;
   --admin-fs-hero: 2.75rem;

@@ -1,0 +1,86 @@
+---
+/**
+ * Debug Layout Badge:
+ * Automatically activates only when `?debug=layout` (or `?debug=1`) is in the URL.
+ * Displays live viewport dimensions, dpr, root font size in px, scale percentage, and active tier.
+ */
+---
+<div id="tt-debug-layout-badge" hidden aria-hidden="true"></div>
+
+<script>
+  function setupDebugBadge() {
+    const params = new URLSearchParams(window.location.search);
+    const isDebug = params.has('debug') && (params.get('debug') === 'layout' || params.get('debug') === '1' || params.get('debug') === '');
+    const badge = document.getElementById('tt-debug-layout-badge');
+    if (!badge) return;
+
+    if (!isDebug) {
+      badge.hidden = true;
+      return;
+    }
+
+    badge.hidden = false;
+
+    function getTier(w: number) {
+      if (w < 480) return 'phone (<480)';
+      if (w < 768) return 'large phone (480-767)';
+      if (w < 1024) return 'tablet (768-1023)';
+      if (w < 1440) return 'laptop (1024-1439)';
+      if (w < 1920) return 'desktop (1440-1919)';
+      if (w < 2560) return 'large (1920-2559)';
+      return 'ultra-wide/4K (>=2560)';
+    }
+
+    function update() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      const rootFsStr = window.getComputedStyle(document.documentElement).fontSize;
+      const rootFs = parseFloat(rootFsStr) || 16;
+      const scalePct = Math.round((rootFs / 16) * 100);
+      const tier = getTier(w);
+
+      badge.innerHTML = `
+        <div class="tt-debug-row"><strong>${w} &times; ${h}</strong> &middot; dpr ${dpr}</div>
+        <div class="tt-debug-row">root: <strong>${rootFs.toFixed(1)}px</strong> (${scalePct}%) &middot; ${tier}</div>
+      `;
+    }
+
+    update();
+    window.addEventListener('resize', update, { passive: true });
+  }
+
+  setupDebugBadge();
+  document.addEventListener('astro:page-load', setupDebugBadge);
+</script>
+
+<style>
+  #tt-debug-layout-badge {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 99999;
+    background: rgba(15, 17, 21, 0.9);
+    color: #FFFFFF;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 0.4rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  #tt-debug-layout-badge[hidden] {
+    display: none !important;
+  }
+  .tt-debug-row {
+    white-space: nowrap;
+  }
+  .tt-debug-row strong {
+    color: #4ADE80;
+    font-weight: 700;
+  }
+</style>

@@ -4,6 +4,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 
 import CookieBanner from '../components/CookieBanner.astro';
+import DebugLayoutBadge from '../components/DebugLayoutBadge.astro';
 import { SITE } from '../lib/site';
 import { env } from 'cloudflare:workers';
 import { getSetting } from '../lib/db';
@@ -81,7 +82,7 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <script is:inline>
       try {
         const ds = localStorage.getItem('tt-display-size');
@@ -285,5 +286,6 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         }, 4200);
       };
     </script>
+    <DebugLayoutBadge />
   </body>
 </html>

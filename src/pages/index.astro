@@ -412,8 +412,9 @@ const jsonLd = {
      DESKTOP HERO STYLES (>= 769px)
      ========================================================================= */
   .home-hero {
-    padding-top: 2.25rem;
-    padding-bottom: 1.5rem;
+    padding-block: clamp(2rem, 7svh, 4.5rem);
+    min-height: auto;
+    max-height: 100svh;
     background: #FFFFFF;
   }
   .home-hero__grid {
@@ -440,7 +441,7 @@ const jsonLd = {
   }
   .home-hero__title {
     font-family: var(--font-display);
-    font-size: clamp(2.2rem, 1.8rem + 1.8vw, 3.4rem);
+    font-size: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
     font-weight: 700;
@@ -550,19 +551,14 @@ const jsonLd = {
 
   .packs-grid-4 {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
     gap: 1.25rem;
-  }
-  @media (max-width: 940px) and (min-width: 769px) {
-    .packs-grid-4 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
   }
 
   /* Every pack includes Desktop */
   .includes-tiles-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
     gap: 1.25rem;
   }
   .include-tile {
