@@ -108,13 +108,13 @@ const metaRight = metaParts.join(', ');
     background: #FFFFFF;
     border: 1px solid var(--line);
     border-radius: var(--r-card);
-    padding: 16px;
+    padding: 1rem;
     box-shadow: var(--shadow);
     transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   }
   @media (hover: hover) and (min-width: 768px) {
     .pcard:hover {
-      transform: translateY(-2px);
+      transform: translateY(-0.125rem);
       border-color: #C0C5CD;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     }
@@ -135,7 +135,7 @@ const metaRight = metaParts.join(', ');
     width: 100%;
     aspect-ratio: 16 / 9;
     background: var(--bg-soft);
-    border-radius: 12px;
+    border-radius: 0.75rem;
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -166,7 +166,7 @@ const metaRight = metaParts.join(', ');
     display: flex;
     flex-direction: column;
     flex: 1;
-    padding-top: 14px;
+    padding-top: 0.875rem;
   }
 
   /* Top Meta Row */
@@ -174,28 +174,28 @@ const metaRight = metaParts.join(', ');
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
   }
   .pcard__cat {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
     color: var(--muted);
     text-transform: capitalize;
   }
   .pcard__level-time {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
     white-space: nowrap;
   }
 
   /* Full Title */
   .pcard__title {
-    font-size: 18px;
+    font-size: 1.125rem;
     font-weight: 700;
     color: var(--ink);
     line-height: 1.3;
-    margin: 0 0 12px 0;
+    margin: 0 0 0.75rem 0;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -207,17 +207,17 @@ const metaRight = metaParts.join(', ');
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
   }
   .pcard__chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 28px;
-    padding: 0 10px;
+    gap: 0.3125rem;
+    height: 1.75rem;
+    padding: 0 0.625rem;
     border-radius: 999px;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 550;
     background: #ECEEF2;
     color: var(--ink);
@@ -235,30 +235,30 @@ const metaRight = metaParts.join(', ');
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 0.75rem;
     margin-top: auto;
-    padding-top: 8px;
+    padding-top: 0.5rem;
   }
   .pcard__price {
-    font-size: 20px;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--ink);
     letter-spacing: -0.01em;
   }
   .pcard__price--free {
     color: var(--success);
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   .pcard__btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 38px;
-    padding: 0 16px;
-    border-radius: 12px;
+    height: 2.375rem;
+    padding: 0 1rem;
+    border-radius: 0.75rem;
     background: var(--red);
     color: #FFFFFF;
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
     white-space: nowrap;
     transition: background 150ms ease;

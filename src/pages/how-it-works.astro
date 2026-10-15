@@ -138,8 +138,8 @@ const faqs = [
 
     {customHtml && (
       <section class="hiw-custom-section" style="padding: 2rem 0; background: var(--bg);">
-        <div class="container" style="max-width: 800px;">
-          <div class="hiw-custom-card" style="background: var(--surface, #FFF); border: 1px solid var(--border, #E5E7EB); border-radius: 16px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <div class="container" style="max-width: 50rem;">
+          <div class="hiw-custom-card" style="background: var(--surface, #FFF); border: 1px solid var(--border, #E5E7EB); border-radius: 1rem; padding: 2rem; box-shadow:  0 2px 8px rgba(0,0,0,0.04);">
             <div class="prose" set:html={customHtml} />
           </div>
         </div>
@@ -353,7 +353,7 @@ const faqs = [
 
   /* ==================== HERO ==================== */
   .hiw-hero {
-    padding: 64px 0 44px;
+    padding: 4rem 0 2.75rem;
   }
   .hiw-hero__content {
     text-align: center;
@@ -363,11 +363,11 @@ const faqs = [
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 6px 16px;
-    font-size: 13px;
+    padding: 0.375rem 1rem;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
     color: var(--muted);
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
   }
   .hiw-title {
     font-size: clamp(28px, 4vw, 44px);
@@ -375,29 +375,29 @@ const faqs = [
     letter-spacing: -0.02em;
     line-height: 1.15;
     color: var(--ink);
-    margin: 0 0 16px;
+    margin: 0 0 1rem;
   }
   .hiw-sub {
-    font-size: 17px;
+    font-size: 1.0625rem;
     line-height: 1.5;
     color: var(--muted);
-    max-width: 620px;
-    margin: 0 auto 28px;
+    max-width: 38.75rem;
+    margin: 0 auto 1.75rem;
   }
   .hiw-hero-actions {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 14px;
+    gap: 0.875rem;
     flex-wrap: wrap;
   }
   .btn-hiw-primary {
     background: var(--red);
     color: #FFFFFF;
     font-weight: 600;
-    font-size: 15px;
-    padding: 12px 26px;
-    border-radius: 14px;
+    font-size: 0.9375rem;
+    padding: 0.75rem 1.625rem;
+    border-radius: 0.875rem;
     text-decoration: none;
     transition: opacity 150ms ease;
     display: inline-flex;
@@ -412,14 +412,14 @@ const faqs = [
     color: var(--ink);
     border: 1px solid var(--line);
     font-weight: 600;
-    font-size: 15px;
-    padding: 12px 24px;
-    border-radius: 14px;
+    font-size: 0.9375rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.875rem;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     transition: all 150ms ease;
   }
   .btn-hiw-secondary:hover {
@@ -428,24 +428,24 @@ const faqs = [
 
   /* ==================== 5-STEP STEPPER ==================== */
   .hiw-stepper-section {
-    padding: 36px 0 60px;
+    padding: 2.25rem 0 3.75rem;
   }
   .hiw-stepper-wrap {
     position: relative;
   }
   .hiw-stepper-line {
     position: absolute;
-    top: 18px;
-    left: 40px;
-    right: 40px;
-    height: 2px;
+    top: 1.125rem;
+    left: 2.5rem;
+    right: 2.5rem;
+    height: 0.125rem;
     background: var(--line);
     z-index: 1;
   }
   .hiw-steps-track {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
+    gap: 1rem;
     position: relative;
     z-index: 2;
   }
@@ -462,16 +462,16 @@ const faqs = [
     position: relative;
   }
   .hiw-step-badge {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     background: var(--red);
     color: #FFFFFF;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 0.9375rem;
     display: grid;
     place-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
     box-shadow: 0 0 0 4px #FFFFFF;
     z-index: 2;
   }
@@ -481,28 +481,28 @@ const faqs = [
   .hiw-step-body {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 22px 18px;
+    border-radius: 1.125rem;
+    padding: 1.375rem 1.125rem;
     width: 100%;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 210px;
+    min-height: 13.125rem;
   }
   .hiw-step-icon {
     color: var(--red);
-    margin-bottom: 12px;
+    margin-bottom: 0.75rem;
     display: inline-flex;
   }
   .hiw-step-title {
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 8px;
+    margin: 0 0 0.5rem;
   }
   .hiw-step-text {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     line-height: 1.5;
     color: var(--muted);
     margin: 0;
@@ -516,12 +516,12 @@ const faqs = [
 
   /* ==================== DESKTOP SHOWCASE ==================== */
   .hiw-desktop-showcase-section {
-    padding: 48px 0 64px;
+    padding: 3rem 0 4rem;
   }
   .hiw-showcase-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 48px;
+    gap: 3rem;
     align-items: center;
   }
   .hiw-image-col,
@@ -530,7 +530,7 @@ const faqs = [
   }
   .hiw-image-card {
     position: relative;
-    border-radius: 24px;
+    border-radius: 1.5rem;
     overflow: hidden;
     background: var(--surface);
     border: 1px solid var(--line);
@@ -555,13 +555,13 @@ const faqs = [
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 1rem;
     opacity: 0.85;
     color: #A3AAB8;
   }
   .hiw-fallback-title {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--line);
@@ -570,52 +570,52 @@ const faqs = [
     position: absolute;
     background: #FFFFFF;
     color: var(--ink);
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
-    padding: 8px 16px;
+    padding: 0.5rem 1rem;
     border-radius: 999px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     white-space: nowrap;
     z-index: 2;
   }
-  .hiw-float-chip--top { top: 24px; left: 24px; }
-  .hiw-float-chip--mid { top: 50%; right: 24px; transform: translateY(-50%); }
-  .hiw-float-chip--bot { bottom: 24px; left: 24px; }
+  .hiw-float-chip--top { top: 1.5rem; left: 1.5rem; }
+  .hiw-float-chip--mid { top: 50%; right: 1.5rem; transform: translateY(-50%); }
+  .hiw-float-chip--bot { bottom: 1.5rem; left: 1.5rem; }
 
   .hiw-showcase-h2 {
-    font-size: 32px;
+    font-size: 2rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    margin: 0 0 28px;
+    margin: 0 0 1.75rem;
     color: var(--ink);
   }
   .hiw-checklist-items {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 1.25rem;
   }
   .hiw-check-item {
     display: flex;
-    gap: 16px;
+    gap: 1rem;
     align-items: flex-start;
   }
   .hiw-check-icon {
     color: var(--red);
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 0.125rem;
   }
   .hiw-item-title {
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 4px;
+    margin: 0 0 0.25rem;
   }
   .hiw-item-desc {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     line-height: 1.5;
     color: var(--muted);
     margin: 0;
@@ -623,32 +623,32 @@ const faqs = [
 
   /* ==================== DESKTOP 3 ASSURANCES ==================== */
   .hiw-desktop-assurances-section {
-    padding: 36px 0 64px;
+    padding: 2.25rem 0 4rem;
   }
   .hiw-assurances-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    gap: 1.5rem;
   }
   .hiw-assurance-card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 24px;
+    border-radius: 1.125rem;
+    padding: 1.5rem;
   }
   .hiw-assurance-icon {
     color: var(--red);
     display: inline-flex;
-    margin-bottom: 12px;
+    margin-bottom: 0.75rem;
   }
   .hiw-assurance-title {
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 700;
-    margin: 0 0 6px;
+    margin: 0 0 0.375rem;
     color: var(--ink);
   }
   .hiw-assurance-text {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     line-height: 1.5;
     color: var(--muted);
     margin: 0;
@@ -656,13 +656,13 @@ const faqs = [
 
   /* ==================== FAQ ==================== */
   .hiw-faq-section {
-    padding: 60px 0 76px;
+    padding: 3.75rem 0 4.75rem;
     border-top: 1px solid var(--line);
   }
   .hiw-faq-grid {
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 64px;
+    grid-template-columns: 20rem 1fr;
+    gap: 4rem;
     align-items: start;
   }
   .hiw-faq-intro {
@@ -672,21 +672,21 @@ const faqs = [
     display: none;
   }
   .hiw-faq-h2 {
-    font-size: 32px;
+    font-size: 2rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-    margin: 0 0 12px;
+    margin: 0 0 0.75rem;
     color: var(--ink);
   }
   .hiw-faq-lead {
-    font-size: 15px;
+    font-size: 0.9375rem;
     color: var(--muted);
-    margin: 0 0 16px;
+    margin: 0 0 1rem;
   }
   .hiw-contact-link {
     color: var(--red);
     font-weight: 600;
-    font-size: 15px;
+    font-size: 0.9375rem;
     text-decoration: none;
   }
   .hiw-contact-link:hover {
@@ -705,8 +705,8 @@ const faqs = [
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 0;
-    font-size: 16px;
+    padding: 1.25rem 0;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--ink);
     cursor: pointer;
@@ -725,8 +725,8 @@ const faqs = [
     transform: rotate(180deg);
   }
   .hiw-faq-answer {
-    padding-bottom: 20px;
-    font-size: 15px;
+    padding-bottom: 1.25rem;
+    font-size: 0.9375rem;
     line-height: 1.6;
     color: var(--muted);
   }
@@ -736,42 +736,42 @@ const faqs = [
 
   /* ==================== CTA BAND ==================== */
   .hiw-cta-band {
-    padding: 0 0 80px;
+    padding: 0 0 5rem;
   }
   .hiw-cta-card {
     background: var(--dark);
-    border-radius: 24px;
-    padding: 48px;
+    border-radius: 1.5rem;
+    padding: 3rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 32px;
+    gap: 2rem;
     flex-wrap: wrap;
   }
   .hiw-cta-title {
-    font-size: 28px;
+    font-size: 1.75rem;
     font-weight: 700;
     color: #FFFFFF;
-    margin: 0 0 8px;
+    margin: 0 0 0.5rem;
     letter-spacing: -0.01em;
   }
   .hiw-cta-sub {
-    font-size: 16px;
+    font-size: 1rem;
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
   }
   .hiw-cta-buttons {
     display: flex;
-    gap: 14px;
+    gap: 0.875rem;
     flex-wrap: wrap;
   }
   .btn-cta-red {
     background: var(--red);
     color: #FFFFFF;
     font-weight: 600;
-    font-size: 15px;
-    padding: 14px 28px;
-    border-radius: 14px;
+    font-size: 0.9375rem;
+    padding: 0.875rem 1.75rem;
+    border-radius: 0.875rem;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -785,9 +785,9 @@ const faqs = [
     background: #FFFFFF;
     color: var(--dark);
     font-weight: 600;
-    font-size: 15px;
-    padding: 14px 28px;
-    border-radius: 14px;
+    font-size: 0.9375rem;
+    padding: 0.875rem 1.75rem;
+    border-radius: 0.875rem;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -798,7 +798,7 @@ const faqs = [
   @media (max-width: 768px) {
     /* Hero */
     .hiw-hero {
-      padding: 36px 0 28px;
+      padding: 2.25rem 0 1.75rem;
     }
     .hiw-hero__content {
       text-align: left;
@@ -808,37 +808,37 @@ const faqs = [
       border: none;
       padding: 0;
       color: var(--red);
-      font-size: 14px;
+      font-size: max(12px, 0.875rem);
       font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 0.75rem;
     }
     .hiw-title {
-      font-size: 30px;
+      font-size: 1.875rem;
       line-height: 1.15;
-      margin-bottom: 12px;
+      margin-bottom: 0.75rem;
     }
     .hiw-sub {
-      font-size: 15px;
+      font-size: 0.9375rem;
       line-height: 1.5;
-      margin: 0 0 24px 0;
+      margin: 0 0 1.5rem 0;
       max-width: none;
     }
     .hiw-hero-actions {
       justify-content: flex-start;
-      gap: 10px;
+      gap: 0.625rem;
     }
     .btn-hiw-primary {
-      padding: 12px 22px;
-      font-size: 14px;
+      padding: 0.75rem 1.375rem;
+      font-size: max(12px, 0.875rem);
     }
     .btn-hiw-secondary {
-      padding: 12px 20px;
-      font-size: 14px;
+      padding: 0.75rem 1.25rem;
+      font-size: max(12px, 0.875rem);
     }
 
     /* Stepper Vertical Timeline */
     .hiw-stepper-section {
-      padding: 28px 0 40px;
+      padding: 1.75rem 0 2.5rem;
     }
     .hiw-stepper-line {
       display: none;
@@ -852,37 +852,37 @@ const faqs = [
       flex-direction: row;
       align-items: flex-start;
       text-align: left;
-      gap: 16px;
+      gap: 1rem;
       position: relative;
-      padding-bottom: 24px;
+      padding-bottom: 1.5rem;
     }
     .hiw-step-item:last-child {
       padding-bottom: 0;
     }
     .hiw-step-badge-col {
-      width: 32px;
+      width: 2rem;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
     .hiw-step-badge {
-      width: 30px;
-      height: 30px;
-      font-size: 14px;
+      width: 1.875rem;
+      height: 1.875rem;
+      font-size: max(12px, 0.875rem);
       margin-bottom: 0;
       box-shadow: none;
     }
     .hiw-v-line {
       display: block;
-      width: 2px;
+      width: 0.125rem;
       background: var(--line);
       flex: 1;
       min-height: 100%;
       position: absolute;
-      top: 30px;
-      bottom: -6px;
-      left: 14px;
+      top: 1.875rem;
+      bottom: -0.375rem;
+      left: 0.875rem;
       z-index: 1;
     }
     .hiw-step-body {
@@ -896,43 +896,43 @@ const faqs = [
     }
     .hiw-step-icon {
       color: var(--red);
-      margin-bottom: 6px;
+      margin-bottom: 0.375rem;
     }
     .hiw-step-title {
-      font-size: 17px;
-      margin-bottom: 4px;
+      font-size: 1.0625rem;
+      margin-bottom: 0.25rem;
     }
     .hiw-step-text {
-      font-size: 14px;
+      font-size: max(12px, 0.875rem);
       line-height: 1.5;
     }
 
     /* Mobile Inside Every Pack Section */
     .hiw-mobile-inside-section {
       display: block;
-      padding: 12px 0 28px;
+      padding: 0.75rem 0 1.75rem;
     }
     .hiw-mobile-section-heading {
-      font-size: 22px;
+      font-size: 1.375rem;
       font-weight: 700;
       color: var(--ink);
-      margin: 0 0 16px;
+      margin: 0 0 1rem;
       letter-spacing: -0.01em;
     }
     .hiw-mobile-tiles-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      gap: 0.75rem;
     }
     .hiw-mobile-tile {
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 18px 16px;
+      border-radius: 1rem;
+      padding: 1.125rem 1rem;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      min-height: 100px;
+      gap: 0.75rem;
+      min-height: 6.25rem;
       box-sizing: border-box;
     }
     .hiw-mobile-tile-icon {
@@ -940,7 +940,7 @@ const faqs = [
       display: inline-flex;
     }
     .hiw-mobile-tile-title {
-      font-size: 14px;
+      font-size: max(12px, 0.875rem);
       font-weight: 700;
       color: var(--ink);
       line-height: 1.35;
@@ -949,41 +949,41 @@ const faqs = [
     /* Mobile Single Assurance Card with 3 rows */
     .hiw-mobile-assurance-section {
       display: block;
-      padding: 0 0 36px;
+      padding: 0 0 2.25rem;
     }
     .hiw-mobile-assurance-card {
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 18px 16px;
+      border-radius: 1.125rem;
+      padding: 1.125rem 1rem;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 1rem;
     }
     .hiw-mobile-assure-row {
       display: flex;
-      gap: 12px;
+      gap: 0.75rem;
       align-items: flex-start;
     }
     .hiw-mobile-assure-icon {
       color: var(--red);
       flex-shrink: 0;
       display: inline-flex;
-      margin-top: 1px;
+      margin-top: 0.0625rem;
     }
     .hiw-mobile-assure-text {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 0.125rem;
     }
     .hiw-mobile-assure-title {
-      font-size: 15px;
+      font-size: 0.9375rem;
       font-weight: 700;
       color: var(--ink);
       margin: 0;
     }
     .hiw-mobile-assure-sub {
-      font-size: 13px;
+      font-size: max(12px, 0.8125rem);
       color: var(--muted);
       margin: 0;
       line-height: 1.4;
@@ -997,7 +997,7 @@ const faqs = [
 
     /* FAQ */
     .hiw-faq-section {
-      padding: 36px 0 44px;
+      padding: 2.25rem 0 2.75rem;
       border-top: none;
     }
     .hiw-faq-grid {
@@ -1009,42 +1009,42 @@ const faqs = [
     }
     .hiw-faq-mobile-title {
       display: block;
-      font-size: 22px;
+      font-size: 1.375rem;
       font-weight: 700;
       color: var(--ink);
-      margin: 0 0 16px;
+      margin: 0 0 1rem;
       letter-spacing: -0.01em;
     }
     .hiw-faq-accordion {
       border-top: 1px solid var(--line);
     }
     .hiw-faq-summary {
-      padding: 16px 0;
-      font-size: 15px;
+      padding: 1rem 0;
+      font-size: 0.9375rem;
     }
     .hiw-faq-answer {
-      font-size: 14px;
-      padding-bottom: 16px;
+      font-size: max(12px, 0.875rem);
+      padding-bottom: 1rem;
     }
 
     /* CTA Card */
     .hiw-cta-band {
-      padding: 0 0 48px;
+      padding: 0 0 3rem;
     }
     .hiw-cta-card {
-      padding: 24px 20px;
-      border-radius: 20px;
+      padding: 1.5rem 1.25rem;
+      border-radius: 1.25rem;
       flex-direction: column;
       align-items: stretch;
-      gap: 20px;
+      gap: 1.25rem;
     }
     .hiw-cta-title {
-      font-size: 22px;
+      font-size: 1.375rem;
       line-height: 1.25;
-      margin-bottom: 8px;
+      margin-bottom: 0.5rem;
     }
     .hiw-cta-sub {
-      font-size: 14px;
+      font-size: max(12px, 0.875rem);
       line-height: 1.5;
     }
     .hiw-cta-buttons {
@@ -1052,9 +1052,9 @@ const faqs = [
     }
     .btn-cta-red {
       width: 100%;
-      height: 48px;
-      border-radius: 12px;
-      font-size: 15px;
+      height: 3rem;
+      border-radius: 0.75rem;
+      font-size: 0.9375rem;
     }
     .hiw-desktop-only {
       display: none;
@@ -1068,11 +1068,11 @@ const faqs = [
     }
     .hiw-steps-track {
       grid-template-columns: 1fr;
-      gap: 14px;
+      gap: 0.875rem;
     }
     .hiw-step-item {
       flex-direction: row;
-      gap: 16px;
+      gap: 1rem;
       text-align: left;
       align-items: flex-start;
     }
@@ -1086,15 +1086,15 @@ const faqs = [
     }
     .hiw-showcase-grid {
       grid-template-columns: 1fr;
-      gap: 32px;
+      gap: 2rem;
     }
     .hiw-assurances-grid {
       grid-template-columns: 1fr;
-      gap: 16px;
+      gap: 1rem;
     }
     .hiw-faq-grid {
       grid-template-columns: 1fr;
-      gap: 32px;
+      gap: 2rem;
     }
   }
 </style>

@@ -31,7 +31,7 @@ const sub = paid
     <span class="m-bar__sub">{sub}</span>
   </div>
   {singleFileUrl ? (
-    <a href={singleFileUrl} class="btn btn-primary m-bar__btn" style="display:flex; align-items:center; gap:0.4rem; justify-content:center; flex-shrink: 0;" target="_blank" rel="noopener">
+    <a href={singleFileUrl} class="btn btn-primary m-bar__btn" style="display: flex; align-items: center; gap: 0.4rem; justify-content: center; flex-shrink: 0;" target="_blank" rel="noopener">
       <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>
       {singleFileLabel || 'Download'}
     </a>
@@ -150,17 +150,17 @@ const sub = paid
     .m-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
-      padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+      padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0rem));
       background: var(--surface); border-top: 1px solid var(--border);
       box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.08);
     }
     .m-bar__info { display: flex; flex-direction: column; min-width: 0; }
     .m-bar__price { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; line-height: 1.1; color: var(--text); }
     .m-bar__sub { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .m-bar__btn { flex-shrink: 0; min-height: 44px; padding-inline: 1.25rem; }
+    .m-bar__btn { flex-shrink: 0; min-height: 2.75rem; padding-inline: 1.25rem; }
     html.m-sheet-open .m-bar { visibility: hidden; }
     /* Leave room so the bar never covers content/footer */
-    html.m-proj body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+    html.m-proj body { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0rem)); }
 
     /* ---------- Bottom sheet ---------- */
     .m-sheet { display: block; position: fixed; inset: 0; z-index: 1100; }
@@ -169,20 +169,20 @@ const sub = paid
     .m-sheet__panel {
       position: absolute; left: 0; right: 0; bottom: 0;
       max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
-      background: var(--surface); border-radius: 18px 18px 0 0;
-      padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+      background: var(--surface); border-radius: 1.125rem 1.125rem 0 0;
+      padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom, 0rem));
       transform: translateY(100%); transition: transform 0.26s cubic-bezier(.2,.8,.2,1);
     }
     .m-sheet.is-open .m-sheet__backdrop { opacity: 1; }
     .m-sheet.is-open .m-sheet__panel { transform: translateY(0); }
-    .m-sheet__grip { width: 40px; height: 4px; border-radius: 4px; background: var(--border); margin: 0.25rem auto 0.5rem; }
+    .m-sheet__grip { width: 2.5rem; height: 0.25rem; border-radius: 0.25rem; background: var(--border); margin: 0.25rem auto 0.5rem; }
     .m-sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
     .m-sheet__title { font-size: 1.05rem; margin: 0; }
-    .m-sheet__close { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+    .m-sheet__close { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 1.4rem; line-height: 1; cursor: pointer; }
     .m-sheet__body .cta-card { border: 0; box-shadow: none; background: none; padding: 0; }
     .m-sheet__body .cta-card__details { margin-bottom: 1rem; }
-    .m-sheet__body #buy-email { min-height: 44px; font-size: 16px; } /* 16px stops iOS zoom */
-    .m-sheet__body .btn-buy { min-height: 48px; font-size: 1rem; }
+    .m-sheet__body #buy-email { min-height: 2.75rem; font-size: 1rem; } /* 16px stops iOS zoom */
+    .m-sheet__body .btn-buy { min-height: 3rem; font-size: 1rem; }
     html.m-sheet-open { overflow: hidden; }
 
     /* Sidebar is empty on mobile once #buy moves into the sheet */
@@ -190,10 +190,10 @@ const sub = paid
 
     /* ---------- Sticky section chips ---------- */
     .m-secnav {
-      display: block; position: sticky; top: var(--header-h, 70px); z-index: 50;
+      display: block; position: sticky; top: var(--header-h, 4.375rem); z-index: 50;
       margin: 0 0 1.25rem;
       background: color-mix(in srgb, var(--bg) 92%, transparent);
-      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(0.5rem); backdrop-filter: blur(0.5rem);
       border-bottom: 1px solid var(--border);
     }
     .m-secnav__track { display: flex; gap: 0.4rem; overflow-x: auto; scrollbar-width: none; padding: 0.55rem 0; }

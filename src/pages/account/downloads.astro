@@ -74,7 +74,7 @@ const mailOn = emailEnabled(env);
             </button>
           </form>
           {!mailOn && (
-            <p class="mydl__note center" style="margin-top: 14px;">
+            <p class="mydl__note center" style="margin-top: 0.875rem;">
               Email delivery is currently paused. Please check your original purchase confirmation email, or
               <a href="/contact"> contact support</a> to get your files.
             </p>
@@ -88,19 +88,19 @@ const mailOn = emailEnabled(env);
 
 <style>
   .mydl-section {
-    padding: clamp(48px, 6vw, 96px) 0;
+    padding: clamp(3rem, 6vw, 6rem) 0;
   }
   .center {
     text-align: center;
   }
   .mydl-eyebrow {
     display: block;
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--red);
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
   }
   .mydl-title {
     font-size: clamp(2rem, 1.2rem + 3.6vw, 3rem);
@@ -108,45 +108,45 @@ const mailOn = emailEnabled(env);
     line-height: 1.1;
     letter-spacing: -0.02em;
     color: var(--ink);
-    margin: 0 0 12px;
+    margin: 0 0 0.75rem;
   }
   .mydl-sub {
     font-size: 1rem;
     color: var(--ink-2);
     line-height: 1.6;
     max-width: 50ch;
-    margin: 0 0 32px;
+    margin: 0 0 2rem;
   }
   .mydl--form {
-    max-width: 480px;
+    max-width: 30rem;
     margin: 0 auto;
     background: var(--bg);
     border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: clamp(24px, 5vw, 40px);
+    border-radius: 1rem;
+    padding: clamp(1.5rem, 5vw, 2.5rem);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   }
   .mydl--form .mydl-sub {
     margin-inline: auto;
   }
   .mydl__icon {
-    width: 60px;
-    height: 60px;
-    margin: 0 auto 16px;
+    width: 3.75rem;
+    height: 3.75rem;
+    margin: 0 auto 1rem;
     display: grid;
     place-items: center;
-    border-radius: 12px;
+    border-radius: 0.75rem;
     background: rgba(233, 36, 36, 0.08);
     color: var(--red);
   }
   .mydl__request {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.75rem;
   }
   @media (min-width: 640px) {
     .mydl--form {
-      max-width: 560px;
+      max-width: 35rem;
     }
     .mydl__request {
       flex-direction: row;
@@ -154,15 +154,15 @@ const mailOn = emailEnabled(env);
     .mydl__btn {
       width: auto;
       white-space: nowrap;
-      padding: 0 24px;
+      padding: 0 1.5rem;
       flex-shrink: 0;
     }
   }
   .mydl__input {
-    height: 48px;
-    border-radius: 10px;
+    height: 3rem;
+    border-radius: 0.625rem;
     border: 1px solid var(--line);
-    padding: 0 16px;
+    padding: 0 1rem;
     font-size: 1rem;
     color: var(--ink);
     width: 100%;
@@ -173,14 +173,14 @@ const mailOn = emailEnabled(env);
     box-shadow: 0 0 0 2px rgba(233, 36, 36, 0.15);
   }
   .mydl__btn {
-    height: 48px;
-    border-radius: 10px;
+    height: 3rem;
+    border-radius: 0.625rem;
     font-size: 1rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     width: 100%;
     cursor: pointer;
   }
@@ -196,12 +196,12 @@ const mailOn = emailEnabled(env);
     text-decoration: underline;
   }
   .mydl__hint {
-    margin-top: 16px;
+    margin-top: 1rem;
     font-size: 0.875rem;
     color: var(--ink-2);
     background: var(--bg-soft);
-    padding: 10px 14px;
-    border-radius: 8px;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.5rem;
     border: 1px solid var(--line);
   }
   .mydl__hint[hidden] {
@@ -212,23 +212,23 @@ const mailOn = emailEnabled(env);
   .mydl__list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.75rem;
   }
   .order-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 20px 24px;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
     border: 1px solid var(--line);
-    border-radius: 16px;
+    border-radius: 1rem;
     background: var(--bg);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     transition: transform 150ms ease, box-shadow 150ms ease;
   }
   @media (min-width: 1024px) {
     .order-card:hover {
-      transform: translateY(-2px);
+      transform: translateY(-0.125rem);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     }
   }
@@ -236,7 +236,7 @@ const mailOn = emailEnabled(env);
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
     min-width: 0;
   }
   .order-card__title {
@@ -249,59 +249,59 @@ const mailOn = emailEnabled(env);
     color: var(--ink-3);
   }
   .order-card__btn {
-    height: 44px;
-    padding: 0 20px;
+    height: 2.75rem;
+    padding: 0 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
   }
   @media (max-width: 600px) {
     .mydl-section {
-      padding: 36px 0 60px;
+      padding: 2.25rem 0 3.75rem;
     }
     .mydl--form {
-      padding: 24px 16px;
-      border-radius: 16px;
+      padding: 1.5rem 1rem;
+      border-radius: 1rem;
     }
     .mydl__icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 0.875rem;
     }
     .mydl-title {
       font-size: 1.875rem;
     }
     .mydl-sub {
       font-size: 0.9375rem;
-      margin-bottom: 24px;
+      margin-bottom: 1.5rem;
     }
     .order-card {
       flex-direction: column;
       align-items: stretch;
-      padding: 16px;
-      gap: 12px;
-      border-radius: 14px;
+      padding: 1rem;
+      gap: 0.75rem;
+      border-radius: 0.875rem;
     }
     .order-card__btn {
-      height: 48px;
+      height: 3rem;
       justify-content: center;
       width: 100%;
     }
   }
   .mydl-empty {
-    padding: 48px 24px;
+    padding: 3rem 1.5rem;
     background: var(--bg-soft);
     border: 1px dashed var(--line);
-    border-radius: 16px;
+    border-radius: 1rem;
   }
   .mydl-empty__text {
     font-size: 1rem;
     color: var(--ink-2);
-    margin: 0 0 16px;
+    margin: 0 0 1rem;
   }
 </style>
 

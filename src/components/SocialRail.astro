@@ -34,8 +34,8 @@ const socials = [
     gap: 0.85rem;
   }
   .social-rail__link {
-    width: 40px;
-    height: 40px;
+    width: 2.5rem;
+    height: 2.5rem;
     display: grid;
     place-items: center;
     border-radius: 50%;
@@ -49,10 +49,10 @@ const socials = [
     color: #fff;
     background: var(--brand-red);
     border-color: var(--brand-red);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
   }
-  .social-rail__line { width: 1px; height: 56px; background: linear-gradient(var(--border-strong), transparent); margin-top: 0.35rem; }
+  .social-rail__line { width: 0.0625rem; height: 3.5rem; background: linear-gradient(var(--border-strong), transparent); margin-top: 0.35rem; }
 
   /* Desktop-only; the footer carries socials on smaller screens. */
-  @media (max-width: 1180px) { .social-rail { display: none; } }
+  @media (max-width: 940px) { .social-rail { display: none; } }
 </style>

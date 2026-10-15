@@ -195,12 +195,12 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
 
 <style>
   .contact-section {
-    padding: clamp(48px, 6vw, 96px) 0;
+    padding: clamp(3rem, 6vw, 6rem) 0;
   }
   .contact-grid {
     display: grid;
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    gap: 48px;
+    gap: 3rem;
     align-items: start;
   }
   .contact-intro,
@@ -210,7 +210,7 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   @media (max-width: 900px) {
     .contact-grid {
       grid-template-columns: minmax(0, 1fr);
-      gap: 36px;
+      gap: 2.25rem;
     }
   }
 
@@ -218,10 +218,10 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .contact-intro {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 1rem;
   }
   .contact-eyebrow {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -250,8 +250,8 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .reply-badge {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
     background: var(--bg-soft);
     border: 1px solid var(--line);
     border-radius: 999px;
@@ -267,22 +267,22 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .contact-cards {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 12px;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
   }
   .contact-card {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px;
+    gap: 1rem;
+    padding: 1rem;
     background: var(--bg);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 0.75rem;
   }
   .contact-card__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.625rem;
     background: rgba(233, 36, 36, 0.08);
     color: var(--red);
     display: flex;
@@ -293,7 +293,7 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .contact-card__info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.125rem;
     min-width: 0;
   }
   .contact-card__label {
@@ -317,31 +317,31 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .contact-form-wrap {
     background: var(--bg);
     border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: clamp(24px, 5vw, 40px);
+    border-radius: 1rem;
+    padding: clamp(1.5rem, 5vw, 2.5rem);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   }
   .contact-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 1rem;
   }
   .grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 1rem;
   }
   @media (max-width: 600px) {
     .grid-2 {
       grid-template-columns: 1fr;
-      gap: 16px;
+      gap: 1rem;
     }
   }
 
   .field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.375rem;
   }
   .field-label {
     font-size: 0.875rem;
@@ -350,10 +350,10 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   }
   .field-input,
   .field-select {
-    height: 48px;
-    border-radius: 10px;
+    height: 3rem;
+    border-radius: 0.625rem;
     border: 1px solid var(--line);
-    padding: 0 14px;
+    padding: 0 0.875rem;
     font-size: 0.9375rem;
     color: var(--ink);
     background: var(--bg);
@@ -361,9 +361,9 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
     box-sizing: border-box;
   }
   .field-textarea {
-    border-radius: 10px;
+    border-radius: 0.625rem;
     border: 1px solid var(--line);
-    padding: 12px 14px;
+    padding: 0.75rem 0.875rem;
     font-size: 0.9375rem;
     color: var(--ink);
     background: var(--bg);
@@ -384,16 +384,16 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .consent-row {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    margin-top: 4px;
+    gap: 0.625rem;
+    margin-top: 0.25rem;
   }
   .consent-checkbox {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 0.25rem;
     border: 1px solid var(--line);
     accent-color: var(--red);
-    margin-top: 2px;
+    margin-top: 0.125rem;
     flex-shrink: 0;
     cursor: pointer;
   }
@@ -405,23 +405,23 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   }
 
   .btn-submit {
-    height: 48px;
-    border-radius: 10px;
+    height: 3rem;
+    border-radius: 0.625rem;
     font-size: 1rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     width: 100%;
     cursor: pointer;
-    margin-top: 8px;
+    margin-top: 0.5rem;
   }
 
   .hp {
     position: absolute;
-    left: -9999px;
-    width: 1px;
+    left: -624.9375rem;
+    width: 0.0625rem;
     height: 1px;
     opacity: 0;
   }
@@ -429,10 +429,10 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .contact-alert {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border-radius: 10px;
-    margin-bottom: 20px;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.625rem;
+    margin-bottom: 1.25rem;
     font-size: 0.9375rem;
   }
   .contact-alert--success {
@@ -450,22 +450,22 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .order-support-note {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 12px 14px;
+    gap: 0.75rem;
+    padding: 0.75rem 0.875rem;
     background: rgba(217, 31, 38, 0.05);
     border: 1px solid rgba(217, 31, 38, 0.2);
-    border-radius: 12px;
-    margin-top: 4px;
+    border-radius: 0.75rem;
+    margin-top: 0.25rem;
   }
   .order-support-note__icon {
     color: var(--red);
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: 0.0625rem;
   }
   .order-support-note__text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.125rem;
     font-size: 0.875rem;
     color: var(--ink-2);
     line-height: 1.45;
@@ -478,11 +478,11 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .sponsorship-note {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: 0.625rem;
+    padding: 0.75rem 0.875rem;
     background: var(--bg-soft);
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 0.625rem;
     font-size: 0.8125rem;
     color: var(--ink-2);
     line-height: 1.45;
@@ -490,7 +490,7 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   .sponsorship-note :global(svg) {
     color: var(--red);
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 0.125rem;
   }
   .sponsorship-note a {
     color: var(--red);
@@ -503,8 +503,8 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
   }
   @media (max-width: 768px) {
     .contact-section {
-      padding-top: 36px;
-      padding-bottom: 100px; /* Room for sticky bottom bar */
+      padding-top: 2.25rem;
+      padding-bottom: 6.25rem; /* Room for sticky bottom bar */
     }
     .contact-title {
       font-size: 2rem;
@@ -513,8 +513,8 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
       font-size: 0.9375rem;
     }
     .contact-form-wrap {
-      padding: 20px 16px;
-      border-radius: 14px;
+      padding: 1.25rem 1rem;
+      border-radius: 0.875rem;
     }
     .btn-submit-inline {
       display: none;
@@ -527,29 +527,29 @@ const customHtml = pageData.is_custom ? renderMarkdown(pageData.markdown) : null
       right: 0;
       background: var(--bg);
       border-top: 1px solid var(--line);
-      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
       z-index: 100;
       box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
     }
     .btn-submit-sticky {
       width: 100%;
-      height: 48px;
-      border-radius: 12px;
+      height: 3rem;
+      border-radius: 0.75rem;
       font-size: 1rem;
       font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 0.5rem;
       cursor: pointer;
     }
     .field-input,
     .field-select {
-      height: 48px;
-      font-size: 16px; /* Prevents auto zoom */
+      height: 3rem;
+      font-size: 1rem; /* Prevents auto zoom */
     }
     .field-textarea {
-      font-size: 16px;
+      font-size: 1rem;
     }
   }
 </style>

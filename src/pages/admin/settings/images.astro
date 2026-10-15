@@ -603,7 +603,7 @@ const showcaseTotalKb = Math.round(
     accept="image/jpeg,image/png,image/webp,image/avif"
     aria-hidden="true"
     tabindex="-1"
-    style="position: fixed; top: -9999px; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none;"
+    style="position: fixed; top: -624.9375rem; left: -624.9375rem; width: 0.0625rem; height:  1px; opacity: 0; pointer-events: none;"
   />
 
   <!-- CROP & FOCAL POINT MODAL -->
@@ -725,8 +725,8 @@ const showcaseTotalKb = Math.round(
      ========================================================================== */
 
   .site-images-page {
-    padding: 24px 32px 64px;
-    max-width: 1400px;
+    padding: 1.5rem 2rem 4rem;
+    max-width: 87.5rem;
     margin: 0 auto;
   }
 
@@ -735,22 +735,22 @@ const showcaseTotalKb = Math.round(
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 1.5rem;
   }
 
   .si-header__left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .si-back-btn {
     display: none;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
     color: var(--admin-ink, #0f1115);
     background: #ffffff;
     border: 1px solid var(--admin-line, #e4e7eb);
@@ -758,7 +758,7 @@ const showcaseTotalKb = Math.round(
   }
 
   .si-title {
-    font-size: 26px;
+    font-size: 1.625rem;
     font-weight: 700;
     color: var(--admin-ink, #0f1115);
     margin: 0;
@@ -768,13 +768,13 @@ const showcaseTotalKb = Math.round(
   .btn-save-action {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     background: #d91f26 !important;
     color: #ffffff !important;
-    border-radius: 12px;
-    padding: 10px 22px;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.375rem;
     font-weight: 600;
-    font-size: 14.5px;
+    font-size: max(12px, 0.9063rem);
     border: none;
     cursor: pointer;
     transition: background 0.15s ease;
@@ -793,10 +793,10 @@ const showcaseTotalKb = Math.round(
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 18px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    font-size: 14px;
+    padding: 0.75rem 1.125rem;
+    border-radius: 0.625rem;
+    margin-bottom: 1.25rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 500;
   }
 
@@ -815,17 +815,17 @@ const showcaseTotalKb = Math.round(
   .si-banner-close {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 1rem;
     cursor: pointer;
     color: inherit;
-    padding: 0 4px;
+    padding: 0 0.25rem;
   }
 
   /* Two Column Grid */
   .si-layout-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    gap: 24px;
+    gap: 1.5rem;
     align-items: start;
   }
 
@@ -833,17 +833,17 @@ const showcaseTotalKb = Math.round(
   .si-slots-column {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 1.25rem;
   }
 
   .si-card {
     background: #ffffff;
     border: 1px solid var(--admin-line, #e4e7eb);
-    border-radius: 16px;
-    padding: 24px;
+    border-radius: 1rem;
+    padding: 1.5rem;
     display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
-    gap: 24px;
+    grid-template-columns: 12.5rem minmax(0, 1fr);
+    gap: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   }
 
@@ -854,7 +854,7 @@ const showcaseTotalKb = Math.round(
 
   .si-preview-wrap {
     width: 100%;
-    border-radius: 12px;
+    border-radius: 0.75rem;
     overflow: hidden;
     background: #fafbfc;
     border: 1.5px solid var(--admin-line-subtle, #eef0f2);
@@ -892,15 +892,15 @@ const showcaseTotalKb = Math.round(
   .si-preview-wrap.si-preview-mosaic {
     aspect-ratio: 16 / 9;
     display: flex;
-    gap: 4px;
-    padding: 6px;
+    gap: 0.25rem;
+    padding: 0.375rem;
     background: #f1f3f5;
   }
 
   .si-mosaic-thumb {
     flex: 1;
     height: 100%;
-    border-radius: 6px;
+    border-radius: 0.375rem;
     overflow: hidden;
     background: #ffffff;
     display: flex;
@@ -943,13 +943,13 @@ const showcaseTotalKb = Math.round(
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    font-size: 13px;
+    gap: 0.375rem;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(0.125rem);
   }
 
   .si-preview-wrap:hover .si-preview-overlay {
@@ -960,15 +960,15 @@ const showcaseTotalKb = Math.round(
     width: 100%;
     height: 100%;
     border: 2px dashed #cfd4dc;
-    border-radius: 12px;
+    border-radius: 0.75rem;
     background: #fafbfc;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 0.375rem;
     text-align: center;
-    padding: 16px 12px;
+    padding: 1rem 0.75rem;
     transition: border-color 0.15s ease, background 0.15s ease;
   }
 
@@ -978,32 +978,32 @@ const showcaseTotalKb = Math.round(
   }
 
   .si-fallback-icon-wrap {
-    width: 44px;
-    height: 44px;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 50%;
     background: #f1f3f5;
     color: #d91f26;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 2px;
+    margin-bottom: 0.125rem;
     transition: background 0.15s ease, transform 0.15s ease;
   }
 
   .si-preview-wrap:hover .si-fallback-icon-wrap {
     background: #fde8e8;
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
   }
 
   .si-fallback-action {
-    font-size: 13.5px;
+    font-size: max(12px, 0.8438rem);
     font-weight: 700;
     color: #d91f26;
     display: block;
   }
 
   .si-fallback-text {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 500;
     line-height: 1.4;
     color: #5f6368;
@@ -1011,7 +1011,7 @@ const showcaseTotalKb = Math.round(
   }
 
   .si-fallback-drag {
-    font-size: 11px;
+    font-size: max(12px, 0.6875rem);
     color: #8a9099;
     display: block;
   }
@@ -1020,25 +1020,25 @@ const showcaseTotalKb = Math.round(
   .si-card__body-col {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 0.875rem;
   }
 
   .si-card__title-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 4px;
+    gap: 0.625rem;
+    margin-bottom: 0.25rem;
   }
 
   .si-card__title {
-    font-size: 18px;
+    font-size: 1.125rem;
     font-weight: 700;
     color: var(--admin-ink, #0f1115);
     margin: 0;
   }
 
   .si-card__specs {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--admin-muted, #5a6270);
     margin: 0;
     line-height: 1.4;
@@ -1048,34 +1048,34 @@ const showcaseTotalKb = Math.round(
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    font-size: 13px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.8125rem);
   }
 
   .si-file-meta {
     color: #5f6368;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
   }
 
   .si-field-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   .si-label {
-    font-size: 12.5px;
+    font-size: max(12px, 0.7813rem);
     font-weight: 600;
     color: #5f6368;
   }
 
   .si-input {
     width: 100%;
-    height: 40px;
-    padding: 0 14px;
+    height: 2.5rem;
+    padding: 0 0.875rem;
     border: 1px solid var(--admin-line, #e4e7eb);
-    border-radius: 10px;
-    font-size: 14px;
+    border-radius: 0.625rem;
+    font-size: max(12px, 0.875rem);
     color: var(--admin-ink, #0f1115);
     background: #ffffff;
     outline: none;
@@ -1089,8 +1089,8 @@ const showcaseTotalKb = Math.round(
   .si-btn-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 4px;
+    gap: 0.625rem;
+    margin-top: 0.25rem;
   }
 
   .admin-btn--danger-outline {
@@ -1107,66 +1107,66 @@ const showcaseTotalKb = Math.round(
   .si-sidebar-column {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 1.25rem;
   }
 
   .si-panel-card {
     background: #ffffff;
     border: 1px solid var(--admin-line, #e4e7eb);
-    border-radius: 16px;
-    padding: 22px;
+    border-radius: 1rem;
+    padding: 1.375rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   }
 
   .si-panel-title {
-    font-size: 16.5px;
+    font-size: 1.0313rem;
     font-weight: 700;
     color: var(--admin-ink, #0f1115);
-    margin: 0 0 16px 0;
+    margin: 0 0 1rem 0;
   }
 
   .si-panel-head-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
   }
 
   /* Social Links */
   .si-social-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .si-social-row {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .si-social-box {
-    width: 38px;
-    height: 38px;
-    border-radius: 8px;
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: 0.5rem;
     background: #f3f5f8;
     color: #495057;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 0.125rem;
   }
 
   .si-social-field {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
   }
 
   .si-social-label {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 600;
     color: #5a6270;
   }
@@ -1178,13 +1178,13 @@ const showcaseTotalKb = Math.round(
   }
 
   .si-social-input {
-    padding-right: 50px !important;
+    padding-right: 3.125rem !important;
   }
 
   .si-test-link {
     position: absolute;
-    right: 12px;
-    font-size: 12.5px;
+    right: 0.75rem;
+    font-size: max(12px, 0.7813rem);
     font-weight: 600;
     color: #d91f26;
     text-decoration: none;
@@ -1199,14 +1199,14 @@ const showcaseTotalKb = Math.round(
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding-top: 16px;
-    margin-top: 16px;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
     border-top: 1px solid var(--admin-line, #e4e7eb);
   }
 
   .si-switch-desc {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 500;
     color: var(--admin-ink, #0f1115);
     line-height: 1.4;
@@ -1219,14 +1219,14 @@ const showcaseTotalKb = Math.round(
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.625rem;
   }
 
   .si-bullet-list li {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    font-size: 13px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.8125rem);
     color: #3b4350;
     line-height: 1.4;
   }
@@ -1236,18 +1236,18 @@ const showcaseTotalKb = Math.round(
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    margin-top: 2px;
+    margin-top: 0.125rem;
   }
 
   /* Where images appear table */
   .si-locations-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
   }
 
   .si-locations-table td {
-    padding: 7px 0;
+    padding: 0.4375rem 0;
     border-bottom: 1px solid #f1f3f5;
   }
 
@@ -1265,37 +1265,37 @@ const showcaseTotalKb = Math.round(
   .si-revisions-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.625rem;
   }
 
   .si-revision-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
     background: #fafbfc;
     border: 1px solid var(--admin-line-subtle, #eef0f2);
-    border-radius: 10px;
+    border-radius: 0.625rem;
   }
 
   .si-revision-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.125rem;
   }
 
   .si-revision-note {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--admin-ink, #0f1115);
   }
 
   .si-revision-date {
-    font-size: 11.5px;
+    font-size: max(12px, 0.7188rem);
     color: #6c757d;
   }
 
   .si-empty-revisions {
-    font-size: 12.5px;
+    font-size: max(12px, 0.7813rem);
     color: #6c757d;
     margin: 0;
   }
@@ -1304,9 +1304,9 @@ const showcaseTotalKb = Math.round(
   .si-chip {
     display: inline-flex;
     align-items: center;
-    padding: 2px 9px;
+    padding: 0.125rem 0.5625rem;
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: max(12px, 0.7188rem);
     font-weight: 600;
   }
 
@@ -1339,9 +1339,9 @@ const showcaseTotalKb = Math.round(
   /* Modals */
   .si-modal {
     border: none;
-    border-radius: 16px;
+    border-radius: 1rem;
     padding: 0;
-    max-width: 620px;
+    max-width: 38.75rem;
     width: 90vw;
     background: #ffffff;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -1349,11 +1349,11 @@ const showcaseTotalKb = Math.round(
 
   .si-modal::backdrop {
     background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(0.125rem);
   }
 
   .si-modal-content--wide {
-    max-width: 800px;
+    max-width: 50rem;
   }
 
   .si-modal-content {
@@ -1366,12 +1366,12 @@ const showcaseTotalKb = Math.round(
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 22px;
+    padding: 1rem 1.375rem;
     border-bottom: 1px solid var(--admin-line, #e4e7eb);
   }
 
   .si-modal-title {
-    font-size: 17px;
+    font-size: 1.0625rem;
     font-weight: 700;
     margin: 0;
   }
@@ -1379,41 +1379,41 @@ const showcaseTotalKb = Math.round(
   .si-modal-close {
     background: none;
     border: none;
-    font-size: 18px;
+    font-size: 1.125rem;
     cursor: pointer;
     color: #5a6270;
   }
 
   .si-modal-body {
-    padding: 20px 22px;
+    padding: 1.25rem 1.375rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 1rem;
   }
 
   .si-modal-footer {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 12px;
-    padding: 16px 22px;
+    gap: 0.75rem;
+    padding: 1rem 1.375rem;
     border-top: 1px solid var(--admin-line, #e4e7eb);
   }
 
   .si-crop-warning {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
     background: #fff1d6;
     color: #8c5b00;
-    border-radius: 8px;
-    font-size: 13px;
+    border-radius: 0.5rem;
+    font-size: max(12px, 0.8125rem);
   }
 
   .si-crop-instructions {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: #5a6270;
     margin: 0;
   }
@@ -1421,9 +1421,9 @@ const showcaseTotalKb = Math.round(
   .si-crop-viewport {
     position: relative;
     width: 100%;
-    max-height: 380px;
+    max-height: 23.75rem;
     background: #111418;
-    border-radius: 12px;
+    border-radius: 0.75rem;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -1433,15 +1433,15 @@ const showcaseTotalKb = Math.round(
 
   .si-crop-canvas {
     max-width: 100%;
-    max-height: 380px;
+    max-height: 23.75rem;
     object-fit: contain;
     display: block;
   }
 
   .si-focal-marker {
     position: absolute;
-    width: 24px;
-    height: 24px;
+    width: 1.5rem;
+    height: 1.5rem;
     border: 2px solid #ffffff;
     box-shadow: 0 0 0 1px #d91f26, inset 0 0 0 1px #d91f26;
     border-radius: 50%;
@@ -1454,13 +1454,13 @@ const showcaseTotalKb = Math.round(
   .si-focal-quick-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
+    gap: 0.5rem;
+    font-size: max(12px, 0.8125rem);
   }
 
   .si-focal-label {
     color: #5a6270;
-    font-size: 12.5px;
+    font-size: max(12px, 0.7813rem);
     font-weight: 500;
   }
 
@@ -1478,19 +1478,19 @@ const showcaseTotalKb = Math.round(
   /* Library Grid */
   .si-lib-tabs {
     display: flex;
-    gap: 8px;
+    gap: 0.5rem;
     border-bottom: 1px solid var(--admin-line, #e4e7eb);
-    padding-bottom: 8px;
+    padding-bottom: 0.5rem;
   }
 
   .si-lib-tab {
     background: none;
     border: none;
-    padding: 6px 14px;
-    font-size: 13px;
+    padding: 0.375rem 0.875rem;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
     color: #5a6270;
-    border-radius: 8px;
+    border-radius: 0.5rem;
     cursor: pointer;
   }
 
@@ -1501,15 +1501,15 @@ const showcaseTotalKb = Math.round(
 
   .si-lib-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 12px;
-    max-height: 400px;
+    grid-template-columns: repeat(auto-fill, minmax(11.875rem, 1fr));
+    gap: 0.75rem;
+    max-height: 25rem;
     overflow-y: auto;
   }
 
   .si-lib-card {
     border: 2px solid transparent;
-    border-radius: 10px;
+    border-radius: 0.625rem;
     overflow: hidden;
     background: #f8f9fa;
     cursor: pointer;
@@ -1531,8 +1531,8 @@ const showcaseTotalKb = Math.round(
   }
 
   .si-lib-card-caption {
-    padding: 6px 8px;
-    font-size: 11px;
+    padding: 0.375rem 0.5rem;
+    font-size: max(12px, 0.6875rem);
     color: #3b4350;
     white-space: nowrap;
     overflow: hidden;
@@ -1543,28 +1543,28 @@ const showcaseTotalKb = Math.round(
   .si-showcase-slots-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    gap: 0.875rem;
   }
 
   .si-sc-slot-item {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.5rem;
     background: #fafbfc;
     border: 1px solid var(--admin-line, #e4e7eb);
-    border-radius: 12px;
-    padding: 10px;
+    border-radius: 0.75rem;
+    padding: 0.625rem;
   }
 
   .si-sc-slot-badge {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 700;
     color: var(--admin-ink, #0f1115);
   }
 
   .si-sc-slot-preview {
     aspect-ratio: 16 / 9;
-    border-radius: 8px;
+    border-radius: 0.5rem;
     overflow: hidden;
     background: #eef0f2;
     display: flex;
@@ -1579,13 +1579,13 @@ const showcaseTotalKb = Math.round(
   }
 
   .si-sc-slot-empty {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     color: #80868b;
   }
 
   .si-sc-slot-actions {
     display: flex;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   /* Mobile sticky save bar */
@@ -1598,15 +1598,15 @@ const showcaseTotalKb = Math.round(
      ========================================================================== */
   @media (max-width: 768px) {
     .site-images-page {
-      padding: 16px 16px 90px;
+      padding: 1rem 1rem 5.625rem;
     }
 
     .si-header {
-      margin-bottom: 16px;
+      margin-bottom: 1rem;
     }
 
     .si-header__left {
-      gap: 8px;
+      gap: 0.5rem;
     }
 
     .si-back-btn {
@@ -1614,7 +1614,7 @@ const showcaseTotalKb = Math.round(
     }
 
     .si-title {
-      font-size: 20px;
+      font-size: 1.25rem;
     }
 
     /* Hide desktop top save button on mobile */
@@ -1625,23 +1625,23 @@ const showcaseTotalKb = Math.round(
     /* Stack column cards */
     .si-layout-grid {
       grid-template-columns: minmax(0, 1fr);
-      gap: 16px;
+      gap: 1rem;
     }
 
     .si-card {
       grid-template-columns: 1fr;
-      padding: 16px;
-      gap: 16px;
+      padding: 1rem;
+      gap: 1rem;
     }
 
     .si-preview-wrap {
-      max-height: 280px;
+      max-height: 17.5rem;
     }
 
     .si-btn-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 0.5rem;
     }
 
     .si-btn-row .admin-btn--danger-outline {
@@ -1655,7 +1655,7 @@ const showcaseTotalKb = Math.round(
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 12px 16px;
+      padding: 0.75rem 1rem;
       background: #ffffff;
       border-top: 1px solid var(--admin-line, #e4e7eb);
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
@@ -1665,8 +1665,8 @@ const showcaseTotalKb = Math.round(
     .si-mobile-btn {
       width: 100%;
       justify-content: center;
-      padding: 13px;
-      font-size: 15px;
+      padding: 0.8125rem;
+      font-size: 0.9375rem;
     }
   }
 </style>

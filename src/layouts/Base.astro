@@ -82,6 +82,12 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline>
+      try {
+        const ds = localStorage.getItem('tt-display-size');
+        if (ds && ds !== 'compact') document.documentElement.dataset.displaySize = ds;
+      } catch (e) {}
+    </script>
     
     {/* Analytics (Add your GA4 or Plausible tag here) */}
     {import.meta.env.PROD && (
@@ -177,15 +183,15 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       .announce-bar {
         position: relative;
         text-align: center;
-        padding: 6px 36px 6px 12px;
+        padding: 0.375rem 2.25rem 0.375rem 0.75rem;
         display: flex;
         justify-content: center;
         align-items: center;
-        font-size: 13px;
+        font-size: max(12px, 0.8125rem);
         font-weight: 550;
         color: #fff;
         background: var(--red);
-        min-height: 36px;
+        min-height: 2.25rem;
         z-index: 100;
       }
       .announce-bar__content {
@@ -197,14 +203,14 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       .announce-bar a {
         color: inherit;
         text-decoration: underline;
-        text-underline-offset: 2px;
+        text-underline-offset: 0.125rem;
       }
       .announce-bar a:hover {
         opacity: 0.9;
       }
       .announce-bar__close {
         position: absolute;
-        right: 6px;
+        right: 0.375rem;
         top: 50%;
         transform: translateY(-50%);
         background: transparent;
@@ -212,14 +218,14 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         color: white;
         font-size: 1.25rem;
         cursor: pointer;
-        padding: 4px 8px;
+        padding: 0.25rem 0.5rem;
         line-height: 1;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: var(--r-xs);
-        min-height: 28px;
-        min-width: 28px;
+        min-height: 1.75rem;
+        min-width: 1.75rem;
       }
       .announce-bar__close:hover {
         background: rgba(0, 0, 0, 0.15);

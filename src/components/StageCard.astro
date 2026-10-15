@@ -15,7 +15,7 @@ const html = renderMarkdown(step.body);
 <div class="stage-card">
   <div class="stage-card__header">
     <div class="stage-card__num">{index + 1}</div>
-    <div style="flex:1; min-width:0;">
+    <div style="flex: 1; min-width: 0;">
       <h3 class="stage-card__title">{step.title.replace(/^Stage \d+ — /, "")}</h3>
       {step.goal && <div class="stage-card__goal">{step.goal}</div>}
       {step.time_est && <span class="stage-badge"><Icon name="clock" size={12} /> {step.time_est}</span>}
@@ -25,8 +25,8 @@ const html = renderMarkdown(step.body);
   
   <div class="stage-card__body prose">
     {step.file_id && (
-      <div class="stage-card__file" style="margin-bottom:0.75rem;">
-        <a href={"/api/download/free/" + step.file_id} class="btn btn-ghost btn-sm" style="display:inline-flex; border: 1px solid var(--border)">
+      <div class="stage-card__file" style="margin-bottom: 0.75rem;">
+        <a href={"/api/download/free/" + step.file_id} class="btn btn-ghost btn-sm" style="display: inline-flex; border: 1px solid var(--border)">
           <Icon name="download" size={14} /> Download Sketch/File
         </a>
       </div>
@@ -34,7 +34,7 @@ const html = renderMarkdown(step.body);
     
     {step.parts_needed && (
       <div class="stage-card__parts">
-        <strong><Icon name="cart" size={14} style="vertical-align:-2px;margin-right:4px;" /> Parts needed:</strong> {step.parts_needed.split(",").join(", ")}
+        <strong><Icon name="cart" size={14} style="vertical-align: -0.125rem;margin-right: 0.25rem;" /> Parts needed:</strong> {step.parts_needed.split(",").join(", ")}
       </div>
     )}
     
@@ -56,13 +56,13 @@ const html = renderMarkdown(step.body);
       <div class="stage-card__outcomes">
         {step.expected_res && (
           <div class="outcome outcome--success">
-            <strong><Icon name="check-circle" size={15} style="vertical-align:-2px;margin-right:4px;"/> Expected result:</strong>
+            <strong><Icon name="check-circle" size={15} style="vertical-align: -0.125rem;margin-right: 0.25rem;"/> Expected result:</strong>
             <div set:html={renderMarkdown(step.expected_res)} />
           </div>
         )}
         {step.if_fails && (
           <div class="outcome outcome--warning">
-            <strong><Icon name="alert-triangle" size={15} style="vertical-align:-2px;margin-right:4px;"/> If it fails:</strong>
+            <strong><Icon name="alert-triangle" size={15} style="vertical-align: -0.125rem;margin-right: 0.25rem;"/> If it fails:</strong>
             <div set:html={renderMarkdown(step.if_fails)} />
           </div>
         )}
@@ -98,8 +98,8 @@ const html = renderMarkdown(step.body);
     border-bottom: 1px solid var(--hairline);
   }
   .stage-card__num {
-    width: 28px;
-    height: 28px;
+    width: 1.75rem;
+    height: 1.75rem;
     border-radius: 50%;
     background: var(--brand-red);
     color: white;

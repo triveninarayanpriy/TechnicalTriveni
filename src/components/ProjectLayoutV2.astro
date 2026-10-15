@@ -349,10 +349,10 @@ const lastUpdated = formatDate(project.updated_at);
             <!-- 3. WIRING & CONNECTIONS PANEL -->
             {(project.pins?.length > 0 || project.wiring_diagrams?.length > 0) && (
               <div class="p-panel-content" id="panel-wiring" data-tab-panel="wiring" hidden>
-                <div class="p-wiring-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom: 16px;">
+                <div class="p-wiring-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
                   <div>
                     <h3 class="p-panel-h3" style="margin: 0;">Wiring & circuit connections</h3>
-                    <p style="font-size: 13.5px; color: var(--ink-2); margin: 4px 0 0 0;">Follow the exact circuit connections and pinouts for your board.</p>
+                    <p style="font-size: max(12px, 0.8438rem); color: var(--ink-2); margin: 0.25rem 0 0 0;">Follow the exact circuit connections and pinouts for your board.</p>
                   </div>
                   {wiringModules.length > 1 && (
                     <div class="p-module-filter-bar">
@@ -734,7 +734,7 @@ const lastUpdated = formatDate(project.updated_at);
           <div class="m-wiring-top">
             <h3 class="m-section-heading">Wiring connections</h3>
             {wiringModules.length > 1 && (
-              <div class="p-module-filter-bar" style="margin-top: 10px; margin-bottom: 12px; width: 100%; overflow-x: auto;">
+              <div class="p-module-filter-bar" style="margin-top: 0.625rem; margin-bottom: 0.75rem; width: 100%; overflow-x: auto;">
                 <span class="p-module-filter-label">Board:</span>
                 <div class="p-module-filter-pills" role="tablist">
                   <button type="button" class="p-module-pill is-active" data-module-filter="all">All</button>
@@ -746,7 +746,7 @@ const lastUpdated = formatDate(project.updated_at);
             )}
           </div>
           {wiringModules.length > 1 && (
-            <div class="p-module-info-alert" style="margin-bottom: 14px; font-size: 12.5px;">
+            <div class="p-module-info-alert" style="margin-bottom: 0.875rem; font-size: max(12px, 0.7813rem);">
               <Icon name="spark" size={14} />
               <span>Select your board above to view the matching wiring for your code.</span>
             </div>
@@ -1238,7 +1238,7 @@ const lastUpdated = formatDate(project.updated_at);
           <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
           <h3 class="buy-success__title">Free files ready!</h3>
           <p class="buy-success__text">We just emailed the download link to <strong>${emailVal}</strong>.</p>
-          <a href="${data.redirect || '/account/downloads'}" class="btn-buy-primary" style="margin-top: 16px;">Download files now</a>
+          <a href="${data.redirect || '/account/downloads'}" class="btn-buy-primary" style="margin-top: 1rem;">Download files now</a>
         </div>
       `;
     } catch (err: any) {
@@ -1272,7 +1272,7 @@ const lastUpdated = formatDate(project.updated_at);
             <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
             <h3 class="buy-success__title">You already own this pack!</h3>
             <p class="buy-success__text">We emailed the fresh download link to <strong>${emailVal}</strong>.</p>
-            <a href="/account/downloads" class="btn-buy-primary" style="margin-top: 16px;">View my downloads</a>
+            <a href="/account/downloads" class="btn-buy-primary" style="margin-top: 1rem;">View my downloads</a>
           </div>
         `;
         return;
@@ -1362,7 +1362,7 @@ const lastUpdated = formatDate(project.updated_at);
   .project-layout {
     background: #FFFFFF;
     color: var(--ink);
-    padding-bottom: 64px;
+    padding-bottom: 4rem;
   }
 
   .desktop-pack-only {
@@ -1385,10 +1385,10 @@ const lastUpdated = formatDate(project.updated_at);
   .p-crumbs {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
+    gap: 0.5rem;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
-    padding: 20px 0 12px;
+    padding: 1.25rem 0 0.75rem;
   }
   .p-crumbs a {
     color: var(--muted);
@@ -1408,71 +1408,71 @@ const lastUpdated = formatDate(project.updated_at);
 
   .p-desktop-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 400px;
-    gap: 48px;
+    grid-template-columns: minmax(0, 1fr) 25rem;
+    gap: 3rem;
     align-items: start;
-    padding-bottom: 64px;
+    padding-bottom: 4rem;
   }
 
   @media (max-width: 1023px) and (min-width: 769px) {
     .p-desktop-grid {
       grid-template-columns: 1fr;
-      gap: 36px;
+      gap: 2.25rem;
     }
   }
 
   .p-header-block {
-    margin-bottom: 24px;
+    margin-bottom: 1.5rem;
   }
   .p-eyebrow {
     display: block;
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--red);
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
   }
   .p-title {
-    font-size: 34px;
+    font-size: 2.125rem;
     font-weight: 700;
     line-height: 1.15;
     letter-spacing: -0.02em;
     color: var(--ink);
-    margin: 0 0 12px;
+    margin: 0 0 0.75rem;
   }
   .p-summary {
-    font-size: 16px;
+    font-size: 1rem;
     line-height: 1.5;
     color: var(--muted);
-    margin: 0 0 16px;
+    margin: 0 0 1rem;
   }
 
   .p-meta-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0.5rem;
   }
   .p-meta-chip {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 500;
     color: var(--muted);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 4px 14px;
+    padding: 0.25rem 0.875rem;
   }
 
   /* Gallery Stage */
   .p-gallery-stage-wrap {
-    margin-bottom: 28px;
+    margin-bottom: 1.75rem;
   }
   .p-stage {
     width: 100%;
     aspect-ratio: 16 / 9;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 20px;
+    border-radius: 1.25rem;
     overflow: hidden;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   }
@@ -1491,8 +1491,8 @@ const lastUpdated = formatDate(project.updated_at);
 
   .p-thumbs {
     display: flex;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 0.625rem;
+    margin-top: 0.75rem;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -1500,10 +1500,10 @@ const lastUpdated = formatDate(project.updated_at);
     display: none;
   }
   .p-thumb-btn {
-    width: 68px;
-    height: 44px;
+    width: 4.25rem;
+    height: 2.75rem;
     padding: 0;
-    border-radius: 10px;
+    border-radius: 0.625rem;
     border: 2px solid var(--line);
     background: var(--surface);
     overflow: hidden;
@@ -1535,21 +1535,21 @@ const lastUpdated = formatDate(project.updated_at);
   /* Underline Tabs */
   .p-underline-tabs {
     display: flex;
-    gap: 28px;
+    gap: 1.75rem;
     border-bottom: 1px solid var(--line);
-    margin-bottom: 28px;
+    margin-bottom: 1.75rem;
   }
   .p-tab-btn {
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    padding: 12px 4px;
-    font-size: 15px;
+    padding: 0.75rem 0.25rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     color: var(--muted);
     cursor: pointer;
     transition: all 150ms ease;
-    margin-bottom: -1px;
+    margin-bottom: -0.0625rem;
   }
   .p-tab-btn:hover {
     color: var(--ink);
@@ -1563,7 +1563,7 @@ const lastUpdated = formatDate(project.updated_at);
   .p-panel-content {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 1.5rem;
   }
   .p-panel-content[hidden] {
     display: none !important;
@@ -1573,53 +1573,53 @@ const lastUpdated = formatDate(project.updated_at);
   .p-safety-card {
     background: #FFF6E0;
     border: 1px solid #FDE68A;
-    border-radius: 16px;
-    padding: 16px 20px;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
     color: #5E3B00;
   }
   .p-safety-card__head {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 6px;
+    font-size: max(12px, 0.875rem);
+    margin-bottom: 0.375rem;
   }
   .p-safety-card__lead {
     font-weight: 700;
   }
   .p-safety-card__body {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     line-height: 1.5;
     color: #5E3B00;
   }
 
   /* Outcomes 2x2 Grid */
   .p-panel-h3 {
-    font-size: 20px;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 16px;
+    margin: 0 0 1rem;
   }
   .p-panel-sub {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     color: var(--muted);
-    margin: -12px 0 16px;
+    margin: -0.75rem 0 1rem;
   }
   .p-outcomes-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 0.75rem;
   }
   .p-outcome-card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px 18px;
+    border-radius: 0.875rem;
+    padding: 0.875rem 1.125rem;
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 14px;
+    gap: 0.75rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 500;
     color: var(--ink);
   }
@@ -1633,17 +1633,17 @@ const lastUpdated = formatDate(project.updated_at);
   .p-prereqs-card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 16px 20px;
+    border-radius: 0.875rem;
+    padding: 1rem 1.25rem;
   }
   .p-prereqs-title {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 4px;
+    margin: 0 0 0.25rem;
   }
   .p-prereqs-text {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     color: var(--muted);
     margin: 0;
   }
@@ -1651,18 +1651,18 @@ const lastUpdated = formatDate(project.updated_at);
   /* Files Summary & Grid */
   .p-files-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(22.5rem, 1fr));
+    gap: 0.625rem;
   }
   .p-file-row {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 10px 14px;
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.875rem;
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 13px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.8125rem);
   }
   .p-file-icon {
     color: var(--muted);
@@ -1677,20 +1677,20 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .p-file-size {
     color: var(--muted);
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
   }
 
   .p-license-box {
     display: flex;
     align-items: center;
-    gap: 16px;
-    font-size: 14px;
-    padding-top: 12px;
+    gap: 1rem;
+    font-size: max(12px, 0.875rem);
+    padding-top: 0.75rem;
   }
   .p-license-link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
     color: var(--ink);
     text-decoration: none;
     font-weight: 600;
@@ -1706,24 +1706,24 @@ const lastUpdated = formatDate(project.updated_at);
   .p-wiring-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
-    margin-bottom: 24px;
+    font-size: max(12px, 0.875rem);
+    margin-bottom: 1.5rem;
   }
   .p-wiring-table th,
   .p-wiring-table td {
-    padding: 10px 14px;
+    padding: 0.625rem 0.875rem;
     border-bottom: 1px solid var(--line);
     text-align: left;
   }
   .p-wiring-table th {
     font-weight: 600;
     color: var(--muted);
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     background: var(--surface);
   }
   .p-wiring-fig img {
     max-width: 100%;
-    border-radius: 16px;
+    border-radius: 1rem;
     border: 1px solid var(--line);
   }
 
@@ -1731,14 +1731,14 @@ const lastUpdated = formatDate(project.updated_at);
   .p-module-filter-bar {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     background: var(--surface, #F8FAFC);
     border: 1px solid var(--line, #E2E8F0);
-    padding: 5px 12px;
-    border-radius: 30px;
+    padding: 0.3125rem 0.75rem;
+    border-radius: 1.875rem;
   }
   .p-module-filter-label {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 600;
     color: var(--muted, #64748B);
     text-transform: uppercase;
@@ -1746,15 +1746,15 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .p-module-filter-pills {
     display: inline-flex;
-    gap: 5px;
+    gap: 0.3125rem;
     align-items: center;
   }
   .p-module-pill {
     background: #FFFFFF;
     border: 1px solid var(--line, #CBD5E1);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 12.5px;
+    border-radius: 1.25rem;
+    padding: 0.25rem 0.75rem;
+    font-size: max(12px, 0.7813rem);
     font-weight: 600;
     color: var(--ink, #334155);
     cursor: pointer;
@@ -1773,22 +1773,22 @@ const lastUpdated = formatDate(project.updated_at);
   .p-module-info-alert {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-radius: 10px;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.625rem;
     background: #EFF6FF;
     border: 1px solid #BFDBFE;
     color: #1E40AF;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     line-height: 1.5;
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
   }
   .p-wiring-module-badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: max(12px, 0.6875rem);
     font-weight: 700;
     text-transform: uppercase;
     background: #EEF2FF;
@@ -1799,41 +1799,41 @@ const lastUpdated = formatDate(project.updated_at);
   .p-wiring-fig-head {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
   }
   .p-wiring-title {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
     color: var(--ink, #0F172A);
   }
   .p-pin-module-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
+    gap: 0.625rem;
+    margin-bottom: 0.5rem;
   }
 
   /* Step Accordions (Desktop) */
   .p-steps-progress-top {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
+    border-radius: 0.875rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
   }
   .p-steps-prog-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
   }
   .p-steps-prog-pct {
     color: var(--red);
   }
   .p-steps-prog-bar {
-    height: 6px;
+    height: 0.375rem;
     background: var(--line);
     border-radius: 999px;
     overflow: hidden;
@@ -1848,12 +1848,12 @@ const lastUpdated = formatDate(project.updated_at);
   .p-steps-stack {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 0.875rem;
   }
   .p-step-accordion {
     background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: 16px;
+    border-radius: 1rem;
     overflow: hidden;
     transition: border-color 150ms ease;
   }
@@ -1863,20 +1863,20 @@ const lastUpdated = formatDate(project.updated_at);
   .p-step-accordion__header {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
     cursor: pointer;
     user-select: none;
   }
   .p-step-num-badge {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
     background: var(--surface);
     border: 1px solid var(--line);
     display: grid;
     place-items: center;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -1889,22 +1889,22 @@ const lastUpdated = formatDate(project.updated_at);
     flex: 1;
   }
   .p-step-heading {
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 600;
     color: var(--ink);
     margin: 0;
   }
   .p-step-goal {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
-    margin: 2px 0 0;
+    margin: 0.125rem 0 0;
   }
   .p-step-est {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 0.25rem;
   }
   .p-step-chevron {
     color: var(--muted);
@@ -1915,21 +1915,21 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .p-step-accordion__body {
     display: none;
-    padding: 0 20px 20px;
+    padding: 0 1.25rem 1.25rem;
     border-top: 1px solid var(--line);
-    margin-top: 4px;
-    padding-top: 16px;
+    margin-top: 0.25rem;
+    padding-top: 1rem;
   }
   .p-step-accordion.is-open .p-step-accordion__body {
     display: block;
   }
   .p-step-feedback {
     display: flex;
-    gap: 10px;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 13px;
-    margin: 14px 0;
+    gap: 0.625rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    font-size: max(12px, 0.8125rem);
+    margin: 0.875rem 0;
   }
   .p-step-feedback--ok {
     background: #E3F4EA;
@@ -1940,15 +1940,15 @@ const lastUpdated = formatDate(project.updated_at);
     color: #5E3B00;
   }
   .p-step-footer-check {
-    margin-top: 16px;
-    padding-top: 12px;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
     border-top: 1px dashed var(--line);
   }
   .p-step-check-label {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 0.5rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
     cursor: pointer;
   }
@@ -1956,51 +1956,51 @@ const lastUpdated = formatDate(project.updated_at);
   /* Right Sidebar Sticky Buy Card */
   .p-col-sidebar {
     position: sticky;
-    top: 92px;
+    top: 5.75rem;
   }
   .p-sticky-card {
     background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: 20px;
-    padding: 28px;
+    border-radius: 1.25rem;
+    padding: 1.75rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   }
   .buy-card-eyebrow {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--muted);
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
   }
   .buy-card-price-row {
-    margin-bottom: 18px;
+    margin-bottom: 1.125rem;
   }
   .buy-card-price {
-    font-size: 34px;
+    font-size: 2.125rem;
     font-weight: 700;
     color: var(--ink);
     display: block;
     line-height: 1;
-    margin-bottom: 4px;
+    margin-bottom: 0.25rem;
   }
   .buy-card-price-sub {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
   }
   .buy-card-bullets {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 22px;
-    padding-bottom: 18px;
+    gap: 0.625rem;
+    margin-bottom: 1.375rem;
+    padding-bottom: 1.125rem;
     border-bottom: 1px solid var(--line);
   }
   .buy-card-bullet {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 500;
     color: var(--ink);
   }
@@ -2009,22 +2009,22 @@ const lastUpdated = formatDate(project.updated_at);
     display: flex;
   }
   .buy-card-field {
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
   }
   .buy-card-label {
     display: block;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
     color: var(--ink);
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
   }
   .buy-card-input {
     width: 100%;
-    height: 48px;
-    border-radius: 12px;
+    height: 3rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--line);
-    padding: 0 16px;
-    font-size: 15px;
+    padding: 0 1rem;
+    font-size: 0.9375rem;
     background: #FFFFFF;
     color: var(--ink);
     box-sizing: border-box;
@@ -2038,32 +2038,32 @@ const lastUpdated = formatDate(project.updated_at);
     background: none;
     border: none;
     color: var(--red);
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
     padding: 0;
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
     cursor: pointer;
   }
   .buy-coupon-input-wrap {
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
   }
   .buy-card-input--sm {
-    height: 42px;
-    font-size: 14px;
+    height: 2.625rem;
+    font-size: max(12px, 0.875rem);
   }
   .btn-buy-primary {
     width: 100%;
-    height: 48px;
+    height: 3rem;
     background: var(--red);
     color: #FFFFFF;
     border: none;
-    border-radius: 14px;
-    font-size: 15px;
+    border-radius: 0.875rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     cursor: pointer;
     transition: opacity 150ms ease;
   }
@@ -2071,13 +2071,13 @@ const lastUpdated = formatDate(project.updated_at);
     opacity: 0.92;
   }
   .buy-card-trust {
-    margin-top: 18px;
+    margin-top: 1.125rem;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.375rem;
   }
   .trust-line {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     color: var(--muted);
     line-height: 1.5;
   }
@@ -2087,14 +2087,14 @@ const lastUpdated = formatDate(project.updated_at);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
+    padding: 0.75rem 1rem;
     background: #FFFFFF;
   }
   .m-topbar-back {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 16px;
+    gap: 0.25rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--ink);
     text-decoration: none;
@@ -2102,7 +2102,7 @@ const lastUpdated = formatDate(project.updated_at);
   .m-topbar-share {
     background: none;
     border: none;
-    padding: 8px;
+    padding: 0.5rem;
     cursor: pointer;
     color: var(--ink);
     display: flex;
@@ -2143,43 +2143,43 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .m-gallery-pill {
     position: absolute;
-    bottom: 14px;
-    right: 14px;
+    bottom: 0.875rem;
+    right: 0.875rem;
     background: rgba(15, 17, 21, 0.85);
     color: #FFFFFF;
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 600;
-    padding: 4px 10px;
+    padding: 0.25rem 0.625rem;
     border-radius: 999px;
   }
 
   .m-info-block {
-    padding: 20px 16px 16px;
+    padding: 1.25rem 1rem 1rem;
   }
   .m-title {
-    font-size: 22px;
+    font-size: 1.375rem;
     font-weight: 700;
     line-height: 1.25;
     color: var(--ink);
-    margin: 0 0 12px;
+    margin: 0 0 0.75rem;
   }
   .m-chips-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
   }
   .m-chip {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 500;
     color: var(--ink);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 4px 12px;
+    padding: 0.25rem 0.75rem;
   }
   .m-summary {
-    font-size: 15px;
+    font-size: 0.9375rem;
     line-height: 1.5;
     color: var(--muted);
     margin: 0;
@@ -2192,11 +2192,11 @@ const lastUpdated = formatDate(project.updated_at);
     background: #FFFFFF;
     z-index: 30;
     border-bottom: 1px solid var(--line);
-    padding: 10px 16px;
+    padding: 0.625rem 1rem;
   }
   .m-chips-track {
     display: flex;
-    gap: 8px;
+    gap: 0.5rem;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -2205,8 +2205,8 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .m-chip-btn {
     border-radius: 999px;
-    padding: 8px 18px;
-    font-size: 14px;
+    padding: 0.5rem 1.125rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
     border: 1px solid var(--line);
     background: #FFFFFF;
@@ -2222,8 +2222,8 @@ const lastUpdated = formatDate(project.updated_at);
   }
 
   .m-content-panels {
-    padding: 16px;
-    padding-bottom: 96px;
+    padding: 1rem;
+    padding-bottom: 6rem;
   }
   .m-panel[hidden] {
     display: none !important;
@@ -2232,43 +2232,43 @@ const lastUpdated = formatDate(project.updated_at);
   .m-safety-card {
     background: #FFF6E0;
     border: 1px solid #FDE68A;
-    border-radius: 16px;
-    padding: 16px;
+    border-radius: 1rem;
+    padding: 1rem;
     color: #5E3B00;
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
   }
   .m-safety-bold {
     font-weight: 700;
     display: block;
-    margin-bottom: 4px;
-    font-size: 14px;
+    margin-bottom: 0.25rem;
+    font-size: max(12px, 0.875rem);
   }
   .m-safety-text {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     line-height: 1.5;
   }
 
   .m-section-heading {
-    font-size: 18px;
+    font-size: 1.125rem;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 14px;
+    margin: 0 0 0.875rem;
   }
   .m-outcomes-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 0.625rem;
+    margin-bottom: 1.25rem;
   }
   .m-outcome-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.875rem);
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.875rem;
   }
   .m-outcome-check {
     color: var(--red);
@@ -2277,17 +2277,17 @@ const lastUpdated = formatDate(project.updated_at);
   .m-prereqs-card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 20px;
+    border-radius: 0.75rem;
+    padding: 0.875rem;
+    margin-bottom: 1.25rem;
   }
   .m-prereqs-title {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 700;
-    margin: 0 0 4px;
+    margin: 0 0 0.25rem;
   }
   .m-prereqs-body {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
     margin: 0;
   }
@@ -2296,51 +2296,51 @@ const lastUpdated = formatDate(project.updated_at);
   .m-pin-cards {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
   }
   .m-pin-card {
     background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.875rem;
   }
   .m-pin-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 0.5rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 700;
   }
   .m-pin-arrow {
     color: var(--red);
   }
   .m-pin-note {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
-    margin-top: 4px;
+    margin-top: 0.25rem;
   }
 
   /* Mobile Steps Stack */
   .m-steps-progress-box {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 16px;
+    border-radius: 0.75rem;
+    padding: 0.875rem;
+    margin-bottom: 1rem;
   }
   .m-steps-prog-top {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
   }
   .m-steps-prog-pct {
     color: var(--red);
   }
   .m-steps-prog-track {
-    height: 6px;
+    height: 0.375rem;
     background: var(--line);
     border-radius: 999px;
     overflow: hidden;
@@ -2354,12 +2354,12 @@ const lastUpdated = formatDate(project.updated_at);
   .m-steps-stack {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.75rem;
   }
   .m-step-card {
     background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 0.875rem;
     overflow: hidden;
   }
   .m-step-card.is-completed {
@@ -2368,19 +2368,19 @@ const lastUpdated = formatDate(project.updated_at);
   .m-step-card__head {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px 16px;
+    gap: 0.625rem;
+    padding: 0.875rem 1rem;
     cursor: pointer;
   }
   .m-step-pill {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
+    width: 1.625rem;
+    height: 1.625rem;
+    border-radius: 0.5rem;
     background: var(--surface);
     border: 1px solid var(--line);
     display: grid;
     place-items: center;
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -2392,14 +2392,14 @@ const lastUpdated = formatDate(project.updated_at);
     flex: 1;
   }
   .m-step-name {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
     margin: 0;
   }
   .m-step-goal {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     color: var(--muted);
-    margin: 2px 0 0;
+    margin: 0.125rem 0 0;
   }
   .m-step-chevron {
     color: var(--muted);
@@ -2410,20 +2410,20 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .m-step-card__body {
     display: none;
-    padding: 0 16px 16px;
+    padding: 0 1rem 1rem;
     border-top: 1px solid var(--line);
-    padding-top: 14px;
+    padding-top: 0.875rem;
   }
   .m-step-card.is-open .m-step-card__body {
     display: block;
   }
   .m-step-alert {
     display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    font-size: 12px;
-    margin: 10px 0;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.625rem;
+    font-size: max(12px, 0.75rem);
+    margin: 0.625rem 0;
   }
   .m-step-alert--ok {
     background: #E3F4EA;
@@ -2434,17 +2434,17 @@ const lastUpdated = formatDate(project.updated_at);
     color: #5E3B00;
   }
   .m-step-check-row {
-    margin-top: 14px;
-    padding-top: 10px;
+    margin-top: 0.875rem;
+    padding-top: 0.625rem;
     border-top: 1px dashed var(--line);
   }
   .m-step-check-label {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 600;
-    min-height: 44px;
+    min-height: 2.75rem;
   }
 
   /* Sticky Bottom Bar */
@@ -2453,13 +2453,13 @@ const lastUpdated = formatDate(project.updated_at);
     bottom: 0;
     left: 0;
     right: 0;
-    height: 72px;
+    height: 4.5rem;
     background: #FFFFFF;
     border-top: 1px solid var(--line);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
+    padding: 0 1rem;
     z-index: 50;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
   }
@@ -2468,24 +2468,24 @@ const lastUpdated = formatDate(project.updated_at);
     flex-direction: column;
   }
   .m-sticky-price {
-    font-size: 22px;
+    font-size: 1.375rem;
     font-weight: 700;
     color: var(--ink);
     line-height: 1;
   }
   .m-sticky-sub {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     color: var(--muted);
-    margin-top: 3px;
+    margin-top: 0.1875rem;
   }
   .btn-m-buy {
     background: var(--red);
     color: #FFFFFF;
     border: none;
-    border-radius: 14px;
-    padding: 0 28px;
-    height: 48px;
-    font-size: 16px;
+    border-radius: 0.875rem;
+    padding: 0 1.75rem;
+    height: 3rem;
+    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
   }
@@ -2495,7 +2495,7 @@ const lastUpdated = formatDate(project.updated_at);
     position: fixed;
     inset: 0;
     background: rgba(15, 17, 21, 0.6);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(0.25rem);
     z-index: 100;
     display: flex;
     flex-direction: column;
@@ -2510,8 +2510,8 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .m-sheet-panel {
     background: #FFFFFF;
-    border-radius: 24px 24px 0 0;
-    padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    border-radius: 1.5rem 1.5rem 0 0;
+    padding: 1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0rem));
     max-height: 90vh;
     overflow-y: auto;
     transform: translateY(100%);
@@ -2523,11 +2523,11 @@ const lastUpdated = formatDate(project.updated_at);
   .m-sheet-handle-wrap {
     display: flex;
     justify-content: center;
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
   }
   .m-sheet-handle {
-    width: 36px;
-    height: 4px;
+    width: 2.25rem;
+    height: 0.25rem;
     background: var(--line);
     border-radius: 999px;
   }
@@ -2535,32 +2535,32 @@ const lastUpdated = formatDate(project.updated_at);
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 16px;
+    margin-bottom: 1rem;
   }
   .m-sheet-eyebrow {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     font-weight: 600;
     color: var(--muted);
     display: block;
-    margin-bottom: 2px;
+    margin-bottom: 0.125rem;
   }
   .m-sheet-price-lead {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 0.5rem;
   }
   .m-sheet-price {
-    font-size: 28px;
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--ink);
   }
   .m-sheet-price-sub {
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     color: var(--muted);
   }
   .m-sheet-close-btn {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     border: none;
     background: var(--surface);
@@ -2572,16 +2572,16 @@ const lastUpdated = formatDate(project.updated_at);
   .m-sheet-bullets {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
     border-bottom: 1px solid var(--line);
   }
   .m-sheet-bullet {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 0.625rem;
+    font-size: max(12px, 0.875rem);
     font-weight: 500;
   }
   .m-sheet-b-icon {
@@ -2590,75 +2590,75 @@ const lastUpdated = formatDate(project.updated_at);
   }
   .m-sheet-label {
     display: block;
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
   }
   .m-sheet-input {
     width: 100%;
-    height: 48px;
-    border-radius: 12px;
+    height: 3rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--line);
-    padding: 0 16px;
-    font-size: 16px; /* Prevents iOS auto-zoom */
+    padding: 0 1rem;
+    font-size: 1rem; /* Prevents iOS auto-zoom */
     box-sizing: border-box;
   }
   .m-sheet-coupon-toggle {
     background: none;
     border: none;
     color: var(--red);
-    font-size: 13px;
+    font-size: max(12px, 0.8125rem);
     font-weight: 600;
-    padding: 10px 0 14px;
+    padding: 0.625rem 0 0.875rem;
     cursor: pointer;
   }
   .m-sheet-coupon-input-wrap {
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
   }
   .btn-m-sheet-pay {
     width: 100%;
-    height: 50px;
+    height: 3.125rem;
     background: var(--red);
     color: #FFFFFF;
     border: none;
-    border-radius: 14px;
-    font-size: 16px;
+    border-radius: 0.875rem;
+    font-size: 1rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     cursor: pointer;
-    margin-top: 12px;
+    margin-top: 0.75rem;
   }
   .m-sheet-trust-lines {
-    margin-top: 16px;
+    margin-top: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.375rem;
   }
   .m-trust-item {
-    font-size: 12px;
+    font-size: max(12px, 0.75rem);
     color: var(--muted);
     line-height: 1.4;
   }
 
   /* ==================== RELATED SECTION ==================== */
   .p-related-section {
-    padding: 48px 0;
+    padding: 3rem 0;
     border-top: 1px solid var(--line);
     background: #FFFFFF;
   }
   .p-related-h2 {
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--ink);
-    margin: 0 0 28px;
+    margin: 0 0 1.75rem;
   }
   .p-related-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    gap: 1.5rem;
   }
   @media (max-width: 900px) {
     .p-related-grid {

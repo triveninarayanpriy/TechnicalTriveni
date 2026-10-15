@@ -33,8 +33,8 @@ const csrf = Astro.locals.csrfToken;
       <div class="coupons-grid-layout">
         <!-- Left: List of coupons -->
         <div class="admin-table-card">
-          <div style="padding: 20px 24px; border-bottom: var(--admin-border);">
-            <h2 style="font-size: 17px; font-weight: 700; margin: 0;">Active Coupons</h2>
+          <div style="padding: 1.25rem 1.5rem; border-bottom: var(--admin-border);">
+            <h2 style="font-size: 1.0625rem; font-weight: 700; margin: 0;">Active Coupons</h2>
           </div>
           <div class="admin-table-wrap">
             <table class="admin-table-standard">
@@ -51,7 +51,7 @@ const csrf = Astro.locals.csrfToken;
                 {couponList.map((c) => (
                   <tr>
                     <td>
-                      <span class="admin-chip admin-chip--draft" style="font-family: var(--admin-font-mono); font-size: 13px;">
+                      <span class="admin-chip admin-chip--draft" style="font-family: var(--admin-font-mono); font-size: max(12px, 0.8125rem);">
                         {c.code}
                       </span>
                     </td>
@@ -61,7 +61,7 @@ const csrf = Astro.locals.csrfToken;
                     <td>
                       {c.used} {c.max_uses > 0 ? `/ ${c.max_uses}` : '(Unlimited)'}
                     </td>
-                    <td style="color: var(--admin-muted); font-size: 13px;">
+                    <td style="color: var(--admin-muted); font-size: max(12px, 0.8125rem);">
                       {c.expires_at ? formatDateTime(c.expires_at) : 'Never'}
                     </td>
                     <td style="text-align: right;">
@@ -77,7 +77,7 @@ const csrf = Astro.locals.csrfToken;
                 ))}
                 {couponList.length === 0 && (
                   <tr>
-                    <td colspan="5" style="text-align: center; padding: 48px; color: var(--admin-muted);">
+                    <td colspan="5" style="text-align: center; padding: 3rem; color: var(--admin-muted);">
                       No coupons found. Create your first discount coupon on the right.
                     </td>
                   </tr>
@@ -89,7 +89,7 @@ const csrf = Astro.locals.csrfToken;
 
         <!-- Right: Create form -->
         <div class="admin-card">
-          <h2 style="font-size: 17px; font-weight: 700; margin: 0 0 16px 0;">Create Coupon</h2>
+          <h2 style="font-size: 1.0625rem; font-weight: 700; margin: 0 0 1rem 0;">Create Coupon</h2>
           <form method="post" action="/api/admin/coupon/save" class="coupon-form">
             <input type="hidden" name="csrf" value={csrf} />
             
@@ -98,7 +98,7 @@ const csrf = Astro.locals.csrfToken;
               <input class="admin-input" type="text" name="code" required placeholder="e.g. DIWALI50" style="text-transform: uppercase;" />
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
               <div class="admin-field">
                 <label class="admin-label">Discount (%)</label>
                 <input class="admin-input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
@@ -108,7 +108,7 @@ const csrf = Astro.locals.csrfToken;
                 <input class="admin-input" type="number" name="discount_inr" min="0" placeholder="0" />
               </div>
             </div>
-            <span style="font-size: 12px; color: var(--admin-muted);">Specify EITHER a percentage OR a fixed amount.</span>
+            <span style="font-size: max(12px, 0.75rem); color: var(--admin-muted);">Specify EITHER a percentage OR a fixed amount.</span>
 
             <div class="admin-field">
               <label class="admin-label">Max Uses</label>
@@ -120,7 +120,7 @@ const csrf = Astro.locals.csrfToken;
               <input class="admin-input" type="datetime-local" name="expires_at" />
             </div>
 
-            <button type="submit" class="admin-btn admin-btn--primary" style="margin-top: 8px;">
+            <button type="submit" class="admin-btn admin-btn--primary" style="margin-top: 0.5rem;">
               Create Coupon
             </button>
           </form>
@@ -140,11 +140,11 @@ const csrf = Astro.locals.csrfToken;
     <div class="admin-mobile-content">
       <!-- Active Coupons List -->
       <div class="admin-card mobile-coupons-list">
-        <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">Active Coupons</h2>
+        <h2 style="font-size: 1rem; font-weight: 700; margin: 0 0 0.75rem 0;">Active Coupons</h2>
         {couponList.map((c) => (
           <div class="mobile-coupon-card">
             <div class="mobile-coupon-top">
-              <span class="admin-chip admin-chip--draft" style="font-family: var(--admin-font-mono); font-size: 14px; font-weight: 700;">
+              <span class="admin-chip admin-chip--draft" style="font-family: var(--admin-font-mono); font-size: max(12px, 0.875rem); font-weight: 700;">
                 {c.code}
               </span>
               <span class="coupon-discount-badge">
@@ -153,7 +153,7 @@ const csrf = Astro.locals.csrfToken;
             </div>
             <div class="mobile-coupon-bottom">
               <span class="coupon-meta-text">Used: {c.used} {c.max_uses > 0 ? `/ ${c.max_uses}` : ''}</span>
-              <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');" style="display:inline;">
+              <form method="post" action="/api/admin/coupon/delete" onsubmit="return confirm('Delete this coupon?');" style="display: inline;">
                 <input type="hidden" name="csrf" value={csrf} />
                 <input type="hidden" name="id" value={c.id} />
                 <button type="submit" class="admin-btn admin-btn--ghost admin-btn--sm" style="color: var(--admin-red);">Delete</button>
@@ -162,15 +162,15 @@ const csrf = Astro.locals.csrfToken;
           </div>
         ))}
         {couponList.length === 0 && (
-          <div style="text-align: center; padding: 24px 0; color: var(--admin-muted); font-size: 14px;">
+          <div style="text-align: center; padding: 1.5rem 0; color: var(--admin-muted); font-size: max(12px, 0.875rem);">
             No coupons found.
           </div>
         )}
       </div>
 
       <!-- Create Coupon Mobile Card -->
-      <div class="admin-card" style="margin-top: 16px;">
-        <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 16px 0;">Create New Coupon</h2>
+      <div class="admin-card" style="margin-top: 1rem;">
+        <h2 style="font-size: 1rem; font-weight: 700; margin: 0 0 1rem 0;">Create New Coupon</h2>
         <form method="post" action="/api/admin/coupon/save" class="coupon-form">
           <input type="hidden" name="csrf" value={csrf} />
           
@@ -179,7 +179,7 @@ const csrf = Astro.locals.csrfToken;
             <input class="admin-input" type="text" name="code" required placeholder="e.g. DIWALI50" style="text-transform: uppercase;" />
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="admin-field">
               <label class="admin-label">Discount (%)</label>
               <input class="admin-input" type="number" name="discount_pct" min="0" max="100" placeholder="0" />
@@ -200,7 +200,7 @@ const csrf = Astro.locals.csrfToken;
             <input class="admin-input" type="datetime-local" name="expires_at" />
           </div>
 
-          <button type="submit" class="admin-btn admin-btn--primary" style="width: 100%; margin-top: 8px;">
+          <button type="submit" class="admin-btn admin-btn--primary" style="width: 100%; margin-top: 0.5rem;">
             Create Coupon
           </button>
         </form>
@@ -217,7 +217,7 @@ const csrf = Astro.locals.csrfToken;
   .coupons-grid-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    gap: 24px;
+    gap: 1.5rem;
     align-items: start;
     min-width: 0;
   }
@@ -230,21 +230,21 @@ const csrf = Astro.locals.csrfToken;
   .coupon-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 0.875rem;
   }
 
   /* Mobile */
   .mobile-coupons-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.75rem;
   }
   .mobile-coupon-card {
-    padding: 12px 0;
+    padding: 0.75rem 0;
     border-bottom: 1px solid var(--admin-line-subtle);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.5rem;
   }
   .mobile-coupon-card:last-child {
     border-bottom: none;
@@ -255,7 +255,7 @@ const csrf = Astro.locals.csrfToken;
     align-items: center;
   }
   .coupon-discount-badge {
-    font-size: 14px;
+    font-size: max(12px, 0.875rem);
     font-weight: 700;
     color: var(--admin-ink);
   }
@@ -265,7 +265,7 @@ const csrf = Astro.locals.csrfToken;
     align-items: center;
   }
   .coupon-meta-text {
-    font-size: 12.5px;
+    font-size: max(12px, 0.7813rem);
     color: var(--admin-muted);
   }
 </style>

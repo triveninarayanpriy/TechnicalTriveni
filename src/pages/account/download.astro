@@ -75,11 +75,11 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
         <div class="dl dl--error center">
           <div class="dl__lock"><Icon name="lock" size={36} /></div>
           <h1>This download link isn't valid</h1>
-          <p class="muted" style="max-width:44ch;margin:1rem auto 2rem">
+          <p class="muted" style="max-width: 44ch;margin: 1rem auto 2rem">
             The link may have expired or is incorrect. If you've completed a payment, please contact us with your
             order id and we'll sort it out right away.
           </p>
-          <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap">
+          <div class="flex gap-3" style="justify-content: center;flex-wrap: wrap">
             <a href="/projects" class="btn btn-primary">Browse projects</a>
             <a href="/contact" class="btn btn-ghost">Contact support</a>
           </div>
@@ -90,7 +90,7 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
 </Base>
 
 <style>
-  .dl__check { width: 76px; height: 76px; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: rgba(52,211,153,0.12); color: var(--success); }
+  .dl__check { width: 4.75rem; height: 4.75rem; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: rgba(52,211,153,0.12); color: var(--success); }
   .dl h1 { font-size: var(--fs-xl); }
   .dl__sub { max-width: 52ch; margin: 0.85rem auto 2rem; }
   .dl__receipt { display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; padding: 1.1rem 1.5rem; margin-bottom: 2.5rem; }
@@ -106,5 +106,5 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
   .file-row__sub { font-size: var(--fs-xs); color: var(--text-dim); }
   .btn-dl { padding: 0.5rem 0.9rem; font-size: var(--fs-sm); }
   .dl__foot { margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
-  .dl__lock { width: 70px; height: 70px; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
+  .dl__lock { width: 4.375rem; height: 4.375rem; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
 </style>
