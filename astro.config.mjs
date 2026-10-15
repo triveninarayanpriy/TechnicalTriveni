@@ -20,7 +20,7 @@ export default defineConfig({
   }),
   redirects: {
     '/resources/free-tools-for-students-india-2026': '/projects/free-tools-for-students-india-2026',
-    '/resources': '/projects?cat=Resource',
+    '/resources': '/projects?price=free',
   },
   integrations: [
     sitemap({
