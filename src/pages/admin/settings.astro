@@ -61,6 +61,21 @@ const autoAckEnabled = settings.contact_autoack_enabled === '1';
           </a>
         </div>
 
+        <!-- Card: Affiliate & Compliance Navigation -->
+        <div class="admin-card" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: #ffffff; border: 1.5px solid #2563EB;">
+          <div>
+            <h2 class="settings-card-title" style="margin: 0 0 0.25rem 0; color: #2563EB; display: flex; align-items: center; gap: 0.5rem;">
+              <Icon name="cart" size={18} /> Affiliate Links &amp; Compliance
+            </h2>
+            <div style="font-size: max(12px, 0.8125rem); color: var(--admin-muted);">
+              Amazon India Tag: <strong class="mono">{settings.affiliate_amazon_tag || 'Not set'}</strong> · Render-time affiliate link builder, disclosure, compliance checklist, and link review.
+            </div>
+          </div>
+          <a href="/admin/settings/affiliate" class="admin-btn admin-btn--secondary" style="flex-shrink: 0; text-decoration: none; border-color: #2563EB; color: #2563EB;">
+            Configure Affiliate &rarr;
+          </a>
+        </div>
+
         <!-- Card: Display Size (Desktop Scaling) -->
         <div class="admin-card">
           <h2 class="settings-card-title" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -287,6 +302,19 @@ const autoAckEnabled = settings.contact_autoack_enabled === '1';
         </div>
         <a href="/admin/settings/images" class="admin-btn admin-btn--primary" style="width: 100%; justify-content: center; text-decoration: none;">
           Configure Images &rarr;
+        </a>
+      </div>
+
+      <!-- Card: Affiliate & Compliance Navigation (Mobile) -->
+      <div class="admin-card mobile-settings-card" style="margin-top: 0.875rem; border: 1.5px solid #2563EB;">
+        <h2 class="settings-card-title" style="color: #2563EB; display: flex; align-items: center; gap: 0.5rem;">
+          <Icon name="cart" size={18} /> Affiliate Links &amp; Compliance
+        </h2>
+        <div style="font-size: max(12px, 0.8125rem); color: var(--admin-muted); margin-bottom: 0.75rem;">
+          Tag: <strong class="mono">{settings.affiliate_amazon_tag || 'Not set'}</strong> · Amazon link builder &amp; compliance.
+        </div>
+        <a href="/admin/settings/affiliate" class="admin-btn admin-btn--secondary" style="width: 100%; justify-content: center; text-decoration: none; border-color: #2563EB; color: #2563EB;">
+          Configure Affiliate &rarr;
         </a>
       </div>
 

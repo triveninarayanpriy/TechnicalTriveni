@@ -1066,7 +1066,15 @@ const distinctModules = Array.from(new Set([
                   <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                     <div class="data-row__main" style="flex: 1; min-width: 0;">
                       <strong style="font-size: max(12px, 0.875rem);">{b.name} <span class="dim mono">x{b.qty}</span>{b.unit_price_inr > 0 && <span class="dim mono"> • ₹{b.unit_price_inr}</span>}</strong>
-                      <span class="dim" style="font-size: max(12px, 0.7813rem); display: block; margin-top: 0.2rem;">{b.store || '—'}{b.affiliate_url ? ' • link set' : ' • no link'}{b.component_id > 0 ? ' • library part' : ''}</span>
+                      <span class="dim" style="font-size: max(12px, 0.7813rem); display: flex; align-items: center; gap: 0.4rem; margin-top: 0.2rem; flex-wrap: wrap;">
+                        <span>{b.store || '—'}</span>
+                        {b.link?.status === 'verified' && <span class="admin-chip admin-chip--live" style="font-size: max(10px, 0.65rem); padding: 0.1rem 0.4rem;">Verified</span>}
+                        {b.link?.status === 'unverified' && <span class="admin-chip" style="font-size: max(10px, 0.65rem); padding: 0.1rem 0.4rem; background: #FEF9C3; color: #854D0E;">Needs Review</span>}
+                        {b.link?.status === 'search_only' && <span class="admin-chip" style="font-size: max(10px, 0.65rem); padding: 0.1rem 0.4rem; background: #E0E7FF; color: #3730A3;">Search Link</span>}
+                        {b.link?.status === 'broken' && <span class="admin-chip" style="font-size: max(10px, 0.65rem); padding: 0.1rem 0.4rem; background: #FEE2E2; color: #991B1B;">Broken</span>}
+                        {b.link?.status === 'stale' && <span class="admin-chip" style="font-size: max(10px, 0.65rem); padding: 0.1rem 0.4rem; background: #FEF3C7; color: #92400E;">Stale</span>}
+                        {b.component_id > 0 ? <span>• library part</span> : <span>• custom</span>}
+                      </span>
                     </div>
                     <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
                       <span class="admin-btn admin-btn--secondary admin-btn--sm" style="pointer-events: none; padding: 0.125rem 0.5rem; font-size: max(12px, 0.75rem);"><Icon name="edit" size={13} /> Edit</span>

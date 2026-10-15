@@ -2,17 +2,37 @@
 import Admin from '../../layouts/Admin.astro';
 import Icon from '../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
-import { listComponents } from '../../lib/db';
+import { listComponentsWithLinks } from '../../lib/db';
 
-const components = await listComponents(env.DB);
+const components = await listComponentsWithLinks(env.DB);
 const csrf = Astro.locals.csrfToken;
+
+const needsReviewCount = components.filter(c => !c.link || c.link.status === 'unverified' || c.link.status === 'stale').length;
 ---
 
 <Admin title="Component library" active="components">
   <div class="comp">
     <section class="panel comp-intro">
-      <h2><Icon name="cart" size={18} /> Reusable components</h2>
-      <p class="dim">Maintain each part once — name, price, store and buy link. Add it to any project's parts list from the “From library” picker. Update a price here and it updates on <strong>every</strong> project that uses it.</p>
+      <div class="comp-intro__top">
+        <div>
+          <h2><Icon name="cart" size={18} /> Reusable Component Library</h2>
+          <p class="dim">
+            Maintain each part once — name, price, store and verified affiliate link.
+            Update here and it reflects across every project BOM interactive table.
+          </p>
+        </div>
+        <div class="comp-intro__actions">
+          <a href="/admin/components/links" class="admin-btn admin-btn--secondary">
+            <Icon name="check-circle" size={16} />
+            <span>Review Queue</span>
+            {needsReviewCount > 0 && <span class="badge-count">{needsReviewCount}</span>}
+          </a>
+          <a href="/admin/settings/affiliate" class="admin-btn admin-btn--ghost">
+            <Icon name="sliders" size={16} />
+            <span>Affiliate Settings</span>
+          </a>
+        </div>
+      </div>
     </section>
 
     <section class="panel">
@@ -20,81 +40,265 @@ const csrf = Astro.locals.csrfToken;
       <form method="post" action="/api/admin/component/add" class="comp-form">
         <input type="hidden" name="csrf" value={csrf} />
         <div class="grid-3">
-          <input class="input" name="name" placeholder="Name e.g. ESP32 DevKit v1" required />
+          <input class="input" name="name" placeholder="Name e.g. ESP32 DevKit V1 30-pin" required />
           <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
-          <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ price" />
+          <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ approx price" />
         </div>
         <div class="grid-3">
-          <input class="input mono" name="buy_url" placeholder="Buy / affiliate URL" />
-          <input class="input" name="price_checked" placeholder="Checked (Sep 2026)" />
-          <input class="input" name="notes" placeholder="Notes (optional)" />
+          <input class="input mono" name="buy_url" placeholder="Buy URL or ASIN" />
+          <input class="input" name="price_checked" placeholder="Checked (Oct 2026)" />
+          <input class="input" name="notes" placeholder="Notes (specs, chip, pins)" />
         </div>
         <div class="comp-form__foot">
-          <label class="switch"><input type="checkbox" name="is_affiliate" /> <span>Affiliate link</span></label>
+          <label class="switch"><input type="checkbox" name="is_affiliate" checked /> <span>Affiliate link</span></label>
           <button class="btn btn-primary" type="submit"><Icon name="check" size={15} /> Add to library</button>
         </div>
       </form>
     </section>
 
     <section class="panel">
-      <h3 class="comp-h3">{components.length} component{components.length === 1 ? '' : 's'}</h3>
-      {components.length === 0 && <p class="dim">No components yet — add your first above.</p>}
+      <div class="list-header">
+        <h3 class="comp-h3" style="margin: 0;">{components.length} component{components.length === 1 ? '' : 's'} in library</h3>
+        <span class="dim" style="font-size: var(--fs-xs);">Click any component to inspect buy link or edit details</span>
+      </div>
+
+      {components.length === 0 && <p class="dim" style="margin-top: 1rem;">No components yet — add your first above.</p>}
+
       <div class="comp-list">
-        {components.map((c) => (
-          <details class="comp-item">
-            <summary>
-              <span class="comp-item__name">{c.name}</span>
-              <span class="comp-item__meta dim mono">
-                {c.unit_price_inr > 0 ? `₹${c.unit_price_inr}` : '—'}{c.store ? ` · ${c.store}` : ''}{c.is_affiliate ? ' · ad' : ''}
-              </span>
-            </summary>
-            <form method="post" action="/api/admin/component/update" class="comp-form comp-edit">
-              <input type="hidden" name="csrf" value={csrf} />
-              <input type="hidden" name="id" value={c.id} />
-              <div class="grid-3">
-                <input class="input" name="name" value={c.name} required />
-                <input class="input" name="store" value={c.store} placeholder="Store" />
-                <input class="input" name="unit_price_inr" type="number" min="0" value={c.unit_price_inr} />
-              </div>
-              <div class="grid-3">
-                <input class="input mono" name="buy_url" value={c.buy_url} placeholder="Buy URL" />
-                <input class="input" name="price_checked" value={c.price_checked} placeholder="Checked" />
-                <input class="input" name="notes" value={c.notes} placeholder="Notes" />
-              </div>
-              <div class="comp-form__foot">
-                <label class="switch"><input type="checkbox" name="is_affiliate" checked={c.is_affiliate === 1} /> <span>Affiliate link</span></label>
-                <div class="comp-edit__btns">
-                  <button class="btn btn-primary btn-xs" type="submit"><Icon name="check" size={13} /> Save</button>
-                  <button class="btn btn-ghost btn-xs btn-danger" type="submit" formaction="/api/admin/component/delete"><Icon name="close" size={13} /> Delete</button>
+        {components.map((c) => {
+          const link = c.link;
+          const status = link?.status || 'unverified';
+          const isVerified = status === 'verified';
+          const isStale = status === 'stale';
+          const isBroken = status === 'broken';
+          const isSearchOnly = status === 'search_only';
+          const isUnverified = status === 'unverified' && !!link?.asin;
+          const hasNoLink = !link || (!link.asin && status !== 'search_only');
+
+          return (
+            <details class="comp-item" data-comp-id={c.id}>
+              <summary>
+                <div class="comp-item__left">
+                  <span class="comp-item__name">{c.name}</span>
+                  <div class="comp-item__chips">
+                    {isVerified && <span class="chip-status chip--verified">Verified</span>}
+                    {isStale && <span class="chip-status chip--stale">Stale</span>}
+                    {isBroken && <span class="chip-status chip--broken">Broken</span>}
+                    {isSearchOnly && <span class="chip-status chip--search">Search only</span>}
+                    {isUnverified && <span class="chip-status chip--unverified">Unverified</span>}
+                    {hasNoLink && <span class="chip-status chip--empty">No buy link</span>}
+                    {link?.grounded === 1 && <span class="chip-status chip--grounded">Grounded</span>}
+                  </div>
                 </div>
-              </div>
-            </form>
-          </details>
-        ))}
+
+                <div class="comp-item__right">
+                  <span class="comp-item__meta dim mono">
+                    {c.unit_price_inr > 0 ? `₹${c.unit_price_inr}` : '—'}{c.store ? ` · ${c.store}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-find-link"
+                    data-comp-id={c.id}
+                    title="Find product link on Amazon India using Gemini Search"
+                  >
+                    <Icon name="spark" size={13} />
+                    <span>Find link</span>
+                  </button>
+                </div>
+              </summary>
+
+              <form method="post" action="/api/admin/component/update" class="comp-form comp-edit">
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="id" value={c.id} />
+                <div class="grid-3">
+                  <input class="input" name="name" value={c.name} required />
+                  <input class="input" name="store" value={c.store} placeholder="Store" />
+                  <input class="input" name="unit_price_inr" type="number" min="0" value={c.unit_price_inr} />
+                </div>
+                <div class="grid-3">
+                  <input class="input mono" name="buy_url" value={c.buy_url} placeholder="Buy URL" />
+                  <input class="input" name="price_checked" value={c.price_checked} placeholder="Checked" />
+                  <input class="input" name="notes" value={c.notes} placeholder="Notes" />
+                </div>
+
+                {link && (
+                  <div class="link-summary-box">
+                    <div class="link-summary-row">
+                      <span class="link-sum-label">Amazon ASIN:</span>
+                      <strong class="mono">{link.asin || 'None'}</strong>
+                      {link.canonical_url && (
+                        <a href={link.canonical_url} target="_blank" rel="noopener noreferrer" class="link-sum-a">
+                          Open clean product &rarr;
+                        </a>
+                      )}
+                    </div>
+                    {link.title && <div class="link-sum-title">{link.title}</div>}
+                  </div>
+                )}
+
+                <div class="comp-form__foot">
+                  <div class="comp-foot__left">
+                    <label class="switch"><input type="checkbox" name="is_affiliate" checked={c.is_affiliate === 1} /> <span>Affiliate link</span></label>
+                    <a href={`/admin/components/links?tab=all`} class="link-review-shortcut">Open in Review Queue &rarr;</a>
+                  </div>
+                  <div class="comp-edit__btns">
+                    <button class="btn btn-primary btn-xs" type="submit"><Icon name="check" size={13} /> Save</button>
+                    <button class="btn btn-ghost btn-xs btn-danger" type="submit" formaction="/api/admin/component/delete"><Icon name="close" size={13} /> Delete</button>
+                  </div>
+                </div>
+              </form>
+            </details>
+          );
+        })}
       </div>
     </section>
   </div>
 </Admin>
 
+<script is:inline>
+  document.querySelectorAll('.btn-find-link').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // Don't toggle summary
+      const compId = btn.dataset.compId;
+      btn.disabled = true;
+      const prevHtml = btn.innerHTML;
+      btn.innerHTML = '<span>Searching...</span>';
+
+      try {
+        const res = await fetch('/api/admin/affiliate/find-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ component_id: Number(compId), force: true })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          location.reload();
+        } else {
+          alert(data.error || 'Failed to find link');
+          btn.disabled = false;
+          btn.innerHTML = prevHtml;
+        }
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerHTML = prevHtml;
+      }
+    });
+  });
+</script>
+
 <style>
-  .comp { display: flex; flex-direction: column; gap: 1.25rem; max-width: 56.25rem; }
+  .comp { display: flex; flex-direction: column; gap: 1.25rem; max-width: 58rem; }
   .panel { padding: 1.5rem; }
+
+  .comp-intro__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
   .comp-intro h2 { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-md); margin-bottom: 0.5rem; }
   .comp-intro h2 :global(svg) { color: var(--brand-red); }
-  .comp-h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 1rem; }
+  .comp-intro__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .badge-count {
+    background: #DC2626;
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+  }
+
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .comp-h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
   .comp-form { display: flex; flex-direction: column; gap: 0.75rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; }
   .comp-form__foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .comp-foot__left { display: flex; align-items: center; gap: 1rem; }
+  .link-review-shortcut { font-size: var(--fs-xs); color: #2563EB; text-decoration: underline; }
+
   .switch { display: inline-flex; align-items: center; gap: 0.5rem; font-size: var(--fs-sm); cursor: pointer; }
   .switch input { width: 1.125rem; height: 1.125rem; accent-color: var(--brand-red); }
+
   .comp-list { display: flex; flex-direction: column; gap: 0.6rem; }
   .comp-item { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-2); overflow: hidden; }
   .comp-item summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; cursor: pointer; }
+  
+  .comp-item__left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
   .comp-item__name { font-weight: 600; font-size: var(--fs-sm); }
+  .comp-item__chips { display: flex; gap: 0.35rem; }
+
+  .chip-status {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+  }
+  .chip--verified { background: #DCFCE7; color: #15803D; }
+  .chip--stale { background: #FEF3C7; color: #B45309; }
+  .chip--broken { background: #FEE2E2; color: #B91C1C; }
+  .chip--search { background: #E0E7FF; color: #4338CA; }
+  .chip--unverified { background: #FEF9C3; color: #854D0E; }
+  .chip--empty { background: #F1F5F9; color: #64748B; }
+  .chip--grounded { background: #DBEAFE; color: #1D4ED8; }
+
+  .comp-item__right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
   .comp-item__meta { font-size: var(--fs-xs); }
+
   .comp-edit { padding: 0 1rem 1rem; }
   .comp-edit__btns { display: flex; gap: 0.5rem; }
   .btn-xs { padding: 0.35rem 0.7rem; font-size: var(--fs-xs); }
   .btn-danger { color: var(--danger); }
-  @media (max-width: 640px) { .grid-3 { grid-template-columns: 1fr; } }
+
+  .link-summary-box {
+    background: #F8FAFC;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 0.625rem 0.875rem;
+    font-size: var(--fs-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .link-summary-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .link-sum-label { color: var(--text-dim); }
+  .link-sum-a { color: #2563EB; text-decoration: underline; margin-left: auto; }
+  .link-sum-title { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  @media (max-width: 640px) {
+    .grid-3 { grid-template-columns: 1fr; }
+    .comp-item summary { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    .comp-item__right { width: 100%; justify-content: space-between; }
+  }
 </style>

@@ -1,0 +1,700 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { getAffiliateSettings } from '../../../lib/db';
+
+const settings = await getAffiliateSettings(env.DB);
+const csrf = Astro.locals.csrfToken;
+
+const err = Astro.url.searchParams.get('err');
+const ok = Astro.url.searchParams.get('ok');
+---
+
+<Admin title="Affiliate & Compliance" active="settings" hideTabBar={true}>
+  <div class="aff-page">
+    <!-- Header with Back Button and Save Button -->
+    <header class="aff-header">
+      <div class="aff-header__left">
+        <a href="/admin/settings" class="aff-back-btn" title="Back to Settings">
+          <Icon name="chevron-left" size={20} />
+        </a>
+        <div>
+          <h1 class="aff-title">Affiliate Settings &amp; Compliance</h1>
+          <div class="aff-subtitle">Amazon India tracking ID, render-time link builder, disclosure, and compliance checklist.</div>
+        </div>
+      </div>
+      <div class="aff-header__actions">
+        <a href="/admin/components/links" class="admin-btn admin-btn--secondary">
+          <Icon name="check-circle" size={16} />
+          <span>Review Queue</span>
+        </a>
+        <button type="submit" form="affiliate-form" class="admin-btn admin-btn--primary">
+          <Icon name="check" size={16} />
+          <span>Save Changes</span>
+        </button>
+      </div>
+    </header>
+
+    {err && (
+      <div class="alert alert--err">
+        <Icon name="alert-triangle" size={18} />
+        <span>{err}</span>
+      </div>
+    )}
+
+    {ok && (
+      <div class="alert alert--ok">
+        <Icon name="check-circle" size={18} />
+        <span>{ok}</span>
+      </div>
+    )}
+
+    <form id="affiliate-form" method="post" action="/api/admin/settings/save" class="aff-form">
+      <input type="hidden" name="csrf" value={csrf} />
+
+      <div class="aff-grid">
+        <!-- LEFT COLUMN: Main Configuration -->
+        <div class="aff-col-main">
+          <!-- Card 1: Amazon Associates Configuration -->
+          <div class="admin-card">
+            <h2 class="card-title">
+              <Icon name="cart" size={18} />
+              <span>Amazon India Associates</span>
+            </h2>
+            <p class="card-desc">
+              Your tracking ID is stored once. Product links are built deterministically at render time from canonical ASINs so changing your tag here updates every link instantly across your site.
+            </p>
+
+            <div class="fields-stack">
+              <div class="admin-field">
+                <label class="admin-label" for="affiliate_amazon_tag">
+                  Amazon India Tracking ID <span class="required">*</span>
+                </label>
+                <div class="input-with-hint">
+                  <input
+                    class="admin-input mono"
+                    id="affiliate_amazon_tag"
+                    name="affiliate_amazon_tag"
+                    value={settings.amazon_tag}
+                    placeholder="e.g. technicaltriveni-21"
+                    pattern="^[a-z0-9]+(-[a-z0-9]+)*-21$"
+                    autocomplete="off"
+                    required
+                  />
+                  <div class="field-hint">
+                    Must contain lowercase letters, numbers, hyphens, and end in <code>-21</code> (e.g. <code>techtriveni-21</code>).
+                  </div>
+                </div>
+              </div>
+
+              <div class="admin-field">
+                <label class="admin-label" for="affiliate_amazon_domain">
+                  Marketplace Domain
+                </label>
+                <input
+                  class="admin-input"
+                  id="affiliate_amazon_domain"
+                  name="affiliate_amazon_domain"
+                  value={settings.amazon_domain || 'www.amazon.in'}
+                  readonly
+                />
+                <div class="field-hint">Fixed to Amazon India (amazon.in) for regional accuracy.</div>
+              </div>
+
+              <div class="admin-field">
+                <label class="admin-label" for="affiliate_disclosure_text">
+                  Statutory Affiliate Disclosure
+                </label>
+                <textarea
+                  class="admin-input textarea"
+                  id="affiliate_disclosure_text"
+                  name="affiliate_disclosure_text"
+                  rows="2"
+                  required
+                >{settings.disclosure_text || 'As an Amazon Associate I earn from qualifying purchases.'}</textarea>
+                <div class="field-hint">
+                  Mandatory disclosure required by Section 5 of the Amazon Associates Operating Agreement.
+                </div>
+              </div>
+
+              <div class="admin-switch-wrap" style="padding-top: 0.5rem; border-top: var(--admin-border);">
+                <div>
+                  <span class="admin-switch-label">Show disclosure above parts lists</span>
+                  <div style="font-size: max(12px, 0.7813rem); color: var(--admin-muted);">
+                    Displays a prominent disclosure notice directly above project BOM tables on public pages.
+                  </div>
+                </div>
+                <label class="admin-switch">
+                  <input
+                    type="checkbox"
+                    name="affiliate_show_disclosure"
+                    value="1"
+                    checked={settings.show_disclosure}
+                  />
+                  <span class="admin-switch__slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Interactive Link Sanitizer & Tester -->
+          <div class="admin-card">
+            <h2 class="card-title">
+              <Icon name="sliders" size={18} />
+              <span>Link Sanitizer &amp; Tester</span>
+            </h2>
+            <p class="card-desc">
+              Paste any messy Amazon India URL with foreign tracking parameters, or a raw ASIN, to test the deterministic cleaning logic.
+            </p>
+
+            <div class="tester-box">
+              <div class="admin-field">
+                <input
+                  type="text"
+                  id="tester-input"
+                  class="admin-input mono"
+                  placeholder="Paste URL e.g. https://www.amazon.in/dp/B0716S5LQN?ref=...&tag=other-21"
+                />
+              </div>
+
+              <div id="tester-output" class="tester-output" hidden>
+                <div class="tester-row">
+                  <span class="tester-label">Extracted ASIN:</span>
+                  <strong id="tester-asin" class="mono tester-value"></strong>
+                </div>
+                <div class="tester-row">
+                  <span class="tester-label">Clean Canonical URL:</span>
+                  <a id="tester-canonical" href="#" target="_blank" class="mono tester-link"></a>
+                </div>
+                <div class="tester-row">
+                  <span class="tester-label">Final Affiliate URL:</span>
+                  <a id="tester-affiliate" href="#" target="_blank" class="mono tester-link highlight"></a>
+                </div>
+              </div>
+              <div id="tester-error" class="tester-error" hidden></div>
+            </div>
+          </div>
+
+          <!-- Card 3: Creators API Credentials (Optional) -->
+          <div class="admin-card">
+            <h2 class="card-title">
+              <Icon name="spark" size={18} />
+              <span>Amazon Creators API (Optional)</span>
+            </h2>
+            <p class="card-desc">
+              If your account has access to the official Amazon Creators / PA-API, enter credentials here to automatically verify ASINs and titles. Leave blank to use Google Search Grounding and manual review (default).
+            </p>
+
+            <div class="fields-stack">
+              <div class="grid-2">
+                <div class="admin-field">
+                  <label class="admin-label" for="api_partner_tag">Partner Tag</label>
+                  <input
+                    class="admin-input mono"
+                    id="api_partner_tag"
+                    placeholder="e.g. techtriveni-21"
+                    value={settings.creators_api?.partner_tag || ''}
+                  />
+                </div>
+                <div class="admin-field">
+                  <label class="admin-label" for="api_access_key">Access Key ID</label>
+                  <input
+                    class="admin-input mono"
+                    id="api_access_key"
+                    type="password"
+                    placeholder="AKIA..."
+                    value={settings.creators_api?.access_key ? '••••••••••••••••' : ''}
+                  />
+                </div>
+              </div>
+              <div class="admin-field">
+                <label class="admin-label" for="api_secret_key">Secret Access Key</label>
+                <input
+                  class="admin-input mono"
+                  id="api_secret_key"
+                  type="password"
+                  placeholder="Secret key..."
+                  value={settings.creators_api?.secret_key ? '••••••••••••••••' : ''}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Compliance Checklist & Safeguards -->
+        <aside class="aff-col-side">
+          <!-- Compliance Checklist Card -->
+          <div class="admin-card compliance-card">
+            <h2 class="card-title compliance-title">
+              <Icon name="shield" size={18} />
+              <span>Amazon Associates Compliance</span>
+            </h2>
+            <div class="compliance-intro">
+              Ensure all items below are met to protect your Associates account from suspension or fee withholding.
+            </div>
+
+            <ul class="compliance-list">
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>Website added to Profile</strong>
+                    <small>Ensure <code>https://www.technicaltriveni.me</code> is listed under Website and Mobile App List in Associates Central.</small>
+                  </span>
+                </label>
+              </li>
+
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>Social Channels Declared</strong>
+                    <small>YouTube and Instagram profile links declared in your Associates Account Information.</small>
+                  </span>
+                </label>
+              </li>
+
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>Direct On-Site Links Only</strong>
+                    <small>Built-in: No link cloaking, URL masking, or intermediate <code>/go/</code> redirect hops.</small>
+                  </span>
+                </label>
+              </li>
+
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>No Links in Offline/Email Media</strong>
+                    <small>Enforced: Amazon affiliate links never appear in emails, PDF downloads, or offline pack files.</small>
+                  </span>
+                </label>
+              </li>
+
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>No Scraped Amazon Prices</strong>
+                    <small>Compliant: The site displays only your approximate build cost, never unauthorized static Amazon prices.</small>
+                  </span>
+                </label>
+              </li>
+
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>Statutory Disclosure Visible</strong>
+                    <small>The official disclosure appears right above the BOM interactive table and in the footer.</small>
+                  </span>
+                </label>
+              </li>
+
+              <li class="comp-item">
+                <label class="comp-check-label">
+                  <input type="checkbox" checked disabled />
+                  <span>
+                    <strong>3 Qualifying Sales in 180 Days</strong>
+                    <small>New Associates accounts must generate 3 referred orders within 180 days to complete identity approval.</small>
+                  </span>
+                </label>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Quick Navigation Card -->
+          <div class="admin-card">
+            <h3 class="card-title" style="font-size: 0.9375rem;">
+              <Icon name="layers" size={16} />
+              <span>Related Actions</span>
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem;">
+              <a href="/admin/components" class="admin-btn admin-btn--secondary" style="justify-content: flex-start;">
+                <Icon name="cart" size={15} />
+                <span>Component Library</span>
+              </a>
+              <a href="/admin/components/links" class="admin-btn admin-btn--secondary" style="justify-content: flex-start;">
+                <Icon name="check-circle" size={15} />
+                <span>Link Review Queue</span>
+              </a>
+              <a href="https://affiliate-program.amazon.in" target="_blank" rel="noopener noreferrer" class="admin-btn admin-btn--ghost" style="justify-content: flex-start;">
+                <Icon name="external-link" size={15} />
+                <span>Open Associates Central &rarr;</span>
+              </a>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </form>
+  </div>
+</Admin>
+
+<script is:inline>
+  // Link Sanitizer Interactive Tester
+  const tagInput = document.getElementById('affiliate_amazon_tag');
+  const testerInput = document.getElementById('tester-input');
+  const outputBox = document.getElementById('tester-output');
+  const errorBox = document.getElementById('tester-error');
+  const asinEl = document.getElementById('tester-asin');
+  const canonEl = document.getElementById('tester-canonical');
+  const affEl = document.getElementById('tester-affiliate');
+
+  function testLink(val) {
+    if (!val || !val.trim()) {
+      outputBox.hidden = true;
+      errorBox.hidden = true;
+      return;
+    }
+
+    const trimmed = val.trim();
+    const tag = (tagInput?.value || '').trim();
+
+    try {
+      // 1. Direct ASIN check
+      let asin = null;
+      let th = null;
+      let psc = null;
+
+      if (/^[A-Za-z0-9]{10}$/.test(trimmed)) {
+        asin = trimmed.toUpperCase();
+      } else {
+        const urlStr = /^https?:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
+        const u = new URL(urlStr);
+        const host = u.hostname.toLowerCase();
+
+        if (['amzn.to', 'a.co', 'amzn.in'].some(sh => host === sh || host.endsWith('.' + sh))) {
+          throw new Error('Shortened link detected (amzn.to / a.co / amzn.in). Please open it in your browser and paste the full product URL.');
+        }
+
+        if (host !== 'amazon.in' && host !== 'www.amazon.in') {
+          throw new Error('Only Amazon India (amazon.in or www.amazon.in) links are supported. Host "' + u.hostname + '" is not allowed.');
+        }
+
+        const patterns = [
+          /\/dp\/([A-Za-z0-9]{10})/i,
+          /\/gp\/product\/([A-Za-z0-9]{10})/i,
+          /\/product\/([A-Za-z0-9]{10})/i,
+          /\/exec\/obidos\/ASIN\/([A-Za-z0-9]{10})/i,
+          /\/d\/([A-Za-z0-9]{10})/i,
+          /\/ASIN\/([A-Za-z0-9]{10})/i
+        ];
+
+        for (const p of patterns) {
+          const m = u.pathname.match(p);
+          if (m && m[1]) {
+            asin = m[1].toUpperCase();
+            break;
+          }
+        }
+
+        if (!asin) {
+          const qAsin = u.searchParams.get('asin') || u.searchParams.get('ASIN');
+          if (qAsin && /^[A-Za-z0-9]{10}$/.test(qAsin)) {
+            asin = qAsin.toUpperCase();
+          }
+        }
+
+        th = u.searchParams.get('th');
+        psc = u.searchParams.get('psc');
+      }
+
+      if (!asin || !/^[A-Za-z0-9]{10}$/.test(asin)) {
+        throw new Error('No valid 10-character Amazon ASIN found in input.');
+      }
+
+      let canonUrl = 'https://www.amazon.in/dp/' + asin;
+      const vParts = [];
+      if (th) vParts.push('th=' + encodeURIComponent(th));
+      if (psc) vParts.push('psc=' + encodeURIComponent(psc));
+      if (vParts.length > 0) canonUrl += '?' + vParts.join('&');
+
+      let affUrl = canonUrl;
+      if (tag) {
+        const affParts = ['tag=' + encodeURIComponent(tag.toLowerCase())];
+        if (th) affParts.push('th=' + encodeURIComponent(th));
+        if (psc) affParts.push('psc=' + encodeURIComponent(psc));
+        affUrl = 'https://www.amazon.in/dp/' + asin + '?' + affParts.join('&');
+      }
+
+      asinEl.textContent = asin;
+      canonEl.href = canonUrl;
+      canonEl.textContent = canonUrl;
+      affEl.href = affUrl;
+      affEl.textContent = affUrl;
+
+      outputBox.hidden = false;
+      errorBox.hidden = true;
+    } catch (err) {
+      outputBox.hidden = true;
+      errorBox.textContent = err.message;
+      errorBox.hidden = false;
+    }
+  }
+
+  testerInput?.addEventListener('input', (e) => testLink(e.target.value));
+  tagInput?.addEventListener('input', () => {
+    if (testerInput?.value) testLink(testerInput.value);
+  });
+</script>
+
+<style>
+  .aff-page {
+    max-width: 68rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .aff-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--admin-line);
+  }
+
+  .aff-header__left {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+  }
+
+  .aff-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--admin-r-input);
+    border: 1px solid var(--admin-line);
+    background: #fff;
+    color: var(--admin-ink);
+    text-decoration: none;
+    transition: all 120ms ease;
+  }
+  .aff-back-btn:hover {
+    background: var(--admin-bg-hover);
+    border-color: var(--admin-red);
+    color: var(--admin-red);
+  }
+
+  .aff-title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--admin-ink);
+    margin: 0;
+  }
+  .aff-subtitle {
+    font-size: max(12px, 0.8125rem);
+    color: var(--admin-muted);
+    margin-top: 0.125rem;
+  }
+
+  .aff-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1rem;
+    border-radius: var(--admin-r-card);
+    font-size: max(12px, 0.875rem);
+    font-weight: 500;
+  }
+  .alert--err {
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    color: #991B1B;
+  }
+  .alert--ok {
+    background: #F0FDF4;
+    border: 1px solid #86EFAC;
+    color: #166534;
+  }
+
+  .aff-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 960px) {
+    .aff-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .aff-col-main, .aff-col-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--admin-fs-card-title);
+    font-weight: 700;
+    color: var(--admin-ink);
+    margin: 0 0 0.375rem;
+  }
+  .card-title :global(svg) {
+    color: var(--admin-red);
+  }
+  .card-desc {
+    font-size: max(12px, 0.8125rem);
+    color: var(--admin-muted);
+    line-height: 1.45;
+    margin: 0 0 1rem;
+  }
+
+  .fields-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .field-hint {
+    font-size: max(12px, 0.75rem);
+    color: var(--admin-muted);
+    margin-top: 0.25rem;
+  }
+
+  .field-hint code {
+    background: #F1F5F9;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  @media (max-width: 600px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  .required {
+    color: var(--admin-red);
+  }
+
+  /* Tester Box */
+  .tester-box {
+    background: #F8FAFC;
+    border: 1px solid var(--admin-line);
+    border-radius: var(--admin-r-card);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .tester-output {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #CBD5E1;
+    font-size: max(12px, 0.8125rem);
+  }
+  .tester-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .tester-label {
+    font-weight: 600;
+    color: var(--admin-muted);
+    min-width: 9rem;
+  }
+  .tester-value {
+    color: var(--admin-ink);
+    background: #E2E8F0;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+  .tester-link {
+    color: #2563EB;
+    word-break: break-all;
+    text-decoration: underline;
+  }
+  .tester-link.highlight {
+    color: var(--admin-red);
+    font-weight: 600;
+  }
+  .tester-error {
+    color: #DC2626;
+    font-size: max(12px, 0.8125rem);
+    font-weight: 500;
+  }
+
+  /* Compliance Checklist */
+  .compliance-card {
+    background: #FAFBFD;
+    border-color: #E2E8F0;
+  }
+  .compliance-intro {
+    font-size: max(12px, 0.7813rem);
+    color: var(--admin-muted);
+    margin-bottom: 0.875rem;
+    line-height: 1.4;
+  }
+  .compliance-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .comp-item {
+    padding-bottom: 0.625rem;
+    border-bottom: 1px solid #ECEFF2;
+  }
+  .comp-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .comp-check-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    cursor: default;
+  }
+  .comp-check-label input {
+    accent-color: #16A34A;
+    margin-top: 0.1875rem;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+  .comp-check-label span {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    font-size: max(12px, 0.8125rem);
+    color: var(--admin-ink);
+  }
+  .comp-check-label small {
+    font-size: max(12px, 0.7188rem);
+    color: var(--admin-muted);
+    line-height: 1.35;
+  }
+</style>

@@ -2,6 +2,7 @@
  * Typed data-access layer over Cloudflare D1.
  * All SQL is parameterized (never string-interpolated) to prevent injection.
  */
+import { type AffiliateSettings, DEFAULT_AFFILIATE_SETTINGS } from './affiliate';
 
 /* --------------------------------------------------------------- types --- */
 export interface Project {
@@ -55,9 +56,28 @@ export interface Project {
   updated_at: number;
 }
 
+export interface ComponentLink {
+  id: number;
+  component_id: number;
+  store: string;
+  asin: string;
+  canonical_url: string;
+  title: string;
+  status: 'unverified' | 'verified' | 'search_only' | 'stale' | 'broken';
+  confidence: number;
+  source: 'gemini' | 'manual';
+  grounded: number; // 0 or 1
+  evidence: string; // JSON string
+  verified_at: string;
+  verified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Component {
   id: number; name: string; store: string; buy_url: string; is_affiliate: number;
   unit_price_inr: number; price_checked: string; notes: string; created_at: number; updated_at: number;
+  link?: ComponentLink | null;
 }
 
 export interface Page {
@@ -88,6 +108,7 @@ export interface BomItem {
   id: number; project_id: number; name: string; qty: string; notes: string;
   store: string; affiliate_url: string; unit_price_inr: number; sort: number;
   price_checked: string; is_affiliate: number; component_id: number; is_required: number; group_name: string; stage_tag: string;
+  link?: ComponentLink | null;
 }
 export interface ProjectStep {
   id: number; project_id: number; title: string; body: string; why: string; image_url: string; sort: number;
@@ -301,13 +322,28 @@ async function withChildren(db: D1Database, project: Project): Promise<ProjectFu
   const refIds = [...new Set(bomRows.filter((b) => b.component_id > 0).map((b) => b.component_id))];
   if (refIds.length) {
     const placeholders = refIds.map(() => '?').join(',');
-    const comps = await db.prepare(`SELECT * FROM components WHERE id IN (${placeholders})`).bind(...refIds).all<Component>();
-    const map = new Map((comps.results ?? []).map((c) => [c.id, c]));
+    const [comps, links] = await Promise.all([
+      db.prepare(`SELECT * FROM components WHERE id IN (${placeholders})`).bind(...refIds).all<Component>(),
+      db.prepare(`SELECT * FROM component_links WHERE component_id IN (${placeholders})`).bind(...refIds).all<ComponentLink>(),
+    ]);
+    const compMap = new Map((comps.results ?? []).map((c) => [c.id, c]));
+    const linkMap = new Map((links.results ?? []).map((l) => [l.component_id, l]));
+
     bomRows = bomRows.map((b) => {
-      const c = b.component_id > 0 ? map.get(b.component_id) : undefined;
+      const c = b.component_id > 0 ? compMap.get(b.component_id) : undefined;
+      const link = b.component_id > 0 ? linkMap.get(b.component_id) : undefined;
       return c
-        ? { ...b, name: c.name, store: c.store, affiliate_url: c.buy_url, unit_price_inr: c.unit_price_inr, price_checked: c.price_checked, is_affiliate: c.is_affiliate }
-        : b;
+        ? {
+            ...b,
+            name: c.name,
+            store: c.store,
+            affiliate_url: c.buy_url,
+            unit_price_inr: c.unit_price_inr,
+            price_checked: c.price_checked,
+            is_affiliate: c.is_affiliate,
+            link: link || null,
+          }
+        : { ...b, link: link || null };
     });
   }
 
@@ -519,8 +555,137 @@ export async function deleteComponent(db: D1Database, id: number): Promise<void>
   // Detach any BOM rows that referenced it (keep their last-known values).
   await db.batch([
     db.prepare('UPDATE bom_items SET component_id = 0 WHERE component_id = ?').bind(id),
+    db.prepare('DELETE FROM component_links WHERE component_id = ?').bind(id),
     db.prepare('DELETE FROM components WHERE id = ?').bind(id),
   ]);
+}
+
+/* -------------------------------------------------- component links & affiliate ---- */
+export async function listComponentsWithLinks(db: D1Database): Promise<(Component & { link?: ComponentLink | null })[]> {
+  const [compsRes, linksRes] = await Promise.all([
+    db.prepare('SELECT * FROM components ORDER BY name ASC').all<Component>(),
+    db.prepare('SELECT * FROM component_links').all<ComponentLink>(),
+  ]);
+  const linksMap = new Map((linksRes.results ?? []).map(l => [l.component_id, l]));
+  return (compsRes.results ?? []).map(c => ({
+    ...c,
+    link: linksMap.get(c.id) || null
+  }));
+}
+
+export async function getComponentLink(db: D1Database, componentId: number): Promise<ComponentLink | null> {
+  return (await db.prepare('SELECT * FROM component_links WHERE component_id = ?').bind(componentId).first<ComponentLink>()) ?? null;
+}
+
+export async function listComponentLinks(db: D1Database, status?: string): Promise<ComponentLink[]> {
+  if (status) {
+    const res = await db.prepare('SELECT * FROM component_links WHERE status = ? ORDER BY id DESC').bind(status).all<ComponentLink>();
+    return res.results ?? [];
+  }
+  const res = await db.prepare('SELECT * FROM component_links ORDER BY id DESC').all<ComponentLink>();
+  return res.results ?? [];
+}
+
+export async function upsertComponentLink(db: D1Database, link: Partial<ComponentLink> & { component_id: number }): Promise<void> {
+  const existing = await getComponentLink(db, link.component_id);
+  const nowIso = new Date().toISOString();
+
+  if (existing) {
+    const fields = ['store', 'asin', 'canonical_url', 'title', 'status', 'confidence', 'source', 'grounded', 'evidence', 'verified_at', 'verified_by'] as const;
+    const sets: string[] = [];
+    const binds: unknown[] = [];
+    for (const f of fields) {
+      if (link[f] !== undefined) {
+        sets.push(`${f} = ?`);
+        binds.push(link[f]);
+      }
+    }
+    sets.push('updated_at = ?');
+    binds.push(nowIso);
+    binds.push(link.component_id);
+    await db.prepare(`UPDATE component_links SET ${sets.join(', ')} WHERE component_id = ?`).bind(...binds).run();
+  } else {
+    await db.prepare(
+      `INSERT INTO component_links (component_id, store, asin, canonical_url, title, status, confidence, source, grounded, evidence, verified_at, verified_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      link.component_id,
+      link.store || 'amazon',
+      link.asin || '',
+      link.canonical_url || '',
+      link.title || '',
+      link.status || 'unverified',
+      link.confidence ?? 0.0,
+      link.source || 'manual',
+      link.grounded ?? 0,
+      link.evidence || '{}',
+      link.verified_at || '',
+      link.verified_by || '',
+      nowIso,
+      nowIso
+    ).run();
+  }
+}
+
+export async function verifyComponentLink(db: D1Database, componentId: number, verifiedBy: string): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await db.prepare(
+    `UPDATE component_links SET status = 'verified', verified_at = ?, verified_by = ?, updated_at = ? WHERE component_id = ?`
+  ).bind(nowIso, verifiedBy, nowIso, componentId).run();
+}
+
+export async function markComponentLinkStatus(db: D1Database, componentId: number, status: string, verifiedBy = ''): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await db.prepare(
+    `UPDATE component_links SET status = ?, verified_by = CASE WHEN ? != '' THEN ? ELSE verified_by END, updated_at = ? WHERE component_id = ?`
+  ).bind(status, verifiedBy, verifiedBy, nowIso, componentId).run();
+}
+
+/**
+ * Marks links stale if verified_at is older than 30 days.
+ * Returns the count of links marked stale.
+ */
+export async function checkStaleLinks(db: D1Database): Promise<number> {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const res = await db.prepare(
+    `UPDATE component_links SET status = 'stale', updated_at = ? WHERE status = 'verified' AND verified_at != '' AND verified_at < ?`
+  ).bind(new Date().toISOString(), thirtyDaysAgo).run();
+  return (res.meta as any)?.changes || 0;
+}
+
+export async function getAffiliateSettings(db: D1Database): Promise<AffiliateSettings> {
+  const s = await getSettings(db);
+  let customStores = DEFAULT_AFFILIATE_SETTINGS.custom_stores;
+  if (s.affiliate_custom_stores) {
+    try {
+      customStores = JSON.parse(s.affiliate_custom_stores);
+    } catch {}
+  }
+
+  let creatorsApi = undefined;
+  if (s.affiliate_creators_credentials) {
+    try {
+      creatorsApi = JSON.parse(s.affiliate_creators_credentials);
+    } catch {}
+  }
+
+  return {
+    amazon_tag: s.affiliate_amazon_tag || '',
+    amazon_domain: s.affiliate_amazon_domain || DEFAULT_AFFILIATE_SETTINGS.amazon_domain,
+    disclosure_text: s.affiliate_disclosure_text || DEFAULT_AFFILIATE_SETTINGS.disclosure_text,
+    show_disclosure: s.affiliate_show_disclosure !== '0',
+    custom_stores: customStores,
+    creators_api: creatorsApi,
+  };
+}
+
+export async function updateAffiliateSettings(db: D1Database, s: Partial<AffiliateSettings>): Promise<void> {
+  if (s.amazon_tag !== undefined) await setSetting(db, 'affiliate_amazon_tag', s.amazon_tag.trim());
+  if (s.amazon_domain !== undefined) await setSetting(db, 'affiliate_amazon_domain', s.amazon_domain.trim());
+  if (s.disclosure_text !== undefined) await setSetting(db, 'affiliate_disclosure_text', s.disclosure_text.trim());
+  if (s.show_disclosure !== undefined) await setSetting(db, 'affiliate_show_disclosure', s.show_disclosure ? '1' : '0');
+  if (s.custom_stores !== undefined) await setSetting(db, 'affiliate_custom_stores', JSON.stringify(s.custom_stores));
+  if (s.creators_api !== undefined) await setSetting(db, 'affiliate_creators_credentials', JSON.stringify(s.creators_api));
 }
 
 export async function updateBom(db: D1Database, id: number, b: Partial<BomItem>) {
