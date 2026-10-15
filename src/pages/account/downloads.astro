@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
-import { getOrdersByEmail } from '../../lib/db';
+import { getOrdersByEmail, getProjectById } from '../../lib/db';
 import { verifyPayload } from '../../lib/crypto';
 import { emailEnabled } from '../../lib/email';
 import { formatINR } from '../../lib/format';
@@ -12,74 +12,330 @@ const token = Astro.url.searchParams.get('token') || '';
 let email = '';
 let valid = false;
 let orders: Awaited<ReturnType<typeof getOrdersByEmail>> = [];
+let ordersWithProjects: Array<{
+  order: (typeof orders)[number];
+  project: Awaited<ReturnType<typeof getProjectById>>;
+}> = [];
 
 if (token) {
-  const payload = await verifyPayload<{ email: string; exp: number }>(env.SESSION_SECRET, token);
-  if (payload && payload.exp > Math.floor(Date.now() / 1000)) {
-    valid = true;
-    email = payload.email;
-    orders = await getOrdersByEmail(env.DB, email);
+  try {
+    const payload = await verifyPayload<{ email: string; exp: number }>(env.SESSION_SECRET, token);
+    if (payload && payload.exp > Math.floor(Date.now() / 1000)) {
+      valid = true;
+      email = payload.email;
+      orders = await getOrdersByEmail(env.DB, email);
+      if (orders.length > 0) {
+        ordersWithProjects = await Promise.all(
+          orders.map(async (o) => {
+            const p = await getProjectById(env.DB, o.project_id);
+            return { order: o, project: p };
+          })
+        );
+      }
+    }
+  } catch {
+    valid = false;
   }
 }
 
-const fmtDate = (s: number) => new Date(s * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDate = (s: number) =>
+  new Date(s * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const dlLink = (o: (typeof orders)[number]) =>
   `/account/download?order=${encodeURIComponent(o.id)}&token=${encodeURIComponent(o.download_token)}`;
 const mailOn = emailEnabled(env);
 ---
 
-<Base title="My downloads" noindex>
+<Base title={valid ? 'Your Downloads — Technical Triveni' : 'My Downloads — Technical Triveni'} noindex>
   <section class="mydl-section">
     <div class="container container-narrow">
       {valid ? (
-        <div class="mydl">
-          <span class="mydl-eyebrow">YOUR ACCOUNT</span>
-          <h1 class="mydl-title">Your downloads</h1>
-          <p class="mydl-sub">Signed in as <strong>{email}</strong>. Open any project pack below to download your source files, schematics, and 3D models.</p>
-          {orders.length > 0 ? (
-            <div class="mydl__list">
-              {orders.map((o) => (
+        /* ================= AUTHENTICATED / SIGNED IN VIEW ================= */
+        <div class="mydl-portal">
+          <div class="mydl-account-bar">
+            <div class="mydl-account-info">
+              <span class="account-avatar" aria-hidden="true"><Icon name="shield" size={18} /></span>
+              <div class="account-details">
+                <span class="account-label">Signed in with email</span>
+                <span class="account-email">{email}</span>
+              </div>
+            </div>
+            <a href="/account/downloads" class="btn btn-secondary btn-sm account-signout" title="Sign out / Switch account">
+              <Icon name="logout" size={14} />
+              <span>Switch account</span>
+            </a>
+          </div>
+
+          <div class="mydl-header">
+            <span class="mydl-eyebrow">YOUR PURCHASES</span>
+            <h1 class="mydl-title">Your Project Downloads</h1>
+            <p class="mydl-sub">
+              {orders.length === 1
+                ? 'You have 1 verified project pack ready for download.'
+                : orders.length > 1
+                ? `You have ${orders.length} verified project packs ready for download.`
+                : 'Manage and download all your purchased project packs below.'}
+            </p>
+          </div>
+
+          {ordersWithProjects.length > 0 ? (
+            <div class="mydl-orders-list">
+              {ordersWithProjects.map(({ order: o, project: p }) => (
                 <div class="order-card">
-                  <div class="order-card__main">
-                    <span class="order-card__title">{o.project_title}</span>
-                    <span class="order-card__meta">{fmtDate(o.created_at)} · {formatINR(o.amount_inr)} · Order #{o.id.slice(0, 8).toUpperCase()}</span>
+                  <div class="order-card__content">
+                    <div class="order-card__top">
+                      <span class="badge is-beginner">
+                        <Icon name="check-circle" size={13} />
+                        <span>Verified purchase</span>
+                      </span>
+                      <span class="order-card__id mono" title="Order ID">#{o.id.slice(0, 8).toUpperCase()}</span>
+                    </div>
+
+                    <h2 class="order-card__title">
+                      {p?.slug ? (
+                        <a href={`/projects/${p.slug}`} class="order-card__link">
+                          {o.project_title}
+                        </a>
+                      ) : (
+                        o.project_title
+                      )}
+                    </h2>
+
+                    <div class="order-card__meta">
+                      <span class="meta-chip">
+                        <Icon name="clock" size={13} />
+                        <span>{fmtDate(o.created_at)}</span>
+                      </span>
+                      <span class="meta-chip">
+                        <Icon name="tag" size={13} />
+                        <span>{formatINR(o.amount_inr)}</span>
+                      </span>
+                      {p?.category && (
+                        <span class="meta-chip meta-chip--cat">
+                          <Icon name="cpu" size={13} />
+                          <span>{p.category}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <a href={dlLink(o)} class="btn btn-primary order-card__btn">
-                    <Icon name="download" size={16} /> Download files
-                  </a>
+
+                  <div class="order-card__actions">
+                    <a href={dlLink(o)} class="btn btn-primary order-card__btn-dl">
+                      <Icon name="download" size={16} />
+                      <span>Download files</span>
+                    </a>
+                    {p?.slug && (
+                      <a href={`/projects/${p.slug}`} class="btn btn-secondary order-card__btn-guide">
+                        <Icon name="eye" size={15} />
+                        <span>View guide</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
             <div class="mydl-empty center">
-              <p class="mydl-empty__text">No project packs found for this email address yet.</p>
-              <a href="/projects" class="btn btn-secondary">Browse project packs →</a>
+              <div class="mydl-empty__icon" aria-hidden="true">
+                <Icon name="cart" size={32} />
+              </div>
+              <h2 class="mydl-empty__title">No project packs found</h2>
+              <p class="mydl-empty__text">
+                We couldn't find any completed orders linked to <strong>{email}</strong>. If you used a different email address during checkout, please sign in with that address.
+              </p>
+              <div class="mydl-empty__actions">
+                <a href="/account/downloads" class="btn btn-primary">
+                  <Icon name="arrow-right" size={16} /> Try another email
+                </a>
+                <a href="/projects" class="btn btn-secondary">
+                  Browse project packs
+                </a>
+              </div>
             </div>
           )}
         </div>
       ) : (
-        <div class="mydl mydl--form">
-          <div class="mydl__icon">
-            <Icon name="download" size={28} />
+        /* ================= GUEST / REQUEST MAGIC LINK VIEW ================= */
+        <div class="mydl-guest">
+          {/* Main Card */}
+          <div class="mydl-card">
+            <div class="mydl-card__accent" aria-hidden="true"></div>
+
+            {/* Default Form State */}
+            <div class="mydl-card__inner" data-magic-form-wrap>
+              <div class="mydl-card__icon" aria-hidden="true">
+                <Icon name="download" size={26} />
+              </div>
+
+              <div class="mydl-card__badge">
+                <span class="pulse-dot" aria-hidden="true"></span>
+                <span>INSTANT ACCESS PORTAL</span>
+              </div>
+
+              <h1 class="mydl-card__title">My Downloads</h1>
+              <p class="mydl-card__sub">
+                Enter the email address you used at checkout. We'll send you a secure 1-click magic link to download all your project files, schematics, and 3D models.
+              </p>
+
+              <form class="mydl-form" data-magic-form novalidate>
+                <div class="mydl-form__group">
+                  <label for="magic-email" class="mydl-form__label">
+                    <span>Checkout email address</span>
+                  </label>
+                  <div class="mydl-input-wrap">
+                    <span class="mydl-input-icon" aria-hidden="true">
+                      <Icon name="mail" size={18} />
+                    </span>
+                    <input
+                      id="magic-email"
+                      class="input mydl-input"
+                      type="email"
+                      name="email"
+                      placeholder="e.g. rahul@example.com"
+                      autocomplete="email"
+                      inputmode="email"
+                      required
+                      data-magic-email
+                    />
+                  </div>
+                  <p class="mydl-form__error" data-magic-error hidden>
+                    Please enter a valid email address.
+                  </p>
+                </div>
+
+                <button class="btn btn-primary mydl-form__btn" type="submit" data-magic-btn>
+                  <span class="btn-text">Email me the link</span>
+                  <Icon name="arrow-right" size={16} class="btn-icon" />
+                </button>
+              </form>
+
+              <div class="mydl-trust-chips">
+                <div class="trust-chip">
+                  <Icon name="bolt" size={14} />
+                  <span>No password needed</span>
+                </div>
+                <div class="trust-chip">
+                  <Icon name="shield" size={14} />
+                  <span>Direct secure link</span>
+                </div>
+                <div class="trust-chip">
+                  <Icon name="history" size={14} />
+                  <span>Lifetime updates</span>
+                </div>
+              </div>
+
+              {!mailOn && (
+                <div class="mydl-paused-alert">
+                  <Icon name="alert-triangle" size={16} />
+                  <span>
+                    Email delivery is temporarily paused. Please check your purchase confirmation receipt or
+                    <a href="/contact"> contact support</a> to get your files.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Sent Confirmation State (shown upon submit) */}
+            <div class="mydl-sent-card" data-magic-sent hidden>
+              <div class="mydl-sent-card__icon" aria-hidden="true">
+                <Icon name="check-circle" size={36} />
+              </div>
+              <h2 class="mydl-sent-card__title">Check your inbox!</h2>
+              <p class="mydl-sent-card__desc">
+                We've sent a 1-click access link to <strong class="sent-email-target" data-sent-email>user@example.com</strong>
+              </p>
+
+              <div class="mydl-sent-steps">
+                <div class="sent-step">
+                  <span class="sent-step__num">1</span>
+                  <div class="sent-step__text">
+                    <strong>Open your email app</strong>
+                    <span>Look for a message from <em>Technical Triveni</em>.</span>
+                  </div>
+                </div>
+                <div class="sent-step">
+                  <span class="sent-step__num">2</span>
+                  <div class="sent-step__text">
+                    <strong>Click "View my downloads"</strong>
+                    <span>The link will log you in securely for 30 minutes.</span>
+                  </div>
+                </div>
+                <div class="sent-step">
+                  <span class="sent-step__num">3</span>
+                  <div class="sent-step__text">
+                    <strong>Download your packs</strong>
+                    <span>Get immediate access to ZIPs, PCB files, and source code.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mydl-sent-actions">
+                <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm mydl-btn-webmail" data-gmail-btn>
+                  <Icon name="external" size={14} />
+                  <span>Open Gmail</span>
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-magic-reset>
+                  Try another email
+                </button>
+              </div>
+
+              <div class="mydl-sent-footer">
+                <span class="dim">Didn't receive the email? Check your Spam folder or</span>
+                <button type="button" class="btn-link" data-magic-resend>resend link</button>
+                <span class="resend-countdown" data-resend-wait hidden>(wait <span data-resend-sec>30</span>s)</span>
+              </div>
+            </div>
           </div>
-          <span class="mydl-eyebrow center">INSTANT ACCESS</span>
-          <h1 class="mydl-title center">My downloads</h1>
-          <p class="mydl-sub center">
-            Enter the email address you used at checkout and we will send you a secure direct link to all your project files. No password required.
-          </p>
-          <form class="mydl__request" data-magic-form>
-            <input class="input mydl__input" type="email" name="email" placeholder="name@example.com" autocomplete="email" required data-magic-email />
-            <button class="btn btn-primary mydl__btn" type="submit" data-magic-btn>
-              <Icon name="mail" size={16} /> Email me the link
-            </button>
-          </form>
-          {!mailOn && (
-            <p class="mydl__note center" style="margin-top: 0.875rem;">
-              Email delivery is currently paused. Please check your original purchase confirmation email, or
-              <a href="/contact"> contact support</a> to get your files.
-            </p>
-          )}
-          <p class="mydl__hint center" data-magic-msg hidden></p>
+
+          {/* Help & FAQ Section */}
+          <div class="mydl-faq">
+            <div class="mydl-faq__head center">
+              <span class="mydl-eyebrow">HELP & SUPPORT</span>
+              <h2 class="mydl-faq__title">Frequently Asked Questions</h2>
+              <p class="mydl-faq__sub">Quick answers to common questions about your project downloads.</p>
+            </div>
+
+            <div class="mydl-faq__grid">
+              <div class="faq-card">
+                <div class="faq-card__head">
+                  <div class="faq-card__icon" aria-hidden="true"><Icon name="bolt" size={18} /></div>
+                  <h3 class="faq-card__q">How does download access work?</h3>
+                </div>
+                <p class="faq-card__a">
+                  Every project pack purchase is permanently tied to the email address you entered at Razorpay checkout. You never need a password &mdash; simply enter your email above anytime to receive an instant access link.
+                </p>
+              </div>
+
+              <div class="faq-card">
+                <div class="faq-card__head">
+                  <div class="faq-card__icon" aria-hidden="true"><Icon name="help-circle" size={18} /></div>
+                  <h3 class="faq-card__q">Didn't receive the email?</h3>
+                </div>
+                <p class="faq-card__a">
+                  Please check your <strong>Spam</strong>, <strong>Updates</strong>, or <strong>Promotions</strong> folders. If you still don't see it within 2 minutes, make sure you entered the exact email address used during payment.
+                </p>
+              </div>
+
+              <div class="faq-card">
+                <div class="faq-card__head">
+                  <div class="faq-card__icon" aria-hidden="true"><Icon name="history" size={18} /></div>
+                  <h3 class="faq-card__q">Do I get lifetime updates?</h3>
+                </div>
+                <p class="faq-card__a">
+                  Yes! All future code updates, bug fixes, revised circuit schematics, and 3D STL files are completely free for existing customers. Re-download the latest pack anytime.
+                </p>
+              </div>
+
+              <div class="faq-card">
+                <div class="faq-card__head">
+                  <div class="faq-card__icon" aria-hidden="true"><Icon name="mail" size={18} /></div>
+                  <h3 class="faq-card__q">Need help with an order?</h3>
+                </div>
+                <p class="faq-card__a">
+                  If you have payment inquiries or need assistance locating your download, write to us directly at <a href="mailto:technicaltriveniyt@gmail.com" class="faq-link">technicaltriveniyt@gmail.com</a> or use our <a href="/contact" class="faq-link">contact page</a>.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -87,249 +343,876 @@ const mailOn = emailEnabled(env);
 </Base>
 
 <style>
+  /* ================= COMMON / CONTAINER ================= */
   .mydl-section {
-    padding: clamp(3rem, 6vw, 6rem) 0;
+    padding-top: clamp(2.5rem, 5vw, 4.5rem);
+    padding-bottom: clamp(4rem, 8vw, 6.5rem);
   }
   .center {
     text-align: center;
   }
+  .dim {
+    color: var(--ink-2);
+  }
+  .mono {
+    font-family: var(--font-mono, monospace);
+  }
   .mydl-eyebrow {
-    display: block;
-    font-size: max(12px, 0.75rem);
+    display: inline-block;
+    font-size: max(11px, 0.75rem);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--red);
     margin-bottom: 0.5rem;
   }
-  .mydl-title {
-    font-size: clamp(2rem, 1.2rem + 3.6vw, 3rem);
+
+  /* ================= GUEST / CARD VIEW ================= */
+  .mydl-guest {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 6vw, 4.5rem);
+  }
+
+  .mydl-card {
+    max-width: 32rem;
+    margin: 0 auto;
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    box-shadow: 0 1.25rem 3.75rem -0.75rem rgba(17, 20, 24, 0.07), 0 0.125rem 0.5rem rgba(17, 20, 24, 0.04);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mydl-card__accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0.25rem;
+    background: linear-gradient(90deg, var(--red) 0%, #ff5252 50%, var(--red) 100%);
+  }
+
+  .mydl-card__inner,
+  .mydl-sent-card {
+    padding: clamp(1.75rem, 5vw, 2.5rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .mydl-card__inner[hidden],
+  .mydl-sent-card[hidden] {
+    display: none !important;
+  }
+
+  .mydl-card__icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.875rem;
+    background: rgba(233, 36, 36, 0.08);
+    color: var(--red);
+    margin-bottom: 1rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(233, 36, 36, 0.12);
+  }
+
+  .mydl-card__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6.25rem;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    font-size: max(11px, 0.6875rem);
     font-weight: 700;
-    line-height: 1.1;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    margin-bottom: 0.875rem;
+  }
+
+  .pulse-dot {
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 0 0 rgba(233, 36, 36, 0.7);
+    animation: pulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+  }
+
+  @keyframes pulse {
+    to {
+      box-shadow: 0 0 0 0.5rem rgba(233, 36, 36, 0);
+    }
+  }
+
+  .mydl-card__title {
+    font-size: clamp(1.75rem, 1.2rem + 2vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.15;
     letter-spacing: -0.02em;
     color: var(--ink);
     margin: 0 0 0.75rem;
   }
-  .mydl-sub {
-    font-size: 1rem;
+
+  .mydl-card__sub {
+    font-size: 0.9375rem;
     color: var(--ink-2);
-    line-height: 1.6;
-    max-width: 50ch;
-    margin: 0 0 2rem;
+    line-height: 1.55;
+    max-width: 44ch;
+    margin: 0 0 1.75rem;
   }
-  .mydl--form {
-    max-width: 30rem;
-    margin: 0 auto;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 1rem;
-    padding: clamp(1.5rem, 5vw, 2.5rem);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-  .mydl--form .mydl-sub {
-    margin-inline: auto;
-  }
-  .mydl__icon {
-    width: 3.75rem;
-    height: 3.75rem;
-    margin: 0 auto 1rem;
-    display: grid;
-    place-items: center;
-    border-radius: 0.75rem;
-    background: rgba(233, 36, 36, 0.08);
-    color: var(--red);
-  }
-  .mydl__request {
+
+  /* Form Elements */
+  .mydl-form {
+    width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1.125rem;
+    text-align: left;
   }
-  @media (min-width: 640px) {
-    .mydl--form {
-      max-width: 35rem;
-    }
-    .mydl__request {
-      flex-direction: row;
-    }
-    .mydl__btn {
-      width: auto;
-      white-space: nowrap;
-      padding: 0 1.5rem;
-      flex-shrink: 0;
-    }
-  }
-  .mydl__input {
-    height: 3rem;
-    border-radius: 0.625rem;
-    border: 1px solid var(--line);
-    padding: 0 1rem;
-    font-size: 1rem;
-    color: var(--ink);
+
+  .mydl-form__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
     width: 100%;
   }
-  .mydl__input:focus {
+
+  .mydl-form__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+  }
+
+  .mydl-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .mydl-input-icon {
+    position: absolute;
+    left: 0.95rem;
+    color: var(--ink-3);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mydl-input {
+    width: 100% !important;
+    height: 3.125rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--line);
+    padding: 0 1rem 0 2.75rem;
+    font-size: 0.9375rem;
+    color: var(--ink);
+    background: var(--bg);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    box-sizing: border-box;
+  }
+
+  .mydl-input:focus {
     outline: none;
     border-color: var(--red);
-    box-shadow: 0 0 0 2px rgba(233, 36, 36, 0.15);
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(233, 36, 36, 0.2);
   }
-  .mydl__btn {
-    height: 3rem;
+
+  .mydl-form__error {
+    font-size: 0.8125rem;
+    color: var(--red);
+    margin-top: 0.25rem;
+  }
+  .mydl-form__error[hidden] {
+    display: none;
+  }
+
+  .mydl-form__btn {
+    width: 100% !important;
+    height: 3.125rem;
     border-radius: 0.625rem;
-    font-size: 1rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    width: 100%;
     cursor: pointer;
+    box-sizing: border-box;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   }
-  .mydl__note {
-    max-width: 46ch;
-    margin: 0 auto;
+  .mydl-form__btn:hover {
+    transform: translateY(-0.0625rem);
+    box-shadow: 0 0.5rem 1.25rem rgba(233, 36, 36, 0.22);
+  }
+
+  .btn-arrow {
+    transition: transform 0.15s ease;
+  }
+  .mydl-form__btn:hover .btn-arrow {
+    transform: translateX(0.1875rem);
+  }
+
+  /* Trust chips */
+  .mydl-trust-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem 1.25rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    width: 100%;
+  }
+
+  .trust-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     color: var(--ink-2);
-    font-size: 0.875rem;
-    line-height: 1.6;
   }
-  .mydl__note a {
+  .trust-chip svg {
+    color: var(--red);
+  }
+
+  .mydl-paused-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    background: #fff8eb;
+    border: 1px solid #ffd8a8;
+    color: #92400e;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin-top: 1.25rem;
+    text-align: left;
+    width: 100%;
+  }
+  .mydl-paused-alert a {
     color: var(--red);
     text-decoration: underline;
+    font-weight: 600;
   }
-  .mydl__hint {
-    margin-top: 1rem;
-    font-size: 0.875rem;
-    color: var(--ink-2);
-    background: var(--bg-soft);
-    padding: 0.625rem 0.875rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--line);
-  }
-  .mydl__hint[hidden] {
+
+  /* ================= SENT STATE ================= */
+  .mydl-sent-card[hidden] {
     display: none;
   }
 
-  /* Orders List */
-  .mydl__list {
+  .mydl-sent-card__icon {
+    width: 4.25rem;
+    height: 4.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    margin-bottom: 1.125rem;
+  }
+
+  .mydl-sent-card__title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.5rem;
+  }
+
+  .mydl-sent-card__desc {
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin: 0 0 1.5rem;
+    max-width: 42ch;
+  }
+
+  .sent-email-target {
+    color: var(--ink);
+    word-break: break-all;
+  }
+
+  .mydl-sent-steps {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    width: 100%;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 1rem 1.125rem;
+    margin-bottom: 1.5rem;
+    text-align: left;
   }
+
+  .sent-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .sent-step__num {
+    display: inline-grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--red);
+    color: #ffffff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .sent-step__text {
+    display: flex;
+    flex-direction: column;
+    color: var(--ink-2);
+  }
+  .sent-step__text strong {
+    color: var(--ink);
+  }
+
+  .mydl-sent-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    margin-bottom: 1.25rem;
+  }
+
+  .mydl-sent-footer {
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+
+  .btn-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+    color: var(--red);
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 0.25rem;
+  }
+  .btn-link:hover {
+    color: var(--red-dark);
+  }
+
+  .resend-countdown {
+    color: var(--ink-3);
+    margin-left: 0.25rem;
+  }
+  .resend-countdown[hidden] {
+    display: none;
+  }
+
+  /* ================= FAQ SECTION ================= */
+  .mydl-faq {
+    margin-top: 1rem;
+  }
+
+  .mydl-faq__head {
+    max-width: 48ch;
+    margin: 0 auto 2.25rem;
+  }
+
+  .mydl-faq__title {
+    font-size: clamp(1.5rem, 1rem + 1.5vw, 2rem);
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    margin: 0 0 0.5rem;
+  }
+
+  .mydl-faq__sub {
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .mydl-faq__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  @media (min-width: 680px) {
+    .mydl-faq__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .faq-card {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 0.875rem;
+    padding: 1.25rem 1.375rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .faq-card:hover {
+    transform: translateY(-0.125rem);
+    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.05);
+  }
+
+  .faq-card__head {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .faq-card__icon {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.5rem;
+    background: var(--bg-soft);
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  .faq-card__q {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.35;
+  }
+
+  .faq-card__a {
+    font-size: 0.84375rem;
+    color: var(--ink-2);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .faq-link {
+    color: var(--red);
+    text-decoration: underline;
+  }
+
+  /* ================= AUTHENTICATED PORTAL VIEW ================= */
+  .mydl-portal {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .mydl-account-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 0.875rem;
+    box-shadow: 0 0.125rem 0.375rem rgba(0, 0, 0, 0.03);
+  }
+
+  .mydl-account-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .account-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  .account-details {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .account-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    color: var(--ink-3);
+  }
+
+  .account-email {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .account-signout {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+  }
+
+  .mydl-header {
+    text-align: left;
+  }
+
+  .mydl-title {
+    font-size: clamp(1.75rem, 1.2rem + 2.5vw, 2.5rem);
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+  }
+
+  .mydl-sub {
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* Orders List */
+  .mydl-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
   .order-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1.25rem 1.5rem;
+    gap: 1.5rem;
+    padding: 1.375rem 1.5rem;
     border: 1px solid var(--line);
     border-radius: 1rem;
     background: var(--bg);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    box-shadow: 0 0.125rem 0.375rem rgba(0, 0, 0, 0.03);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   }
-  @media (min-width: 1024px) {
+
+  @media (hover: hover) {
     .order-card:hover {
       transform: translateY(-0.125rem);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 0.75rem 1.75rem rgba(0, 0, 0, 0.06);
+      border-color: rgba(233, 36, 36, 0.3);
     }
   }
-  .order-card__main {
+
+  .order-card__content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.45rem;
     min-width: 0;
   }
+
+  .order-card__top {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .order-card__id {
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    background: var(--bg-soft);
+    padding: 0.125rem 0.45rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--line);
+  }
+
   .order-card__title {
-    font-size: 1.125rem;
+    font-size: 1.1875rem;
     font-weight: 700;
     color: var(--ink);
+    letter-spacing: -0.01em;
+    margin: 0;
+    line-height: 1.35;
   }
+
+  .order-card__link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .order-card__link:hover {
+    color: var(--red);
+  }
+
   .order-card__meta {
-    font-size: 0.875rem;
-    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
   }
-  .order-card__btn {
+
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+
+  .meta-chip--cat {
+    background: var(--bg-soft);
+    padding: 0.125rem 0.5rem;
+    border-radius: 6.25rem;
+    font-weight: 500;
+  }
+
+  .order-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-shrink: 0;
+  }
+
+  .order-card__btn-dl {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     height: 2.75rem;
     padding: 0 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
-    text-decoration: none;
+  }
+
+  .order-card__btn-guide {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    height: 2.75rem;
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
   }
-  @media (max-width: 600px) {
-    .mydl-section {
-      padding: 2.25rem 0 3.75rem;
-    }
-    .mydl--form {
-      padding: 1.5rem 1rem;
-      border-radius: 1rem;
-    }
-    .mydl__icon {
-      width: 3.5rem;
-      height: 3.5rem;
-      border-radius: 0.875rem;
-    }
-    .mydl-title {
-      font-size: 1.875rem;
-    }
-    .mydl-sub {
-      font-size: 0.9375rem;
-      margin-bottom: 1.5rem;
-    }
+
+  @media (max-width: 680px) {
     .order-card {
       flex-direction: column;
       align-items: stretch;
-      padding: 1rem;
-      gap: 0.75rem;
-      border-radius: 0.875rem;
+      gap: 1rem;
+      padding: 1.125rem 1.25rem;
     }
-    .order-card__btn {
-      height: 3rem;
-      justify-content: center;
+    .order-card__actions {
+      flex-direction: column;
       width: 100%;
     }
+    .order-card__btn-dl,
+    .order-card__btn-guide {
+      width: 100%;
+      justify-content: center;
+    }
   }
+
+  /* Empty state */
   .mydl-empty {
-    padding: 3rem 1.5rem;
-    background: var(--bg-soft);
+    padding: clamp(2.5rem, 6vw, 3.75rem) 1.5rem;
+    background: var(--bg);
     border: 1px dashed var(--line);
-    border-radius: 1rem;
+    border-radius: 1.25rem;
+    max-width: 36rem;
+    margin: 0 auto;
+    width: 100%;
   }
+
+  .mydl-empty__icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    color: var(--ink-3);
+    margin: 0 auto 1.25rem;
+  }
+
+  .mydl-empty__title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.5rem;
+  }
+
   .mydl-empty__text {
-    font-size: 1rem;
+    font-size: 0.9375rem;
     color: var(--ink-2);
-    margin: 0 0 1rem;
+    line-height: 1.6;
+    max-width: 44ch;
+    margin: 0 auto 1.75rem;
+  }
+
+  .mydl-empty__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
   }
 </style>
 
 <script>
+  const formWrap = document.querySelector('[data-magic-form-wrap]') as HTMLElement | null;
   const form = document.querySelector('[data-magic-form]') as HTMLFormElement | null;
-  if (form) {
-    const email = form.querySelector('[data-magic-email]') as HTMLInputElement | null;
-    const btn = form.querySelector('[data-magic-btn]') as HTMLButtonElement | null;
-    const msg = document.querySelector('[data-magic-msg]') as HTMLElement | null;
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const value = (email?.value || '').trim();
-      if (!value) return;
-      if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-      try {
-        const res = await fetch('/api/account/magic-link', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email: value }),
-        });
-        const data = (await res.json()) as { message?: string };
-        if (msg) { msg.textContent = data.message || 'Check your inbox for the link.'; msg.hidden = false; }
-        form.reset();
-      } catch {
-        if (msg) { msg.textContent = 'Something went wrong. Please try again.'; msg.hidden = false; }
-      } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = 'Email me the link'; }
+  const sentCard = document.querySelector('[data-magic-sent]') as HTMLElement | null;
+  const sentEmailTarget = document.querySelector('[data-sent-email]') as HTMLElement | null;
+  const errorMsg = document.querySelector('[data-magic-error]') as HTMLElement | null;
+  const resetBtn = document.querySelector('[data-magic-reset]') as HTMLButtonElement | null;
+  const resendBtn = document.querySelector('[data-magic-resend]') as HTMLButtonElement | null;
+  const resendWait = document.querySelector('[data-resend-wait]') as HTMLElement | null;
+  const resendSec = document.querySelector('[data-resend-sec]') as HTMLElement | null;
+  const gmailBtn = document.querySelector('[data-gmail-btn]') as HTMLAnchorElement | null;
+
+  let lastSentEmail = '';
+  let countdownTimer: number | null = null;
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function startCooldown(seconds = 30) {
+    if (countdownTimer) clearInterval(countdownTimer);
+    if (!resendBtn || !resendWait || !resendSec) return;
+
+    resendBtn.disabled = true;
+    resendBtn.style.opacity = '0.5';
+    resendBtn.style.pointerEvents = 'none';
+    resendWait.hidden = false;
+    resendSec.textContent = String(seconds);
+
+    let remaining = seconds;
+    countdownTimer = window.setInterval(() => {
+      remaining -= 1;
+      if (resendSec) resendSec.textContent = String(remaining);
+      if (remaining <= 0) {
+        clearInterval(countdownTimer!);
+        resendBtn.disabled = false;
+        resendBtn.style.opacity = '1';
+        resendBtn.style.pointerEvents = 'auto';
+        resendWait.hidden = true;
       }
-    });
+    }, 1000);
   }
+
+  async function submitMagicEmail(val: string) {
+    const email = val.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(email)) {
+      if (errorMsg) {
+        errorMsg.textContent = 'Please enter a valid email address.';
+        errorMsg.hidden = false;
+      }
+      return false;
+    }
+
+    if (errorMsg) errorMsg.hidden = true;
+    const btn = form?.querySelector('[data-magic-btn]') as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Sending link…</span>';
+    }
+
+    try {
+      const res = await fetch('/api/account/magic-link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+
+      if (!res.ok && data.error) {
+        if (errorMsg) {
+          errorMsg.textContent = data.error;
+          errorMsg.hidden = false;
+        }
+        return false;
+      }
+
+      // Success transition
+      lastSentEmail = email;
+      if (sentEmailTarget) sentEmailTarget.textContent = email;
+
+      // Smart mail provider button
+      if (gmailBtn) {
+        if (email.endsWith('@gmail.com') || email.endsWith('@googlemail.com')) {
+          gmailBtn.hidden = false;
+          gmailBtn.href = 'https://mail.google.com';
+        } else if (email.endsWith('@outlook.com') || email.endsWith('@hotmail.com')) {
+          gmailBtn.hidden = false;
+          gmailBtn.href = 'https://outlook.live.com';
+          gmailBtn.querySelector('span')!.textContent = 'Open Outlook';
+        } else {
+          gmailBtn.hidden = true;
+        }
+      }
+
+      if (formWrap) formWrap.hidden = true;
+      if (sentCard) sentCard.hidden = false;
+      startCooldown(30);
+      form?.reset();
+      return true;
+    } catch {
+      if (errorMsg) {
+        errorMsg.textContent = 'Network error. Please try again.';
+        errorMsg.hidden = false;
+      }
+      return false;
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-text">Email me the link</span><svg class="icon btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" style="width:1rem;height:1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>';
+      }
+    }
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = form.querySelector('[data-magic-email]') as HTMLInputElement | null;
+    const value = input?.value || '';
+    await submitMagicEmail(value);
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    if (sentCard) sentCard.hidden = true;
+    if (formWrap) formWrap.hidden = false;
+    if (errorMsg) errorMsg.hidden = true;
+    const input = form?.querySelector('[data-magic-email]') as HTMLInputElement | null;
+    if (input) {
+      input.value = lastSentEmail || '';
+      input.focus();
+    }
+  });
+
+  resendBtn?.addEventListener('click', async () => {
+    if (!lastSentEmail) return;
+    await submitMagicEmail(lastSentEmail);
+  });
 </script>

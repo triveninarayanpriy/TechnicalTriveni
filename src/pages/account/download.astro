@@ -16,12 +16,16 @@ let files: Awaited<ReturnType<typeof getComboFiles>> = [];
 let projectSlug = '';
 
 if (orderId && token) {
-  order = await getOrder(env.DB, orderId);
-  if (order && order.status === 'paid' && order.download_token && timingSafeEqual(order.download_token, token)) {
-    ok = true;
-    files = await getComboFiles(env.DB, order.project_id);
-    const project = await getProjectById(env.DB, order.project_id);
-    projectSlug = project?.slug || '';
+  try {
+    order = await getOrder(env.DB, orderId);
+    if (order && order.status === 'paid' && order.download_token && timingSafeEqual(order.download_token, token)) {
+      ok = true;
+      files = await getComboFiles(env.DB, order.project_id);
+      const project = await getProjectById(env.DB, order.project_id);
+      projectSlug = project?.slug || '';
+    }
+  } catch {
+    ok = false;
   }
 }
 
@@ -30,58 +34,118 @@ const kindIcon = (k: string) => FILE_KINDS.find((x) => x.key === k)?.icon ?? 'fi
 const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`;
 ---
 
-<Base title="Your downloads" noindex>
-  <section class="section">
+<Base title={order ? `Download ${order.project_title} — Technical Triveni` : 'Download Files — Technical Triveni'} noindex>
+  <section class="mydl-section">
     <div class="container container-narrow">
       {ok && order ? (
-        <div class="dl">
-          <div class="dl__check"><Icon name="check-circle" size={40} /></div>
-          <h1 class="center">Payment successful — thank you!</h1>
-          <p class="center muted dl__sub">
-            Your project pack for <strong>{order.project_title}</strong> is ready. Bookmark this page — you can
-            download the files any time using this link.
-          </p>
-
-          <div class="dl__receipt panel">
-            <div><span class="dim">Order</span><span class="mono">{order.id.slice(0, 8).toUpperCase()}</span></div>
-            <div><span class="dim">Amount</span><span>{formatINR(order.amount_inr)}</span></div>
-            <div><span class="dim">Email</span><span>{order.email}</span></div>
+        <div class="dl-portal">
+          <div class="dl-portal__top">
+            <a href="/account/downloads" class="btn btn-secondary btn-sm dl-back-btn">
+              <Icon name="chevron-left" size={14} />
+              <span>All my downloads</span>
+            </a>
+            <span class="badge is-beginner">
+              <Icon name="check-circle" size={13} />
+              <span>Verified order</span>
+            </span>
           </div>
 
-          <h2 class="dl__filestitle">Your files</h2>
-          {files.length > 0 ? (
-            <div class="files">
-              {files.map((f) => (
-                <a href={dl(f.id)} class="file-row">
-                  <span class="file-row__icon"><Icon name={kindIcon(f.kind)} size={18} /></span>
-                  <span class="file-row__meta">
-                    <span class="file-row__label">{f.label}</span>
-                    <span class="file-row__sub mono">{kindLabel(f.kind)}{f.size_bytes ? ` · ${formatBytes(f.size_bytes)}` : ''}</span>
-                  </span>
-                  <span class="btn btn-primary btn-dl"><Icon name="download" size={16} /> Download</span>
-                </a>
-              ))}
+          <div class="dl-hero center">
+            <div class="dl-hero__check" aria-hidden="true">
+              <Icon name="check-circle" size={38} />
             </div>
-          ) : (
-            <p class="muted center">Files are being finalised. If they don't appear shortly, contact us with your order id.</p>
-          )}
+            <span class="mydl-eyebrow">ORDER READY</span>
+            <h1 class="dl-hero__title">{order.project_title}</h1>
+            <p class="dl-hero__sub">
+              Your download pack is ready. Save or bookmark this page &mdash; you can re-download these files anytime.
+            </p>
+          </div>
 
-          <div class="dl__foot">
-            <p class="dim center">Trouble downloading? <a href="/contact">Contact support</a> with your order id.</p>
-            {projectSlug && <a href={`/projects/${projectSlug}`} class="btn btn-ghost">Back to project</a>}
+          {/* Receipt Info Card */}
+          <div class="dl-receipt">
+            <div class="dl-receipt__item">
+              <span class="dl-receipt__label">Order ID</span>
+              <span class="dl-receipt__val mono">#{order.id.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <div class="dl-receipt__item">
+              <span class="dl-receipt__label">Amount Paid</span>
+              <span class="dl-receipt__val">{formatINR(order.amount_inr)}</span>
+            </div>
+            <div class="dl-receipt__item">
+              <span class="dl-receipt__label">Linked Email</span>
+              <span class="dl-receipt__val">{order.email}</span>
+            </div>
+            <div class="dl-receipt__item">
+              <span class="dl-receipt__label">Access</span>
+              <span class="dl-receipt__val text-success">Lifetime Updates</span>
+            </div>
+          </div>
+
+          {/* Files List */}
+          <div class="dl-files-panel">
+            <div class="dl-files-header">
+              <h2 class="dl-files-title">Included Project Files</h2>
+              <span class="dl-files-count">{files.length} {files.length === 1 ? 'file' : 'files'}</span>
+            </div>
+
+            {files.length > 0 ? (
+              <div class="dl-files-list">
+                {files.map((f) => (
+                  <div class="dl-file-card">
+                    <div class="dl-file-card__icon" aria-hidden="true">
+                      <Icon name={kindIcon(f.kind)} size={20} />
+                    </div>
+                    <div class="dl-file-card__meta">
+                      <span class="dl-file-card__label">{f.label}</span>
+                      <div class="dl-file-card__sub">
+                        <span class="file-tag">{kindLabel(f.kind)}</span>
+                        {f.size_bytes ? <span class="file-size mono">{formatBytes(f.size_bytes)}</span> : null}
+                      </div>
+                    </div>
+                    <a href={dl(f.id)} class="btn btn-primary dl-file-card__btn" download>
+                      <Icon name="download" size={16} />
+                      <span>Download</span>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div class="dl-files-empty center">
+                <p>Files are being prepared. If they do not appear shortly, please contact us with your order ID.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Actions */}
+          <div class="dl-footer-actions center">
+            {projectSlug && (
+              <a href={`/projects/${projectSlug}`} class="btn btn-secondary">
+                <Icon name="eye" size={15} />
+                <span>Open Project Guide & Tutorial</span>
+              </a>
+            )}
+            <p class="dl-support-hint">
+              Trouble downloading or extracting files? <a href="/contact">Contact support</a> with Order #{order.id.slice(0, 8).toUpperCase()}.
+            </p>
           </div>
         </div>
       ) : (
-        <div class="dl dl--error center">
-          <div class="dl__lock"><Icon name="lock" size={36} /></div>
-          <h1>This download link isn't valid</h1>
-          <p class="muted" style="max-width: 44ch;margin: 1rem auto 2rem">
-            The link may have expired or is incorrect. If you've completed a payment, please contact us with your
-            order id and we'll sort it out right away.
+        <div class="dl-error-card center">
+          <div class="dl-error__lock" aria-hidden="true">
+            <Icon name="lock" size={36} />
+          </div>
+          <span class="mydl-eyebrow">LINK EXPIRED OR INVALID</span>
+          <h1 class="dl-error__title">This download link isn't valid</h1>
+          <p class="dl-error__desc">
+            The link may have expired or is incomplete. If you completed a payment, request a new 1-click access link using your checkout email or reach out to support.
           </p>
-          <div class="flex gap-3" style="justify-content: center;flex-wrap: wrap">
-            <a href="/projects" class="btn btn-primary">Browse projects</a>
-            <a href="/contact" class="btn btn-ghost">Contact support</a>
+          <div class="dl-error__actions">
+            <a href="/account/downloads" class="btn btn-primary">
+              <Icon name="mail" size={16} /> Request New Access Link
+            </a>
+            <a href="/contact" class="btn btn-secondary">
+              Contact Support
+            </a>
           </div>
         </div>
       )}
@@ -90,21 +154,319 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
 </Base>
 
 <style>
-  .dl__check { width: 4.75rem; height: 4.75rem; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: rgba(52,211,153,0.12); color: var(--success); }
-  .dl h1 { font-size: var(--fs-xl); }
-  .dl__sub { max-width: 52ch; margin: 0.85rem auto 2rem; }
-  .dl__receipt { display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; padding: 1.1rem 1.5rem; margin-bottom: 2.5rem; }
-  .dl__receipt div { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-sm); }
-  .dl__receipt .dim { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; }
-  .dl__filestitle { font-size: var(--fs-lg); margin-bottom: 1rem; }
-  .files { display: flex; flex-direction: column; gap: 0.6rem; }
-  .file-row { display: flex; align-items: center; gap: 0.9rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); transition: border-color 0.2s; }
-  .file-row:hover { border-color: var(--brand-red); }
-  .file-row__icon { color: var(--brand-red); }
-  .file-row__meta { flex: 1; display: flex; flex-direction: column; }
-  .file-row__label { font-weight: 550; }
-  .file-row__sub { font-size: var(--fs-xs); color: var(--text-dim); }
-  .btn-dl { padding: 0.5rem 0.9rem; font-size: var(--fs-sm); }
-  .dl__foot { margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
-  .dl__lock { width: 4.375rem; height: 4.375rem; margin: 0 auto 1.25rem; display: grid; place-items: center; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
+  .mydl-section {
+    padding-top: clamp(2.5rem, 5vw, 4.5rem);
+    padding-bottom: clamp(4rem, 8vw, 6.5rem);
+  }
+  .center {
+    text-align: center;
+  }
+  .mono {
+    font-family: var(--font-mono, monospace);
+  }
+  .mydl-eyebrow {
+    display: inline-block;
+    font-size: max(11px, 0.75rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--red);
+    margin-bottom: 0.5rem;
+  }
+  .text-success {
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .dl-portal {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .dl-portal__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .dl-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+  }
+
+  .dl-hero {
+    max-width: 52ch;
+    margin: 0 auto;
+  }
+
+  .dl-hero__check {
+    width: 4.25rem;
+    height: 4.25rem;
+    margin: 0 auto 1.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+  }
+
+  .dl-hero__title {
+    font-size: clamp(1.75rem, 1.2rem + 2.5vw, 2.5rem);
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin: 0 0 0.75rem;
+  }
+
+  .dl-hero__sub {
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* Receipt Card */
+  .dl-receipt {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow: 0 0.125rem 0.375rem rgba(0, 0, 0, 0.03);
+  }
+
+  .dl-receipt__item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .dl-receipt__label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    color: var(--ink-3);
+  }
+
+  .dl-receipt__val {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Files Panel */
+  .dl-files-panel {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.03);
+  }
+
+  .dl-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .dl-files-title {
+    font-size: 1.1875rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .dl-files-count {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    background: var(--bg-soft);
+    padding: 0.15rem 0.6rem;
+    border-radius: 6.25rem;
+    border: 1px solid var(--line);
+  }
+
+  .dl-files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .dl-file-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: 0.875rem;
+    background: var(--bg);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  @media (hover: hover) {
+    .dl-file-card:hover {
+      transform: translateY(-0.0625rem);
+      border-color: rgba(233, 36, 36, 0.3);
+      box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  .dl-file-card__icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.625rem;
+    background: rgba(233, 36, 36, 0.08);
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  .dl-file-card__meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .dl-file-card__label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dl-file-card__sub {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .file-tag {
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    background: var(--bg-soft);
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--line);
+  }
+
+  .file-size {
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+
+  .dl-file-card__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 2.625rem;
+    padding: 0 1.125rem;
+    font-size: 0.84375rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 600px) {
+    .dl-file-card {
+      flex-wrap: wrap;
+    }
+    .dl-file-card__btn {
+      width: 100%;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+  }
+
+  .dl-files-empty {
+    padding: 2.5rem 1rem;
+    color: var(--ink-2);
+    font-size: 0.9375rem;
+  }
+
+  /* Footer actions */
+  .dl-footer-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .dl-support-hint {
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+    margin: 0;
+  }
+  .dl-support-hint a {
+    color: var(--red);
+    text-decoration: underline;
+  }
+
+  /* Error state */
+  .dl-error-card {
+    max-width: 34rem;
+    margin: 0 auto;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    padding: clamp(2rem, 6vw, 3.5rem) 1.5rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.05);
+  }
+
+  .dl-error__lock {
+    width: 4.5rem;
+    height: 4.5rem;
+    margin: 0 auto 1.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    color: var(--ink-3);
+  }
+
+  .dl-error__title {
+    font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    margin: 0 0 0.75rem;
+  }
+
+  .dl-error__desc {
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+    line-height: 1.6;
+    max-width: 44ch;
+    margin: 0 auto 2rem;
+  }
+
+  .dl-error__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
 </style>
