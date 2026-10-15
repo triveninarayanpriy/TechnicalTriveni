@@ -144,11 +144,11 @@ html {
 
 @media (min-width: 1024px) {
   :root {
-    --fluid-w: 0.94vw;
-    --fluid-h: 1.68vh;
+    --fluid-w: 1.0vw;
+    --fluid-h: 1.85vh;
   }
   html {
-    font-size: clamp(0.8rem, min(var(--fluid-w), var(--fluid-h)), 1.25rem);
+    font-size: clamp(0.875rem, min(var(--fluid-w), var(--fluid-h)), 1.25rem);
   }
   html[data-display-size="default"] {
     font-size: 1rem;
