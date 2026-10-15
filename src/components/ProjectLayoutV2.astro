@@ -185,6 +185,16 @@ const lastUpdated = formatDate(project.updated_at);
                   class="p-stage__model"
                   alt={`3D Model of ${project.title}`}
                 ></model-viewer>
+              ) : firstMedia.type === 'yt' ? (
+                <div class="p-stage__yt">
+                  <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${firstMedia.ytId}?rel=0&modestbranding=1`}
+                    title="Project Video Demonstration"
+                    class="p-stage__iframe"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                  ></iframe>
+                </div>
               ) : (
                 <img
                   src={firstMedia.url}
@@ -223,6 +233,13 @@ const lastUpdated = formatDate(project.updated_at);
                     data-yt-id={yt}
                     aria-label="View video demonstration"
                   >
+                    <img
+                      src={`https://img.youtube.com/vi/${yt}/mqdefault.jpg`}
+                      alt="Video demonstration"
+                      width="68"
+                      height="42"
+                      loading="lazy"
+                    />
                     <div class="p-thumb-icon p-thumb-icon--yt">
                       <Icon name="play" size={16} />
                     </div>
@@ -609,7 +626,13 @@ const lastUpdated = formatDate(project.updated_at);
           <div class="m-gallery-slide">
             {s.type === 'yt' ? (
               <div class="m-slide-yt">
-                <lite-youtube videoid={s.ytId}></lite-youtube>
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${s.ytId}?rel=0&modestbranding=1`}
+                  title="Project Video Demonstration"
+                  class="m-slide-iframe"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen
+                ></iframe>
               </div>
             ) : s.type === 'model' ? (
               <model-viewer
@@ -1048,7 +1071,7 @@ const lastUpdated = formatDate(project.updated_at);
 
       if (!mediaStage) return;
       if (ytId) {
-        mediaStage.innerHTML = `<div class="p-stage__yt"><lite-youtube videoid="${ytId}"></lite-youtube></div>`;
+        mediaStage.innerHTML = `<div class="p-stage__yt" style="width:100%;height:100%;"><iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1" title="Project Video Demonstration" class="p-stage__iframe" style="width:100%;height:100%;border:0;display:block;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`;
       } else if (mediaType === 'model' && mediaUrl) {
         mediaStage.innerHTML = `<model-viewer src="${mediaUrl}" camera-controls auto-rotate shadow-intensity="1" exposure="1.2" class="p-stage__model"></model-viewer>`;
       } else if (mediaUrl) {
@@ -1444,10 +1467,10 @@ const lastUpdated = formatDate(project.updated_at);
     margin-bottom: 0.5rem;
   }
   .p-title {
-    font-size: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
+    font-size: clamp(1.4rem, 1.05rem + 1.0vw, 1.875rem);
     font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
     color: var(--ink);
     margin: 0 0 0.75rem;
   }
@@ -1493,10 +1516,17 @@ const lastUpdated = formatDate(project.updated_at);
     display: block;
   }
   .p-stage__model,
-  .p-stage__yt {
-    width: 100%;
-    height: 100%;
+  .p-stage__yt,
+  .p-stage__iframe,
+  .p-stage iframe,
+  .p-stage :global(iframe),
+  .p-stage :global(.p-stage__iframe),
+  .p-stage :global(.p-stage__yt) {
+    width: 100% !important;
+    height: 100% !important;
+    border: 0;
     display: block;
+    background: #000000;
   }
 
   .p-thumbs {
@@ -1538,7 +1568,20 @@ const lastUpdated = formatDate(project.updated_at);
     background: var(--ink);
     color: #FFFFFF;
   }
-  .p-thumb-icon--yt {
+  .p-thumb-btn--yt {
+    position: relative;
+    background: #111418;
+  }
+  .p-thumb-btn--yt .p-thumb-icon--yt {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(233, 36, 36, 0.88);
+    color: #FFFFFF;
+    transition: background 150ms ease;
+  }
+  .p-thumb-btn--yt:hover .p-thumb-icon--yt {
     background: var(--red);
   }
 
@@ -2146,10 +2189,14 @@ const lastUpdated = formatDate(project.updated_at);
     display: block;
   }
   .m-slide-model,
-  .m-slide-yt {
+  .m-slide-yt,
+  .m-slide-iframe,
+  .m-slide-yt iframe {
     width: 100%;
     height: 100%;
+    border: 0;
     display: block;
+    background: #000000;
   }
   .m-gallery-pill {
     position: absolute;
