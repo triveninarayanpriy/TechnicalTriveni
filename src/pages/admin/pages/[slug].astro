@@ -5,7 +5,7 @@ import { env } from 'cloudflare:workers';
 import { getEffectiveContent } from '../../../lib/pages';
 import { listPageRevisions, listProjects } from '../../../lib/db';
 import { formatDate, renderMarkdown } from '../../../lib/format';
-import { getAboutPageData } from '../../../lib/site-content';
+import { getAboutPageData, getHomePageData } from '../../../lib/site-content';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/admin/pages');
@@ -15,8 +15,10 @@ const revisions = await listPageRevisions(env.DB, slug, 5);
 const csrf = Astro.locals.csrfToken;
 
 const isAbout = slug === 'about';
+const isHome = slug === 'home';
 const aboutData = isAbout ? await getAboutPageData(env.DB) : null;
-const allProjects = isAbout ? await listProjects(env.DB, { publishedOnly: true }) : [];
+const homeData = isHome ? await getHomePageData(env.DB) : null;
+const allProjects = (isAbout || isHome) ? await listProjects(env.DB, { publishedOnly: true }) : [];
 
 // Word count calculation
 const wordCount = page.markdown.trim() ? page.markdown.trim().split(/\s+/).length : 0;
@@ -338,7 +340,117 @@ const initialPreviewHtml = renderMarkdown(page.markdown);
           </>
         )}
 
-        {!isAbout && (
+        {isHome && homeData && (
+          <div class="about-block-editor">
+            <!-- 1. HERO BLOCK -->
+            <div class="block-card">
+              <div class="block-card__header">
+                <h3><Icon name="spark" size={18} /> Hero: Headline, Subline & Eyebrow</h3>
+                <span class="block-tag">Public Hero</span>
+              </div>
+              <div class="block-card__body">
+                <div class="admin-field">
+                  <label for="hero_eyebrow" class="admin-label">Eyebrow pill text</label>
+                  <input type="text" id="hero_eyebrow" name="hero_eyebrow" value={homeData.hero.eyebrow} class="admin-input" />
+                </div>
+                <div class="admin-field">
+                  <label for="hero_headline" class="admin-label">Headline (HTML supported)</label>
+                  <input type="text" id="hero_headline" name="hero_headline" value={homeData.hero.headline} class="admin-input" />
+                  <span class="admin-help">Tip: Wrap keywords in &lt;span class="text-red"&gt;...&lt;/span&gt; for brand red styling.</span>
+                </div>
+                <div class="admin-field">
+                  <label for="hero_subline" class="admin-label">Subline text</label>
+                  <textarea id="hero_subline" name="hero_subline" class="admin-input" rows="3">{homeData.hero.subline}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. HERO FEATURED PACK CARD -->
+            <div class="block-card">
+              <div class="block-card__header">
+                <h3><Icon name="layers" size={18} /> Hero Featured Pack Card</h3>
+                <span class="block-tag">Hero Pack</span>
+              </div>
+              <div class="block-card__body">
+                <div class="admin-field">
+                  <label for="featured_pack_slug" class="admin-label">Select Featured Project</label>
+                  <select id="featured_pack_slug" name="featured_pack_slug" class="admin-input">
+                    <option value="" selected={!homeData.hero.featured_pack_slug}>Auto: Newest paid pack (default)</option>
+                    {allProjects.map((p) => (
+                      <option value={p.slug} selected={homeData.hero.featured_pack_slug === p.slug}>
+                        {p.title} ({p.price_inr > 0 ? `₹${p.price_inr}` : 'Free'})
+                      </option>
+                    ))}
+                  </select>
+                  <span class="admin-help">The selected pack is shown prominently on the right of the Hero (or below Hero copy on mobile).</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. FEATURED PROJECTS -->
+            <div class="block-card">
+              <div class="block-card__header">
+                <h3><Icon name="grid" size={18} /> Featured Projects (4 Pack Cards)</h3>
+                <span class="block-tag">Cards Grid</span>
+              </div>
+              <div class="block-card__body">
+                <div class="admin-field">
+                  <label for="featured_projects_mode" class="admin-label">Projects Selection Mode</label>
+                  <select id="featured_projects_mode" name="featured_projects_mode" class="admin-input">
+                    <option value="auto" selected={homeData.featured_projects.mode === 'auto'}>Auto by default (newest published packs)</option>
+                    <option value="manual" selected={homeData.featured_projects.mode === 'manual'}>Manual selection (pick 4 packs below)</option>
+                  </select>
+                </div>
+                <div class="admin-grid-2">
+                  {[0, 1, 2, 3].map((idx) => (
+                    <div class="admin-field">
+                      <label class="admin-label">Slot {idx + 1}</label>
+                      <select name={`featured_project_${idx}`} class="admin-input">
+                        {allProjects.map((p) => (
+                          <option value={p.slug} selected={homeData.featured_projects.project_slugs[idx] === p.slug}>
+                            {p.title} ({p.price_inr > 0 ? `₹${p.price_inr}` : 'Free'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. 3 FEATURED VIDEOS -->
+            <div class="block-card">
+              <div class="block-card__header">
+                <h3><Icon name="video" size={18} /> Watch Every Build Before You Buy (3 Featured Videos)</h3>
+                <span class="block-tag">YouTube URLs</span>
+              </div>
+              <div class="block-card__body">
+                <p class="admin-help" style="margin-bottom: 1rem;">
+                  Paste YouTube URLs (full video, shorts, or youtu.be links). Video thumbnails are automatically derived from the YouTube video ID. Clicking the card opens YouTube in a new tab.
+                </p>
+                {[0, 1, 2].map((idx) => (
+                  <div class="block-card" style="margin-bottom: 1rem; border: 1px solid var(--border); background: var(--bg);">
+                    <div class="block-card__header" style="background: var(--bg-2); padding: 0.6rem 1rem;">
+                      <h4 style="font-size: 0.95rem; margin: 0; font-weight: 600;">Video {idx + 1}</h4>
+                    </div>
+                    <div class="block-card__body admin-grid-2" style="padding: 1rem;">
+                      <div class="admin-field">
+                        <label class="admin-label">Video Card Title</label>
+                        <input type="text" name={`video_${idx}_title`} value={homeData.featured_videos[idx]?.title || ''} class="admin-input" placeholder="e.g. ESP32 Blynk IoT Smart Relay Switch" />
+                      </div>
+                      <div class="admin-field">
+                        <label class="admin-label">YouTube URL</label>
+                        <input type="url" name={`video_${idx}_url`} value={homeData.featured_videos[idx]?.url || ''} class="admin-input" placeholder="https://youtube.com/watch?v=..." />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isAbout && !isHome && (
           <div class="editor-card">
             <div class="editor-card__head">
               <h2 class="editor-card__title">Content (Markdown)</h2>
@@ -460,8 +572,17 @@ const initialPreviewHtml = renderMarkdown(page.markdown);
             <h2 class="editor-card__title">Live preview</h2>
             <span class="preview-mode-tag">Real site styling</span>
           </div>
-          <div class="live-preview-box" id="live-preview-box" set:html={initialPreviewHtml}>
-          </div>
+          {isAbout || isHome ? (
+            <div style="padding: 1.25rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;">
+              <p style="margin: 0 0 0.75rem 0;">This is a multi-block page. Each block directly controls its corresponding section on the live site.</p>
+              <a href={page.route} target="_blank" rel="noopener noreferrer" class="admin-btn admin-btn--secondary admin-btn--sm" style="display: inline-flex;">
+                Open {page.title} in new tab &rarr;
+              </a>
+            </div>
+          ) : (
+            <div class="live-preview-box" id="live-preview-box" set:html={initialPreviewHtml}>
+            </div>
+          )}
         </div>
 
         <!-- History Card -->

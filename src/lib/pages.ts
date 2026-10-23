@@ -13,6 +13,17 @@ export interface BuiltinPageDef {
 }
 
 export const BUILTIN_PAGES: Record<string, BuiltinPageDef> = {
+  home: {
+    slug: 'home',
+    title: 'Home Settings',
+    route: '/',
+    category: 'info',
+    sectionHint: 'Controls the hero headline, featured pack, featured projects, and featured videos on the home page.',
+    defaultTitle: 'Home Settings',
+    defaultMarkdown: '',
+    created_at: 1700000000,
+  },
+
   about: {
     slug: 'about',
     title: 'About',

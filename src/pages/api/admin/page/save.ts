@@ -4,7 +4,7 @@ import { upsertPage, recordPageRevision } from '../../../../lib/db';
 import { uploadToStore } from '../../../../lib/upload';
 import { csrfOk, strField, flashRedirect } from '../../../../lib/admin';
 import { slugify } from '../../../../lib/format';
-import { saveAboutPageData, getAboutPageData } from '../../../../lib/site-content';
+import { saveAboutPageData, getAboutPageData, saveHomePageData, getHomePageData } from '../../../../lib/site-content';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const isJson = request.headers.get('accept')?.includes('application/json') ||
@@ -154,7 +154,42 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
   }
 
-  const hasContent = rawContent.trim().length > 0 || slug === 'about';
+  // Handle structured Home Page data
+  if (slug === 'home') {
+    const currentHome = await getHomePageData(env.DB);
+    const heroHeadline = strField(form, 'hero_headline', 500) || currentHome.hero.headline;
+    const heroSubline = strField(form, 'hero_subline', 1000) || currentHome.hero.subline;
+    const heroEyebrow = strField(form, 'hero_eyebrow', 200) || currentHome.hero.eyebrow;
+    const featuredPackSlug = strField(form, 'featured_pack_slug', 100) ?? currentHome.hero.featured_pack_slug;
+    const featuredProjectsMode = (strField(form, 'featured_projects_mode', 20) as 'auto' | 'manual') || currentHome.featured_projects.mode;
+
+    const projectSlugs = [0, 1, 2, 3].map((idx) => strField(form, `featured_project_${idx}`, 100)).filter(Boolean);
+
+    const featuredVideos = [0, 1, 2].map((idx) => ({
+      title: strField(form, `video_${idx}_title`, 200) || currentHome.featured_videos[idx]?.title || `Video ${idx + 1}`,
+      url: strField(form, `video_${idx}_url`, 500) || currentHome.featured_videos[idx]?.url || '',
+    }));
+
+    const updatedHome = {
+      hero: {
+        ...currentHome.hero,
+        headline: heroHeadline,
+        subline: heroSubline,
+        eyebrow: heroEyebrow,
+        featured_pack_slug: featuredPackSlug,
+      },
+      featured_projects: {
+        mode: featuredProjectsMode,
+        project_slugs: projectSlugs.length === 4 ? projectSlugs : currentHome.featured_projects.project_slugs,
+      },
+      featured_videos: featuredVideos,
+    };
+
+    await saveHomePageData(env.DB, updatedHome);
+    rawContent = JSON.stringify(updatedHome, null, 2);
+  }
+
+  const hasContent = rawContent.trim().length > 0 || slug === 'about' || slug === 'home';
 
   // An empty content field saves as "use default" with a warning rather than blocking with required error
   const is_custom = hasContent ? 1 : 0;

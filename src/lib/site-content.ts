@@ -192,3 +192,95 @@ export async function getAboutPageData(db: D1Database): Promise<AboutPageData> {
 export async function saveAboutPageData(db: D1Database, data: AboutPageData): Promise<void> {
   await setSetting(db, 'page_about_data', JSON.stringify(data));
 }
+
+export interface HomeHeroData {
+  eyebrow: string;
+  headline: string;
+  subline: string;
+  btn1_text: string;
+  btn1_url: string;
+  btn2_text: string;
+  btn2_url: string;
+  proof_ticks: string[];
+  featured_pack_slug: string;
+}
+
+export interface HomeFeaturedProjectsData {
+  mode: 'auto' | 'manual';
+  project_slugs: string[];
+}
+
+export interface HomeFeaturedVideoItem {
+  title: string;
+  url: string;
+  thumbnail_override?: string;
+}
+
+export interface HomePageData {
+  hero: HomeHeroData;
+  featured_projects: HomeFeaturedProjectsData;
+  featured_videos: HomeFeaturedVideoItem[];
+}
+
+export const DEFAULT_HOME_DATA: HomePageData = {
+  hero: {
+    eyebrow: 'Free and paid project packs for makers',
+    headline: 'Engineering project packs you can <span class="text-red">actually build.</span>',
+    subline: 'Tested code, wiring tables and parts links for every project, plus a build video so you see it working first.',
+    btn1_text: 'Browse all projects',
+    btn1_url: '/projects',
+    btn2_text: 'Free downloads',
+    btn2_url: '/projects?price=free',
+    proof_ticks: [
+      'Built and tested on real hardware',
+      'Build video for every pack',
+      'Instant download',
+    ],
+    featured_pack_slug: 'arduino-drone',
+  },
+  featured_projects: {
+    mode: 'auto',
+    project_slugs: [
+      'esp32-blynk-iot-smart-relay-switch',
+      'line-following-robot-arduino-obstacle-gate',
+      '100-electronics-components',
+      'free-tools-for-students-india-2026',
+    ],
+  },
+  featured_videos: [
+    {
+      title: 'ESP32 Blynk IoT Smart Relay Switch',
+      url: 'https://youtube.com/shorts/ygvydFjRUxg?si=RyVZypgjvHOJIWnN',
+    },
+    {
+      title: 'DIY Arduino Drone Bring-Up',
+      url: 'https://www.youtube.com/shorts/_qTc_ee3ZF0',
+    },
+    {
+      title: 'Line-Following Robot with Gate',
+      url: 'https://youtube.com/@TechnicalTriveni',
+    },
+  ],
+};
+
+export async function getHomePageData(db: D1Database): Promise<HomePageData> {
+  try {
+    const raw = await getSetting(db, 'page_home_settings');
+    if (!raw) return DEFAULT_HOME_DATA;
+    const parsed = JSON.parse(raw);
+    return {
+      hero: { ...DEFAULT_HOME_DATA.hero, ...(parsed.hero || {}) },
+      featured_projects: { ...DEFAULT_HOME_DATA.featured_projects, ...(parsed.featured_projects || {}) },
+      featured_videos: Array.isArray(parsed.featured_videos) && parsed.featured_videos.length === 3
+        ? parsed.featured_videos
+        : DEFAULT_HOME_DATA.featured_videos,
+    };
+  } catch {
+    return DEFAULT_HOME_DATA;
+  }
+}
+
+export async function saveHomePageData(db: D1Database, data: HomePageData): Promise<void> {
+  await setSetting(db, 'page_home_settings', JSON.stringify(data));
+}
+

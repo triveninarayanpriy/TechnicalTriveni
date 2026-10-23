@@ -1,76 +1,130 @@
 ---
 import Base from '../layouts/Base.astro';
-import Icon from '../components/Icon.astro';
-import ProjectCard from '../components/ProjectCard.astro';
 import { SITE, PROFILE } from '../lib/site';
 import { listProjects, type Project } from '../lib/db';
-import { formatINR } from '../lib/format';
+import { youtubeId } from '../lib/format';
 import { env } from 'cloudflare:workers';
-import { getSiteAssets, buildSrcSet } from '../lib/site-assets';
-import { getAboutPageData } from '../lib/site-content';
+import { getSiteAssets } from '../lib/site-assets';
+import { getAboutPageData, getHomePageData } from '../lib/site-content';
 
+// Load live admin settings & content
+const homeData = await getHomePageData(env.DB);
 const aboutData = await getAboutPageData(env.DB);
-const makerName = aboutData.hero.name || PROFILE.name;
-const makerCreds = aboutData.hero.credentials || [];
-const makerBio = aboutData.hero.intro || "I'm a B.Tech ECE (VLSI) student at NIT Patna. Every pack on this site is built and tested on my workbench before you ever see it.";
+const siteAssets = await getSiteAssets(env.DB);
 
-let allProjects: Project[] = [];
+// Fetch published projects
+let publishedProjects: Project[] = [];
 try {
-  allProjects = await listProjects(env.DB, { publishedOnly: true, limit: 12 });
+  publishedProjects = await listProjects(env.DB, { publishedOnly: true, limit: 50 });
 } catch {
   /* DB not ready */
 }
 
-const siteAssets = await getSiteAssets(env.DB);
+const totalProjectsCount = publishedProjects.length || 5;
 
-// Select Drone as hero project or fallback to first
-const heroProject = allProjects.find((p) => p.slug === 'arduino-drone') || allProjects[0];
-
-// Select up to 4 featured packs for grid
-const featuredPacks = allProjects.filter((p) => p.slug !== heroProject?.slug).slice(0, 4);
-if (featuredPacks.length < 4 && heroProject) {
-  featuredPacks.unshift(heroProject);
+// Hero Featured Pack: chosen in admin, default newest paid pack
+let heroPack: Project | undefined;
+if (homeData.hero.featured_pack_slug) {
+  heroPack = publishedProjects.find((p) => p.slug === homeData.hero.featured_pack_slug);
 }
-const displayPacks = featuredPacks.slice(0, 4);
+if (!heroPack) {
+  heroPack = publishedProjects.find((p) => (p.price_inr ?? 0) > 0 && p.combo_enabled !== 0);
+}
+if (!heroPack) {
+  heroPack = publishedProjects[0];
+}
 
-const scImgs = siteAssets.channel_showcase?.images || [];
-const mosaicCovers = [
-  scImgs[0]?.url || displayPacks[0]?.cover_image || '/covers/esp32-weather.png',
-  scImgs[1]?.url || displayPacks[1]?.cover_image || '/covers/line-robot.png',
-  scImgs[2]?.url || displayPacks[2]?.cover_image || '/covers/ai-camera.png',
-];
-const mosaicAlts = [
-  scImgs[0]?.alt || siteAssets.channel_showcase?.alt || displayPacks[0]?.title || 'ESP32 Weather Station',
-  scImgs[1]?.alt || siteAssets.channel_showcase?.alt || displayPacks[1]?.title || 'Line Following Robot',
-  scImgs[2]?.alt || siteAssets.channel_showcase?.alt || displayPacks[2]?.title || 'AI Camera System',
-];
-const mosaicSrcSets = [
-  buildSrcSet(scImgs[0] || { url: '' }),
-  buildSrcSet(scImgs[1] || { url: '' }),
-  buildSrcSet(scImgs[2] || { url: '' }),
+// 4 Featured Projects for the grid
+let featuredList: Project[] = [];
+if (homeData.featured_projects.mode === 'manual' && homeData.featured_projects.project_slugs?.length > 0) {
+  featuredList = homeData.featured_projects.project_slugs
+    .map((slug) => publishedProjects.find((p) => p.slug === slug))
+    .filter(Boolean) as Project[];
+}
+
+if (featuredList.length < 4) {
+  // Add newest published packs that are not the hero pack
+  const pool = publishedProjects.filter((p) => p.slug !== heroPack?.slug);
+  for (const p of pool) {
+    if (featuredList.length >= 4) break;
+    if (!featuredList.some((item) => item.slug === p.slug)) {
+      featuredList.push(p);
+    }
+  }
+  // If still under 4, add any remaining
+  for (const p of publishedProjects) {
+    if (featuredList.length >= 4) break;
+    if (!featuredList.some((item) => item.slug === p.slug)) {
+      featuredList.push(p);
+    }
+  }
+}
+
+// Free packs for "Free to download" section
+const freePacks = publishedProjects
+  .filter((p) => (p.price_inr ?? 0) <= 0 || p.combo_enabled === 0)
+  .slice(0, 3);
+
+// 3 Featured Videos
+const fallbackVideoCovers = [
+  '/brand/home-v2/f391bdb09af830810fae62a31b3665c9.jpg',
+  '/brand/home-v2/abb4db3ba33b53acb13ec170bd64ff5d.jpg',
+  '/brand/home-v2/49ce8935ab9c488f44385d3de41d4c70.jpg',
 ];
 
-const makerPhotoUrl = siteAssets.maker_photo?.url || PROFILE.photo || '/brand/profile.jpg';
-const makerPhotoAlt = siteAssets.maker_photo?.alt || PROFILE.name;
-const makerPhotoSrcSet = buildSrcSet(siteAssets.maker_photo || { url: '' });
+const resolvedVideos = homeData.featured_videos.map((v, i) => {
+  const vId = youtubeId(v.url);
+  const thumb = vId ? `https://img.youtube.com/vi/${vId}/hqdefault.jpg` : fallbackVideoCovers[i % 3];
+  return {
+    title: v.title || `Featured Video ${i + 1}`,
+    url: v.url || 'https://youtube.com/@TechnicalTriveni',
+    thumb,
+  };
+});
 
+// Helper for Include Chips on cards
+function getProjectChips(p: Project) {
+  const chips: { label: string; isVideo?: boolean }[] = [];
+  const kinds = (p.file_kinds || '').toLowerCase();
+  const slug = p.slug.toLowerCase();
+
+  if (kinds.includes('code') || p.code_repo_url || slug.includes('drone') || slug.includes('relay') || slug.includes('line')) {
+    chips.push({ label: 'Code' });
+  }
+  if (kinds.includes('schematic') || kinds.includes('circuit') || slug.includes('relay')) {
+    chips.push({ label: 'Schematic' });
+  }
+  if (kinds.includes('pdf') || kinds.includes('doc') || slug.includes('line') || slug.includes('components') || slug.includes('tools')) {
+    chips.push({ label: 'PDF' });
+  }
+  if (p.video_url || slug.includes('drone') || slug.includes('relay') || slug.includes('components')) {
+    chips.push({ label: 'Video', isVideo: true });
+  }
+  if (chips.length === 0) {
+    chips.push({ label: 'Code' });
+    if (p.video_url) chips.push({ label: 'Video', isVideo: true });
+  }
+  return chips.slice(0, 3);
+}
+
+// Maker Info from About Hero
+const makerName = aboutData.hero.name || PROFILE.name;
+const makerCreds = aboutData.hero.credentials?.length ? aboutData.hero.credentials : ['NIT Patna, ECE (VLSI)', 'Manager, Innovation Hub'];
+const makerBio = "Every project here is built and tested on my own workbench. YouTube shows the high-light reel; this is where you get the complete verified code, schematics, and parts lists to finish the build.";
+const makerPhoto = siteAssets.maker_photo?.url || '/brand/home-v2/1e2ad315960dc87dac027605d2efdff3.jpg';
+
+// Social Links
 const ytLink = siteAssets.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
 const igLink = siteAssets.social_links?.instagram !== undefined ? siteAssets.social_links.instagram : SITE.socials.instagram;
 const ghLink = siteAssets.social_links?.github !== undefined ? siteAssets.social_links.github : SITE.socials.github;
 const liLink = siteAssets.social_links?.linkedin !== undefined ? siteAssets.social_links.linkedin : SITE.socials.linkedin;
-const showIcons = siteAssets.social_links?.show_icons !== false;
 
-const makerSocials = showIcons
-  ? [
-      { label: 'YouTube', href: ytLink, icon: 'youtube' },
-      { label: 'Instagram', href: igLink, icon: 'instagram' },
-      { label: 'GitHub', href: ghLink, icon: 'github' },
-      { label: 'LinkedIn', href: liLink, icon: 'linkedin' },
-    ].filter((s) => s.href && s.href.trim())
-  : [];
-
-const rawCategories = Array.from(new Set(allProjects.map((p) => p.category).filter(Boolean)));
-const categories = ['All', ...rawCategories];
+const socials = [
+  { label: 'YouTube', href: ytLink, icon: 'youtube' },
+  { label: 'Instagram', href: igLink, icon: 'instagram' },
+  { label: 'GitHub', href: ghLink, icon: 'github' },
+  { label: 'LinkedIn', href: liLink, icon: 'linkedin' },
+].filter((s) => s.href && s.href.trim());
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -78,1034 +132,1721 @@ const jsonLd = {
   name: SITE.name,
   description: SITE.description,
   url: Astro.site?.toString() || 'https://www.technicaltriveni.me',
-  sameAs: [ytLink, igLink, ghLink, liLink].filter(Boolean),
+  sameAs: socials.map((s) => s.href),
 };
 ---
 
-<Base jsonLd={jsonLd}>
-  <!-- =========================================================================
-       DESKTOP HOMEPAGE (>= 769px)
-       Matches media_1791937885605_5f77abfa.png
-       ========================================================================= -->
-  <div class="desktop-home-only">
-    <!-- HERO SECTION -->
-    <section class="home-hero">
-      <div class="container home-hero__grid">
-        <!-- Left Column -->
-        <div class="home-hero__copy">
-          <span class="home-hero__pill">Electronics, Software, AI</span>
-          <h1 class="home-hero__title">
-            Engineering project packs you can <span class="text-red">actually build.</span>
-          </h1>
-          <p class="home-hero__lead">
-            Schematics, source code, 3D files and verified parts lists, everything you need to go from watching a video to holding a working build.
-          </p>
-          <div class="home-hero__buttons">
-            <a href="/projects" class="btn btn-primary btn-hero">Browse packs</a>
-            <a href="/how-it-works" class="btn btn-secondary btn-hero">How it works</a>
-          </div>
+<Base
+  title={`${SITE.name} — Engineering Project Packs You Can Actually Build`}
+  description={homeData.hero.subline}
+  jsonLd={jsonLd}
+>
+  <div class="home-page">
+    <!-- =========================================================================
+         1. HERO SECTION
+         ========================================================================= -->
+    <section class="home-w home-hero-section">
+      <div class="home-hero-text">
+        <span class="home-pill">{homeData.hero.eyebrow}</span>
+        <h1 class="home-hero-headline" set:html={homeData.hero.headline}></h1>
+        <p class="home-hero-subline">{homeData.hero.subline}</p>
 
-          <div class="home-hero__proof-row">
-            <div class="proof-tick">
-              <Icon name="check-circle" size={16} />
-              <span>100% hardware tested</span>
-            </div>
-            <div class="proof-tick">
-              <Icon name="check-circle" size={16} />
-              <span>Build video for every pack</span>
-            </div>
-            <div class="proof-tick">
-              <Icon name="check-circle" size={16} />
-              <span>Instant download</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right Column: Featured Pack Card -->
-        {heroProject && (
-          <div class="home-hero__card-col">
-            <div class="hero-pack-wrap">
-              <ProjectCard project={heroProject} priority={true} />
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-
-    <!-- FEATURED PACKS -->
-    {displayPacks.length > 0 && (
-      <section class="section featured-section">
-        <div class="container">
-          <div class="featured-head-row">
-            <h2 class="section-heading">Featured packs</h2>
-            <div class="featured-nav-right">
-              <div class="category-chips">
-                {categories.map((c, i) => (
-                  <a
-                    href={c === 'All' ? '/projects' : `/projects?cat=${encodeURIComponent(c)}`}
-                    class:list={['cat-chip', { 'is-active': i === 0 }]}
-                  >
-                    {c}
-                  </a>
-                ))}
-              </div>
-              <a href="/projects" class="view-all-link">
-                View all {allProjects.length} packs
-              </a>
-            </div>
-          </div>
-
-          <div class="packs-grid-4">
-            {displayPacks.map((p) => (
-              <ProjectCard project={p} priority={true} />
-            ))}
-          </div>
-        </div>
-      </section>
-    )}
-
-    <!-- EVERY PACK INCLUDES -->
-    <section class="section">
-      <div class="container">
-        <h2 class="section-heading" style="margin-bottom: 1.5rem;">Every pack includes</h2>
-        <div class="includes-tiles-row">
-          <div class="include-tile">
-            <div class="include-tile__icon"><Icon name="code" size={20} /></div>
-            <h3 class="include-tile__title">Tested source code</h3>
-            <p class="include-tile__desc">Clean, commented firmware and sketches ready to flash.</p>
-          </div>
-          <div class="include-tile">
-            <div class="include-tile__icon"><Icon name="schematic" size={20} /></div>
-            <h3 class="include-tile__title">Wiring and schematics</h3>
-            <p class="include-tile__desc">Clear circuit diagrams and pin tables, so you never guess.</p>
-          </div>
-          <div class="include-tile">
-            <div class="include-tile__icon"><Icon name="cart" size={20} /></div>
-            <h3 class="include-tile__title">Verified parts list</h3>
-            <p class="include-tile__desc">Exact component specifications with direct buy links.</p>
-          </div>
-          <div class="include-tile">
-            <div class="include-tile__icon"><Icon name="play" size={20} /></div>
-            <h3 class="include-tile__title">Full build videos</h3>
-            <p class="include-tile__desc">Watch the physical bring-up on YouTube, step by step.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- DARK CHANNEL BAND -->
-    <section class="section">
-      <div class="container">
-        <div class="channel-band">
-          <div class="channel-band__copy">
-            <h2 class="channel-band__title">Watch every build before you buy.</h2>
-            <p class="channel-band__desc">
-              Every project is documented end to end on YouTube, so you can watch the physical prototype come to life before downloading the pack.
-            </p>
-            <a href={ytLink || '#'} target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-channel">
-              <Icon name="play" size={16} /> Visit channel
-            </a>
-          </div>
-          <div class="channel-band__media">
-            <div class="band-covers-collage">
-              <img
-                src={mosaicCovers[0]}
-                srcset={mosaicSrcSets[0] || undefined}
-                sizes="(max-width: 768px) 100vw, 500px"
-                alt={mosaicAlts[0]}
-                class="collage-cover collage-cover--1"
-                loading="lazy"
-                width="1600"
-                height="900"
-                onerror="this.onerror=null;this.src='/covers/esp32-weather.png';"
-              />
-              <img
-                src={mosaicCovers[1]}
-                srcset={mosaicSrcSets[1] || undefined}
-                sizes="(max-width: 768px) 100vw, 500px"
-                alt={mosaicAlts[1]}
-                class="collage-cover collage-cover--2"
-                loading="lazy"
-                width="1600"
-                height="900"
-                onerror="this.onerror=null;this.src='/covers/line-robot.png';"
-              />
-              <img
-                src={mosaicCovers[2]}
-                srcset={mosaicSrcSets[2] || undefined}
-                sizes="(max-width: 768px) 100vw, 500px"
-                alt={mosaicAlts[2]}
-                class="collage-cover collage-cover--3"
-                loading="lazy"
-                width="1600"
-                height="900"
-                onerror="this.onerror=null;this.src='/covers/ai-camera.png';"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- MEET THE MAKER -->
-    <section class="section maker-section">
-      <div class="container maker-grid">
-        <div class="maker-photo-wrap">
-          <img
-            src={makerPhotoUrl}
-            srcset={makerPhotoSrcSet || undefined}
-            sizes="(max-width: 768px) 100vw, 480px"
-            alt={makerPhotoAlt}
-            class="maker-photo"
-            width={siteAssets.maker_photo?.width || 480}
-            height={siteAssets.maker_photo?.height || 600}
-            loading="lazy"
-            onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
-          />
-          <div class="maker-photo-fallback" style="display: none;" aria-hidden="true">
-            <span>TNP</span>
-          </div>
-        </div>
-        <div class="maker-info">
-          <span class="maker-eyebrow">Meet the maker</span>
-          <h2 class="maker-title">{makerName}</h2>
-          {makerCreds.length > 0 && (
-            <div class="maker-creds">
-              {makerCreds.map((c) => (
-                <span class="maker-cred-chip">{c}</span>
-              ))}
-            </div>
-          )}
-          <p class="maker-bio">{makerBio}</p>
-          <div class="maker-socials">
-            {makerSocials.map((s) => (
-              <a href={s.href} class="maker-social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
-                <Icon name={s.icon} size={18} />
-              </a>
-            ))}
-          </div>
-          <a href="/about" class="maker-link">Read my story &rarr;</a>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- =========================================================================
-       MOBILE HOMEPAGE (<= 768px)
-       ========================================================================= -->
-  <div class="m-home-only">
-    <!-- Short Hero -->
-    <section class="m-hero">
-      <h1 class="m-hero__title">
-        Engineering project packs you can <span class="text-red">actually build.</span>
-      </h1>
-      <p class="m-hero__lead">
-        Schematics, source code, 3D files, and verified parts lists, everything you need to go from watching a video to holding a working build.
-      </p>
-      <div class="m-hero__buttons">
-        <a href="/projects" class="m-hero__btn-primary">Browse packs</a>
-        <a href="/how-it-works" class="m-hero__btn-secondary">How it works</a>
-      </div>
-    </section>
-
-    <!-- Category Chips Track -->
-    <nav class="m-chips-track" aria-label="Project categories">
-      {categories.map((c, i) => (
-        <a
-          href={c === 'All' ? '/projects' : `/projects?cat=${encodeURIComponent(c)}`}
-          class:list={['m-chip-pill', { 'is-active': i === 0 }]}
-        >
-          {c}
-        </a>
-      ))}
-    </nav>
-
-    <!-- Featured Packs Carousel -->
-    {allProjects.length > 0 && (
-      <section class="m-section">
-        <div class="m-section-head">
-          <h2 class="m-section-title">Featured packs</h2>
-          <a href="/projects" class="m-section-viewall">
-            View all {allProjects.length}
+        <div class="home-hero-buttons">
+          <a href={homeData.hero.btn1_url || '/projects'} class="home-btn home-btn-red">
+            {homeData.hero.btn1_text || 'Browse all projects'}
+          </a>
+          <a href={homeData.hero.btn2_url || '/projects?price=free'} class="home-btn home-btn-outline">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="home-btn-svg">
+              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
+            </svg>
+            <span class="home-btn-free-desktop">{homeData.hero.btn2_text || 'Free downloads'}</span>
+            <span class="home-btn-free-mobile">Free</span>
           </a>
         </div>
-        <div class="m-carousel">
-          {allProjects.map((p) => (
-            <div class="m-carousel-card-wrap">
-              <ProjectCard project={p} />
-            </div>
+
+        <div class="home-proof-ticks">
+          {homeData.hero.proof_ticks.map((tick) => (
+            <span class="home-proof-item">
+              <span class="home-proof-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="proof-svg">
+                  <path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path>
+                </svg>
+              </span>
+              <span>{tick}</span>
+            </span>
           ))}
         </div>
-      </section>
-    )}
+      </div>
 
-    <!-- Every Pack Includes (2x2 Grid) -->
-    <section class="m-section">
-      <div class="m-section-head">
-        <h2 class="m-section-title">Every pack includes</h2>
-      </div>
-      <div class="m-includes-grid">
-        <div class="m-include-tile">
-          <span class="m-include-tile__icon"><Icon name="code" size={22} /></span>
-          <span class="m-include-tile__text">Tested source code</span>
-        </div>
-        <div class="m-include-tile">
-          <span class="m-include-tile__icon"><Icon name="schematic" size={22} /></span>
-          <span class="m-include-tile__text">Wiring and schematics</span>
-        </div>
-        <div class="m-include-tile">
-          <span class="m-include-tile__icon"><Icon name="cart" size={22} /></span>
-          <span class="m-include-tile__text">Verified parts list</span>
-        </div>
-        <div class="m-include-tile">
-          <span class="m-include-tile__icon"><Icon name="play" size={22} /></span>
-          <span class="m-include-tile__text">Full build videos</span>
-        </div>
-      </div>
+      <!-- Featured Pack Card (Chosen in Admin, default newest paid pack) -->
+      {heroPack && (
+        <article class="home-card home-hero-pack-card">
+          <a href={`/projects/${heroPack.slug}`} class="pack-card-media-link">
+            <img
+              src={heroPack.cover_image || '/brand/home-v2/abb4db3ba33b53acb13ec170bd64ff5d.jpg'}
+              alt={heroPack.title}
+              class="pack-card-img"
+              loading="eager"
+              fetchpriority="high"
+            />
+          </a>
+          <div class="pack-card-body">
+            <div class="pack-card-cat">{heroPack.category || 'Electronics'}</div>
+            <h3 class="pack-card-title">
+              <a href={`/projects/${heroPack.slug}`}>{heroPack.title}</a>
+            </h3>
+            <div class="pack-card-meta">
+              <span class="pack-card-meta-item">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="pack-meta-svg">
+                  <path d="M5 20v-5M12 20V10M19 20V4"></path>
+                </svg>
+                {heroPack.difficulty || 'Advanced'}
+              </span>
+              <span class="pack-card-meta-item">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="pack-meta-svg">
+                  <path d="M12 7v5l3 2M12 3a9 9 0 100 18 9 9 0 000-18z"></path>
+                </svg>
+                {heroPack.build_time || '5 hours'}
+              </span>
+            </div>
+            <div class="pack-card-chips">
+              {getProjectChips(heroPack).map((chip) => (
+                <span class:list={['home-tg', chip.isVideo && 'home-tg--v']}>
+                  {chip.label === 'Code' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                      <path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path>
+                    </svg>
+                  )}
+                  {chip.label === 'Schematic' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                      <path d="M4 6h5v5H4zM15 13h5v5h-5zM9 8h4a2 2 0 012 2v3"></path>
+                    </svg>
+                  )}
+                  {chip.label === 'PDF' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                      <path d="M7 3h7l5 5v13H7zM14 3v5h5"></path>
+                    </svg>
+                  )}
+                  {chip.label === 'Video' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                      <path d="M7 4l13 8-13 8z"></path>
+                    </svg>
+                  )}
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+            <div class="pack-card-footer">
+              <span class="pack-card-price">
+                {(heroPack.price_inr ?? 0) > 0 && heroPack.combo_enabled !== 0 ? (
+                  `₹${heroPack.price_inr}`
+                ) : (
+                  <span class="price-free">Free</span>
+                )}
+              </span>
+              <a
+                href={`/projects/${heroPack.slug}`}
+                class:list={['home-btn', 'home-btn-sm', (heroPack.price_inr ?? 0) > 0 ? 'home-btn-red' : 'home-btn-outline']}
+              >
+                {(heroPack.price_inr ?? 0) > 0 ? 'View pack' : 'Get free'}
+              </a>
+            </div>
+          </div>
+        </article>
+      )}
     </section>
 
-    <!-- Dark Channel Card -->
-    <section class="m-section">
-      <div class="m-channel-box">
-        <h3 class="m-channel-box__title">Watch every build before you buy.</h3>
-        <p class="m-channel-box__desc">
-          Every project is documented end to end on YouTube, so you can watch the physical prototype come to life before downloading the pack.
-        </p>
-        <a href={ytLink || '#'} target="_blank" rel="noopener noreferrer" class="m-channel-box__btn">
-          Visit channel
+    <!-- =========================================================================
+         2. START HERE (THREE PATH CARDS)
+         ========================================================================= -->
+    <section class="home-w home-start-here-section">
+      <!-- Desktop: 3 Grid Cards -->
+      <div class="home-start-grid-desktop">
+        <a href="/projects?price=free" class="home-card start-card">
+          <div class="start-card-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
+              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
+            </svg>
+          </div>
+          <h3 class="start-card-title">Free downloads</h3>
+          <p class="start-card-desc">Starter projects and reference sheets. No signup and no email.</p>
+          <span class="start-card-link">
+            See free downloads
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </span>
+        </a>
+
+        <a href="/projects" class="home-card start-card">
+          <div class="start-card-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
+              <path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path>
+            </svg>
+          </div>
+          <h3 class="start-card-title">Project packs</h3>
+          <p class="start-card-desc">Code, schematics, wiring tables and parts links for each build.</p>
+          <span class="start-card-link">
+            Browse packs
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </span>
+        </a>
+
+        <a href={ytLink || 'https://youtube.com/@TechnicalTriveni'} target="_blank" rel="noopener noreferrer" class="home-card start-card">
+          <div class="start-card-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
+              <path d="M7 4l13 8-13 8z"></path>
+            </svg>
+          </div>
+          <h3 class="start-card-title">Watch the builds</h3>
+          <p class="start-card-desc">Every project is documented end to end on YouTube.</p>
+          <span class="start-card-link">
+            Open the channel
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </span>
+        </a>
+      </div>
+
+      <!-- Mobile: 3 Stacked Cards with Chevron -->
+      <div class="home-start-list-mobile">
+        <a href="/projects?price=free" class="home-card start-card-m">
+          <div class="start-card-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
+              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
+            </svg>
+          </div>
+          <div class="start-card-m-text">
+            <b>Free downloads</b>
+            <div class="start-card-m-sub">No signup, no email</div>
+          </div>
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="chevron-svg"><path d="M9 5l7 7-7 7"></path></svg>
+        </a>
+
+        <a href="/projects" class="home-card start-card-m">
+          <div class="start-card-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
+              <path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path>
+            </svg>
+          </div>
+          <div class="start-card-m-text">
+            <b>Project packs</b>
+            <div class="start-card-m-sub">Code, wiring, parts links</div>
+          </div>
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="chevron-svg"><path d="M9 5l7 7-7 7"></path></svg>
+        </a>
+
+        <a href={ytLink || 'https://youtube.com/@TechnicalTriveni'} target="_blank" rel="noopener noreferrer" class="home-card start-card-m">
+          <div class="start-card-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
+              <path d="M7 4l13 8-13 8z"></path>
+            </svg>
+          </div>
+          <div class="start-card-m-text">
+            <b>Watch the builds</b>
+            <div class="start-card-m-sub">Every project on YouTube</div>
+          </div>
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="chevron-svg"><path d="M9 5l7 7-7 7"></path></svg>
         </a>
       </div>
     </section>
 
-    <!-- Creator Row -->
-    <section class="m-section">
-      <div class="m-creator-card">
-        <div class="m-creator-top">
-          <img
-            src={makerPhotoUrl}
-            srcset={makerPhotoSrcSet || undefined}
-            alt={makerPhotoAlt}
-            class="m-creator-avatar"
-            width="60"
-            height="60"
-            loading="lazy"
-            onerror="this.onerror=null;this.src='/brand/profile.jpg';"
-          />
-          <div class="m-creator-meta">
-            <strong class="m-creator-name">{makerName}</strong>
-            {makerCreds.length > 0 && (
-              <div class="m-creator-creds">
-                {makerCreds.slice(0, 2).map((c) => (
-                  <span class="m-creator-cred-chip">{c}</span>
-                ))}
+    <!-- =========================================================================
+         3. FEATURED PROJECTS (TABS: ALL / FREE / PAID, 4 PACK CARDS)
+         ========================================================================= -->
+    <section class="home-w home-featured-section">
+      <div class="home-featured-header">
+        <h2 class="home-section-title">Featured projects</h2>
+
+        <div class="home-featured-controls">
+          <div class="home-filter-tabs">
+            <button type="button" class="home-tab-btn on" data-home-tab="all">All</button>
+            <button type="button" class="home-tab-btn" data-home-tab="free">Free</button>
+            <button type="button" class="home-tab-btn" data-home-tab="paid">Paid</button>
+          </div>
+          <a href="/projects" class="home-link-red home-view-all-link">
+            View all {totalProjectsCount} projects
+          </a>
+        </div>
+      </div>
+
+      <!-- 4 Pack Cards Container (Desktop Grid / Mobile Horizontal Scroll-Snap Carousel) -->
+      <div class="home-pack-cards-container" id="featured-pack-container">
+        {featuredList.map((p) => {
+          const isPaid = (p.price_inr ?? 0) > 0 && p.combo_enabled !== 0;
+          const priceType = isPaid ? 'paid' : 'free';
+          const chips = getProjectChips(p);
+
+          return (
+            <article class="home-card pack-card-item" data-price-type={priceType}>
+              <a href={`/projects/${p.slug}`} class="pack-card-media-link">
+                <img
+                  src={p.cover_image || '/covers/arduino-drone.png'}
+                  alt={p.title}
+                  class="pack-card-img"
+                  loading="lazy"
+                />
+              </a>
+              <div class="pack-card-body">
+                <div class="pack-card-cat">{p.category || 'Electronics'}</div>
+                <h3 class="pack-card-title">
+                  <a href={`/projects/${p.slug}`}>{p.title}</a>
+                </h3>
+                <div class="pack-card-meta">
+                  <span class="pack-card-meta-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="pack-meta-svg">
+                      <path d="M5 20v-5M12 20V10M19 20V4"></path>
+                    </svg>
+                    {p.difficulty || 'Intermediate'}
+                  </span>
+                  <span class="pack-card-meta-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="pack-meta-svg">
+                      <path d="M12 7v5l3 2M12 3a9 9 0 100 18 9 9 0 000-18z"></path>
+                    </svg>
+                    {p.build_time || '2-3 hours'}
+                  </span>
+                </div>
+                <div class="pack-card-chips">
+                  {chips.map((chip) => (
+                    <span class:list={['home-tg', chip.isVideo && 'home-tg--v']}>
+                      {chip.label === 'Code' && (
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                          <path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path>
+                        </svg>
+                      )}
+                      {chip.label === 'Schematic' && (
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                          <path d="M4 6h5v5H4zM15 13h5v5h-5zM9 8h4a2 2 0 012 2v3"></path>
+                        </svg>
+                      )}
+                      {chip.label === 'PDF' && (
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                          <path d="M7 3h7l5 5v13H7zM14 3v5h5"></path>
+                        </svg>
+                      )}
+                      {chip.label === 'Video' && (
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                          <path d="M7 4l13 8-13 8z"></path>
+                        </svg>
+                      )}
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+                <div class="pack-card-footer">
+                  <span class="pack-card-price">
+                    {isPaid ? (
+                      `₹${p.price_inr}`
+                    ) : (
+                      <span class="price-free">Free</span>
+                    )}
+                  </span>
+                  <a
+                    href={`/projects/${p.slug}`}
+                    class:list={['home-btn', 'home-btn-sm', isPaid ? 'home-btn-red' : 'home-btn-outline']}
+                  >
+                    {isPaid ? 'View pack' : 'Get free'}
+                  </a>
+                </div>
               </div>
-            )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         4. FREE TO DOWNLOAD (TINTED BAND)
+         ========================================================================= -->
+    <section class="home-w home-free-band-section">
+      <div class="home-free-band-card">
+        <div class="home-free-band-left">
+          <div class="home-eyebrow">Free to download</div>
+          <h2 class="home-free-band-title">Start with something free</h2>
+          <p class="home-free-band-desc">
+            Reference sheets and starter builds with code and guides. Instant download, no signup, no email.
+          </p>
+          <a href="/projects?price=free" class="home-link-red home-free-more-link">
+            <span>See all free downloads</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
+        </div>
+
+        <div class="home-free-band-right">
+          {freePacks.map((p) => {
+            const chips = getProjectChips(p);
+            return (
+              <div class="free-pack-row">
+                <img
+                  src={p.cover_image || '/covers/line-robot.png'}
+                  alt={p.title}
+                  class="free-pack-thumb"
+                  loading="lazy"
+                />
+                <div class="free-pack-info">
+                  <div class="free-pack-name">{p.title}</div>
+                  <div class="free-pack-chips">
+                    {chips.map((chip) => (
+                      <span class:list={['home-tg', chip.isVideo && 'home-tg--v']}>
+                        {chip.label === 'PDF' && (
+                          <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                            <path d="M7 3h7l5 5v13H7zM14 3v5h5"></path>
+                          </svg>
+                        )}
+                        {chip.label === 'Code' && (
+                          <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                            <path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path>
+                          </svg>
+                        )}
+                        {chip.label === 'Video' && (
+                          <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                            <path d="M7 4l13 8-13 8z"></path>
+                          </svg>
+                        )}
+                        {chip.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <!-- Desktop button -->
+                <a href={`/projects/${p.slug}`} class="home-btn home-btn-red free-pack-btn-desktop">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="home-btn-svg">
+                    <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
+                  </svg>
+                  <span>Download</span>
+                </a>
+                <!-- Mobile round icon button -->
+                <a href={`/projects/${p.slug}`} class="free-pack-btn-mobile" aria-label={`Download ${p.title}`}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="home-btn-svg">
+                    <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
+                  </svg>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         5. HOW IT WORKS (THREE STEPS & GUIDE LINK)
+         ========================================================================= -->
+    <section class="home-w home-how-it-works-section">
+      <div class="home-section-header">
+        <h2 class="home-section-title">How it works</h2>
+        <a href="/how-it-works" class="home-link-red">Read the full guide</a>
+      </div>
+
+      <!-- Desktop: 3 Columns Grid -->
+      <div class="how-grid-desktop">
+        <div class="how-step-item">
+          <span class="how-step-badge">1</span>
+          <div class="how-step-text">
+            <h3 class="how-step-title">Pick a project</h3>
+            <p class="how-step-desc">Browse free and paid packs. Each page shows exactly what is inside before you download.</p>
           </div>
         </div>
-        <p class="m-creator-bio">{makerBio}</p>
-        <div class="m-creator-bottom">
-          <div class="m-creator-socials">
-            {makerSocials.map((s) => (
-              <a href={s.href} class="maker-social-btn maker-social-btn--sm" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
-                <Icon name={s.icon} size={15} />
-              </a>
+
+        <div class="how-step-item">
+          <span class="how-step-badge">2</span>
+          <div class="how-step-text">
+            <h3 class="how-step-title">Download instantly</h3>
+            <p class="how-step-desc">Free packs download straight away. Paid packs arrive by email right after payment.</p>
+          </div>
+        </div>
+
+        <div class="how-step-item">
+          <span class="how-step-badge">3</span>
+          <div class="how-step-text">
+            <h3 class="how-step-title">Build with confidence</h3>
+            <p class="how-step-desc">Follow the wiring tables and steps, buy parts from the links, and email me if you get stuck.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile: Vertical Timeline with Connecting Lines -->
+      <div class="how-timeline-mobile">
+        <div class="how-timeline-row">
+          <div class="how-timeline-left">
+            <span class="how-timeline-dot">1</span>
+            <span class="how-timeline-line"></span>
+          </div>
+          <div class="how-timeline-content">
+            <h3 class="how-timeline-title">Pick a project</h3>
+            <div class="how-timeline-desc">Each page shows what is inside before you download.</div>
+          </div>
+        </div>
+
+        <div class="how-timeline-row">
+          <div class="how-timeline-left">
+            <span class="how-timeline-dot">2</span>
+            <span class="how-timeline-line"></span>
+          </div>
+          <div class="how-timeline-content">
+            <h3 class="how-timeline-title">Download instantly</h3>
+            <div class="how-timeline-desc">Free packs download right away. Paid packs arrive by email.</div>
+          </div>
+        </div>
+
+        <div class="how-timeline-row">
+          <div class="how-timeline-left">
+            <span class="how-timeline-dot">3</span>
+          </div>
+          <div class="how-timeline-content">
+            <h3 class="how-timeline-title">Build with confidence</h3>
+            <div class="how-timeline-desc">Follow the steps, buy parts from the links, email me if stuck.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         6. WATCH EVERY BUILD BEFORE YOU BUY (DARK BAND)
+         ========================================================================= -->
+    <section class="home-w home-watch-section">
+      <div class="home-watch-band">
+        <div class="home-watch-header">
+          <div>
+            <h2 class="home-watch-title">Watch every build before you buy</h2>
+            <p class="home-watch-sub">Every project is documented end to end on YouTube.</p>
+          </div>
+          <a
+            href={ytLink || 'https://youtube.com/@TechnicalTriveni'}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="home-btn home-btn-red home-watch-btn-desktop"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="home-btn-svg">
+              <path d="M7 4l13 8-13 8z"></path>
+            </svg>
+            <span>Visit channel</span>
+          </a>
+        </div>
+
+        <!-- 3 Video Cards Grid (Desktop Grid / Mobile Carousel) -->
+        <div class="home-watch-grid">
+          {resolvedVideos.map((video) => (
+            <a
+              href={video.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="video-card-item"
+            >
+              <div class="video-thumb-wrap">
+                <img
+                  src={video.thumb}
+                  alt={video.title}
+                  class="video-thumb-img"
+                  loading="lazy"
+                />
+                <span class="video-play-btn" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="video-play-svg">
+                    <path d="M7 4l13 8-13 8z"></path>
+                  </svg>
+                </span>
+              </div>
+              <div class="video-card-title">{video.title}</div>
+            </a>
+          ))}
+        </div>
+
+        <!-- Mobile Visit Channel Button -->
+        <a
+          href={ytLink || 'https://youtube.com/@TechnicalTriveni'}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="home-btn home-btn-red home-watch-btn-mobile"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="home-btn-svg">
+            <path d="M7 4l13 8-13 8z"></path>
+          </svg>
+          <span>Visit channel</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         7. MEET THE MAKER (SYNCHRONIZED WITH ABOUT HERO)
+         ========================================================================= -->
+    <section class="home-w home-maker-section">
+      <div class="home-maker-grid">
+        <div class="home-maker-photo-col">
+          <img
+            src={makerPhoto}
+            alt={makerName}
+            class="home-maker-img"
+            loading="lazy"
+          />
+        </div>
+
+        <div class="home-maker-info-col">
+          <div class="home-eyebrow">Meet the maker</div>
+          <h2 class="home-maker-name">{makerName}</h2>
+
+          <div class="home-maker-creds">
+            {makerCreds.map((cred) => (
+              <span class="home-pill">{cred}</span>
             ))}
           </div>
-          <a href="/about" class="m-creator-link">Read my story &rarr;</a>
+
+          <p class="home-maker-bio">{makerBio}</p>
+
+          <div class="home-maker-bottom">
+            <div class="home-maker-socials">
+              {socials.map((s) => (
+                <a
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="maker-social-box"
+                  aria-label={s.label}
+                >
+                  {s.icon === 'youtube' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
+                      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+                      <path d="M9.75 15.02 15.5 11.75 9.75 8.48z"></path>
+                    </svg>
+                  )}
+                  {s.icon === 'instagram' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
+                      <rect x="2" y="2" width="20" height="20" rx="5"></rect>
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                      <path d="M17.5 6.5h.01"></path>
+                    </svg>
+                  )}
+                  {s.icon === 'github' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
+                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                    </svg>
+                  )}
+                  {s.icon === 'linkedin' && (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
+                      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                      <rect x="2" y="9" width="4" height="12"></rect>
+                      <circle cx="4" cy="4" r="2"></circle>
+                    </svg>
+                  )}
+                </a>
+              ))}
+            </div>
+
+            <a href="/about" class="home-btn home-btn-outline home-maker-btn">
+              Read my story
+            </a>
+          </div>
         </div>
       </div>
     </section>
   </div>
 </Base>
 
+<script>
+  // Client-side instant filter tabs for Featured Projects (no page reload)
+  const tabBtns = document.querySelectorAll<HTMLButtonElement>('[data-home-tab]');
+  const packItems = document.querySelectorAll<HTMLElement>('.pack-card-item');
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.homeTab;
+      tabBtns.forEach((b) => b.classList.toggle('on', b === btn));
+
+      packItems.forEach((card) => {
+        const type = card.dataset.priceType;
+        if (target === 'all' || target === type) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  });
+</script>
+
 <style>
-  /* Visibility toggles */
-  .m-home-only {
-    display: none;
-  }
-  .desktop-home-only {
-    display: block;
-  }
-  @media (max-width: 768px) {
-    .desktop-home-only {
-      display: none;
-    }
-    .m-home-only {
-      display: block;
-    }
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+
+  .home-page {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    color: #0F1115;
+    background: #ffffff;
+    overflow-x: clip;
+    width: 100%;
   }
 
-  /* =========================================================================
-     DESKTOP HERO STYLES (>= 769px)
-     ========================================================================= */
-  .home-hero {
-    padding-block: clamp(2rem, 7svh, 4.5rem);
-    min-height: auto;
-    max-height: 100svh;
-    background: #FFFFFF;
+  /* Container width matching design */
+  .home-w {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding-left: clamp(20px, 8vw, 120px);
+    padding-right: clamp(20px, 8vw, 120px);
   }
-  .home-hero__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-    gap: 3rem;
-    align-items: center;
-  }
-  .home-hero__copy {
-    display: flex;
-    flex-direction: column;
-  }
-  .home-hero__pill {
-    display: inline-flex;
-    align-self: flex-start;
-    padding: 0.1875rem 0.625rem;
-    border-radius: 999px;
-    background: #F4F5F7;
-    border: 1px solid var(--line);
-    font-size: max(12px, 0.7813rem);
+
+  /* Typography & Links */
+  .home-eyebrow {
+    color: #D91F26;
+    font-size: 14px;
     font-weight: 600;
-    color: var(--muted);
-    margin-bottom: 0.875rem;
   }
-  .home-hero__title {
-    font-family: var(--font-display);
-    font-size: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
-    line-height: 1.1;
+  .home-section-title {
+    margin: 0;
+    font-size: 32px;
+    line-height: 1.15;
     letter-spacing: -0.02em;
     font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 1rem 0;
   }
-  .text-red {
-    color: var(--red);
-  }
-  .home-hero__lead {
-    font-size: 1rem;
-    line-height: 1.55;
-    color: var(--muted);
-    max-width: 52ch;
-    margin: 0 0 1.5rem 0;
-  }
-  .home-hero__buttons {
-    display: flex;
-    align-items: center;
-    gap: 0.875rem;
-    margin-bottom: 1.5rem;
-  }
-  .btn-hero {
-    height: 2.875rem;
-    padding: 0 1.5rem;
-    font-size: 0.9375rem;
+  .home-link-red {
+    color: #D91F26;
     font-weight: 600;
-    border-radius: 0.75rem;
+    font-size: 15px;
+    text-decoration: none;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    text-decoration: none;
+    gap: 6px;
   }
-  .home-hero__proof-row {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
+  .home-link-red:hover {
+    text-decoration: underline;
   }
-  .proof-tick {
+  .arrow-svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .chevron-svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: #0F1115;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+
+  /* Pill & Chips */
+  .home-pill {
+    display: inline-block;
+    background: #F4F5F7;
+    border-radius: 99px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0F1115;
+  }
+  .home-tg {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: max(12px, 0.875rem);
-    font-weight: 550;
-    color: var(--ink);
-  }
-  .proof-tick svg {
-    color: var(--red);
-  }
-
-  .home-hero__card-col {
-    display: flex;
-    justify-content: flex-end;
-  }
-  .hero-pack-wrap {
-    width: 100%;
-    max-width: 27.5rem;
-  }
-
-  /* Featured Packs Desktop */
-  .featured-section {
-    padding-top: 1.5rem;
-  }
-  .featured-head-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-  .featured-nav-right {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-  }
-  .category-chips {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .cat-chip {
-    padding: 0.375rem 1rem;
-    border-radius: 999px;
-    font-size: max(12px, 0.8438rem);
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 99px;
+    background: #F0F2F5;
+    font-size: 13px;
     font-weight: 600;
-    color: var(--muted);
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    text-decoration: none;
-    transition: all 150ms ease;
+    color: #0F1115;
   }
-  .cat-chip:hover {
-    color: var(--ink);
-  }
-  .cat-chip.is-active {
-    background: var(--ink);
-    color: #FFFFFF;
-    border-color: var(--ink);
-  }
-  .view-all-link {
-    font-size: max(12px, 0.875rem);
-    font-weight: 600;
-    color: var(--red);
-    text-decoration: none;
-  }
-
-  .packs-grid-4 {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
-    gap: 1.25rem;
-  }
-
-  /* Every pack includes Desktop */
-  .includes-tiles-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-    gap: 1.25rem;
-  }
-  .include-tile {
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    min-width: 0;
-  }
-  .include-tile__icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.75rem;
+  .home-tg--v {
     background: #FDE9EA;
-    color: var(--red);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0.5rem;
+    color: #B3151B;
   }
-  .include-tile__title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0;
-  }
-  .include-tile__desc {
-    font-size: max(12px, 0.875rem);
-    color: var(--muted);
-    line-height: 1.5;
-    margin: 0;
+  .tg-svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
   }
 
-  /* Dark Channel Band Desktop */
-  .channel-band {
-    background: var(--dark);
-    border-radius: 1.5rem;
-    padding: 3rem;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 2.5rem;
+  /* Buttons */
+  .home-btn {
+    border: 0;
+    border-radius: 14px;
+    height: 48px;
+    padding: 0 24px;
+    font-weight: 700;
+    font-size: 16px;
+    display: inline-flex;
     align-items: center;
-    color: #FFFFFF;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: transform 0.15s ease, opacity 0.15s ease;
   }
-  .channel-band__copy {
+  .home-btn:hover {
+    opacity: 0.94;
+    transform: translateY(-1px);
+  }
+  .home-btn-red {
+    background: #D91F26;
+    color: #ffffff;
+  }
+  .home-btn-outline {
+    background: #ffffff;
+    color: #0F1115;
+    border: 1.5px solid #0F1115;
+  }
+  .home-btn-sm {
+    height: 44px;
+    min-height: 44px;
+    font-size: 15px;
+    padding: 0 20px;
+  }
+  .home-btn-svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+
+  /* Generic Card Wrapper (.cd from design) */
+  .home-card {
+    border: 1px solid #E4E7EB;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #ffffff;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    min-width: 0;
-  }
-  .channel-band__title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #FFFFFF;
-    line-height: 1.2;
-    margin: 0;
-  }
-  .channel-band__desc {
-    font-size: 1rem;
-    color: #A3AAB8;
-    line-height: 1.6;
-    margin: 0;
-  }
-  .btn-channel {
-    align-self: flex-start;
-    height: 3rem;
-    padding: 0 1.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border-radius: 0.875rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .channel-band__media {
-    min-width: 0;
-    height: 19.75rem;
-    overflow: hidden;
-  }
-  .band-covers-collage {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-    grid-template-rows: 9.5rem 9.5rem;
-    gap: 0.75rem;
-    height: 19.75rem;
-    min-width: 0;
-  }
-  .collage-cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 1rem;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    display: block;
-  }
-  .collage-cover--1 {
-    grid-row: 1 / 3;
-    grid-column: 1 / 2;
-  }
-  .collage-cover--2 {
-    grid-row: 1 / 2;
-    grid-column: 2 / 3;
-  }
-  .collage-cover--3 {
-    grid-row: 2 / 3;
-    grid-column: 2 / 3;
-  }
-
-  /* Meet the Maker Desktop */
-  .maker-section {
-    padding-top: clamp(4rem, 7vw, 6rem);
-    padding-bottom: clamp(4.5rem, 8vw, 7rem);
-    background: #FFFFFF;
-  }
-  .maker-grid {
-    display: grid;
-    grid-template-columns: 22.5rem minmax(0, 1fr);
-    gap: 3.5rem;
-    align-items: center;
-  }
-  .maker-photo-wrap {
-    position: relative;
-    border-radius: 1.5rem;
-    overflow: hidden;
-    aspect-ratio: 4 / 5;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.07);
-    max-width: 22.5rem;
-    width: 100%;
-  }
-  .maker-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 20%;
-    display: block;
-  }
-  .maker-photo-fallback {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, var(--dark) 0%, #2A303C 100%);
-    color: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    font-weight: 700;
-    font-family: var(--font-display);
-  }
-  .maker-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.875rem;
-    min-width: 0;
-  }
-  .maker-eyebrow {
-    font-size: max(12px, 0.8125rem);
-    font-weight: 700;
-    color: var(--red);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .maker-title {
-    font-size: clamp(28px, 3.2vw, 36px);
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0;
-    line-height: 1.15;
-  }
-  .maker-creds {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0.25rem 0;
-  }
-  .maker-cred-chip {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--ink);
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    padding: 0.3rem 0.75rem;
-    border-radius: 999px;
-  }
-  .maker-bio {
-    font-size: 1rem;
-    color: var(--muted);
-    line-height: 1.65;
-    margin: 0;
-    max-width: 62ch;
-  }
-  .maker-socials {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0.375rem 0 0.875rem;
-  }
-  .maker-social-btn {
-    width: 2.625rem;
-    height: 2.625rem;
-    border-radius: 0.75rem;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 180ms ease;
-    text-decoration: none;
-  }
-  .maker-social-btn:hover {
-    color: var(--red);
-    border-color: var(--red);
-    background: #FDE9EA;
-    transform: translateY(-0.125rem);
-  }
-  .maker-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--red);
-    text-decoration: none;
-    transition: transform 180ms ease;
-  }
-  .maker-link:hover {
-    transform: translateX(0.25rem);
-  }
-
-  @media (max-width: 960px) {
-    .maker-grid {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 2.25rem;
-      text-align: center;
-    }
-    .maker-photo-wrap {
-      max-width: 20rem;
-      margin-inline: auto;
-    }
-    .maker-bio {
-      margin-inline: auto;
-    }
-    .maker-socials {
-      justify-content: center;
-    }
-    .maker-link {
-      justify-content: center;
-    }
   }
 
   /* =========================================================================
-     MOBILE STYLES (<= 768px)
+     1. HERO SECTION STYLING
      ========================================================================= */
-  .m-hero {
-    padding: 2rem 1rem 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .m-hero__title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1.15;
-    color: var(--ink);
-    margin: 0;
-  }
-  .m-hero__lead {
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: var(--muted);
-    margin: 0 0 0.5rem 0;
-  }
-  .m-hero__buttons {
-    display: flex;
-    gap: 0.75rem;
-  }
-  .m-hero__btn-primary {
-    flex: 1;
-    height: 3rem;
-    background: var(--red);
-    color: #FFFFFF;
-    border-radius: 0.75rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-  }
-  .m-hero__btn-secondary {
-    flex: 1;
-    height: 3rem;
-    background: #FFFFFF;
-    color: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: 0.75rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-  }
-
-  .m-chips-track {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding: 0.5rem 1rem 1rem;
-    scrollbar-width: none;
-  }
-  .m-chips-track::-webkit-scrollbar {
-    display: none;
-  }
-  .m-chip-pill {
-    padding: 0.375rem 0.875rem;
-    border-radius: 999px;
-    font-size: max(12px, 0.8125rem);
-    font-weight: 600;
-    color: var(--muted);
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    white-space: nowrap;
-    text-decoration: none;
-  }
-  .m-chip-pill.is-active {
-    background: var(--ink);
-    color: #FFFFFF;
-    border-color: var(--ink);
-  }
-
-  .m-section {
-    padding: 1.25rem 1rem;
-  }
-  .m-section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.875rem;
-  }
-  .m-section-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0;
-  }
-  .m-section-viewall {
-    font-size: max(12px, 0.8438rem);
-    font-weight: 600;
-    color: var(--red);
-    text-decoration: none;
-  }
-
-  .m-carousel {
-    display: flex;
-    gap: 0.875rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 0.5rem;
-    scrollbar-width: none;
-  }
-  .m-carousel::-webkit-scrollbar {
-    display: none;
-  }
-  .m-carousel-card-wrap {
-    flex: 0 0 17.5rem;
-    scroll-snap-align: start;
-  }
-
-  .m-includes-grid {
+  .home-hero-section {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
-  .m-include-tile {
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 1rem;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-  .m-include-tile__icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.625rem;
-    background: #FDE9EA;
-    color: var(--red);
-    display: flex;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+    gap: 64px;
     align-items: center;
-    justify-content: center;
+    padding-top: 64px;
+    padding-bottom: 64px;
   }
-  .m-include-tile__text {
-    font-size: max(12px, 0.875rem);
+  .home-hero-headline {
+    margin: 20px 0;
+    font-size: 56px;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
     font-weight: 700;
-    color: var(--ink);
-    line-height: 1.3;
   }
-
-  .m-channel-box {
-    background: var(--dark);
-    border-radius: 1.25rem;
-    padding: 1.5rem 1.25rem;
-    color: #FFFFFF;
+  .home-hero-headline :global(.text-red),
+  .home-hero-headline :global(.a) {
+    color: #D91F26;
+  }
+  .home-hero-subline {
+    font-size: 18px;
+    line-height: 1.55;
+    color: #5A6270;
+    margin: 0;
+    max-width: 540px;
+  }
+  .home-hero-buttons {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    gap: 12px;
+    margin: 30px 0 28px;
   }
-  .m-channel-box__title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #FFFFFF;
-    margin: 0;
-    line-height: 1.25;
+  .home-hero-buttons .home-btn {
+    height: 56px;
+    padding: 0 30px;
   }
-  .m-channel-box__desc {
-    font-size: max(12px, 0.875rem);
-    color: #A3AAB8;
-    line-height: 1.5;
-    margin: 0;
+  .home-btn-free-mobile {
+    display: none;
   }
-  .m-channel-box__btn {
-    align-self: flex-start;
-    height: 2.625rem;
-    padding: 0 1.25rem;
-    background: var(--red);
-    color: #FFFFFF;
-    border-radius: 0.75rem;
-    font-size: max(12px, 0.875rem);
+  .home-proof-ticks {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    font-size: 15px;
     font-weight: 600;
-    display: inline-flex;
+    color: #0F1115;
+  }
+  .home-proof-item {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    margin-top: 0.25rem;
+    gap: 8px;
+  }
+  .home-proof-icon {
+    color: #D91F26;
+    display: flex;
+    align-items: center;
+  }
+  .proof-svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
-  .m-creator-card {
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 1.25rem;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.875rem;
+  /* Pack Card Standard Component */
+  .pack-card-media-link {
+    display: block;
+    width: 100%;
+    overflow: hidden;
   }
-  .m-creator-top {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-  .m-creator-avatar {
-    width: 3.75rem;
-    height: 3.75rem;
-    border-radius: 50%;
+  .pack-card-img {
+    width: 100%;
+    aspect-ratio: 1.78;
     object-fit: cover;
-    flex-shrink: 0;
+    display: block;
+    background: #F4F5F7;
+    transition: transform 0.2s ease;
   }
-  .m-creator-meta {
+  .pack-card-media-link:hover .pack-card-img {
+    transform: scale(1.02);
+  }
+  .pack-card-body {
+    padding: 16px 18px 18px;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    flex: 1;
     min-width: 0;
   }
-  .m-creator-name {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--ink);
-  }
-  .m-creator-creds {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-  .m-creator-cred-chip {
-    font-size: 0.6875rem;
+  .pack-card-cat {
+    font-size: 13px;
     font-weight: 600;
-    color: var(--ink);
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
+    color: #5A6270;
   }
-  .m-creator-bio {
-    font-size: max(12px, 0.875rem);
-    color: var(--muted);
-    line-height: 1.5;
+  .pack-card-title {
+    font-size: 19px;
+    line-height: 1.25;
+    margin: 4px 0 10px;
+    font-weight: 700;
+  }
+  .pack-card-title a {
+    color: #0F1115;
+    text-decoration: none;
+  }
+  .pack-card-title a:hover {
+    color: #D91F26;
+  }
+  .home-hero-pack-card .pack-card-title {
+    font-size: 22px;
+  }
+  .pack-card-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .pack-card-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #5A6270;
+  }
+  .pack-meta-svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .pack-card-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .pack-card-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pack-card-price {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0F1115;
+  }
+  .price-free {
+    color: #14663A;
+  }
+
+  /* =========================================================================
+     2. START HERE SECTION STYLING
+     ========================================================================= */
+  .home-start-here-section {
+    padding-top: 16px;
+  }
+  .home-start-grid-desktop {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .start-card {
+    padding: 26px;
+    gap: 14px;
+    text-decoration: none;
+    color: #0F1115;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .start-card:hover {
+    transform: translateY(-2px);
+    border-color: #CDD2D9;
+  }
+  .start-card-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #FDE9EA;
+    color: #D91F26;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .start-icon-svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .start-card-title {
+    font-size: 20px;
+    font-weight: 700;
     margin: 0;
   }
-  .m-creator-bottom {
-    display: flex;
+  .start-card-desc {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #5A6270;
+  }
+  .start-card-link {
+    margin-top: auto;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-top: 0.25rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--line);
-  }
-  .m-creator-socials {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .maker-social-btn--sm {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.5rem;
-  }
-  .m-creator-link {
-    font-size: max(12px, 0.8125rem);
+    gap: 6px;
+    color: #D91F26;
     font-weight: 600;
-    color: var(--red);
+    font-size: 15px;
+  }
+  .home-start-list-mobile {
+    display: none;
+  }
+
+  /* =========================================================================
+     3. FEATURED PROJECTS SECTION STYLING
+     ========================================================================= */
+  .home-featured-section {
+    padding-top: 80px;
+  }
+  .home-featured-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+  .home-featured-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .home-filter-tabs {
+    display: flex;
+    gap: 8px;
+  }
+  .home-tab-btn {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 99px;
+    border: 1.5px solid #CDD2D9;
+    background: #ffffff;
+    font-weight: 600;
+    font-size: 14px;
+    color: #0F1115;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .home-tab-btn.on {
+    background: #0F1115;
+    color: #ffffff;
+    border-color: #0F1115;
+  }
+  .home-view-all-link {
+    margin-left: 14px;
+    align-self: center;
+  }
+  .home-pack-cards-container {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .pack-card-item {
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .pack-card-item:hover {
+    transform: translateY(-2px);
+    border-color: #CDD2D9;
+  }
+
+  /* =========================================================================
+     4. FREE TO DOWNLOAD SECTION STYLING
+     ========================================================================= */
+  .home-free-band-section {
+    padding-top: 80px;
+  }
+  .home-free-band-card {
+    background: #FDF1F1;
+    border-radius: 28px;
+    padding: 48px;
+    display: grid;
+    grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+    gap: 48px;
+    align-items: center;
+  }
+  .home-free-band-title {
+    font-size: 36px;
+    margin: 8px 0 12px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .home-free-band-desc {
+    font-size: 16px;
+    line-height: 1.55;
+    color: #5A6270;
+    margin: 0;
+  }
+  .home-free-more-link {
+    margin-top: 20px;
+    font-weight: 700;
+  }
+  .home-free-band-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .free-pack-row {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 14px 18px;
+  }
+  .free-pack-thumb {
+    width: 132px;
+    aspect-ratio: 1.78;
+    object-fit: cover;
+    border-radius: 12px;
+    flex: none;
+    background: #F4F5F7;
+  }
+  .free-pack-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .free-pack-name {
+    font-weight: 700;
+    font-size: 17px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #0F1115;
+  }
+  .free-pack-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .free-pack-btn-desktop {
+    height: 44px;
+    font-size: 15px;
+    padding: 0 18px;
+    flex-shrink: 0;
+  }
+  .free-pack-btn-mobile {
+    display: none;
+  }
+
+  /* =========================================================================
+     5. HOW IT WORKS SECTION STYLING
+     ========================================================================= */
+  .home-how-it-works-section {
+    padding-top: 80px;
+  }
+  .home-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+  .how-grid-desktop {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 40px;
+  }
+  .how-step-item {
+    display: flex;
+    gap: 18px;
+  }
+  .how-step-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #D91F26;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 18px;
+    flex: none;
+  }
+  .how-step-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .how-step-desc {
+    margin: 6px 0 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #5A6270;
+  }
+  .how-timeline-mobile {
+    display: none;
+  }
+
+  /* =========================================================================
+     6. WATCH EVERY BUILD SECTION STYLING
+     ========================================================================= */
+  .home-watch-section {
+    padding-top: 80px;
+  }
+  .home-watch-band {
+    background: #111418;
+    border-radius: 28px;
+    padding: 48px;
+    color: #ffffff;
+  }
+  .home-watch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+  }
+  .home-watch-title {
+    color: #ffffff;
+    font-size: 36px;
+    margin: 0;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .home-watch-sub {
+    color: #C7CCD4;
+    font-size: 16px;
+    margin: 8px 0 0;
+  }
+  .home-watch-btn-mobile {
+    display: none;
+  }
+  .home-watch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .video-card-item {
+    min-width: 0;
     text-decoration: none;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+  }
+  .video-thumb-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    aspect-ratio: 1.78;
+    background: #2A2F38;
+  }
+  .video-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.2s ease;
+  }
+  .video-card-item:hover .video-thumb-img {
+    transform: scale(1.03);
+  }
+  .video-play-btn {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #D91F26;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease;
+  }
+  .video-card-item:hover .video-play-btn {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  .video-play-svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+    stroke: none;
+  }
+  .video-card-title {
+    font-weight: 600;
+    font-size: 16px;
+    margin-top: 12px;
+    color: #ffffff;
+    line-height: 1.35;
+  }
+
+  /* =========================================================================
+     7. MEET THE MAKER SECTION STYLING
+     ========================================================================= */
+  .home-maker-section {
+    padding-top: 80px;
+    padding-bottom: 96px;
+  }
+  .home-maker-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    gap: 64px;
+    align-items: center;
+  }
+  .home-maker-img {
+    width: 100%;
+    aspect-ratio: 0.95;
+    object-fit: cover;
+    object-position: 50% 25%;
+    border-radius: 28px;
+    display: block;
+    background: #F4F5F7;
+  }
+  .home-maker-name {
+    margin: 8px 0 16px;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .home-maker-creds {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .home-maker-bio {
+    font-size: 18px;
+    line-height: 1.6;
+    color: #5A6270;
+    margin: 0 0 24px;
+    max-width: 580px;
+  }
+  .home-maker-bottom {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .home-maker-socials {
+    display: flex;
+    gap: 10px;
+  }
+  .maker-social-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid #E4E7EB;
+    display: grid;
+    place-items: center;
+    color: #0F1115;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .maker-social-box:hover {
+    border-color: #0F1115;
+    background: #F4F5F7;
+  }
+  .maker-social-svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* =========================================================================
+     RESPONSIVE MEDIA QUERIES (TABLET & MOBILE)
+     ========================================================================= */
+  @media (max-width: 1024px) {
+    .home-hero-section {
+      grid-template-columns: 1fr;
+      gap: 40px;
+      padding-top: 40px;
+      padding-bottom: 40px;
+    }
+    .home-pack-cards-container {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .home-maker-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .home-free-band-card {
+      grid-template-columns: 1fr;
+      gap: 32px;
+      padding: 32px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .home-w {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    /* 1. Mobile Hero: Single column, stacked ticks, full width buttons */
+    .home-hero-section {
+      padding-top: 24px;
+      padding-bottom: 0px;
+      gap: 20px;
+    }
+    .home-hero-headline {
+      font-size: 32px;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      margin: 14px 0 10px;
+    }
+    .home-hero-subline {
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .home-hero-buttons {
+      display: flex;
+      gap: 10px;
+      margin: 18px 0;
+      width: 100%;
+    }
+    .home-hero-buttons .home-btn:first-child {
+      flex: 1.2;
+      height: 48px;
+      padding: 0 16px;
+    }
+    .home-hero-buttons .home-btn:last-child {
+      flex: 1;
+      height: 48px;
+      padding: 0 16px;
+    }
+    .home-btn-free-desktop {
+      display: none;
+    }
+    .home-btn-free-mobile {
+      display: inline;
+    }
+    .home-proof-ticks {
+      flex-direction: column;
+      gap: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .home-hero-pack-card {
+      width: 100%;
+    }
+
+    /* 2. Mobile Start Here: Stacked list with chevron */
+    .home-start-here-section {
+      padding-top: 16px;
+    }
+    .home-start-grid-desktop {
+      display: none;
+    }
+    .home-start-list-mobile {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .start-card-m {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 16px;
+      text-decoration: none;
+      color: #0F1115;
+      border-radius: 16px;
+    }
+    .start-card-m-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .start-card-m-text b {
+      font-size: 15px;
+      display: block;
+    }
+    .start-card-m-sub {
+      font-size: 13px;
+      color: #5A6270;
+      margin-top: 2px;
+    }
+
+    /* 3. Mobile Featured Projects: Carousel with 272px cards */
+    .home-featured-section {
+      padding-top: 28px;
+    }
+    .home-featured-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .home-section-title {
+      font-size: 24px;
+    }
+    .home-view-all-link {
+      display: none;
+    }
+    .home-pack-cards-container {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      margin: 0 -16px;
+      padding: 2px 16px 8px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .home-pack-cards-container::-webkit-scrollbar {
+      display: none;
+    }
+    .pack-card-item {
+      width: 272px;
+      flex: none;
+      scroll-snap-align: start;
+    }
+
+    /* 4. Mobile Free to Download: Compact rows with round button */
+    .home-free-band-section {
+      padding-top: 28px;
+    }
+    .home-free-band-card {
+      border-radius: 20px;
+      padding: 20px 14px;
+      gap: 16px;
+    }
+    .home-free-band-title {
+      font-size: 24px;
+      margin: 6px 0 6px;
+    }
+    .home-free-band-desc {
+      font-size: 14px;
+      margin: 0 0 14px;
+    }
+    .home-free-more-link {
+      display: none;
+    }
+    .free-pack-row {
+      padding: 10px;
+      border-radius: 14px;
+      gap: 12px;
+    }
+    .free-pack-thumb {
+      width: 96px;
+      border-radius: 10px;
+    }
+    .free-pack-name {
+      font-size: 14px;
+      line-height: 1.25;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .free-pack-btn-desktop {
+      display: none;
+    }
+    .free-pack-btn-mobile {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #D91F26;
+      color: #ffffff;
+      flex: none;
+      text-decoration: none;
+    }
+
+    /* 5. Mobile How It Works: Vertical Timeline */
+    .home-how-it-works-section {
+      padding-top: 28px;
+    }
+    .home-section-header {
+      margin-bottom: 14px;
+    }
+    .home-section-header .home-link-red {
+      display: none;
+    }
+    .how-grid-desktop {
+      display: none;
+    }
+    .how-timeline-mobile {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .how-timeline-row {
+      display: flex;
+      gap: 14px;
+    }
+    .how-timeline-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .how-timeline-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #D91F26;
+      color: #ffffff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      flex: none;
+      font-size: 15px;
+    }
+    .how-timeline-line {
+      flex: 1;
+      width: 2px;
+      background: #E4E7EB;
+      margin: 4px 0;
+      min-height: 24px;
+    }
+    .how-timeline-content {
+      padding-bottom: 18px;
+    }
+    .how-timeline-row:last-child .how-timeline-content {
+      padding-bottom: 0;
+    }
+    .how-timeline-title {
+      font-size: 17px;
+      margin: 4px 0;
+      font-weight: 700;
+      color: #0F1115;
+    }
+    .how-timeline-desc {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #5A6270;
+    }
+
+    /* 6. Mobile Watch Every Build: Carousel with ~250px cards */
+    .home-watch-section {
+      padding-top: 28px;
+    }
+    .home-watch-band {
+      border-radius: 20px;
+      padding: 20px 16px;
+    }
+    .home-watch-header {
+      margin-bottom: 14px;
+    }
+    .home-watch-title {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+    .home-watch-sub {
+      font-size: 14px;
+      margin: 0;
+    }
+    .home-watch-btn-desktop {
+      display: none;
+    }
+    .home-watch-grid {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      margin: 0 -16px;
+      padding: 2px 16px 8px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .home-watch-grid::-webkit-scrollbar {
+      display: none;
+    }
+    .video-card-item {
+      width: 250px;
+      flex: none;
+      scroll-snap-align: start;
+    }
+    .video-card-title {
+      font-size: 15px;
+      margin-top: 10px;
+    }
+    .home-watch-btn-mobile {
+      display: inline-flex;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    /* 7. Mobile Meet the Maker: Photo First */
+    .home-maker-section {
+      padding-top: 28px;
+      padding-bottom: 32px;
+    }
+    .home-maker-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .home-maker-img {
+      aspect-ratio: 1.25;
+      border-radius: 20px;
+    }
+    .home-maker-name {
+      font-size: 26px;
+      margin: 4px 0 10px;
+    }
+    .home-maker-creds {
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .home-maker-bio {
+      font-size: 15px;
+      line-height: 1.5;
+      margin: 0 0 18px;
+    }
+    .home-maker-bottom {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+    }
+    .home-maker-socials {
+      justify-content: flex-start;
+    }
+    .home-maker-btn {
+      width: 100%;
+      text-align: center;
+    }
   }
 </style>
