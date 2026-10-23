@@ -52,6 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
     
     return json({ 
       alreadyPaid: true, 
+      redirect: `/account/download?order=${existing.id}&token=${existing.download_token}`,
       message: 'You already own this project! We just sent the download link to your email again.' 
     });
   }

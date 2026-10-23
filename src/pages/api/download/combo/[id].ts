@@ -8,7 +8,7 @@ import { timingSafeEqual } from '../../../../lib/crypto';
  * Download a paid combo file. Access is gated by a valid, paid order whose
  * download token matches — and the file must belong to that order's project.
  */
-export const GET: APIRoute = async ({ params, url }) => {
+export const GET: APIRoute = async ({ params, url, redirect }) => {
   const fileId = Number(params.id);
   const orderId = url.searchParams.get('order') || '';
   const token = url.searchParams.get('token') || '';
@@ -23,8 +23,13 @@ export const GET: APIRoute = async ({ params, url }) => {
   }
 
   const file = await getFileById(env.DB, fileId);
-  if (!file || file.project_id !== order.project_id || file.in_combo !== 1) {
+  const isFreeProject = order.amount_inr === 0;
+  if (!file || file.project_id !== order.project_id || (!isFreeProject && file.in_combo !== 1 && file.is_free !== 1)) {
     return new Response('Not found', { status: 404 });
+  }
+
+  if (file.r2_key.startsWith('/downloads/') || file.r2_key.startsWith('http://') || file.r2_key.startsWith('https://')) {
+    return redirect(file.r2_key, 302);
   }
 
   return serveFromStore(env.BLOBS, file.r2_key, file.filename || file.label);

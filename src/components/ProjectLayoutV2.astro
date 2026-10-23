@@ -1244,14 +1244,9 @@ const lastUpdated = formatDate(project.updated_at);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to claim download');
 
-      container.innerHTML = `
-        <div class="buy-success">
-          <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
-          <h3 class="buy-success__title">Free files ready!</h3>
-          <p class="buy-success__text">We just emailed the download link to <strong>${emailVal}</strong>.</p>
-          <a href="${data.redirect || '/account/downloads'}" class="btn-buy-primary" style="margin-top: 1rem;">Download files now</a>
-        </div>
-      `;
+      btn.innerHTML = 'Opening download page...';
+      const targetUrl = data.redirect || '/account/downloads';
+      window.location.href = targetUrl;
     } catch (err: any) {
       alert(err.message || 'Error claiming files');
       btn.disabled = false;
@@ -1278,6 +1273,11 @@ const lastUpdated = formatDate(project.updated_at);
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
 
       if (data.alreadyPaid) {
+        if (data.redirect) {
+          btn.innerHTML = 'Opening download page...';
+          window.location.href = data.redirect;
+          return;
+        }
         container.innerHTML = `
           <div class="buy-success">
             <div class="buy-success__icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
@@ -1365,6 +1365,25 @@ const lastUpdated = formatDate(project.updated_at);
         handleFreeClaim(email, mSheetSubmitBtn, mSheetPanel);
       }
     }
+  });
+
+  // Enter key support for all forms
+  const deskFreeForm = document.getElementById('desktop-free-form') as HTMLFormElement | null;
+  deskFreeForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    deskFreeBtn?.click();
+  });
+
+  const deskCheckoutForm = document.getElementById('desktop-checkout-form') as HTMLFormElement | null;
+  deskCheckoutForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    deskBuyBtn?.click();
+  });
+
+  const mSheetForm = document.getElementById('m-sheet-form') as HTMLFormElement | null;
+  mSheetForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    mSheetSubmitBtn?.click();
   });
 </script>
 

@@ -23,6 +23,11 @@ if (orderId && token) {
       files = await getComboFiles(env.DB, order.project_id);
       const project = await getProjectById(env.DB, order.project_id);
       projectSlug = project?.slug || '';
+      if (files.length === 0 && (order.amount_inr === 0 || (project && project.price_inr === 0))) {
+        const allFiles = await env.DB.prepare('SELECT * FROM project_files WHERE project_id = ? ORDER BY sort')
+          .bind(order.project_id).all<any>();
+        files = (allFiles.results as any) ?? [];
+      }
     }
   } catch {
     ok = false;
@@ -46,7 +51,7 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
             </a>
             <span class="badge is-beginner">
               <Icon name="check-circle" size={13} />
-              <span>Verified order</span>
+              <span>{order.amount_inr === 0 ? 'Free pack' : 'Verified order'}</span>
             </span>
           </div>
 
@@ -54,7 +59,7 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
             <div class="dl-hero__check" aria-hidden="true">
               <Icon name="check-circle" size={38} />
             </div>
-            <span class="mydl-eyebrow">ORDER READY</span>
+            <span class="mydl-eyebrow">{order.amount_inr === 0 ? 'FREE DOWNLOAD READY' : 'ORDER READY'}</span>
             <h1 class="dl-hero__title">{order.project_title}</h1>
             <p class="dl-hero__sub">
               Your download pack is ready. Save or bookmark this page &mdash; you can re-download these files anytime.
@@ -64,12 +69,12 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
           {/* Receipt Info Card */}
           <div class="dl-receipt">
             <div class="dl-receipt__item">
-              <span class="dl-receipt__label">Order ID</span>
+              <span class="dl-receipt__label">{order.amount_inr === 0 ? 'Access ID' : 'Order ID'}</span>
               <span class="dl-receipt__val mono">#{order.id.slice(0, 8).toUpperCase()}</span>
             </div>
             <div class="dl-receipt__item">
-              <span class="dl-receipt__label">Amount Paid</span>
-              <span class="dl-receipt__val">{formatINR(order.amount_inr)}</span>
+              <span class="dl-receipt__label">{order.amount_inr === 0 ? 'Price' : 'Amount Paid'}</span>
+              <span class="dl-receipt__val">{order.amount_inr === 0 ? 'Free' : formatINR(order.amount_inr)}</span>
             </div>
             <div class="dl-receipt__item">
               <span class="dl-receipt__label">Linked Email</span>
