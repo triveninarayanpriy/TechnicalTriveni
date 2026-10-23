@@ -55,41 +55,30 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
             </span>
           </div>
 
-          <div class="dl-hero center">
-            <div class="dl-hero__check" aria-hidden="true">
-              <Icon name="check-circle" size={38} />
+          <div class="dl-hero-compact">
+            <div class="dl-hero-compact__head">
+              <span class="dl-badge-ready">
+                <Icon name="check-circle" size={15} />
+                <span>{order.amount_inr === 0 ? 'Free Download Ready' : 'Order Ready'}</span>
+              </span>
+              <span class="dl-meta-pill">
+                <span><strong>{order.amount_inr === 0 ? 'ID' : 'Order'}:</strong> #{order.id.slice(0, 8).toUpperCase()}</span>
+                <span class="dl-meta-sep">&bull;</span>
+                <span><strong>Email:</strong> {order.email}</span>
+                <span class="dl-meta-sep">&bull;</span>
+                <span class="text-success font-semibold">Lifetime access</span>
+              </span>
             </div>
-            <span class="mydl-eyebrow">{order.amount_inr === 0 ? 'FREE DOWNLOAD READY' : 'ORDER READY'}</span>
-            <h1 class="dl-hero__title">{order.project_title}</h1>
-            <p class="dl-hero__sub">
-              Your download pack is ready. Save or bookmark this page &mdash; you can re-download these files anytime.
-            </p>
+            <h1 class="dl-hero__title-compact">{order.project_title}</h1>
           </div>
 
-          {/* Receipt Info Card */}
-          <div class="dl-receipt">
-            <div class="dl-receipt__item">
-              <span class="dl-receipt__label">{order.amount_inr === 0 ? 'Access ID' : 'Order ID'}</span>
-              <span class="dl-receipt__val mono">#{order.id.slice(0, 8).toUpperCase()}</span>
-            </div>
-            <div class="dl-receipt__item">
-              <span class="dl-receipt__label">{order.amount_inr === 0 ? 'Price' : 'Amount Paid'}</span>
-              <span class="dl-receipt__val">{order.amount_inr === 0 ? 'Free' : formatINR(order.amount_inr)}</span>
-            </div>
-            <div class="dl-receipt__item">
-              <span class="dl-receipt__label">Linked Email</span>
-              <span class="dl-receipt__val">{order.email}</span>
-            </div>
-            <div class="dl-receipt__item">
-              <span class="dl-receipt__label">Access</span>
-              <span class="dl-receipt__val text-success">Lifetime Updates</span>
-            </div>
-          </div>
-
-          {/* Files List */}
+          {/* Files List — Displayed immediately at the top without scrolling */}
           <div class="dl-files-panel">
             <div class="dl-files-header">
-              <h2 class="dl-files-title">Included Project Files</h2>
+              <div class="dl-files-title-wrap">
+                <h2 class="dl-files-title">Included Project Files</h2>
+                <span class="dl-files-subtitle">Click download on any asset to save it to your device</span>
+              </div>
               <span class="dl-files-count">{files.length} {files.length === 1 ? 'file' : 'files'}</span>
             </div>
 
@@ -130,7 +119,7 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
               </a>
             )}
             <p class="dl-support-hint">
-              Trouble downloading or extracting files? <a href="/contact">Contact support</a> with Order #{order.id.slice(0, 8).toUpperCase()}.
+              Trouble downloading or extracting files? <a href="/contact">Contact support</a> with #{order.id.slice(0, 8).toUpperCase()}.
             </p>
           </div>
         </div>
@@ -160,23 +149,14 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
 
 <style>
   .mydl-section {
-    padding-top: clamp(2.5rem, 5vw, 4.5rem);
-    padding-bottom: clamp(4rem, 8vw, 6.5rem);
+    padding-top: clamp(1rem, 2vw, 1.75rem);
+    padding-bottom: clamp(3rem, 6vw, 5rem);
   }
   .center {
     text-align: center;
   }
   .mono {
     font-family: var(--font-mono, monospace);
-  }
-  .mydl-eyebrow {
-    display: inline-block;
-    font-size: max(11px, 0.75rem);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--red);
-    margin-bottom: 0.5rem;
   }
   .text-success {
     color: var(--success);
@@ -186,7 +166,7 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
   .dl-portal {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.25rem;
   }
 
   .dl-portal__top {
@@ -203,71 +183,57 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
     font-size: 0.8125rem;
   }
 
-  .dl-hero {
-    max-width: 52ch;
-    margin: 0 auto;
+  /* Compact Hero — Keeps files above the fold */
+  .dl-hero-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
 
-  .dl-hero__check {
-    width: 4.25rem;
-    height: 4.25rem;
-    margin: 0 auto 1.25rem;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background: rgba(34, 197, 94, 0.1);
+  .dl-hero-compact__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .dl-badge-ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
     color: #16a34a;
+    background: rgba(34, 197, 94, 0.1);
+    padding: 0.3rem 0.75rem;
+    border-radius: 99px;
   }
 
-  .dl-hero__title {
-    font-size: clamp(1.75rem, 1.2rem + 2.5vw, 2.5rem);
+  .dl-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    background: var(--bg-soft, #F4F5F7);
+    padding: 0.3rem 0.85rem;
+    border-radius: 99px;
+    border: 1px solid var(--line, #E4E7EB);
+    flex-wrap: wrap;
+  }
+  .dl-meta-sep {
+    color: var(--line, #CDD2D9);
+    font-size: 0.75rem;
+  }
+
+  .dl-hero__title-compact {
+    font-size: clamp(1.35rem, 1.1rem + 1.2vw, 1.85rem);
     font-weight: 700;
     color: var(--ink);
     letter-spacing: -0.02em;
-    line-height: 1.15;
-    margin: 0 0 0.75rem;
-  }
-
-  .dl-hero__sub {
-    font-size: 0.9375rem;
-    color: var(--ink-2);
-    line-height: 1.55;
+    line-height: 1.2;
     margin: 0;
-  }
-
-  /* Receipt Card */
-  .dl-receipt {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: 1rem;
-    padding: 1.25rem 1.5rem;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 1rem;
-    box-shadow: 0 0.125rem 0.375rem rgba(0, 0, 0, 0.03);
-  }
-
-  .dl-receipt__item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .dl-receipt__label {
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 700;
-    color: var(--ink-3);
-  }
-
-  .dl-receipt__val {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--ink);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   /* Files Panel */
@@ -275,7 +241,7 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
     background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 1.25rem;
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem;
     box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.03);
   }
 
@@ -284,16 +250,26 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.875rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--line);
   }
 
+  .dl-files-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
   .dl-files-title {
-    font-size: 1.1875rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: var(--ink);
     margin: 0;
+  }
+  .dl-files-subtitle {
+    font-size: 0.8125rem;
+    color: var(--ink-3);
   }
 
   .dl-files-count {
@@ -317,11 +293,23 @@ const dl = (id: number) => `/api/download/combo/${id}?order=${encodeURIComponent
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    padding: 0.875rem 1.25rem;
     border: 1px solid var(--line);
     border-radius: 0.875rem;
     background: var(--bg);
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  @media (max-width: 640px) {
+    .dl-hero-compact__head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .dl-file-card {
+      padding: 0.75rem 1rem;
+      gap: 0.75rem;
+    }
   }
 
   @media (hover: hover) {
