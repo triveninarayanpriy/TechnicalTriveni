@@ -3,8 +3,9 @@ import Admin from '../../../layouts/Admin.astro';
 import Icon from '../../../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { getEffectiveContent } from '../../../lib/pages';
-import { listPageRevisions } from '../../../lib/db';
+import { listPageRevisions, listProjects } from '../../../lib/db';
 import { formatDate, renderMarkdown } from '../../../lib/format';
+import { getAboutPageData } from '../../../lib/site-content';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/admin/pages');
@@ -12,6 +13,10 @@ if (!slug) return Astro.redirect('/admin/pages');
 const page = await getEffectiveContent(env.DB, slug);
 const revisions = await listPageRevisions(env.DB, slug, 5);
 const csrf = Astro.locals.csrfToken;
+
+const isAbout = slug === 'about';
+const aboutData = isAbout ? await getAboutPageData(env.DB) : null;
+const allProjects = isAbout ? await listProjects(env.DB, { publishedOnly: true }) : [];
 
 // Word count calculation
 const wordCount = page.markdown.trim() ? page.markdown.trim().split(/\s+/).length : 0;
@@ -139,71 +144,238 @@ const initialPreviewHtml = renderMarkdown(page.markdown);
           </div>
         </div>
 
-        <!-- Card 2: Content (Markdown) -->
-        <div class="editor-card">
-          <div class="editor-card__head">
-            <h2 class="editor-card__title">Content (Markdown)</h2>
-            {page.sectionHint && (
-              <span class="section-hint-badge" title={page.sectionHint}>
-                <Icon name="info" size={13} /> {page.sectionHint}
-              </span>
-            )}
-          </div>
+        {isAbout && aboutData && (
+          <>
+            <!-- Section 1: Hero -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">1. Hero Section</h2>
+              <p class="admin-field-hint" style="margin-bottom: 1rem;">Controls the top hero on the About page and feeds into the Home page "Meet the maker" block.</p>
+              
+              <div class="page-meta-grid" style="margin-bottom: 1rem;">
+                <div class="admin-form-group">
+                  <label for="hero_eyebrow" class="admin-label">Eyebrow</label>
+                  <input type="text" id="hero_eyebrow" name="hero_eyebrow" value={aboutData.hero.eyebrow} class="admin-input" />
+                </div>
+                <div class="admin-form-group">
+                  <label for="hero_name" class="admin-label">Maker Name</label>
+                  <input type="text" id="hero_name" name="hero_name" value={aboutData.hero.name || 'Triveni Narayan Priy'} class="admin-input" />
+                </div>
+              </div>
 
-          <!-- Markdown Toolbar -->
-          <div class="md-toolbar" role="toolbar" aria-label="Markdown formatting tools">
-            <button type="button" class="md-tool-btn" data-tool="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
-            <button type="button" class="md-tool-btn" data-tool="italic" title="Italic (Ctrl+I)"><em>I</em></button>
-            <button type="button" class="md-tool-btn" data-tool="h2" title="Heading 2">H2</button>
-            <button type="button" class="md-tool-btn" data-tool="link" title="Link">Link</button>
-            <button type="button" class="md-tool-btn" data-tool="list" title="Bullet list">List</button>
-            <button type="button" class="md-tool-btn" data-tool="quote" title="Quote">Quote</button>
-            <button type="button" class="md-tool-btn" data-tool="code" title="Code block">Code</button>
-            <button type="button" class="md-tool-btn" data-tool="image" title="Image">Image</button>
-          </div>
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="hero_headline" class="admin-label">Headline</label>
+                <input type="text" id="hero_headline" name="hero_headline" value={aboutData.hero.headline} class="admin-input" />
+              </div>
 
-          <!-- Markdown Textarea -->
-          <div class="textarea-wrap">
-            <textarea
-              id="content_md"
-              name="content_md"
-              class="md-textarea"
-              placeholder="Write page content in Markdown..."
-              rows="16"
-            >{page.markdown}</textarea>
-          </div>
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="hero_intro" class="admin-label">Introduction Paragraph</label>
+                <textarea id="hero_intro" name="hero_intro" class="admin-input" rows="3">{aboutData.hero.intro}</textarea>
+              </div>
 
-          <!-- Word count & Saved info footer -->
-          <div class="md-footer">
-            <span id="word-count-display">{wordCount} words.</span>
-            <span class="md-footer-sep">Saved {formatDate(page.updated_at)}.</span>
-          </div>
-        </div>
+              <div class="page-meta-grid" style="margin-bottom: 1rem;">
+                <div class="admin-form-group">
+                  <label for="hero_badge_text" class="admin-label">Photo Badge Text</label>
+                  <input type="text" id="hero_badge_text" name="hero_badge_text" value={aboutData.hero.badge_text} class="admin-input" placeholder="Maker and developer" />
+                </div>
+                <div class="admin-form-group">
+                  <label for="hero_credentials" class="admin-label">Credential Chips (one per line)</label>
+                  <textarea id="hero_credentials" name="hero_credentials" class="admin-input" rows="3">{aboutData.hero.credentials.join('\n')}</textarea>
+                </div>
+              </div>
 
-        <!-- Card 3: Profile Photo (for About page only) -->
-        {page.slug === 'about' && (
+              <div class="photo-upload-grid" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <div class="photo-preview-wrap">
+                  <img
+                    src={page.image_url || '/brand/profile.jpg'}
+                    alt="Profile preview"
+                    id="photo-preview-img"
+                    class="photo-preview"
+                  />
+                </div>
+                <div class="photo-input-col">
+                  <label for="image" class="admin-label">Replace Maker Photo</label>
+                  <input type="file" id="image" name="image" accept="image/*" class="admin-file-input" />
+                  <span class="admin-field-hint">Upload a high-resolution portrait photo (JPG, PNG, WebP). Used across About and Home.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Numbers strip -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">2. Numbers Strip</h2>
+              <div class="admin-alert admin-alert--info" style="margin-bottom: 1rem; font-size: 0.8125rem;">
+                <Icon name="info" size={15} />
+                <span>Stat 1 (Total published packs) and Stat 2 (Free downloads count) are <strong>automatically computed from live projects</strong>. The remaining two stats are editable below.</span>
+              </div>
+              <div class="page-meta-grid">
+                <div class="admin-form-group">
+                  <label for="stat3_val" class="admin-label">Stat 3 Value</label>
+                  <input type="text" id="stat3_val" name="stat3_val" value={aboutData.numbers.stat3_val} class="admin-input" placeholder="100%" />
+                  <label for="stat3_label" class="admin-label" style="margin-top: 0.5rem;">Stat 3 Label</label>
+                  <input type="text" id="stat3_label" name="stat3_label" value={aboutData.numbers.stat3_label} class="admin-input" placeholder="Tested on real hardware" />
+                </div>
+                <div class="admin-form-group">
+                  <label for="stat4_val" class="admin-label">Stat 4 Value</label>
+                  <input type="text" id="stat4_val" name="stat4_val" value={aboutData.numbers.stat4_val} class="admin-input" placeholder="1" />
+                  <label for="stat4_label" class="admin-label" style="margin-top: 0.5rem;">Stat 4 Label</label>
+                  <input type="text" id="stat4_label" name="stat4_label" value={aboutData.numbers.stat4_label} class="admin-input" placeholder="Maker answering your emails" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 3: My story -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">3. My Story Block</h2>
+              <p class="admin-field-hint" style="margin-bottom: 1rem;">Do not repeat the hero headline or intro here. This block is dedicated purely to the personal narrative and ethos.</p>
+              
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="story_heading" class="admin-label">Story Heading</label>
+                <input type="text" id="story_heading" name="story_heading" value={aboutData.story.heading} class="admin-input" />
+              </div>
+
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="story_pull_quote" class="admin-label">Pull-Quote (featured callout text)</label>
+                <input type="text" id="story_pull_quote" name="story_pull_quote" value={aboutData.story.pull_quote} class="admin-input" />
+              </div>
+
+              <div class="admin-form-group">
+                <label for="story_md" class="admin-label">Story Narrative (Markdown)</label>
+                <textarea id="story_md" name="story_md" class="md-textarea" rows="8">{aboutData.story.body_md}</textarea>
+              </div>
+            </div>
+
+            <!-- Section 4: How every pack is made -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">4. How Every Pack is Made (4 Steps)</h2>
+              <div class="steps-editor-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                {aboutData.steps.map((st, idx) => (
+                  <div class="step-card-box" style="padding: 1rem; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
+                    <div style="font-weight: 700; font-size: 0.8125rem; color: var(--brand-red); margin-bottom: 0.5rem;">Step {idx + 1}</div>
+                    <div class="admin-form-group" style="margin-bottom: 0.5rem;">
+                      <label class="admin-label">Title</label>
+                      <input type="text" name={`step_${idx}_title`} value={st.title} class="admin-input admin-input--sm" />
+                    </div>
+                    <div class="admin-form-group">
+                      <label class="admin-label">Text</label>
+                      <textarea name={`step_${idx}_text`} class="admin-input admin-input--sm" rows="3">{st.text}</textarea>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <!-- Section 5: On the workbench (4 Pack Covers) -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">5. On the Workbench (4 Gallery Covers)</h2>
+              <p class="admin-field-hint" style="margin-bottom: 1rem;">Choose 4 project slugs (one per line) to feature in the desktop mosaic and mobile gallery carousel.</p>
+              <textarea id="workbench_slugs" name="workbench_slugs" class="admin-input mono" rows="4">{aboutData.workbench.project_slugs.join('\n')}</textarea>
+              <span class="admin-field-hint" style="margin-top: 0.35rem; display: block;">Available project slugs: {allProjects.map(p => p.slug).join(', ')}</span>
+            </div>
+
+            <!-- Section 6: What you can expect from me -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">6. What You Can Expect From Me (3 Cards)</h2>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                {aboutData.expect_cards.map((ec, idx) => (
+                  <div style="padding: 1rem; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
+                    <div class="admin-form-group" style="margin-bottom: 0.5rem;">
+                      <label class="admin-label">Card {idx + 1} Title</label>
+                      <input type="text" name={`expect_${idx}_title`} value={ec.title} class="admin-input admin-input--sm" />
+                    </div>
+                    <div class="admin-form-group">
+                      <label class="admin-label">Card {idx + 1} Text</label>
+                      <textarea name={`expect_${idx}_text`} class="admin-input admin-input--sm" rows="3">{ec.text}</textarea>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <!-- Section 7: Work with me -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">7. Work With Me Block</h2>
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="work_heading" class="admin-label">Heading</label>
+                <input type="text" id="work_heading" name="work_heading" value={aboutData.work_with_me.heading} class="admin-input" />
+              </div>
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="work_text" class="admin-label">Description Text</label>
+                <textarea id="work_text" name="work_text" class="admin-input" rows="3">{aboutData.work_with_me.text}</textarea>
+              </div>
+              <div class="page-meta-grid">
+                <div class="admin-form-group">
+                  <label for="work_btn_text" class="admin-label">Button Text</label>
+                  <input type="text" id="work_btn_text" name="work_btn_text" value={aboutData.work_with_me.btn_text} class="admin-input" />
+                </div>
+                <div class="admin-form-group">
+                  <label for="work_btn_url" class="admin-label">Button Link URL</label>
+                  <input type="text" id="work_btn_url" name="work_btn_url" value={aboutData.work_with_me.btn_url} class="admin-input" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 8: Follow the builds -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">8. Follow the Builds (Social Links)</h2>
+              <div class="admin-alert admin-alert--info" style="font-size: 0.8125rem;">
+                <Icon name="info" size={15} />
+                <span>Social channel links (YouTube, Instagram, GitHub, LinkedIn) are managed centrally under <a href="/admin/settings/images" target="_blank" style="color: var(--brand-red); text-decoration: underline;">Admin &gt; Site Images &amp; Links</a> so they stay synced across all pages. Empty links are automatically hidden.</span>
+              </div>
+            </div>
+
+            <!-- Section 9: Closing CTA -->
+            <div class="editor-card">
+              <h2 class="editor-card__title">9. Closing Call to Action</h2>
+              <div class="admin-form-group" style="margin-bottom: 1rem;">
+                <label for="cta_heading" class="admin-label">Heading</label>
+                <input type="text" id="cta_heading" name="cta_heading" value={aboutData.cta.heading} class="admin-input" />
+              </div>
+              <div class="admin-form-group">
+                <label for="cta_subline" class="admin-label">Subline</label>
+                <input type="text" id="cta_subline" name="cta_subline" value={aboutData.cta.subline} class="admin-input" />
+              </div>
+            </div>
+          </>
+        )}
+
+        {!isAbout && (
           <div class="editor-card">
-            <h2 class="editor-card__title">Profile Photo</h2>
-            <div class="photo-upload-grid">
-              <div class="photo-preview-wrap">
-                <img
-                  src={page.image_url || '/brand/profile.jpg'}
-                  alt="Profile preview"
-                  id="photo-preview-img"
-                  class="photo-preview"
-                />
-              </div>
-              <div class="photo-input-col">
-                <label for="image" class="admin-label">Upload New Photo</label>
-                <input
-                  type="file"
-                  id="image"
-                  name="image"
-                  accept="image/*"
-                  class="admin-file-input"
-                />
-                <span class="admin-field-hint">High-resolution portrait photo (JPG, PNG). Replaces the About page portrait.</span>
-              </div>
+            <div class="editor-card__head">
+              <h2 class="editor-card__title">Content (Markdown)</h2>
+              {page.sectionHint && (
+                <span class="section-hint-badge" title={page.sectionHint}>
+                  <Icon name="info" size={13} /> {page.sectionHint}
+                </span>
+              )}
+            </div>
+
+            <!-- Markdown Toolbar -->
+            <div class="md-toolbar" role="toolbar" aria-label="Markdown formatting tools">
+              <button type="button" class="md-tool-btn" data-tool="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="md-tool-btn" data-tool="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+              <button type="button" class="md-tool-btn" data-tool="h2" title="Heading 2">H2</button>
+              <button type="button" class="md-tool-btn" data-tool="link" title="Link">Link</button>
+              <button type="button" class="md-tool-btn" data-tool="list" title="Bullet list">List</button>
+              <button type="button" class="md-tool-btn" data-tool="quote" title="Quote">Quote</button>
+              <button type="button" class="md-tool-btn" data-tool="code" title="Code block">Code</button>
+              <button type="button" class="md-tool-btn" data-tool="image" title="Image">Image</button>
+            </div>
+
+            <!-- Markdown Textarea -->
+            <div class="textarea-wrap">
+              <textarea
+                id="content_md"
+                name="content_md"
+                class="md-textarea"
+                placeholder="Write page content in Markdown..."
+                rows="16"
+              >{page.markdown}</textarea>
+            </div>
+
+            <!-- Word count & Saved info footer -->
+            <div class="md-footer">
+              <span id="word-count-display">{wordCount} words.</span>
+              <span class="md-footer-sep">Saved {formatDate(page.updated_at)}.</span>
             </div>
           </div>
         )}

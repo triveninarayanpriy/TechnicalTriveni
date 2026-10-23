@@ -7,6 +7,12 @@ import { listProjects, type Project } from '../lib/db';
 import { formatINR } from '../lib/format';
 import { env } from 'cloudflare:workers';
 import { getSiteAssets, buildSrcSet } from '../lib/site-assets';
+import { getAboutPageData } from '../lib/site-content';
+
+const aboutData = await getAboutPageData(env.DB);
+const makerName = aboutData.hero.name || PROFILE.name;
+const makerCreds = aboutData.hero.credentials || [];
+const makerBio = aboutData.hero.intro || "I'm a B.Tech ECE (VLSI) student at NIT Patna. Every pack on this site is built and tested on my workbench before you ever see it.";
 
 let allProjects: Project[] = [];
 try {
@@ -262,10 +268,15 @@ const jsonLd = {
         </div>
         <div class="maker-info">
           <span class="maker-eyebrow">Meet the maker</span>
-          <h2 class="maker-title">{PROFILE.name}</h2>
-          <p class="maker-bio">
-            I'm a B.Tech ECE (VLSI) student at NIT Patna. Every electronics, software and AI project on Technical Triveni is built and tested by me. YouTube shows the highlight reel; this is where you get the complete verified code, schematics and parts lists to actually finish the build.
-          </p>
+          <h2 class="maker-title">{makerName}</h2>
+          {makerCreds.length > 0 && (
+            <div class="maker-creds">
+              {makerCreds.map((c) => (
+                <span class="maker-cred-chip">{c}</span>
+              ))}
+            </div>
+          )}
+          <p class="maker-bio">{makerBio}</p>
           <div class="maker-socials">
             {makerSocials.map((s) => (
               <a href={s.href} class="maker-social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
@@ -273,7 +284,7 @@ const jsonLd = {
               </a>
             ))}
           </div>
-          <a href="/about" class="maker-link">Read more about Triveni &rarr;</a>
+          <a href="/about" class="maker-link">Read my story &rarr;</a>
         </div>
       </div>
     </section>
@@ -368,23 +379,39 @@ const jsonLd = {
 
     <!-- Creator Row -->
     <section class="m-section">
-      <div class="m-creator-row">
-        <img
-          src={makerPhotoUrl}
-          srcset={makerPhotoSrcSet || undefined}
-          alt={makerPhotoAlt}
-          class="m-creator-avatar"
-          width="60"
-          height="60"
-          loading="lazy"
-          onerror="this.onerror=null;this.src='/brand/profile.jpg';"
-        />
-        <div class="m-creator-info">
-          <strong class="m-creator-name">{PROFILE.name}</strong>
-          <p class="m-creator-bio">
-            B.Tech ECE (VLSI) student at NIT Patna. Every pack is built and tested by me.
-          </p>
-          <a href="/about" class="m-creator-link">Read more about Triveni</a>
+      <div class="m-creator-card">
+        <div class="m-creator-top">
+          <img
+            src={makerPhotoUrl}
+            srcset={makerPhotoSrcSet || undefined}
+            alt={makerPhotoAlt}
+            class="m-creator-avatar"
+            width="60"
+            height="60"
+            loading="lazy"
+            onerror="this.onerror=null;this.src='/brand/profile.jpg';"
+          />
+          <div class="m-creator-meta">
+            <strong class="m-creator-name">{makerName}</strong>
+            {makerCreds.length > 0 && (
+              <div class="m-creator-creds">
+                {makerCreds.slice(0, 2).map((c) => (
+                  <span class="m-creator-cred-chip">{c}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <p class="m-creator-bio">{makerBio}</p>
+        <div class="m-creator-bottom">
+          <div class="m-creator-socials">
+            {makerSocials.map((s) => (
+              <a href={s.href} class="maker-social-btn maker-social-btn--sm" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+                <Icon name={s.icon} size={15} />
+              </a>
+            ))}
+          </div>
+          <a href="/about" class="m-creator-link">Read my story &rarr;</a>
         </div>
       </div>
     </section>
@@ -734,6 +761,21 @@ const jsonLd = {
     margin: 0;
     line-height: 1.15;
   }
+  .maker-creds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+  }
+  .maker-cred-chip {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+  }
   .maker-bio {
     font-size: 1rem;
     color: var(--muted);
@@ -989,14 +1031,19 @@ const jsonLd = {
     margin-top: 0.25rem;
   }
 
-  .m-creator-row {
+  .m-creator-card {
     background: #FFFFFF;
     border: 1px solid var(--line);
-    border-radius: 1rem;
-    padding: 1rem;
+    border-radius: 1.25rem;
+    padding: 1.25rem;
     display: flex;
+    flex-direction: column;
     gap: 0.875rem;
+  }
+  .m-creator-top {
+    display: flex;
     align-items: center;
+    gap: 1rem;
   }
   .m-creator-avatar {
     width: 3.75rem;
@@ -1005,22 +1052,55 @@ const jsonLd = {
     object-fit: cover;
     flex-shrink: 0;
   }
-  .m-creator-info {
+  .m-creator-meta {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.35rem;
     min-width: 0;
   }
   .m-creator-name {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--ink);
   }
+  .m-creator-creds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .m-creator-cred-chip {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+  }
   .m-creator-bio {
-    font-size: max(12px, 0.8125rem);
+    font-size: max(12px, 0.875rem);
     color: var(--muted);
-    line-height: 1.4;
+    line-height: 1.5;
     margin: 0;
+  }
+  .m-creator-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--line);
+  }
+  .m-creator-socials {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .maker-social-btn--sm {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
   }
   .m-creator-link {
     font-size: max(12px, 0.8125rem);

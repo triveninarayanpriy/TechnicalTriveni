@@ -7,708 +7,1023 @@ import { listProjects } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 import { getEffectiveContent } from '../lib/pages';
 import { getSiteAssets, buildSrcSet } from '../lib/site-assets';
+import { getAboutPageData } from '../lib/site-content';
 
 const pageData = await getEffectiveContent(env.DB, 'about');
 if (pageData.published === 0) return Astro.redirect('/404');
 
+const aboutData = await getAboutPageData(env.DB);
 const siteAssets = await getSiteAssets(env.DB);
-const profilePhoto = pageData.image_url || siteAssets.maker_photo?.url || '/brand/profile.jpg';
-const profileAlt = siteAssets.maker_photo?.alt || PROFILE.name;
-const profileSrcSet = buildSrcSet(siteAssets.maker_photo || { url: '' });
-const bioHtml = renderMarkdown(pageData.markdown);
 
-// Fetch projects for count and closing card covers
-let packCount = 5;
-let featuredCovers: string[] = ['/covers/esp32-weather.png', '/covers/line-robot.png', '/covers/ai-camera.png'];
+// Fetch projects for live stats and workbench mosaic
+let publishedProjects = [];
 try {
-  const allProjects = await listProjects(env.DB, { publishedOnly: true });
-  if (allProjects.length > 0) {
-    packCount = allProjects.length;
-    const covers = allProjects.map((p) => p.cover_image).filter(Boolean) as string[];
-    if (covers.length > 0) {
-      featuredCovers = covers.slice(0, 3);
-    }
-  }
+  publishedProjects = await listProjects(env.DB, { publishedOnly: true, limit: 50 });
 } catch {}
 
+const totalProjectsCount = publishedProjects.length || 5;
+const freeDownloadsCount = publishedProjects.filter((p) => (p.price_inr ?? 0) <= 0 || p.combo_enabled === 0).length || 3;
+
+// Resolve 4 workbench pack covers
+const workbenchSlugs = aboutData.workbench.project_slugs;
+const workbenchItems = workbenchSlugs
+  .map((s) => publishedProjects.find((p) => p.slug === s || String(p.id) === s))
+  .filter(Boolean);
+
+// Fallbacks if not enough slugs matched
+const fallbackProjects = publishedProjects.filter((p) => !workbenchItems.some((w) => w?.id === p.id));
+while (workbenchItems.length < 4 && fallbackProjects.length > 0) {
+  workbenchItems.push(fallbackProjects.shift());
+}
+
+// Fallback images matching mockup if no projects uploaded
+const defaultMosaic = [
+  { title: 'DIY Arduino Drone', cover: '/covers/esp32-weather.png', slug: 'arduino-drone' },
+  { title: 'ESP32 Blynk Smart Relay', cover: '/covers/rfid-lock.png', slug: 'esp32-blynk-iot-smart-relay-switch' },
+  { title: 'Line-Following Robot', cover: '/covers/line-robot.png', slug: 'line-following-robot-arduino-obstacle-gate' },
+  { title: '100+ Electronics Components', cover: '/covers/digital-clock.png', slug: '100-electronics-components' },
+];
+
+const resolvedWorkbench = [0, 1, 2, 3].map((i) => {
+  const p = workbenchItems[i];
+  if (p) {
+    return {
+      title: p.title,
+      cover: p.cover_image || defaultMosaic[i]?.cover || '/covers/esp32-weather.png',
+      slug: p.slug,
+    };
+  }
+  return defaultMosaic[i];
+});
+
+// Social links - shown ONCE on the page
 const ytLink = siteAssets.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
 const igLink = siteAssets.social_links?.instagram !== undefined ? siteAssets.social_links.instagram : SITE.socials.instagram;
 const ghLink = siteAssets.social_links?.github !== undefined ? siteAssets.social_links.github : SITE.socials.github;
 const liLink = siteAssets.social_links?.linkedin !== undefined ? siteAssets.social_links.linkedin : SITE.socials.linkedin;
-const showIcons = siteAssets.social_links?.show_icons !== false;
 
-const socials = showIcons
-  ? [
-      { label: 'YouTube', href: ytLink, icon: 'youtube' },
-      { label: 'Instagram', href: igLink, icon: 'instagram' },
-      { label: 'GitHub', href: ghLink, icon: 'github' },
-      { label: 'LinkedIn', href: liLink, icon: 'linkedin' },
-    ].filter((s) => s.href && s.href.trim())
-  : [];
+const socials = [
+  { platform: 'YouTube', handle: 'Build videos and walkthroughs', url: ytLink, icon: 'youtube' },
+  { platform: 'Instagram', handle: 'Reels and workbench stories', url: igLink, icon: 'instagram' },
+  { platform: 'GitHub', handle: 'Source repos', url: ghLink, icon: 'github' },
+  { platform: 'LinkedIn', handle: 'Updates and projects', url: liLink, icon: 'linkedin' },
+].filter((s) => s.url && s.url.trim());
 
-const proofCards = [
-  {
-    icon: 'check-circle',
-    title: 'Hardware verified',
-    text: 'Built on a real breadboard or PCB, programmed and bench-tested before any files are released.',
-  },
-  {
-    icon: 'play',
-    title: 'Video proof',
-    text: 'Every build is demonstrated on YouTube. You see it working before you order parts.',
-  },
-  {
-    icon: 'layers',
-    title: 'Complete project packs',
-    text: 'Source code, wiring pinouts, a verified parts list with store links, and 3D printable STL files.',
-  },
-];
+const profilePhoto = pageData.image_url || siteAssets.maker_photo?.url || PROFILE.photo || '/brand/profile.jpg';
+const profileAlt = siteAssets.maker_photo?.alt || aboutData.hero.name || PROFILE.name;
+const profileSrcSet = buildSrcSet(siteAssets.maker_photo || { url: '' });
+
+// Render Story Markdown ONLY (hero headline and intro are kept out of this)
+const storyHtml = renderMarkdown(aboutData.story.body_md);
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Person',
-  name: PROFILE.name,
+  name: aboutData.hero.name || PROFILE.name,
   jobTitle: PROFILE.title,
   worksFor: { '@type': 'Organization', name: SITE.name },
-  url: Astro.site?.toString(),
-  sameAs: socials.map((s) => s.href),
+  url: Astro.site?.toString() || 'https://www.technicaltriveni.me',
+  sameAs: socials.map((s) => s.url),
 };
 ---
 
 <Base
   title={pageData?.title || 'About | Technical Triveni'}
-  description={`About ${PROFILE.name} — the maker behind Technical Triveni. Real builds tested on the workbench.`}
+  description={`About ${aboutData.hero.name || PROFILE.name} — the maker behind Technical Triveni. Real builds tested on the workbench.`}
   jsonLd={jsonLd}
 >
-  <div class="about-page">
-    <!-- HERO: SPLIT MAKER BIO & PHOTO (media_1791937896363_108477b4.png) -->
-    <section class="about-hero">
-      <div class="container">
+  <div class="about-page-shell">
+    <div class="container about-container">
+      <!-- 1. HERO SECTION (Photo first on mobile, text left / photo right on desktop) -->
+      <section class="about-hero-section">
         <div class="about-hero-grid">
-          <!-- Left: Bio & Stats -->
-          <div class="about-bio-col">
-            <span class="about-eyebrow">About the maker</span>
-            <h1 class="about-title">Real builds. Tested on the workbench.</h1>
-            <p class="about-lead">
-              {PROFILE.lead || "I'm Triveni, a B.Tech ECE (VLSI) student at NIT Patna. Every electronics, software and AI project on Technical Triveni is built and tested by me."}
-            </p>
+          <!-- Text Column -->
+          <div class="about-hero-text">
+            <span class="about-eyebrow">{aboutData.hero.eyebrow}</span>
+            <h1 class="about-hero-headline">{aboutData.hero.headline}</h1>
+            <p class="about-hero-intro">{aboutData.hero.intro}</p>
 
-            <div class="about-stats-row">
-              <div class="about-stat-tile">
-                <span class="stat-number">100%</span>
-                <span class="stat-label">Hardware verified</span>
+            {aboutData.hero.credentials?.length > 0 && (
+              <div class="about-creds-row">
+                {aboutData.hero.credentials.map((cred) => (
+                  <span class="about-cred-chip">{cred}</span>
+                ))}
               </div>
-              <div class="about-stat-tile">
-                <span class="stat-number">Direct</span>
-                <span class="stat-label">Maker support</span>
-              </div>
-              <div class="about-stat-tile">
-                <span class="stat-number">{packCount}</span>
-                <span class="stat-label">Project packs</span>
-              </div>
-            </div>
+            )}
 
-            <div class="about-socials">
-              {socials.map((s) => (
-                <a href={s.href} class="about-social-btn" target="_blank" rel="noopener noreferrer" aria-label={s.label}>
-                  <Icon name={s.icon} size={18} />
-                </a>
-              ))}
+            <div class="about-hero-buttons">
+              <a href={aboutData.hero.btn1_url || '/projects'} class="btn btn-primary btn-about-hero">
+                {aboutData.hero.btn1_text || 'Browse projects'}
+              </a>
+              <a
+                href={aboutData.hero.btn2_url || ytLink || 'https://youtube.com/@TechnicalTriveni'}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-secondary btn-about-hero"
+              >
+                <Icon name="play" size={15} />
+                <span>{aboutData.hero.btn2_text || 'Watch on YouTube'}</span>
+              </a>
             </div>
           </div>
 
-          <!-- Right: Portrait Photo -->
-          <div class="about-photo-col">
-            <div class="about-photo-wrap">
+          <!-- Photo Column -->
+          <div class="about-hero-photo-wrap">
+            <div class="about-photo-card">
               <img
                 src={profilePhoto}
                 srcset={profileSrcSet || undefined}
-                sizes="(max-width: 768px) 100vw, 480px"
                 alt={profileAlt}
-                class="about-portrait"
-                width={siteAssets.maker_photo?.width || 480}
-                height={siteAssets.maker_photo?.height || 560}
+                width="540"
+                height="560"
+                class="about-photo-img"
                 loading="eager"
-                onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+                fetchpriority="high"
+                decoding="async"
               />
-              <div class="about-photo-fallback" style="display: none;" aria-hidden="true">
-                <span>TNP</span>
-              </div>
+              {aboutData.hero.badge_text && (
+                <div class="about-photo-badge">
+                  <span class="badge-dot"></span>
+                  <span>{aboutData.hero.badge_text}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- DARK STORY BAND (#111418) -->
-    <section class="about-story-section">
-      <div class="container">
-        <div class="about-story-band">
-          {pageData.is_custom ? (
-            <div class="about-story-prose prose-dark" set:html={bioHtml} />
-          ) : (
-            <>
-              <div class="story-left">
-                <h2 class="story-headline">
-                  I was tired of electronics tutorials that don't actually work.
-                </h2>
-              </div>
-              <div class="story-right">
-                <p class="story-body">
-                  Most guides leave out critical pinouts, skip power decoupling, or share untested code that throws errors the moment you clone it.
-                </p>
-                <p class="story-body">
-                  So there is one promise here: <span class="story-highlight">complete transparency and physical proof</span>.
-                </p>
-              </div>
-            </>
-          )}
+      <!-- 2. NUMBERS STRIP -->
+      <section class="about-numbers-section">
+        <div class="numbers-strip-grid">
+          <div class="number-stat-item">
+            <span class="stat-big-val">{totalProjectsCount}</span>
+            <span class="stat-small-label">Projects built and documented</span>
+          </div>
+          <div class="number-stat-item">
+            <span class="stat-big-val">{freeDownloadsCount}</span>
+            <span class="stat-small-label">Free downloads, no signup</span>
+          </div>
+          <div class="number-stat-item">
+            <span class="stat-big-val">{aboutData.numbers.stat3_val}</span>
+            <span class="stat-small-label">{aboutData.numbers.stat3_label}</span>
+          </div>
+          <div class="number-stat-item">
+            <span class="stat-big-val">{aboutData.numbers.stat4_val}</span>
+            <span class="stat-small-label">{aboutData.numbers.stat4_label}</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- PROOF, NOT PROMISES SECTION -->
-    <section class="about-proof-section">
-      <div class="container">
-        <h2 class="about-sec-heading">Proof, not promises</h2>
-        <div class="about-proof-grid">
-          {proofCards.map((c) => (
-            <div class="about-proof-card">
-              <span class="proof-card-icon">
-                <Icon name={c.icon} size={20} />
-              </span>
-              <h3 class="proof-card-title">{c.title}</h3>
-              <p class="proof-card-text">{c.text}</p>
+      <!-- 3. MY STORY -->
+      <section class="about-story-section">
+        <div class="about-story-grid">
+          <div class="story-left-col">
+            <span class="story-eyebrow">{aboutData.story.eyebrow || 'My story'}</span>
+            <h2 class="story-heading">{aboutData.story.heading}</h2>
+            {aboutData.story.pull_quote && (
+              <div class="story-pull-quote-wrap">
+                <span class="quote-bar"></span>
+                <p class="story-pull-quote">{aboutData.story.pull_quote}</p>
+              </div>
+            )}
+          </div>
+
+          <div class="story-right-col">
+            <div class="story-prose" set:html={storyHtml}></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. HOW EVERY PACK IS MADE -->
+      <section class="about-steps-section">
+        <div class="section-heading-wrap">
+          <h2 class="section-block-title">How every pack is made</h2>
+          <p class="section-block-sub">Nothing is published until it has survived the workbench.</p>
+        </div>
+
+        <div class="how-steps-grid">
+          {aboutData.steps.map((st, i) => (
+            <div class="step-card">
+              <div class="step-icon-box">
+                <Icon name={st.icon || 'cube'} size={20} />
+              </div>
+              <span class="step-index-label">Step {i + 1}</span>
+              <h3 class="step-title">{st.title}</h3>
+              <p class="step-desc">{st.text}</p>
             </div>
           ))}
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- FOLLOW THE BUILDS (4 SOCIAL PILLS) -->
-    <section class="about-socials-section">
-      <div class="container">
-        <h2 class="about-sec-heading">Follow the builds</h2>
-        <div class="about-socials-grid">
+      <!-- 5. ON THE WORKBENCH (Mosaic on desktop, horizontal scroll on mobile) -->
+      <section class="about-workbench-section">
+        <div class="workbench-header-row">
+          <div>
+            <h2 class="section-block-title">On the workbench</h2>
+            <p class="section-block-sub">A peek at the builds behind the packs.</p>
+          </div>
+          <a href="/projects" class="see-all-link">
+            <span>See all projects</span>
+            <Icon name="arrow-right" size={14} />
+          </a>
+        </div>
+
+        <!-- Desktop Mosaic / Mobile Horizontal Carousel -->
+        <div class="workbench-mosaic-layout">
+          <!-- Large Feature Box (Left) -->
+          <a href={`/projects/${resolvedWorkbench[0].slug}`} class="mosaic-item mosaic-item--large">
+            <img
+              src={resolvedWorkbench[0].cover}
+              alt={resolvedWorkbench[0].title}
+              width="640"
+              height="480"
+              class="mosaic-img"
+              loading="lazy"
+            />
+            <div class="mosaic-overlay">
+              <span class="mosaic-title">{resolvedWorkbench[0].title}</span>
+            </div>
+          </a>
+
+          <!-- Right Cluster (3 items) -->
+          <div class="mosaic-cluster-right">
+            <div class="mosaic-top-row">
+              <a href={`/projects/${resolvedWorkbench[1].slug}`} class="mosaic-item mosaic-item--med">
+                <img
+                  src={resolvedWorkbench[1].cover}
+                  alt={resolvedWorkbench[1].title}
+                  width="360"
+                  height="220"
+                  class="mosaic-img"
+                  loading="lazy"
+                />
+                <div class="mosaic-overlay">
+                  <span class="mosaic-title">{resolvedWorkbench[1].title}</span>
+                </div>
+              </a>
+
+              <a href={`/projects/${resolvedWorkbench[2].slug}`} class="mosaic-item mosaic-item--med">
+                <img
+                  src={resolvedWorkbench[2].cover}
+                  alt={resolvedWorkbench[2].title}
+                  width="360"
+                  height="220"
+                  class="mosaic-img"
+                  loading="lazy"
+                />
+                <div class="mosaic-overlay">
+                  <span class="mosaic-title">{resolvedWorkbench[2].title}</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Bottom Wide Banner -->
+            <a href={`/projects/${resolvedWorkbench[3].slug}`} class="mosaic-item mosaic-item--banner">
+              <img
+                src={resolvedWorkbench[3].cover}
+                alt={resolvedWorkbench[3].title}
+                width="720"
+                height="220"
+                class="mosaic-img"
+                loading="lazy"
+              />
+              <div class="mosaic-overlay">
+                <span class="mosaic-title">{resolvedWorkbench[3].title}</span>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. WHAT YOU CAN EXPECT -->
+      <section class="about-expect-section">
+        <h2 class="section-block-title">What you can expect from me</h2>
+
+        <div class="expect-cards-grid">
+          {aboutData.expect_cards.map((ec) => (
+            <div class="expect-card">
+              <div class="expect-icon-box">
+                <Icon name={ec.icon || 'shield'} size={20} />
+              </div>
+              <h3 class="expect-title">{ec.title}</h3>
+              <p class="expect-desc">{ec.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- 7. WORK WITH ME -->
+      <section class="about-work-section">
+        <div class="work-card">
+          <div class="work-copy">
+            <h2 class="work-title">{aboutData.work_with_me.heading}</h2>
+            <p class="work-desc">{aboutData.work_with_me.text}</p>
+          </div>
+          <div class="work-action">
+            <a href={aboutData.work_with_me.btn_url || '/contact'} class="btn btn-primary btn-work">
+              {aboutData.work_with_me.btn_text || 'Get in touch'}
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. FOLLOW THE BUILDS (Social links shown ONCE on the page) -->
+      <section class="about-socials-section">
+        <h2 class="section-block-title">Follow the builds</h2>
+
+        <div class="socials-cards-grid">
           {socials.map((s) => (
-            <a href={s.href} target="_blank" rel="noopener noreferrer" class="social-pill-card">
-              <span>{s.label}</span>
-              <span class="social-arrow">&gt;</span>
+            <a href={s.url} target="_blank" rel="noopener noreferrer" class="social-nav-card">
+              <div class="social-card-left">
+                <div class="social-card-icon">
+                  <Icon name={s.icon} size={20} />
+                </div>
+                <div>
+                  <h3 class="social-card-platform">{s.platform}</h3>
+                  <span class="social-card-handle">{s.handle}</span>
+                </div>
+              </div>
+              <Icon name="chevron-right" size={16} class="social-card-arrow" />
             </a>
           ))}
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- EXPLORE THE PROJECT PACKS CLOSING CARD -->
-    <section class="about-closing-section">
-      <div class="container">
-        <div class="about-closing-card">
-          <div class="closing-text-col">
-            <h2 class="closing-title">Explore the project packs</h2>
-            <p class="closing-desc">
-              From flight controllers to autonomous robotics, full documentation ready for your workbench.
-            </p>
-            <a href="/projects" class="btn-closing-red">Browse all projects</a>
+      <!-- 9. CLOSING CALL TO ACTION -->
+      <section class="about-closing-section">
+        <div class="about-cta-banner">
+          <div class="cta-banner-text">
+            <h2 class="cta-banner-heading">{aboutData.cta.heading}</h2>
+            <p class="cta-banner-subline">{aboutData.cta.subline}</p>
           </div>
-
-          <div class="closing-covers-col">
-            {featuredCovers.map((src, i) => (
-              <img
-                src={src}
-                alt={`Project pack ${i + 1}`}
-                class="closing-thumb"
-                width="160"
-                height="100"
-                loading="lazy"
-                onerror="this.src='/brand/og-image.png'"
-              />
-            ))}
+          <div class="cta-banner-buttons">
+            <a href={aboutData.cta.btn1_url || '/projects?price=free'} class="btn btn-primary btn-cta-primary">
+              <Icon name="download" size={16} />
+              <span>{aboutData.cta.btn1_text || 'Free downloads'}</span>
+            </a>
+            <a href={aboutData.cta.btn2_url || '/projects'} class="btn btn-cta-white">
+              <span>{aboutData.cta.btn2_text || 'Browse all projects'}</span>
+            </a>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
 </Base>
 
 <style>
-  .about-page {
-    background: #FFFFFF;
-    color: var(--ink);
+  .about-page-shell {
+    padding-bottom: 5rem;
+    overflow-x: clip;
+  }
+  .about-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
   }
 
-  /* Hero Section */
-  .about-hero {
-    padding: 3rem 0 2.25rem;
+  /* 1. HERO SECTION */
+  .about-hero-section {
+    padding: 3.5rem 0 3rem 0;
   }
   .about-hero-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
     gap: 3.5rem;
     align-items: center;
   }
-  .about-bio-col,
-  .about-photo-col {
-    min-width: 0;
-  }
-  @media (max-width: 900px) {
-    .about-hero {
-      padding: 1.75rem 0 2rem;
-    }
-    .about-hero-grid {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 1.75rem;
-      text-align: center;
-    }
-    .about-eyebrow {
-      margin-inline: auto;
-    }
-    .about-title {
-      font-size: clamp(24px, 5vw, 32px);
-      margin: 0 0 0.75rem;
-    }
-    .about-lead {
-      font-size: 0.9375rem;
-      line-height: 1.5;
-      margin: 0 0 1.25rem;
-    }
-    .about-stats-row {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1.25rem;
-    }
-    .about-stat-tile {
-      padding: 0.75rem 0.375rem;
-      border-radius: 0.75rem;
-    }
-    .stat-number {
-      font-size: 1rem;
-      white-space: nowrap;
-      margin-bottom: 0.125rem;
-    }
-    .stat-label {
-      font-size: max(12px, 0.6875rem);
-      line-height: 1.2;
-    }
-    .about-socials {
-      justify-content: center;
-      gap: 0.625rem;
-      margin-top: 0.25rem;
-    }
-    .about-social-btn {
-      width: 2.375rem;
-      height: 2.375rem;
-    }
-    .about-photo-col {
-      display: flex;
-      justify-content: center;
-    }
-    .about-photo-wrap {
-      max-width: 16.875rem;
-      width: 100%;
-      margin: 0 auto;
-      border-radius: 1.25rem;
-      aspect-ratio: 4 / 5;
-    }
-  }
-
   .about-eyebrow {
-    font-size: max(12px, 0.75rem);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--red);
     display: block;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--brand-red, #D32F2F);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     margin-bottom: 0.75rem;
   }
-  .about-title {
-    font-size: clamp(30px, 4vw, 44px);
-    font-weight: 700;
+  .about-hero-headline {
+    font-size: clamp(2rem, 3.8vw, 3.25rem);
+    font-weight: 800;
     line-height: 1.15;
+    color: var(--text, #111827);
+    margin: 0 0 1.25rem 0;
     letter-spacing: -0.02em;
-    color: var(--ink);
-    margin: 0 0 1.125rem;
   }
-  .about-lead {
-    font-size: 1.0313rem;
-    line-height: 1.55;
-    color: var(--muted);
-    margin: 0 0 1.75rem;
+  .about-hero-intro {
+    font-size: clamp(1rem, 1.25vw, 1.125rem);
+    line-height: 1.6;
+    color: var(--text-muted, #4B5563);
+    margin: 0 0 1.75rem 0;
   }
-
-  .about-stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.875rem;
-    margin-bottom: 1.5rem;
-  }
-  .about-stat-tile {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 1rem;
-    padding: 1rem 1.125rem;
+  .about-creds-row {
     display: flex;
-    flex-direction: column;
-    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
   }
-  .stat-number {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ink);
-    line-height: 1.1;
-    margin-bottom: 0.25rem;
+  .about-cred-chip {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text, #111827);
+    background: #f1f5f9;
+    border: 1px solid var(--border, #E5E7EB);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
   }
-  .stat-label {
-    font-size: max(12px, 0.7813rem);
-    font-weight: 500;
-    color: var(--muted);
-  }
-
-  .about-socials {
+  .about-hero-buttons {
     display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
   }
-  .about-social-btn {
-    width: 2.625rem;
-    height: 2.625rem;
-    border-radius: 0.75rem;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink);
+  .btn-about-hero {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 999px;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    transition: all 180ms ease;
+    gap: 0.5rem;
     text-decoration: none;
   }
-  .about-social-btn:hover {
-    color: var(--red);
-    border-color: var(--red);
-    background: #FDE9EA;
-    transform: translateY(-0.125rem);
-  }
 
-  .about-photo-wrap {
+  /* Maker Photo Card */
+  .about-photo-card {
     position: relative;
-    border-radius: 1.5rem;
+    border-radius: 1.75rem;
     overflow: hidden;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-    aspect-ratio: 4 / 5;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
+    aspect-ratio: 1.05 / 1;
+    background: #f1f5f9;
   }
-  .about-portrait {
+  .about-photo-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center 20%;
+    object-position: center top;
     display: block;
   }
-  .about-photo-fallback {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, var(--dark) 0%, #2A303C 100%);
-    color: #FFFFFF;
+  .about-photo-badge {
+    position: absolute;
+    bottom: 1.25rem;
+    left: 1.25rem;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  .badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+  }
+
+  /* 2. NUMBERS STRIP */
+  .about-numbers-section {
+    padding: 2rem 0;
+    border-top: 1px solid var(--border, #E5E7EB);
+    border-bottom: 1px solid var(--border, #E5E7EB);
+    margin: 2rem 0 3.5rem 0;
+  }
+  .numbers-strip-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+  .number-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .stat-big-val {
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text, #111827);
+    letter-spacing: -0.03em;
+  }
+  .stat-small-label {
+    font-size: 0.875rem;
+    color: var(--text-muted, #4B5563);
+    line-height: 1.4;
+  }
+
+  /* 3. MY STORY */
+  .about-story-section {
+    padding: 2.5rem 0;
+    margin-bottom: 3.5rem;
+  }
+  .about-story-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    gap: 4rem;
+    align-items: flex-start;
+  }
+  .story-eyebrow {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--brand-red, #D32F2F);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+  .story-heading {
+    font-size: clamp(1.75rem, 2.8vw, 2.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text, #111827);
+    margin: 0 0 1.5rem 0;
+    letter-spacing: -0.02em;
+  }
+  .story-pull-quote-wrap {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .quote-bar {
+    width: 4px;
+    background: var(--brand-red, #D32F2F);
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .story-pull-quote {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.5;
+    color: var(--text, #111827);
+    margin: 0;
+  }
+  .story-prose {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--text-muted, #4B5563);
+  }
+  .story-prose :global(p) {
+    margin: 0 0 1.25rem 0;
+  }
+  .story-prose :global(strong) {
+    color: var(--text, #111827);
+    font-weight: 600;
+  }
+
+  /* 4. HOW EVERY PACK IS MADE */
+  .about-steps-section {
+    margin-bottom: 4rem;
+  }
+  .section-heading-wrap {
+    margin-bottom: 2rem;
+  }
+  .section-block-title {
+    font-size: clamp(1.625rem, 2.5vw, 2.25rem);
+    font-weight: 800;
+    color: var(--text, #111827);
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.02em;
+  }
+  .section-block-sub {
+    font-size: 0.9375rem;
+    color: var(--text-muted, #4B5563);
+    margin: 0;
+  }
+  .how-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+  }
+  .step-card {
+    background: #ffffff;
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+  }
+  .step-icon-box {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background: rgba(233, 36, 36, 0.08);
+    color: var(--brand-red, #D32F2F);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 4rem;
+    margin-bottom: 1.25rem;
+  }
+  .step-index-label {
+    display: block;
+    font-size: 0.75rem;
     font-weight: 700;
-    font-family: var(--font-display);
+    color: var(--text-muted, #4B5563);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+  }
+  .step-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text, #111827);
+    margin: 0 0 0.5rem 0;
+  }
+  .step-desc {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--text-muted, #4B5563);
+    margin: 0;
   }
 
-  /* Dark Story Band */
-  .about-story-section {
-    padding: 1.25rem 0 3rem;
+  /* 5. ON THE WORKBENCH (MOSAIC) */
+  .about-workbench-section {
+    margin-bottom: 4rem;
   }
-  .about-story-band {
-    background: var(--dark);
-    border-radius: 1.5rem;
-    padding: 3rem 2.5rem;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 2.5rem;
+  .workbench-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1.75rem;
+  }
+  .see-all-link {
+    display: inline-flex;
     align-items: center;
-  }
-  @media (max-width: 820px) {
-    .about-story-section {
-      padding: 0.75rem 0 2.25rem;
-    }
-    .about-story-band {
-      grid-template-columns: 1fr;
-      padding: 1.75rem 1.25rem;
-      gap: 1rem;
-      border-radius: 1.125rem;
-    }
-    .story-headline {
-      font-size: 1.25rem;
-    }
-    .story-body {
-      font-size: max(12px, 0.9063rem);
-      margin-bottom: 0.75rem;
-    }
-    .about-story-prose :global(h2) {
-      font-size: 1.25rem;
-      margin-bottom: 0.75rem;
-    }
-    .about-story-prose :global(h3) {
-      font-size: 1rem;
-      margin: 1.25rem 0 0.5rem;
-    }
-    .about-story-prose :global(p) {
-      font-size: max(12px, 0.875rem);
-      line-height: 1.55;
-      margin-bottom: 0.75rem;
-    }
-  }
-  .story-headline {
-    font-size: clamp(22px, 2.6vw, 30px);
-    font-weight: 700;
-    line-height: 1.25;
-    color: #FFFFFF;
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-  .story-body {
-    font-size: 0.9688rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.75);
-    margin: 0 0 1rem;
-  }
-  .story-body:last-child {
-    margin-bottom: 0;
-  }
-  .about-story-prose {
-    grid-column: 1 / -1;
-    max-width: 45rem;
-  }
-  .about-story-prose :global(h2) {
-    font-size: clamp(22px, 2.6vw, 30px);
-    font-weight: 700;
-    line-height: 1.25;
-    color: #FFFFFF;
-    margin: 0 0 1rem;
-    letter-spacing: -0.01em;
-  }
-  .about-story-prose :global(h3) {
-    font-size: clamp(17px, 2.2vw, 22px);
+    gap: 0.4rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    color: #FFFFFF;
-    margin: 1.5rem 0 0.625rem;
+    color: var(--brand-red, #D32F2F);
+    text-decoration: none;
   }
-  .about-story-prose :global(p) {
-    font-size: 0.9688rem;
-    line-height: 1.65;
-    color: rgba(255, 255, 255, 0.75);
-    margin: 0 0 0.875rem;
-  }
-  .about-story-prose :global(p:last-child) {
-    margin-bottom: 0;
-  }
-  .about-story-prose :global(strong) {
-    color: #FFFFFF;
-  }
-  .about-story-prose :global(a) {
-    color: var(--brand-red, #E11D48);
+  .see-all-link:hover {
     text-decoration: underline;
   }
-  .story-highlight {
-    color: #FFFFFF;
+  .workbench-mosaic-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr);
+    gap: 1.25rem;
+  }
+  .mosaic-cluster-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .mosaic-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .mosaic-item {
+    position: relative;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #0f172a;
+    display: block;
+    text-decoration: none;
+  }
+  .mosaic-item--large {
+    height: 100%;
+    min-height: 380px;
+  }
+  .mosaic-item--med {
+    height: 180px;
+  }
+  .mosaic-item--banner {
+    height: 188px;
+  }
+  .mosaic-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+  .mosaic-item:hover .mosaic-img {
+    transform: scale(1.03);
+  }
+  .mosaic-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.1) 60%, transparent 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 1.25rem;
+  }
+  .mosaic-title {
+    color: #ffffff;
+    font-size: 0.9375rem;
     font-weight: 600;
-    border-bottom: 2px solid var(--red);
-    padding-bottom: 0.125rem;
+    line-height: 1.35;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   }
 
-  /* Proof Section */
-  .about-proof-section {
-    padding: 1.25rem 0 3rem;
+  /* 6. WHAT YOU CAN EXPECT */
+  .about-expect-section {
+    margin-bottom: 4rem;
   }
-  .about-sec-heading {
-    font-size: 1.625rem;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -0.02em;
-    margin: 0 0 1.5rem;
-  }
-  .about-proof-grid {
+  .expect-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
+    margin-top: 1.75rem;
   }
-  @media (max-width: 820px) {
-    .about-proof-section {
-      padding: 0.75rem 0 2rem;
-    }
-    .about-sec-heading {
-      font-size: 1.375rem;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-    .about-proof-grid {
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-    .about-proof-card {
-      padding: 1.125rem 1rem;
-      border-radius: 1rem;
-    }
+  .expect-card {
+    background: #ffffff;
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 1rem;
+    padding: 1.75rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
   }
-  .about-proof-card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 1.125rem;
-    padding: 1.5rem 1.25rem;
+  .expect-icon-box {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background: rgba(233, 36, 36, 0.08);
+    color: var(--brand-red, #D32F2F);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
   }
-  .proof-card-icon {
-    color: var(--red);
-    display: inline-flex;
-    margin-bottom: 0.875rem;
-  }
-  .proof-card-title {
-    font-size: 1.0313rem;
+  .expect-title {
+    font-size: 1.125rem;
     font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 0.375rem;
+    color: var(--text, #111827);
+    margin: 0 0 0.5rem 0;
   }
-  .proof-card-text {
-    font-size: max(12px, 0.875rem);
-    line-height: 1.55;
-    color: var(--muted);
+  .expect-desc {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-muted, #4B5563);
     margin: 0;
   }
 
-  /* Socials Section */
-  .about-socials-section {
-    padding: 0 0 3rem;
+  /* 7. WORK WITH ME */
+  .about-work-section {
+    margin-bottom: 4rem;
   }
-  .about-socials-grid {
+  .work-card {
+    background: #ffffff;
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 1.25rem;
+    padding: 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+  }
+  .work-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text, #111827);
+    margin: 0 0 0.5rem 0;
+  }
+  .work-desc {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--text-muted, #4B5563);
+    margin: 0;
+    max-width: 44rem;
+  }
+  .btn-work {
+    padding: 0.75rem 1.75rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 999px;
+    white-space: nowrap;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  /* 8. FOLLOW THE BUILDS */
+  .about-socials-section {
+    margin-bottom: 4.5rem;
+  }
+  .socials-cards-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
+    gap: 1.25rem;
+    margin-top: 1.75rem;
   }
-  @media (max-width: 820px) {
-    .about-socials-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.625rem;
-    }
-    .social-pill-card {
-      padding: 0.75rem 0.875rem;
-      font-size: max(12px, 0.875rem);
-      border-radius: 0.75rem;
-    }
-  }
-  .social-pill-card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 0.875rem;
-    padding: 0.875rem 1.125rem;
+  .social-nav-card {
+    background: #ffffff;
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 1rem;
+    padding: 1.25rem;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    color: var(--ink);
-    font-weight: 600;
-    font-size: max(12px, 0.9063rem);
-    text-decoration: none;
-    transition: all 150ms ease;
-  }
-  .social-pill-card:hover {
-    border-color: var(--ink);
-  }
-  .social-arrow {
-    color: var(--muted);
-    font-weight: 700;
-  }
-
-  /* Closing Card */
-  .about-closing-section {
-    padding: 0 0 4rem;
-  }
-  .about-closing-card {
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 1.5rem;
-    padding: 2.25rem 2.5rem;
-    display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 2.25rem;
-    flex-wrap: wrap;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-  }
-  @media (max-width: 820px) {
-    .about-closing-section {
-      padding: 0 0 2.25rem;
-    }
-    .about-closing-card {
-      padding: 1.5rem 1.125rem;
-      border-radius: 1.125rem;
-      text-align: center;
-      gap: 1.25rem;
-    }
-    .closing-text-col {
-      margin-inline: auto;
-    }
-    .closing-title {
-      font-size: 1.25rem;
-    }
-    .closing-desc {
-      font-size: max(12px, 0.875rem);
-      margin-bottom: 1.125rem;
-    }
-    .btn-closing-red {
-      width: 100%;
-      text-align: center;
-      padding: 0.75rem 1.25rem;
-    }
-    .closing-covers-col {
-      justify-content: center;
-      gap: 0.5rem;
-    }
-    .closing-thumb {
-      width: 5.5rem;
-      height: 3.4375rem;
-      border-radius: 0.5rem;
-    }
-  }
-  .closing-text-col {
-    max-width: 30rem;
-  }
-  .closing-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 0.5rem;
-    letter-spacing: -0.01em;
-  }
-  .closing-desc {
-    font-size: max(12px, 0.9063rem);
-    color: var(--muted);
-    margin: 0 0 1.25rem;
-    line-height: 1.5;
-  }
-  .btn-closing-red {
-    background: var(--red);
-    color: #FFFFFF;
-    font-weight: 600;
-    font-size: max(12px, 0.9063rem);
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.75rem;
     text-decoration: none;
-    display: inline-block;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   }
-
-  .closing-covers-col {
+  .social-nav-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--brand-red, #D32F2F);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  }
+  .social-card-left {
     display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.875rem;
   }
-  .closing-thumb {
-    width: 8.125rem;
-    height: 4.875rem;
-    object-fit: cover;
+  .social-card-icon {
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 0.625rem;
-    border: 1px solid var(--line);
+    background: #f8fafc;
+    color: var(--text, #111827);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .social-card-platform {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text, #111827);
+    margin: 0 0 0.15rem 0;
+  }
+  .social-card-handle {
+    font-size: 0.75rem;
+    color: var(--text-muted, #4B5563);
+  }
+  .social-card-arrow {
+    color: var(--text-muted, #4B5563);
+    flex-shrink: 0;
+  }
+
+  /* 9. CLOSING CALL TO ACTION */
+  .about-cta-banner {
+    background: #0f172a;
+    border-radius: 1.5rem;
+    padding: 3rem;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+  }
+  .cta-banner-heading {
+    font-size: clamp(1.75rem, 2.8vw, 2.5rem);
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.02em;
+  }
+  .cta-banner-subline {
+    font-size: 1rem;
+    color: #94a3b8;
+    margin: 0;
+  }
+  .cta-banner-buttons {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .btn-cta-primary {
+    background: var(--brand-red, #D32F2F);
+    color: #ffffff;
+    padding: 0.85rem 1.75rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    border: none;
+  }
+  .btn-cta-white {
+    background: #ffffff;
+    color: #0f172a;
+    padding: 0.85rem 1.75rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    border: none;
+  }
+
+  /* =========================================================================
+     RESPONSIVE / MOBILE STYLES (<= 960px and <= 768px)
+     Follows prompt mobile rules:
+     - Photo first (4:5 or 1.05:1), then text
+     - Numbers strip 2x2
+     - Workbench horizontal scroll carousel (never wraps into 2 rows!)
+     - Social cards 2x2 or 1 col
+     ========================================================================= */
+  @media (max-width: 960px) {
+    .numbers-strip-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem 1.5rem;
+    }
+    .how-steps-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .socials-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .about-story-grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    .expect-cards-grid {
+      grid-template-columns: 1fr;
+    }
+    .work-card {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 2rem;
+    }
+    .about-cta-banner {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 2.25rem 1.75rem;
+    }
+    .cta-banner-buttons {
+      width: 100%;
+      flex-direction: column;
+    }
+    .btn-cta-primary, .btn-cta-white {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .about-hero-section {
+      padding: 1.5rem 0 2.5rem 0;
+    }
+    .about-hero-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    /* Photo first on mobile */
+    .about-hero-photo-wrap {
+      order: -1;
+      width: 100%;
+    }
+    .about-photo-card {
+      aspect-ratio: 1.05 / 1;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .about-hero-buttons {
+      width: 100%;
+      flex-direction: column;
+    }
+    .btn-about-hero {
+      width: 100%;
+      justify-content: center;
+    }
+    .how-steps-grid {
+      grid-template-columns: 1fr;
+    }
+    .socials-cards-grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* Workbench horizontal scroll-snap on mobile */
+    .workbench-mosaic-layout {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding-bottom: 1rem;
+      gap: 1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .workbench-mosaic-layout::-webkit-scrollbar {
+      height: 4px;
+    }
+    .workbench-mosaic-layout::-webkit-scrollbar-thumb {
+      background: var(--border, #E5E7EB);
+      border-radius: 4px;
+    }
+    .mosaic-item--large {
+      flex: 0 0 270px;
+      height: 200px;
+      min-height: 200px;
+      scroll-snap-align: start;
+    }
+    .mosaic-cluster-right {
+      display: contents;
+    }
+    .mosaic-top-row {
+      display: contents;
+    }
+    .mosaic-item--med, .mosaic-item--banner {
+      flex: 0 0 270px;
+      height: 200px;
+      scroll-snap-align: start;
+    }
   }
 </style>

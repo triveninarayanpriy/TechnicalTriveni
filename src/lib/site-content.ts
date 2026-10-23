@@ -1,0 +1,194 @@
+import type { D1Database } from '@cloudflare/workers-types';
+import { getSetting, setSetting } from './db';
+
+export interface AboutHeroData {
+  eyebrow: string;
+  headline: string;
+  intro: string;
+  credentials: string[];
+  btn1_text: string;
+  btn1_url: string;
+  btn2_text: string;
+  btn2_url: string;
+  badge_text: string;
+  name: string;
+}
+
+export interface AboutNumbersData {
+  stat3_val: string;
+  stat3_label: string;
+  stat4_val: string;
+  stat4_label: string;
+}
+
+export interface AboutStoryData {
+  eyebrow: string;
+  heading: string;
+  pull_quote: string;
+  body_md: string;
+}
+
+export interface AboutStepItem {
+  icon: string;
+  title: string;
+  text: string;
+}
+
+export interface AboutWorkbenchData {
+  project_slugs: string[];
+}
+
+export interface AboutExpectItem {
+  icon: string;
+  title: string;
+  text: string;
+}
+
+export interface AboutWorkWithMeData {
+  heading: string;
+  text: string;
+  btn_text: string;
+  btn_url: string;
+}
+
+export interface AboutCtaData {
+  heading: string;
+  subline: string;
+  btn1_text: string;
+  btn1_url: string;
+  btn2_text: string;
+  btn2_url: string;
+}
+
+export interface AboutPageData {
+  hero: AboutHeroData;
+  numbers: AboutNumbersData;
+  story: AboutStoryData;
+  steps: AboutStepItem[];
+  workbench: AboutWorkbenchData;
+  expect_cards: AboutExpectItem[];
+  work_with_me: AboutWorkWithMeData;
+  cta: AboutCtaData;
+}
+
+export const DEFAULT_ABOUT_DATA: AboutPageData = {
+  hero: {
+    eyebrow: 'About Technical Triveni',
+    headline: "Hi, I'm Triveni. I build, break, fix and document electronics projects.",
+    intro: "I'm a B.Tech ECE (VLSI) student at NIT Patna. Every pack on this site is built and tested on my workbench before you ever see it.",
+    credentials: ['NIT Patna, ECE (VLSI)', 'Manager, Innovation Hub', 'Hindi and English videos'],
+    btn1_text: 'Browse projects',
+    btn1_url: '/projects',
+    btn2_text: 'Watch on YouTube',
+    btn2_url: 'https://youtube.com/@TechnicalTriveni',
+    badge_text: 'Maker and developer',
+    name: 'Triveni Narayan Priy',
+  },
+  numbers: {
+    stat3_val: '100%',
+    stat3_label: 'Tested on real hardware',
+    stat4_val: '1',
+    stat4_label: 'Maker answering your emails',
+  },
+  story: {
+    eyebrow: 'My story',
+    heading: 'Why I started Technical Triveni',
+    pull_quote: "I was tired of electronics tutorials that don't actually work.",
+    body_md: `Most guides online leave out critical pinouts, skip power decoupling, or share untested code that throws errors the moment you clone it.
+
+So I started building the projects myself, on a real breadboard or PCB, and fixing every problem until the build actually worked. Then I filmed it and wrote it all down: the code, the wiring, the parts.
+
+Technical Triveni is built on a single promise: **complete transparency and physical proof.**`,
+  },
+  steps: [
+    {
+      icon: 'cube',
+      title: 'Build it',
+      text: 'On a real breadboard or PCB, programmed and assembled live.',
+    },
+    {
+      icon: 'tool',
+      title: 'Test and fix',
+      text: 'Stress-testing in daily runs, finding edge cases.',
+    },
+    {
+      icon: 'video',
+      title: 'Film it',
+      text: 'The full build walkthrough on YouTube, step by step.',
+    },
+    {
+      icon: 'book',
+      title: 'Document it',
+      text: 'Code, wiring tables and parts list, ready for release.',
+    },
+  ],
+  workbench: {
+    project_slugs: [
+      'arduino-drone',
+      'line-following-robot-arduino-obstacle-gate',
+      '100-electronics-components',
+      'esp32-blynk-iot-smart-relay-switch',
+    ],
+  },
+  expect_cards: [
+    {
+      icon: 'shield',
+      title: 'Nothing untested',
+      text: 'Every pack was built and tested on my workbench before any file is uploaded.',
+    },
+    {
+      icon: 'book',
+      title: 'Everything documented',
+      text: 'Clear schematics, wiring pinouts and parts lists with matching pin labels.',
+    },
+    {
+      icon: 'mail',
+      title: 'A real person replies',
+      text: 'Questions are answered by me. Include your Order ID and I will help.',
+    },
+  ],
+  work_with_me: {
+    heading: 'Work with me',
+    text: "Sponsorships, part reviews and collaboration inquiries. Mention 'Sponsorship' in the subject line, I usually reply within 24 to 48 business hours.",
+    btn_text: 'Get in touch',
+    btn_url: '/contact',
+  },
+  cta: {
+    heading: 'Start with a free pack',
+    subline: 'No signup, no email. Download the code and guide, then build.',
+    btn1_text: 'Free downloads',
+    btn1_url: '/projects?price=free',
+    btn2_text: 'Browse all projects',
+    btn2_url: '/projects',
+  },
+};
+
+export async function getAboutPageData(db: D1Database): Promise<AboutPageData> {
+  try {
+    const raw = await getSetting(db, 'page_about_data');
+    if (!raw) return DEFAULT_ABOUT_DATA;
+    const parsed = JSON.parse(raw);
+    return {
+      hero: { ...DEFAULT_ABOUT_DATA.hero, ...(parsed.hero || {}) },
+      numbers: { ...DEFAULT_ABOUT_DATA.numbers, ...(parsed.numbers || {}) },
+      story: { ...DEFAULT_ABOUT_DATA.story, ...(parsed.story || {}) },
+      steps: Array.isArray(parsed.steps) && parsed.steps.length === 4 ? parsed.steps : DEFAULT_ABOUT_DATA.steps,
+      workbench: {
+        project_slugs: Array.isArray(parsed.workbench?.project_slugs) && parsed.workbench.project_slugs.length > 0
+          ? parsed.workbench.project_slugs
+          : DEFAULT_ABOUT_DATA.workbench.project_slugs,
+      },
+      expect_cards: Array.isArray(parsed.expect_cards) && parsed.expect_cards.length === 3
+        ? parsed.expect_cards
+        : DEFAULT_ABOUT_DATA.expect_cards,
+      work_with_me: { ...DEFAULT_ABOUT_DATA.work_with_me, ...(parsed.work_with_me || {}) },
+      cta: { ...DEFAULT_ABOUT_DATA.cta, ...(parsed.cta || {}) },
+    };
+  } catch {
+    return DEFAULT_ABOUT_DATA;
+  }
+}
+
+export async function saveAboutPageData(db: D1Database, data: AboutPageData): Promise<void> {
+  await setSetting(db, 'page_about_data', JSON.stringify(data));
+}
