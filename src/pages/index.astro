@@ -1,15 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
-import { SITE, PROFILE } from '../lib/site';
+import { SITE } from '../lib/site';
 import { listProjects, type Project } from '../lib/db';
 import { youtubeId } from '../lib/format';
 import { env } from 'cloudflare:workers';
 import { getSiteAssets } from '../lib/site-assets';
-import { getAboutPageData, getHomePageData } from '../lib/site-content';
+import { getHomePageData } from '../lib/site-content';
 
 // Load live admin settings & content
 const homeData = await getHomePageData(env.DB);
-const aboutData = await getAboutPageData(env.DB);
 const siteAssets = await getSiteAssets(env.DB);
 
 // Fetch published projects
@@ -107,12 +106,6 @@ function getProjectChips(p: Project) {
   return chips.slice(0, 3);
 }
 
-// Maker Info from About Hero
-const makerName = aboutData.hero.name || PROFILE.name;
-const makerCreds = aboutData.hero.credentials?.length ? aboutData.hero.credentials : ['NIT Patna, ECE (VLSI)', 'Manager, Innovation Hub'];
-const makerBio = "Every project here is built and tested on my own workbench. YouTube shows the high-light reel; this is where you get the complete verified code, schematics, and parts lists to finish the build.";
-const makerPhoto = siteAssets.maker_photo?.url || '/brand/home-v2/1e2ad315960dc87dac027605d2efdff3.jpg';
-
 // Social Links
 const ytLink = siteAssets.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
 const igLink = siteAssets.social_links?.instagram !== undefined ? siteAssets.social_links.instagram : SITE.socials.instagram;
@@ -160,7 +153,7 @@ const jsonLd = {
               <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
             </svg>
             <span class="home-btn-free-desktop">{homeData.hero.btn2_text || 'Free downloads'}</span>
-            <span class="home-btn-free-mobile">Free</span>
+            <span class="home-btn-free-mobile">Free downloads</span>
           </a>
         </div>
 
@@ -257,103 +250,17 @@ const jsonLd = {
     </section>
 
     <!-- =========================================================================
-         2. START HERE (THREE PATH CARDS)
-         ========================================================================= -->
-    <section class="home-w home-start-here-section">
-      <!-- Desktop: 3 Grid Cards -->
-      <div class="home-start-grid-desktop">
-        <a href="/projects?price=free" class="home-card start-card">
-          <div class="start-card-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
-              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
-            </svg>
-          </div>
-          <h3 class="start-card-title">Free downloads</h3>
-          <p class="start-card-desc">Starter projects and reference sheets. No signup and no email.</p>
-          <span class="start-card-link">
-            See free downloads
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-          </span>
-        </a>
-
-        <a href="/projects" class="home-card start-card">
-          <div class="start-card-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
-              <path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path>
-            </svg>
-          </div>
-          <h3 class="start-card-title">Project packs</h3>
-          <p class="start-card-desc">Code, schematics, wiring tables and parts links for each build.</p>
-          <span class="start-card-link">
-            Browse packs
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-          </span>
-        </a>
-
-        <a href={ytLink || 'https://youtube.com/@TechnicalTriveni'} target="_blank" rel="noopener noreferrer" class="home-card start-card">
-          <div class="start-card-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
-              <path d="M7 4l13 8-13 8z"></path>
-            </svg>
-          </div>
-          <h3 class="start-card-title">Watch the builds</h3>
-          <p class="start-card-desc">Every project is documented end to end on YouTube.</p>
-          <span class="start-card-link">
-            Open the channel
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-          </span>
-        </a>
-      </div>
-
-      <!-- Mobile: 3 Stacked Cards with Chevron -->
-      <div class="home-start-list-mobile">
-        <a href="/projects?price=free" class="home-card start-card-m">
-          <div class="start-card-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
-              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
-            </svg>
-          </div>
-          <div class="start-card-m-text">
-            <b>Free downloads</b>
-            <div class="start-card-m-sub">No signup, no email</div>
-          </div>
-          <svg viewBox="0 0 24 24" aria-hidden="true" class="chevron-svg"><path d="M9 5l7 7-7 7"></path></svg>
-        </a>
-
-        <a href="/projects" class="home-card start-card-m">
-          <div class="start-card-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
-              <path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path>
-            </svg>
-          </div>
-          <div class="start-card-m-text">
-            <b>Project packs</b>
-            <div class="start-card-m-sub">Code, wiring, parts links</div>
-          </div>
-          <svg viewBox="0 0 24 24" aria-hidden="true" class="chevron-svg"><path d="M9 5l7 7-7 7"></path></svg>
-        </a>
-
-        <a href={ytLink || 'https://youtube.com/@TechnicalTriveni'} target="_blank" rel="noopener noreferrer" class="home-card start-card-m">
-          <div class="start-card-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="start-icon-svg">
-              <path d="M7 4l13 8-13 8z"></path>
-            </svg>
-          </div>
-          <div class="start-card-m-text">
-            <b>Watch the builds</b>
-            <div class="start-card-m-sub">Every project on YouTube</div>
-          </div>
-          <svg viewBox="0 0 24 24" aria-hidden="true" class="chevron-svg"><path d="M9 5l7 7-7 7"></path></svg>
-        </a>
-      </div>
-    </section>
-
-    <!-- =========================================================================
-         3. FEATURED PROJECTS (TABS: ALL / FREE / PAID, 4 PACK CARDS)
+         2. FEATURED PROJECTS (TABS: ALL / FREE / PAID, 4 PACK CARDS)
          ========================================================================= -->
     <section class="home-w home-featured-section">
       <div class="home-featured-header">
-        <h2 class="home-section-title">Featured projects</h2>
+        <div class="home-featured-title-wrap">
+          <h2 class="home-section-title">Featured projects</h2>
+          <a href="/projects" class="home-link-red home-view-all-mobile">
+            View all ({totalProjectsCount})
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
+        </div>
 
         <div class="home-featured-controls">
           <div class="home-filter-tabs">
@@ -363,6 +270,7 @@ const jsonLd = {
           </div>
           <a href="/projects" class="home-link-red home-view-all-link">
             View all {totalProjectsCount} projects
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
           </a>
         </div>
       </div>
@@ -521,17 +429,24 @@ const jsonLd = {
               </div>
             );
           })}
+          <a href="/projects?price=free" class="home-link-red home-free-more-mobile">
+            See all free downloads
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
         </div>
       </div>
     </section>
 
     <!-- =========================================================================
-         5. HOW IT WORKS (THREE STEPS & GUIDE LINK)
+         4. HOW IT WORKS (THREE STEPS & GUIDE LINK)
          ========================================================================= -->
     <section class="home-w home-how-it-works-section">
       <div class="home-section-header">
         <h2 class="home-section-title">How it works</h2>
-        <a href="/how-it-works" class="home-link-red">Read the full guide</a>
+        <a href="/how-it-works" class="home-link-red">
+          Read full guide
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="arrow-svg"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
       </div>
 
       <!-- Desktop: 3 Columns Grid -->
@@ -561,44 +476,36 @@ const jsonLd = {
         </div>
       </div>
 
-      <!-- Mobile: Vertical Timeline with Connecting Lines -->
-      <div class="how-timeline-mobile">
-        <div class="how-timeline-row">
-          <div class="how-timeline-left">
-            <span class="how-timeline-dot">1</span>
-            <span class="how-timeline-line"></span>
-          </div>
-          <div class="how-timeline-content">
-            <h3 class="how-timeline-title">Pick a project</h3>
-            <div class="how-timeline-desc">Each page shows what is inside before you download.</div>
+      <!-- Mobile: Clean Step Cards -->
+      <div class="how-cards-mobile">
+        <div class="how-step-card-mobile">
+          <span class="how-step-badge">1</span>
+          <div class="how-step-text">
+            <h3 class="how-step-title">Pick a project</h3>
+            <p class="how-step-desc">Browse free and paid packs. Each page shows what is inside before you download.</p>
           </div>
         </div>
 
-        <div class="how-timeline-row">
-          <div class="how-timeline-left">
-            <span class="how-timeline-dot">2</span>
-            <span class="how-timeline-line"></span>
-          </div>
-          <div class="how-timeline-content">
-            <h3 class="how-timeline-title">Download instantly</h3>
-            <div class="how-timeline-desc">Free packs download right away. Paid packs arrive by email.</div>
+        <div class="how-step-card-mobile">
+          <span class="how-step-badge">2</span>
+          <div class="how-step-text">
+            <h3 class="how-step-title">Download instantly</h3>
+            <p class="how-step-desc">Free packs download right away. Paid packs arrive by email right after payment.</p>
           </div>
         </div>
 
-        <div class="how-timeline-row">
-          <div class="how-timeline-left">
-            <span class="how-timeline-dot">3</span>
-          </div>
-          <div class="how-timeline-content">
-            <h3 class="how-timeline-title">Build with confidence</h3>
-            <div class="how-timeline-desc">Follow the steps, buy parts from the links, email me if stuck.</div>
+        <div class="how-step-card-mobile">
+          <span class="how-step-badge">3</span>
+          <div class="how-step-text">
+            <h3 class="how-step-title">Build with confidence</h3>
+            <p class="how-step-desc">Follow the steps, buy parts from the links, and email me if stuck.</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- =========================================================================
-         6. WATCH EVERY BUILD BEFORE YOU BUY (DARK BAND)
+         5. WATCH EVERY BUILD BEFORE YOU BUY (DARK BAND)
          ========================================================================= -->
     <section class="home-w home-watch-section">
       <div class="home-watch-band">
@@ -659,79 +566,6 @@ const jsonLd = {
           </svg>
           <span>Visit channel</span>
         </a>
-      </div>
-    </section>
-
-    <!-- =========================================================================
-         7. MEET THE MAKER (SYNCHRONIZED WITH ABOUT HERO)
-         ========================================================================= -->
-    <section class="home-w home-maker-section">
-      <div class="home-maker-grid">
-        <div class="home-maker-photo-col">
-          <img
-            src={makerPhoto}
-            alt={makerName}
-            class="home-maker-img"
-            loading="lazy"
-          />
-        </div>
-
-        <div class="home-maker-info-col">
-          <div class="home-eyebrow">Meet the maker</div>
-          <h2 class="home-maker-name">{makerName}</h2>
-
-          <div class="home-maker-creds">
-            {makerCreds.map((cred) => (
-              <span class="home-pill">{cred}</span>
-            ))}
-          </div>
-
-          <p class="home-maker-bio">{makerBio}</p>
-
-          <div class="home-maker-bottom">
-            <div class="home-maker-socials">
-              {socials.map((s) => (
-                <a
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="maker-social-box"
-                  aria-label={s.label}
-                >
-                  {s.icon === 'youtube' && (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
-                      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-                      <path d="M9.75 15.02 15.5 11.75 9.75 8.48z"></path>
-                    </svg>
-                  )}
-                  {s.icon === 'instagram' && (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
-                      <rect x="2" y="2" width="20" height="20" rx="5"></rect>
-                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                      <path d="M17.5 6.5h.01"></path>
-                    </svg>
-                  )}
-                  {s.icon === 'github' && (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
-                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                  )}
-                  {s.icon === 'linkedin' && (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" class="maker-social-svg">
-                      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-                      <rect x="2" y="9" width="4" height="12"></rect>
-                      <circle cx="4" cy="4" r="2"></circle>
-                    </svg>
-                  )}
-                </a>
-              ))}
-            </div>
-
-            <a href="/about" class="home-btn home-btn-outline home-maker-btn">
-              Read my story
-            </a>
-          </div>
-        </div>
       </div>
     </section>
   </div>
@@ -1083,73 +917,7 @@ const jsonLd = {
   }
 
   /* =========================================================================
-     2. START HERE SECTION STYLING
-     ========================================================================= */
-  .home-start-here-section {
-    padding-top: 16px;
-  }
-  .home-start-grid-desktop {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 20px;
-  }
-  .start-card {
-    padding: 20px 22px;
-    gap: 10px;
-    text-decoration: none;
-    color: #0F1115;
-    border-radius: 16px;
-    transition: transform 0.15s ease, border-color 0.15s ease;
-  }
-  .start-card:hover {
-    transform: translateY(-2px);
-    border-color: #CDD2D9;
-  }
-  .start-card-icon-box {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: #FDE9EA;
-    color: #D91F26;
-    display: grid;
-    place-items: center;
-    flex: none;
-  }
-  .start-icon-svg {
-    width: 20px;
-    height: 20px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .start-card-title {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-  }
-  .start-card-desc {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.45;
-    color: #5A6270;
-  }
-  .start-card-link {
-    margin-top: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #D91F26;
-    font-weight: 600;
-    font-size: 14px;
-  }
-  .home-start-list-mobile {
-    display: none;
-  }
-
-  /* =========================================================================
-     3. FEATURED PROJECTS SECTION STYLING
+     2. FEATURED PROJECTS SECTION STYLING
      ========================================================================= */
   .home-featured-section {
     padding-top: 52px;
@@ -1160,6 +928,13 @@ const jsonLd = {
     justify-content: space-between;
     gap: 20px;
     margin-bottom: 22px;
+  }
+  .home-featured-title-wrap {
+    display: flex;
+    align-items: center;
+  }
+  .home-view-all-mobile {
+    display: none;
   }
   .home-featured-controls {
     display: flex;
@@ -1205,7 +980,7 @@ const jsonLd = {
   }
 
   /* =========================================================================
-     4. FREE TO DOWNLOAD SECTION STYLING
+     3. FREE TO DOWNLOAD SECTION STYLING
      ========================================================================= */
   .home-free-band-section {
     padding-top: 52px;
@@ -1234,6 +1009,9 @@ const jsonLd = {
   .home-free-more-link {
     margin-top: 16px;
     font-weight: 700;
+  }
+  .home-free-more-mobile {
+    display: none;
   }
   .home-free-band-right {
     display: flex;
@@ -1286,7 +1064,7 @@ const jsonLd = {
   }
 
   /* =========================================================================
-     5. HOW IT WORKS SECTION STYLING
+     4. HOW IT WORKS SECTION STYLING
      ========================================================================= */
   .home-how-it-works-section {
     padding-top: 52px;
@@ -1302,6 +1080,9 @@ const jsonLd = {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 32px;
+  }
+  .how-cards-mobile {
+    display: none;
   }
   .how-step-item {
     display: flex;
@@ -1335,10 +1116,11 @@ const jsonLd = {
   }
 
   /* =========================================================================
-     6. WATCH EVERY BUILD SECTION STYLING
+     5. WATCH EVERY BUILD SECTION STYLING
      ========================================================================= */
   .home-watch-section {
     padding-top: 52px;
+    padding-bottom: 64px;
   }
   .home-watch-band {
     background: #111418;
@@ -1429,82 +1211,6 @@ const jsonLd = {
   }
 
   /* =========================================================================
-     7. MEET THE MAKER SECTION STYLING
-     ========================================================================= */
-  .home-maker-section {
-    padding-top: 52px;
-    padding-bottom: 64px;
-  }
-  .home-maker-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
-    gap: 48px;
-    align-items: center;
-  }
-  .home-maker-img {
-    width: 100%;
-    aspect-ratio: 0.95;
-    object-fit: cover;
-    object-position: 50% 25%;
-    border-radius: 22px;
-    display: block;
-    background: #F4F5F7;
-  }
-  .home-maker-name {
-    margin: 6px 0 12px;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
-  .home-maker-creds {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-  .home-maker-bio {
-    font-size: 15px;
-    line-height: 1.55;
-    color: #5A6270;
-    margin: 0 0 20px;
-    max-width: 540px;
-  }
-  .home-maker-bottom {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .home-maker-socials {
-    display: flex;
-    gap: 8px;
-  }
-  .maker-social-box {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    border: 1px solid #E4E7EB;
-    display: grid;
-    place-items: center;
-    color: #0F1115;
-    text-decoration: none;
-    transition: all 0.15s ease;
-  }
-  .maker-social-box:hover {
-    border-color: #0F1115;
-    background: #F4F5F7;
-  }
-  .maker-social-svg {
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  /* =========================================================================
      RESPONSIVE MEDIA QUERIES (TABLET & MOBILE)
      ========================================================================= */
   @media (max-width: 1024px) {
@@ -1517,10 +1223,6 @@ const jsonLd = {
     .home-pack-cards-container {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
-    }
-    .home-maker-grid {
-      grid-template-columns: 1fr;
-      gap: 28px;
     }
     .home-free-band-card {
       grid-template-columns: 1fr;
@@ -1535,11 +1237,11 @@ const jsonLd = {
       padding-right: 14px;
     }
 
-    /* 1. Mobile Hero: Single column, hidden featured pack card, stacked ticks, compact buttons */
+    /* 1. Mobile Hero: Single column, hidden featured pack card, structured proof ticks */
     .home-hero-section {
       padding-top: 18px;
       padding-bottom: 0px;
-      gap: 14px;
+      gap: 12px;
     }
     .home-pill {
       padding: 4px 10px;
@@ -1558,22 +1260,18 @@ const jsonLd = {
     .home-hero-buttons {
       display: flex;
       gap: 8px;
-      margin: 14px 0 14px;
+      margin: 14px 0 12px;
       width: 100%;
     }
-    .home-hero-buttons .home-btn:first-child {
-      flex: 1.2;
-      height: 42px;
-      padding: 0 14px;
-      font-size: 14px;
-      border-radius: 10px;
-    }
+    .home-hero-buttons .home-btn:first-child,
     .home-hero-buttons .home-btn:last-child {
       flex: 1;
       height: 42px;
-      padding: 0 12px;
-      font-size: 14px;
+      padding: 0 10px;
+      font-size: 13.5px;
       border-radius: 10px;
+      min-width: 0;
+      justify-content: center;
     }
     .home-btn-free-desktop {
       display: none;
@@ -1582,79 +1280,50 @@ const jsonLd = {
       display: inline;
     }
     .home-proof-ticks {
+      display: flex;
       flex-direction: column;
       gap: 6px;
+      padding: 10px 14px;
+      background: #F8F9FA;
+      border-radius: 12px;
+      border: 1px solid #ECEEF1;
+      margin-top: 6px;
       font-size: 13px;
-      margin-bottom: 8px;
     }
     .proof-svg {
       width: 15px;
       height: 15px;
     }
 
-    /* HIDE the Hero Featured Pack card on mobile as requested */
+    /* HIDE the Hero Featured Pack card on mobile */
     .home-hero-pack-card {
       display: none !important;
     }
 
-    /* 2. Mobile Start Here: Stacked list with chevron (horizontal rows) */
-    .home-start-here-section {
-      padding-top: 10px;
-    }
-    .home-start-grid-desktop {
-      display: none;
-    }
-    .home-start-list-mobile {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .start-card-m {
-      display: flex !important;
-      flex-direction: row !important;
-      align-items: center !important;
-      gap: 12px !important;
-      padding: 10px 14px !important;
-      border-radius: 14px !important;
-      text-decoration: none;
-      color: #0F1115;
-    }
-    .start-card-icon-box {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-    }
-    .start-icon-svg {
-      width: 18px;
-      height: 18px;
-    }
-    .start-card-m-text {
-      flex: 1;
-      min-width: 0;
-    }
-    .start-card-m-text b {
-      font-size: 14px;
-      display: block;
-    }
-    .start-card-m-sub {
-      font-size: 12px;
-      color: #5A6270;
-      margin-top: 2px;
-    }
-    .chevron-svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    /* 3. Mobile Featured Projects: Carousel with compact 232px cards */
+    /* 2. Mobile Featured Projects: Carousel with compact 232px cards */
     .home-featured-section {
-      padding-top: 20px;
+      padding-top: 24px;
     }
     .home-featured-header {
       flex-direction: column;
       align-items: flex-start;
       gap: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .home-featured-title-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+    .home-view-all-mobile {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #D91F26;
+      text-decoration: none;
     }
     .home-section-title {
       font-size: 20px;
@@ -1662,10 +1331,21 @@ const jsonLd = {
     .home-view-all-link {
       display: none;
     }
+    .home-featured-controls {
+      width: 100%;
+    }
+    .home-filter-tabs {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
     .home-tab-btn {
-      height: 32px;
-      padding: 0 12px;
-      font-size: 12px;
+      flex: 1;
+      height: 34px;
+      padding: 0;
+      font-size: 13px;
+      text-align: center;
+      justify-content: center;
     }
     .home-pack-cards-container {
       display: flex;
@@ -1727,13 +1407,13 @@ const jsonLd = {
       border-radius: 8px;
     }
 
-    /* 4. Mobile Free to Download: Compact rows with round button */
+    /* 3. Mobile Free to Download: Compact rows with round button */
     .home-free-band-section {
-      padding-top: 20px;
+      padding-top: 24px;
     }
     .home-free-band-card {
-      border-radius: 16px;
-      padding: 14px 12px;
+      border-radius: 18px;
+      padding: 16px 14px;
       gap: 12px;
     }
     .home-free-band-title {
@@ -1741,16 +1421,26 @@ const jsonLd = {
       margin: 2px 0 4px;
     }
     .home-free-band-desc {
-      font-size: 12px;
+      font-size: 13px;
       margin: 0 0 10px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
     .home-free-more-link {
       display: none;
     }
+    .home-free-more-mobile {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #D91F26;
+      margin-top: 8px;
+      text-decoration: none;
+    }
     .free-pack-row {
       padding: 8px 10px;
-      border-radius: 10px;
+      border-radius: 12px;
       gap: 10px;
     }
     .free-pack-thumb {
@@ -1780,36 +1470,42 @@ const jsonLd = {
       text-decoration: none;
     }
 
-    /* 5. Mobile How It Works: Vertical Timeline */
+    /* 4. Mobile How It Works: Modern Step Cards */
     .home-how-it-works-section {
-      padding-top: 20px;
+      padding-top: 24px;
     }
     .home-section-header {
-      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
     }
     .home-section-header .home-link-red {
-      display: none;
+      display: inline-flex;
+      font-size: 13px;
+      align-items: center;
+      gap: 4px;
     }
     .how-grid-desktop {
       display: none;
     }
-    .how-timeline-mobile {
+    .how-cards-mobile {
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 8px;
     }
-    .how-timeline-row {
+    .how-step-card-mobile {
       display: flex;
+      align-items: flex-start;
       gap: 12px;
+      background: #ffffff;
+      border: 1px solid #E4E7EB;
+      border-radius: 14px;
+      padding: 12px 14px;
     }
-    .how-timeline-left {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .how-timeline-dot {
-      width: 26px;
-      height: 26px;
+    .how-step-badge {
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       background: #D91F26;
       color: #ffffff;
@@ -1817,51 +1513,41 @@ const jsonLd = {
       place-items: center;
       font-weight: 700;
       flex: none;
-      font-size: 12px;
+      font-size: 13px;
+      margin-top: 2px;
     }
-    .how-timeline-line {
-      flex: 1;
-      width: 2px;
-      background: #E4E7EB;
-      margin: 3px 0;
-      min-height: 20px;
-    }
-    .how-timeline-content {
-      padding-bottom: 12px;
-    }
-    .how-timeline-row:last-child .how-timeline-content {
-      padding-bottom: 0;
-    }
-    .how-timeline-title {
+    .how-step-title {
       font-size: 15px;
-      margin: 2px 0;
+      margin: 0 0 2px;
       font-weight: 700;
       color: #0F1115;
     }
-    .how-timeline-desc {
-      font-size: 12px;
+    .how-step-desc {
+      font-size: 12.5px;
       line-height: 1.45;
       color: #5A6270;
+      margin: 0;
     }
 
-    /* 6. Mobile Watch Every Build: Carousel with ~210px cards */
+    /* 5. Mobile Watch Every Build: Carousel with ~210px cards */
     .home-watch-section {
-      padding-top: 20px;
+      padding-top: 24px;
+      padding-bottom: 36px;
     }
     .home-watch-band {
-      border-radius: 16px;
-      padding: 14px 12px;
+      border-radius: 18px;
+      padding: 18px 14px;
     }
     .home-watch-header {
       margin-bottom: 10px;
     }
     .home-watch-title {
       font-size: 20px;
-      margin-bottom: 2px;
+      margin-bottom: 3px;
     }
     .home-watch-sub {
-      font-size: 12px;
-      margin: 0;
+      font-size: 12.5px;
+      margin: 0 0 10px;
     }
     .home-watch-btn-desktop {
       display: none;
@@ -1903,63 +1589,10 @@ const jsonLd = {
     .home-watch-btn-mobile {
       display: inline-flex;
       width: 100%;
-      height: 38px;
-      font-size: 13px;
+      height: 40px;
+      font-size: 13.5px;
       border-radius: 10px;
-      margin-top: 8px;
-    }
-
-    /* 7. Mobile Meet the Maker: Photo First */
-    .home-maker-section {
-      padding-top: 20px;
-      padding-bottom: 24px;
-    }
-    .home-maker-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .home-maker-img {
-      aspect-ratio: 1.15;
-      border-radius: 14px;
-    }
-    .home-maker-name {
-      font-size: 21px;
-      margin: 2px 0 6px;
-    }
-    .home-maker-creds {
-      gap: 5px;
-      margin-bottom: 10px;
-    }
-    .home-maker-bio {
-      font-size: 13px;
-      line-height: 1.45;
-      margin: 0 0 12px;
-    }
-    .home-maker-bottom {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .home-maker-socials {
-      justify-content: flex-start;
-      gap: 6px;
-    }
-    .maker-social-box {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-    }
-    .maker-social-svg {
-      width: 16px;
-      height: 16px;
-    }
-    .home-maker-btn {
-      width: 100%;
-      height: 38px;
-      font-size: 13px;
-      border-radius: 10px;
-      text-align: center;
+      margin-top: 10px;
     }
   }
 </style>
