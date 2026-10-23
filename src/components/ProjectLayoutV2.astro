@@ -9,7 +9,6 @@ import { FILE_KINDS } from '../lib/site';
 
 interface Props {
   project: ProjectFull;
-  estCost: number;
   paid: boolean;
   descHtml: string;
   safetyHtml: string;
@@ -21,7 +20,6 @@ interface Props {
 
 const {
   project,
-  estCost,
   paid,
   descHtml,
   safetyHtml,
@@ -165,9 +163,6 @@ const lastUpdated = formatDate(project.updated_at);
                 <span class="p-meta-chip">{project.difficulty}</span>
               )}
               <span class="p-meta-chip">{project.build_time || '2 hrs'}</span>
-              {estCost > 0 && (
-                <span class="p-meta-chip">Core cost &asymp; {formatINR(estCost)}</span>
-              )}
               <span class="p-meta-chip">Updated {lastUpdated}</span>
             </div>
           </div>
@@ -355,11 +350,7 @@ const lastUpdated = formatDate(project.updated_at);
             <!-- 2. PARTS LIST PANEL -->
             {hasBom && (
               <div class="p-panel-content" id="panel-parts" data-tab-panel="parts" hidden>
-                <div class="p-parts-header">
-                  <h3 class="p-panel-h3">Core cost &asymp; {formatINR(estCost)}</h3>
-                  <p class="p-panel-sub">Tick off parts as you get them. Every part has a direct buy link.</p>
-                </div>
-                <BomTable items={project.bom} costChecked={project.cost_checked} />
+                <BomTable items={project.bom} projectId={project.id} projectTitle={project.title} />
               </div>
             )}
 
@@ -673,9 +664,6 @@ const lastUpdated = formatDate(project.updated_at);
           <span class="m-chip">{project.difficulty}</span>
         )}
         <span class="m-chip">{project.build_time || '2 hrs'}</span>
-        {estCost > 0 && (
-          <span class="m-chip">Core cost &asymp; {formatINR(estCost)}</span>
-        )}
       </div>
 
       {project.summary && (
@@ -747,7 +735,7 @@ const lastUpdated = formatDate(project.updated_at);
       <!-- 2. PARTS LIST (Mobile, media_1791876192124_8bdf7be7.png) -->
       {hasBom && (
         <div class="m-panel" id="m-panel-parts" data-m-panel="parts" hidden>
-          <BomTable items={project.bom} costChecked={project.cost_checked} />
+          <BomTable items={project.bom} projectId={project.id} projectTitle={project.title} />
         </div>
       )}
 
@@ -986,6 +974,12 @@ const lastUpdated = formatDate(project.updated_at);
   const mobilePanels = document.querySelectorAll<HTMLElement>('[data-m-panel]');
 
   function activateTab(tabKey: string) {
+    // Desktop grid layout adjustment: Parts view uses full width with its own sidebar (PartsD design)
+    const desktopGrid = document.querySelector('.p-desktop-grid');
+    if (desktopGrid) {
+      desktopGrid.classList.toggle('is-parts-view', tabKey === 'parts');
+    }
+
     // Desktop tabs & panels
     desktopTabBtns.forEach((btn) => {
       const active = btn.dataset.tabTarget === tabKey;
@@ -1438,6 +1432,13 @@ const lastUpdated = formatDate(project.updated_at);
     gap: 3rem;
     align-items: start;
     padding-bottom: 4rem;
+  }
+
+  .p-desktop-grid.is-parts-view {
+    grid-template-columns: 1fr !important;
+  }
+  .p-desktop-grid.is-parts-view .p-col-sidebar {
+    display: none !important;
   }
 
   @container (max-width: 64rem) {

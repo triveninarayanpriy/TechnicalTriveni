@@ -265,7 +265,6 @@ STRICT OUTPUT JSON SCHEMA:
       "name": string,
       "qty": string or number,
       "role": string,
-      "approx_price_inr": number,
       "buy_url": string (optional)
     }
   ],
@@ -323,7 +322,6 @@ Strictly return a JSON object with an array named "parts":
       "name": "Component name with part number (e.g. ESP32-WROOM-32D Development Board)",
       "qty": "1",
       "store": "Robu or Amazon",
-      "unit_price_inr": 350,
       "notes": "Ensure 38-pin version for breadboard compatibility"
     }
   ]

@@ -1,31 +1,22 @@
 ---
 import type { BomItem } from '../lib/db';
-import { getAffiliateSettings } from '../lib/db';
-import { buildComponentAffiliateUrl, AFFILIATE_LINK_ATTRIBUTES } from '../lib/affiliate';
-import { formatINR } from '../lib/format';
-import Icon from './Icon.astro';
+import { getAffiliateSettings, listComponents } from '../lib/db';
+import { buildComponentAffiliateUrl, validateAsin, AFFILIATE_LINK_ATTRIBUTES } from '../lib/affiliate';
+import { slugify } from '../lib/format';
 import { env } from 'cloudflare:workers';
 
 interface Props {
   items: BomItem[];
+  projectId?: number;
+  projectTitle?: string;
   costChecked?: string;
 }
 
-const { items, costChecked } = Astro.props;
+const { items, projectId = 0 } = Astro.props;
 
 const affiliateSettings = await getAffiliateSettings(env.DB);
-
-// Group items into Core vs Tools/Optional
-const coreItems = items.filter(
-  (b) =>
-    !(b.group_name || '').toLowerCase().includes('tool') &&
-    !(b.group_name || '').toLowerCase().includes('optional')
-);
-const toolItems = items.filter(
-  (b) =>
-    (b.group_name || '').toLowerCase().includes('tool') ||
-    (b.group_name || '').toLowerCase().includes('optional')
-);
+const allComponents = await listComponents(env.DB);
+const validSlugSet = new Set(allComponents.map((c) => slugify(c.name)));
 
 function getLinkInfo(b: BomItem) {
   return buildComponentAffiliateUrl(
@@ -35,337 +26,282 @@ function getLinkInfo(b: BomItem) {
   );
 }
 
-const hasAffiliate = items.some((b) => {
-  const aff = getLinkInfo(b);
-  return aff.isAffiliate;
-});
-const pricedItems = items.filter((b) => (b.unit_price_inr ?? 0) > 0);
-const hasPriced = pricedItems.length > 0;
+// Prepare cart items with valid ASINs
+const asinItems = items
+  .filter((b) => b.link?.asin && validateAsin(b.link.asin))
+  .map((b) => ({
+    asin: b.link!.asin!,
+    qty: Math.max(1, parseInt(b.qty, 10) || 1),
+  }));
 
-const totalCoreCost = coreItems
-  .filter((b) => (b.unit_price_inr ?? 0) > 0)
-  .reduce((sum, b) => {
-    const q = parseInt(b.qty, 10);
-    const qty = Number.isFinite(q) && q > 0 ? q : 1;
-    return sum + b.unit_price_inr * qty;
-  }, 0);
+let amazonCartUrl = '';
+if (asinItems.length > 0) {
+  const cartParams = new URLSearchParams();
+  cartParams.set('AssociateTag', affiliateSettings.amazon_tag || 'technicaltr03-21');
+  asinItems.forEach((it, idx) => {
+    cartParams.set(`ASIN.${idx + 1}`, it.asin);
+    cartParams.set(`Quantity.${idx + 1}`, String(it.qty));
+  });
+  amazonCartUrl = `https://www.amazon.in/gp/aws/cart/add.html?${cartParams.toString()}`;
+}
 ---
 
-<!-- Statutory Affiliate Disclosure & Price Checked Header -->
-<div class="bom-meta">
-  <div class="bom-meta__affiliate">
-    {affiliateSettings.show_disclosure ? (
-      <span class="bom-disclosure-inline">
-        <Icon name="info" size={13} />
-        <span>{affiliateSettings.disclosure_text || "As an Amazon Associate I earn from qualifying purchases."}</span>
-      </span>
-    ) : hasAffiliate ? (
-      <span>
-        Some links are affiliate links. <a href="/legal/affiliate" class="bom-meta__link" target="_blank" rel="noopener noreferrer">Affiliate disclosure</a>.
-      </span>
-    ) : null}
-  </div>
-  <div class="bom-meta__right">
-    <button type="button" class="btn-report-broken-bom" title="Report an incorrect, unavailable, or broken link">
-      Report broken link
-    </button>
-    <span class="bom-meta__date">Prices checked {costChecked || 'October 2026'}</span>
-  </div>
-</div>
+<div class="bom-root" data-project-id={projectId}>
+  <!-- ==============================================
+       DESKTOP PARTS LIST (Matching PartsD.dc.html)
+       ============================================== -->
+  <div class="bom-desktop">
+    <div class="bom-grid">
+      <!-- Main Parts List Card -->
+      <div class="bom-cd">
+        <div class="bom-header-row">
+          <h2 class="bom-h2">Parts list</h2>
+          <div class="bom-header-right">
+            <span class="bom-m">{items.length} parts. Tick them off as you buy.</span>
+            <button type="button" class="btn-report-broken-bom" title="Report an incorrect or broken link">
+              Report broken link
+            </button>
+          </div>
+        </div>
 
-<div class="bom-table-wrapper bom-desktop-only">
-  <table class="bom-table" id="bom-interactive">
-    <thead>
-      <tr>
-        <th class="col-check">Got</th>
-        <th>Part</th>
-        <th>Qty</th>
-        <th>Price</th>
-        <th class="col-buy"></th>
-      </tr>
-    </thead>
-    {coreItems.length > 0 && (
-      <tbody class="bom-group">
-        <tr>
-          <td colspan="5" class="bom-group-title">Core build components</td>
-        </tr>
-        {coreItems.map((b) => {
-          const qty = parseInt(b.qty, 10) || 1;
-          const priced = (b.unit_price_inr ?? 0) > 0;
-          const aff = getLinkInfo(b);
-          return (
-            <tr class="bom-item-row" data-bom-id={b.id}>
-              <td class="col-check">
-                <input
-                  type="checkbox"
-                  class="bom-check"
-                  data-price={priced ? b.unit_price_inr * qty : 0}
-                  title="I already have this part"
-                />
-              </td>
-              <td>
-                <div class="bom-name-wrap">
-                  <span class="bom-name">{b.name}</span>
-                  {b.notes && <span class="bom-note">{b.notes}</span>}
+        <div class="bom-disclosure">
+          As an Amazon Associate I earn from qualifying purchases. Buy links are affiliate links.
+        </div>
+
+        <div class="bom-rows">
+          {items.map((b) => {
+            const aff = getLinkInfo(b);
+            const slug = slugify(b.name);
+            const hasCompPage = b.component_id > 0 || validSlugSet.has(slug);
+            const isNonAmazonStore = b.store && !/amazon/i.test(b.store);
+            const altStoreUrl = b.affiliate_url && !/amazon/i.test(b.affiliate_url) ? b.affiliate_url : '';
+
+            return (
+              <div class="bom-row" data-bom-id={b.id}>
+                <label class="bom-check-target" aria-label={`Got ${b.name}`}>
+                  <input
+                    type="checkbox"
+                    class="bom-check"
+                    data-item-id={b.id}
+                    aria-label={`Got ${b.name}`}
+                  />
+                </label>
+
+                <div class="bom-info">
+                  <div class="bom-item-name">{b.name}</div>
+                  {b.notes && <div class="bom-m">{b.notes}</div>}
+                  {isNonAmazonStore && (
+                    <div class="bom-alt-store">
+                      Also at{' '}
+                      {altStoreUrl ? (
+                        <a href={altStoreUrl} target="_blank" rel="noopener noreferrer" class="bom-alt-link">
+                          {b.store}
+                        </a>
+                      ) : (
+                        <span>{b.store}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </td>
-              <td class="bom-qty">{b.qty}</td>
-              <td class="bom-price">
-                {priced ? (
-                  formatINR(b.unit_price_inr)
-                ) : (
-                  <span class="bom-price--unset">Price not set</span>
-                )}
-              </td>
-              <td class="bom-buy-col">
-                {aff.url ? (
-                  <a
-                    href={aff.url}
-                    target={AFFILIATE_LINK_ATTRIBUTES.target}
-                    rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
-                    class:list={['btn-buy-part', { 'btn-buy-part--search': !aff.isDirectProduct }]}
-                    data-affiliate-click={aff.isAffiliate ? '1' : undefined}
-                    data-asin={b.link?.asin || undefined}
-                    data-comp-id={b.component_id || undefined}
-                    title={aff.label}
-                  >
-                    <span>{aff.isDirectProduct ? 'Buy' : 'Search'}</span>
-                    <Icon name="external-link" size={12} />
+
+                <span class="bom-st">Qty {b.qty}</span>
+
+                <a
+                  href={aff.url}
+                  target={AFFILIATE_LINK_ATTRIBUTES.target}
+                  rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
+                  class="bom-b"
+                  data-affiliate-click={aff.isAffiliate ? '1' : undefined}
+                  data-asin={b.link?.asin || undefined}
+                  data-comp-id={b.component_id || undefined}
+                  title={aff.label}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
+                  <span>{aff.isDirectProduct ? 'Buy on Amazon' : 'Search on Amazon'}</span>
+                </a>
+
+                {hasCompPage && (
+                  <a href={`/components/${slug}`} class="bom-a">
+                    <span>Component page</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"></path></svg>
                   </a>
-                ) : (
-                  <span class="bom-empty-dash">—</span>
                 )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    )}
-
-    {toolItems.length > 0 && (
-      <tbody class="bom-group">
-        <tr>
-          <td colspan="5" class="bom-group-title">Tools & Optional equipment</td>
-        </tr>
-        {toolItems.map((b) => {
-          const qty = parseInt(b.qty, 10) || 1;
-          const priced = (b.unit_price_inr ?? 0) > 0;
-          const aff = getLinkInfo(b);
-          return (
-            <tr class="bom-item-row" data-bom-id={b.id}>
-              <td class="col-check">
-                <input
-                  type="checkbox"
-                  class="bom-check"
-                  data-price={priced ? b.unit_price_inr * qty : 0}
-                  checked
-                  title="I already have this tool"
-                />
-              </td>
-              <td>
-                <div class="bom-name-wrap">
-                  <span class="bom-name">{b.name}</span>
-                  {b.notes && <span class="bom-note">{b.notes}</span>}
-                </div>
-              </td>
-              <td class="bom-qty">{b.qty}</td>
-              <td class="bom-price">
-                {priced ? (
-                  formatINR(b.unit_price_inr)
-                ) : (
-                  <span class="bom-price--unset">Price not set</span>
-                )}
-              </td>
-              <td class="bom-buy-col">
-                {aff.url ? (
-                  <a
-                    href={aff.url}
-                    target={AFFILIATE_LINK_ATTRIBUTES.target}
-                    rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
-                    class:list={['btn-buy-part', { 'btn-buy-part--search': !aff.isDirectProduct }]}
-                    data-affiliate-click={aff.isAffiliate ? '1' : undefined}
-                    data-asin={b.link?.asin || undefined}
-                    data-comp-id={b.component_id || undefined}
-                    title={aff.label}
-                  >
-                    <span>{aff.isDirectProduct ? 'Buy' : 'Search'}</span>
-                    <Icon name="external-link" size={12} />
-                  </a>
-                ) : (
-                  <span class="bom-empty-dash">—</span>
-                )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    )}
-  </table>
-
-  {hasPriced && totalCoreCost > 0 && (
-    <div class="bom-total-row">
-      <span class="bom-total-label">Core build estimate (priced parts):</span>
-      <span class="bom-total-price" id="bom-calc-total" data-base-total={totalCoreCost}>
-        {formatINR(totalCoreCost)}
-      </span>
-    </div>
-  )}
-</div>
-
-<!-- Mobile Parts List (Native row layout matching mockup) -->
-<div class="bom-mobile-only">
-  {coreItems.length > 0 && (
-    <div class="m-bom-container">
-      <div class="m-bom-header">
-        <h3 class="m-bom-title">
-          Core cost &asymp; <span id="bom-calc-total-mobile" data-base-total={totalCoreCost}>{formatINR(totalCoreCost)}</span>
-        </h3>
-        <p class="m-bom-subtitle">Tick off parts as you get them. Every part has a direct or search buy link.</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div class="m-bom-list">
-        {coreItems.map((b) => {
-          const qty = parseInt(b.qty, 10) || 1;
-          const priced = (b.unit_price_inr ?? 0) > 0;
-          const aff = getLinkInfo(b);
-          return (
-            <div class="m-bom-row" data-bom-id={b.id}>
-              <label class="m-bom-check-target" aria-label={`Check ${b.name}`}>
+      <!-- Desktop Sidebar -->
+      <aside class="bom-aside">
+        {amazonCartUrl && (
+          <div class="bom-cd bom-cart-box">
+            <h3 class="bom-cart-h3">Buy everything at once</h3>
+            <p class="bom-m">Adds all {items.length} parts to your Amazon.in cart. Check the items before you pay.</p>
+            <a
+              href={amazonCartUrl}
+              target="_blank"
+              rel="sponsored nofollow noopener noreferrer"
+              class="bom-b bom-b-full"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
+              <span>Add all to Amazon cart</span>
+            </a>
+          </div>
+        )}
+
+        <div class="bom-k">
+          <h3 class="bom-k-h3">Before you buy</h3>
+          <div class="bom-k-row">
+            <span class="bom-k-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+            </span>
+            <span>Match the variant and connector in the note.</span>
+          </div>
+          <div class="bom-k-row">
+            <span class="bom-k-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+            </span>
+            <span>Use the component page for the pinout and datasheet.</span>
+          </div>
+          <div class="bom-k-row">
+            <span class="bom-k-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+            </span>
+            <span>Prices change daily, so check the final total on Amazon.</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MOBILE PARTS LIST (Matching PartsM.dc.html)
+       ============================================== -->
+  <div class="bom-mobile">
+    <div class="m-bom-lead">
+      {items.length} parts. Tick them off as you buy. As an Amazon Associate I earn from qualifying purchases; buy links are affiliate links.
+    </div>
+
+    <div class="m-bom-list">
+      {items.map((b) => {
+        const aff = getLinkInfo(b);
+        const slug = slugify(b.name);
+        const hasCompPage = b.component_id > 0 || validSlugSet.has(slug);
+        const isNonAmazonStore = b.store && !/amazon/i.test(b.store);
+        const altStoreUrl = b.affiliate_url && !/amazon/i.test(b.affiliate_url) ? b.affiliate_url : '';
+
+        return (
+          <div class="m-bom-card" data-bom-id={b.id}>
+            <div class="m-bom-card-top">
+              <label class="m-bom-check-wrap" aria-label={`Got ${b.name}`}>
                 <input
                   type="checkbox"
                   class="bom-check m-bom-check"
-                  data-price={priced ? b.unit_price_inr * qty : 0}
-                  title="I already have this part"
+                  data-item-id={b.id}
+                  aria-label={`Got ${b.name}`}
                 />
               </label>
 
               <div class="m-bom-info">
-                <span class="m-bom-name">{b.name}</span>
-                {b.notes && <span class="m-bom-note">{b.notes}</span>}
-                <span class="m-bom-qty">Qty {b.qty}</span>
-              </div>
-
-              <div class="m-bom-action">
-                <span class="m-bom-price">
-                  {priced ? formatINR(b.unit_price_inr) : '—'}
-                </span>
-                {aff.url ? (
-                  <a
-                    href={aff.url}
-                    target={AFFILIATE_LINK_ATTRIBUTES.target}
-                    rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
-                    class="btn-m-bom-buy"
-                    data-affiliate-click={aff.isAffiliate ? '1' : undefined}
-                    data-asin={b.link?.asin || undefined}
-                    data-comp-id={b.component_id || undefined}
-                  >
-                    {aff.isDirectProduct ? 'Buy' : 'Search'}
-                  </a>
-                ) : (
-                  <span class="btn-m-bom-buy btn-m-bom-buy--dim">Buy</span>
+                <b class="m-bom-name">{b.name}</b>
+                {b.notes && <div class="bom-m">{b.notes}</div>}
+                {isNonAmazonStore && (
+                  <div class="bom-alt-store">
+                    Also at{' '}
+                    {altStoreUrl ? (
+                      <a href={altStoreUrl} target="_blank" rel="noopener noreferrer" class="bom-alt-link">
+                        {b.store}
+                      </a>
+                    ) : (
+                      <span>{b.store}</span>
+                    )}
+                  </div>
                 )}
               </div>
+
+              <span class="bom-st">Qty {b.qty}</span>
             </div>
-          );
-        })}
-      </div>
-    </div>
-  )}
 
-  {toolItems.length > 0 && (
-    <div class="m-bom-container" style="margin-top: 1.5rem;">
-      <div class="m-bom-header">
-        <h4 class="m-bom-title" style="font-size: 1rem;">Tools & Optional equipment</h4>
-        <p class="m-bom-subtitle">Equipment you may already have on your bench.</p>
-      </div>
+            <div class="m-bom-actions">
+              <a
+                href={aff.url}
+                target={AFFILIATE_LINK_ATTRIBUTES.target}
+                rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
+                class="bom-b m-bom-b-primary"
+                data-affiliate-click={aff.isAffiliate ? '1' : undefined}
+                data-asin={b.link?.asin || undefined}
+                data-comp-id={b.component_id || undefined}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
+                <span>{aff.isDirectProduct ? 'Buy on Amazon' : 'Search on Amazon'}</span>
+              </a>
 
-      <div class="m-bom-list">
-        {toolItems.map((b) => {
-          const qty = parseInt(b.qty, 10) || 1;
-          const priced = (b.unit_price_inr ?? 0) > 0;
-          const aff = getLinkInfo(b);
-          return (
-            <div class="m-bom-row" data-bom-id={b.id}>
-              <label class="m-bom-check-target" aria-label={`Check ${b.name}`}>
-                <input
-                  type="checkbox"
-                  class="bom-check m-bom-check"
-                  data-price={priced ? b.unit_price_inr * qty : 0}
-                  checked
-                  title="I already have this tool"
-                />
-              </label>
-
-              <div class="m-bom-info">
-                <span class="m-bom-name">{b.name}</span>
-                {b.notes && <span class="m-bom-note">{b.notes}</span>}
-                <span class="m-bom-qty">Qty {b.qty}</span>
-              </div>
-
-              <div class="m-bom-action">
-                <span class="m-bom-price">
-                  {priced ? formatINR(b.unit_price_inr) : '—'}
-                </span>
-                {aff.url ? (
-                  <a
-                    href={aff.url}
-                    target={AFFILIATE_LINK_ATTRIBUTES.target}
-                    rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
-                    class="btn-m-bom-buy"
-                    data-affiliate-click={aff.isAffiliate ? '1' : undefined}
-                    data-asin={b.link?.asin || undefined}
-                    data-comp-id={b.component_id || undefined}
-                  >
-                    {aff.isDirectProduct ? 'Buy' : 'Search'}
-                  </a>
-                ) : (
-                  <span class="btn-m-bom-buy btn-m-bom-buy--dim">Buy</span>
-                )}
-              </div>
+              {hasCompPage && (
+                <a href={`/components/${slug}`} class="bom-b bom-g m-bom-b-comp">
+                  Component page
+                </a>
+              )}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
-  )}
+
+    {amazonCartUrl && (
+      <div class="m-bom-ab">
+        <a
+          href={amazonCartUrl}
+          target="_blank"
+          rel="sponsored nofollow noopener noreferrer"
+          class="bom-b m-bom-ab-btn"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
+          <span>Add all to Amazon cart</span>
+        </a>
+      </div>
+    )}
+  </div>
 </div>
 
 <script>
-  // Interactive BOM cost calculator
+  // Checkbox localStorage progress tracking
+  const root = document.querySelector('.bom-root') as HTMLElement | null;
+  const projectId = root?.dataset.projectId || 'proj';
   const checkBoxes = document.querySelectorAll<HTMLInputElement>('.bom-check');
-  const totalDisplay = document.getElementById('bom-calc-total');
-  const totalDisplayMobile = document.getElementById('bom-calc-total-mobile');
 
-  if (totalDisplay || totalDisplayMobile) {
-    const baseTotal = parseFloat(totalDisplay?.dataset.baseTotal || totalDisplayMobile?.dataset.baseTotal || '0');
-    let currentDeduction = 0;
+  checkBoxes.forEach((cb) => {
+    const itemId = cb.getAttribute('data-item-id') || '';
+    const storageKey = `tt-bom-${projectId}-${itemId}`;
 
-    const updateDisplays = (remaining: number) => {
-      const formatted = '₹' + remaining.toLocaleString('en-IN');
-      if (totalDisplay) totalDisplay.textContent = formatted;
-      if (totalDisplayMobile) totalDisplayMobile.textContent = formatted;
-    };
+    // Restore state
+    try {
+      if (localStorage.getItem(storageKey) === '1') {
+        cb.checked = true;
+        const row = cb.closest('.bom-row, .m-bom-card');
+        if (row) row.classList.add('is-ticked');
+      }
+    } catch {}
 
-    checkBoxes.forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const itemPrice = parseFloat(cb.dataset.price || '0');
-        const row = cb.closest('.m-bom-row');
-        if (row) row.classList.toggle('is-ticked', cb.checked);
-
-        const isTool = cb.closest('tbody')?.textContent?.includes('Tools') ||
-                       cb.closest('.m-bom-container')?.textContent?.includes('Tools');
-        if (!isTool && itemPrice > 0) {
-          if (cb.checked) {
-            currentDeduction += itemPrice;
-          } else {
-            currentDeduction -= itemPrice;
-          }
-          const remaining = Math.max(0, baseTotal - currentDeduction);
-          updateDisplays(remaining);
+    // Save on toggle
+    cb.addEventListener('change', () => {
+      try {
+        if (cb.checked) {
+          localStorage.setItem(storageKey, '1');
+        } else {
+          localStorage.removeItem(storageKey);
         }
+      } catch {}
+
+      // Keep both desktop and mobile inputs in sync if both present
+      const peerInputs = document.querySelectorAll<HTMLInputElement>(`.bom-check[data-item-id="${itemId}"]`);
+      peerInputs.forEach((p) => {
+        p.checked = cb.checked;
+        const parentRow = p.closest('.bom-row, .m-bom-card');
+        if (parentRow) parentRow.classList.toggle('is-ticked', cb.checked);
       });
     });
-  }
+  });
 
   // Passive click tracking via beacon (no redirect / no cloaking)
   document.addEventListener('click', (e) => {
@@ -374,18 +310,21 @@ const totalCoreCost = coreItems
       const asin = target.getAttribute('data-asin') || '';
       const compId = target.getAttribute('data-comp-id') || '';
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/analytics/affiliate-click', JSON.stringify({
-          asin,
-          compId,
-          url: location.href,
-          time: Date.now()
-        }));
+        navigator.sendBeacon(
+          '/api/analytics/affiliate-click',
+          JSON.stringify({
+            asin,
+            compId,
+            url: location.href,
+            time: Date.now(),
+          })
+        );
       }
     }
   });
 
-  // Report broken link handler
-  document.querySelectorAll('.btn-report-broken-bom').forEach(btn => {
+  // Report broken link
+  document.querySelectorAll('.btn-report-broken-bom').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const partName = prompt('Which component link is incorrect or broken? Enter part name:');
       if (!partName || !partName.trim()) return;
@@ -394,7 +333,7 @@ const totalCoreCost = coreItems
         await fetch('/api/affiliate/report-broken', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ part_name: partName.trim() })
+          body: JSON.stringify({ part_name: partName.trim() }),
         });
         alert('Thank you! This component link has been queued for verification.');
       } catch {
@@ -405,360 +344,388 @@ const totalCoreCost = coreItems
 </script>
 
 <style>
-  .bom-meta {
+  .bom-root {
+    width: 100%;
+    font-family: inherit;
+    color: #0F1115;
+  }
+
+  /* Shared Design System (PartsD / PartsM) */
+  .bom-m {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #5A6270;
+  }
+  .bom-a {
+    color: #D91F26;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    flex: none;
+    width: 150px;
+    transition: color 150ms ease;
+  }
+  .bom-a:hover {
+    color: #B3151B;
+  }
+
+  .bom-b {
+    border: 0;
+    border-radius: 14px;
+    height: 48px;
+    padding: 0 24px;
+    font-weight: 700;
+    font-size: 16px;
+    background: #D91F26;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 150ms ease;
+  }
+  .bom-b:hover {
+    background: #B3151B;
+  }
+
+  .bom-g {
+    background: #fff;
+    color: #0F1115;
+    border: 1.5px solid #0F1115;
+  }
+  .bom-g:hover {
+    background: #F4F5F7;
+  }
+
+  .bom-st {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: #E6E9EE;
+    color: #3B4350;
+    white-space: nowrap;
+    flex: none;
+  }
+
+  .bom-cd {
+    border: 1px solid #E4E7EB;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bom-k {
+    background: #F4F5F7;
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bom-k-h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0F1115;
+  }
+  .bom-k-row {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #0F1115;
+  }
+  .bom-k-icon {
+    color: #D91F26;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .bom-icon {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+  .bom-icon-sm {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+
+  .bom-alt-store {
+    font-size: 13px;
+    color: #5A6270;
+    margin-top: 2px;
+  }
+  .bom-alt-link {
+    color: #D91F26;
+    text-decoration: underline;
+  }
+  .bom-alt-link:hover {
+    color: #B3151B;
+  }
+
+  /* Desktop specific */
+  .bom-desktop {
+    display: block;
+    width: 100%;
+  }
+  .bom-mobile {
+    display: none;
+  }
+
+  .bom-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 40px;
+    align-items: start;
+    padding-top: 16px;
+    padding-bottom: 48px;
+  }
+  @media (max-width: 1200px) {
+    .bom-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+
+  .bom-cd {
+    padding: 8px 24px;
+    border-radius: 24px;
+  }
+  .bom-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: max(12px, 0.8125rem);
-    color: var(--ink-3);
-    margin-bottom: 0.625rem;
+    padding: 16px 0 8px;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 8px;
   }
-  .bom-disclosure-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    color: var(--ink-2);
+  .bom-h2 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: #0F1115;
+    letter-spacing: -0.015em;
   }
-  .bom-disclosure-inline :global(svg) {
-    color: #2563EB;
-    flex-shrink: 0;
-  }
-  .bom-meta__link {
-    color: var(--red);
-    text-decoration: underline;
-  }
-  .bom-meta__link:hover {
-    color: var(--red-dark);
-  }
-  .bom-meta__right {
+  .bom-header-right {
     display: flex;
     align-items: center;
-    gap: 0.875rem;
+    gap: 16px;
   }
   .btn-report-broken-bom {
     background: none;
     border: none;
     padding: 0;
-    font-size: max(11px, 0.7188rem);
-    color: var(--ink-3);
+    font-size: 12px;
+    color: #5A6270;
     text-decoration: underline;
     cursor: pointer;
   }
   .btn-report-broken-bom:hover {
-    color: var(--red);
+    color: #D91F26;
   }
 
-  .bom-table-wrapper {
-    border: 1px solid var(--line);
-    border-radius: var(--r-card);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    background: var(--bg);
-    box-shadow: var(--shadow);
+  .bom-disclosure {
+    font-size: 13px;
+    color: #5A6270;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #E4E7EB;
   }
 
-  .bom-table {
-    width: 100%;
-    min-width: 32.5rem;
-    border-collapse: collapse;
-    text-align: left;
-  }
-  .bom-table th {
-    padding: 0.625rem 0.875rem;
-    background: var(--bg-soft);
-    font-size: max(12px, 0.6875rem);
-    font-weight: 600;
-    color: var(--ink-3);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--line);
-  }
-  .bom-table td {
-    padding: 0.6875rem 0.875rem;
-    border-bottom: 1px solid var(--line);
-    vertical-align: middle;
-    font-size: max(12px, 0.875rem);
-    color: var(--ink);
-  }
-  .bom-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .bom-group-title {
-    font-weight: 600;
-    color: var(--ink-2);
-    background: var(--bg-soft);
-    padding: 0.5rem 0.875rem !important;
-    font-size: max(12px, 0.75rem);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .bom-name-wrap {
+  .bom-rows {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
-  }
-  .bom-name {
-    font-weight: 550;
-    color: var(--ink);
-    line-height: 1.35;
-  }
-  .bom-note {
-    font-size: max(12px, 0.75rem);
-    color: var(--ink-3);
-    line-height: 1.35;
   }
 
-  .col-check {
-    width: 2.75rem;
-    text-align: center;
+  .bom-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    border-top: 1px solid #E6E9EE;
+    transition: opacity 150ms ease;
+  }
+  .bom-row:first-of-type {
+    border-top: 0;
+  }
+  .bom-row.is-ticked {
+    opacity: 0.55;
+  }
+
+  .bom-check-target {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    flex: none;
+    cursor: pointer;
   }
   .bom-check {
-    width: 1.0625rem;
-    height: 1.0625rem;
-    accent-color: var(--red);
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: #D91F26;
     cursor: pointer;
   }
 
-  .bom-qty {
-    font-family: var(--font-mono, monospace);
-    font-size: max(12px, 0.8125rem);
-    color: var(--ink-2);
-    width: 4rem;
-    white-space: nowrap;
+  .bom-info {
+    flex: 1;
+    min-width: 0;
   }
-
-  .bom-price {
-    font-family: var(--font-display);
+  .bom-item-name {
     font-weight: 600;
-    color: var(--ink);
-    white-space: nowrap;
-    width: 6.875rem;
-    text-align: right;
-    padding-right: 1.25rem !important;
-  }
-  .bom-table th:nth-child(4) {
-    text-align: right;
-    padding-right: 1.25rem !important;
-  }
-  .bom-price--unset {
-    font-family: inherit;
-    font-weight: normal;
-    font-size: max(12px, 0.75rem);
-    color: var(--ink-3);
-    font-style: italic;
+    font-size: 16px;
+    color: #0F1115;
+    line-height: 1.35;
   }
 
-  .bom-buy-col {
-    text-align: right;
-    width: 6.5rem;
-    white-space: nowrap;
-  }
-  .btn-buy-part {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.375rem 0.75rem;
-    font-size: max(12px, 0.75rem);
-    font-weight: 600;
-    border: 1px solid var(--line);
-    border-radius: var(--r-btn);
-    color: var(--ink);
-    text-decoration: none;
-    transition: all 150ms ease;
-  }
-  .btn-buy-part:hover {
-    border-color: var(--red);
-    color: var(--red);
-    background: var(--bg-soft);
-  }
-  .btn-buy-part--search {
-    border-style: dashed;
-    color: var(--ink-2);
-  }
-  .bom-empty-dash {
-    color: var(--ink-3);
-  }
-
-  .bom-total-row {
-    padding: 1rem 1.25rem;
+  .bom-aside {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--bg-soft);
-    border-top: 1px solid var(--line);
-    font-weight: 600;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 24px;
   }
-  .bom-total-label {
-    font-size: max(12px, 0.875rem);
-    color: var(--ink-2);
+  .bom-cart-box {
+    padding: 24px;
+    gap: 12px;
   }
-  .bom-total-price {
-    font-size: 1.25rem;
-    font-family: var(--font-display);
+  .bom-cart-h3 {
+    margin: 0;
+    font-size: 19px;
     font-weight: 700;
-    color: var(--red);
+  }
+  .bom-b-full {
+    height: 50px;
+    width: 100%;
   }
 
-  /* Responsive Display Rules */
-  .bom-desktop-only {
-    display: block;
-  }
-  .bom-mobile-only {
-    display: none;
-  }
-
-  @media (max-width: 768px) {
-    .bom-desktop-only {
+  /* Mobile Layout */
+  @media (max-width: 860px) {
+    .bom-desktop {
       display: none !important;
     }
-    .bom-mobile-only {
+    .bom-mobile {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 12px;
+      padding: 8px 0;
     }
 
-    .m-bom-container {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .m-bom-header {
-      margin-bottom: 0.75rem;
-    }
-
-    .m-bom-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #0F1115;
-      margin: 0 0 0.25rem;
-      letter-spacing: -0.01em;
-    }
-
-    .m-bom-subtitle {
-      font-size: max(12px, 0.8125rem);
+    .m-bom-lead {
+      font-size: 13px;
       line-height: 1.45;
       color: #5A6270;
-      margin: 0;
+      margin-bottom: 6px;
     }
 
     .m-bom-list {
       display: flex;
       flex-direction: column;
-      border-top: 1px solid #ECEFF2;
+      gap: 10px;
     }
 
-    .m-bom-row {
-      display: grid;
-      grid-template-columns: 2.75rem 1fr auto;
-      align-items: start;
-      gap: 0.5rem;
-      padding: 0.875rem 0;
-      border-bottom: 1px solid #ECEFF2;
+    .m-bom-card {
+      border: 1px solid #E4E7EB;
+      border-radius: 16px;
+      background: #fff;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
       transition: opacity 150ms ease;
     }
-
-    .m-bom-row.is-ticked {
-      opacity: 0.5;
+    .m-bom-card.is-ticked {
+      opacity: 0.55;
     }
 
-    .m-bom-check-target {
-      min-width: 2.75rem;
-      min-height: 2.75rem;
+    .m-bom-card-top {
       display: flex;
+      gap: 6px;
       align-items: flex-start;
-      justify-content: flex-start;
-      padding-top: 0.125rem;
-      cursor: pointer;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
     }
 
+    .m-bom-check-wrap {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      margin: -6px 0 0 -8px;
+      cursor: pointer;
+    }
     .m-bom-check {
-      width: 1.375rem;
-      height: 1.375rem;
+      width: 22px;
+      height: 22px;
       margin: 0;
-      border-radius: 0.25rem;
-      border: 1.5px solid #CBD5E1;
-      accent-color: #0F1115;
+      accent-color: #D91F26;
       cursor: pointer;
     }
 
     .m-bom-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.1875rem;
+      flex: 1;
       min-width: 0;
-      padding-right: 0.5rem;
     }
-
     .m-bom-name {
-      font-size: 0.9375rem;
-      font-weight: 700;
-      line-height: 1.3;
+      font-size: 15px;
       color: #0F1115;
-      word-break: break-word;
+      line-height: 1.35;
+      display: block;
+      margin-bottom: 2px;
     }
 
-    .m-bom-note {
-      font-size: max(12px, 0.8125rem);
-      line-height: 1.4;
-      color: #5A6270;
-      word-break: break-word;
-    }
-
-    .m-bom-qty {
-      font-size: max(12px, 0.8125rem);
-      color: #5A6270;
-      font-weight: 500;
-      margin-top: 0.125rem;
-    }
-
-    .m-bom-action {
+    .m-bom-actions {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 0.5rem;
-      flex-shrink: 0;
+      gap: 8px;
+      margin-top: 12px;
     }
 
-    .m-bom-price {
-      font-size: 0.9375rem;
-      font-weight: 700;
-      color: #0F1115;
-      white-space: nowrap;
-      text-align: right;
+    .m-bom-b-primary {
+      flex: 1;
+      min-height: 44px;
+      font-size: 14px;
+      padding: 0 12px;
     }
 
-    .btn-m-bom-buy {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 3.875rem;
-      height: 2.125rem;
-      padding: 0 0.875rem;
-      border: 1.5px solid #0F1115;
-      border-radius: 0.5rem;
-      font-size: max(12px, 0.8125rem);
-      font-weight: 600;
-      color: #0F1115;
-      background: #ffffff;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: all 150ms ease;
+    .m-bom-b-comp {
+      min-height: 44px;
+      font-size: 14px;
+      padding: 0 14px;
     }
 
-    .btn-m-bom-buy:active {
-      transform: scale(0.97);
+    .m-bom-ab {
+      display: flex;
+      gap: 10px;
+      padding: 12px 0 16px;
+      border-top: 1px solid #E4E7EB;
+      background: #fff;
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
     }
-
-    .btn-m-bom-buy--dim {
-      border-color: #E2E8F0;
-      color: #94A3B8;
-      cursor: default;
+    .m-bom-ab-btn {
+      flex: 1;
+      min-height: 48px;
     }
   }
 </style>

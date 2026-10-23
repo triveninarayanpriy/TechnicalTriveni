@@ -16,9 +16,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   let name = strField(form, 'name', 160);
   let store = strField(form, 'store', 60);
   let affiliate_url = strField(form, 'affiliate_url', 500);
-  let unit_price_inr = intField(form, 'unit_price_inr', 0);
+  let unit_price_inr = 0;
   let is_affiliate = checkbox(form, 'is_affiliate');
-  let price_checked = strField(form, 'price_checked', 40);
+  let price_checked = '';
 
   let finalCompId = componentId;
   const formAffUrl = strField(form, 'affiliate_url', 500);

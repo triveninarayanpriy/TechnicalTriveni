@@ -42,15 +42,6 @@ try {
   }
 } catch {}
 
-// Compute estimated cost from real BOM items (excluding tools)
-const estCost = (project.bom || [])
-  .filter((b) => !(b.group_name || '').toLowerCase().includes('tool') && !(b.group_name || '').toLowerCase().includes('optional'))
-  .reduce((sum, b) => {
-    const q = parseInt(b.qty, 10);
-    const qty = Number.isFinite(q) && q > 0 ? q : 1;
-    return sum + (b.unit_price_inr > 0 ? b.unit_price_inr * qty : 0);
-  }, 0);
-
 // Render markdown fields safely
 const descHtml = project.description ? renderMarkdown(project.description) : '';
 const safetyHtml = project.safety_note ? renderMarkdown(project.safety_note) : '';
@@ -103,11 +94,6 @@ const howToJson =
         name: project.title,
         description: project.summary,
         image: project.cover_image,
-        estimatedCost: {
-          '@type': 'MonetaryAmount',
-          currency: 'INR',
-          value: estCost,
-        },
         step: project.steps.map((step, index) => ({
           '@type': 'HowToStep',
           position: index + 1,
@@ -144,7 +130,6 @@ const jsonLd = howToJson ? [productJson, howToJson] : productJson;
 
     <ProjectLayoutV2
       project={project}
-      estCost={estCost}
       paid={paid}
       descHtml={descHtml}
       safetyHtml={safetyHtml}

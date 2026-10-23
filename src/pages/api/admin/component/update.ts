@@ -16,9 +16,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     store: strField(form, 'store', 60),
     buy_url: strField(form, 'buy_url', 500),
     is_affiliate: checkbox(form, 'is_affiliate'),
-    unit_price_inr: intField(form, 'unit_price_inr', 0),
-    price_checked: strField(form, 'price_checked', 40),
+    unit_price_inr: 0,
+    price_checked: '',
     notes: strField(form, 'notes', 300),
   });
-  return flashRedirect('/admin/components', { ok: 'Component updated — new price is live on every project using it.' });
+  return flashRedirect('/admin/components', { ok: 'Component updated — details are live on every project using it.' });
 };

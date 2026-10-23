@@ -373,15 +373,11 @@ export function buildPreparedComponent(item: ProposedBomItem): PreparedComponent
     cat = 'Power';
   }
 
-  const price = typeof item.approx_price_inr === 'number' && !isNaN(item.approx_price_inr)
-    ? Math.max(0, Math.round(item.approx_price_inr))
-    : 0;
-
   return {
     name: item.name.trim(),
     store: 'Robu / Amazon',
     category: cat,
-    unit_price_inr: price,
+    unit_price_inr: 0,
     buy_url: item.buy_url?.trim() || '',
     notes: item.role ? `Role: ${item.role}` : (item.notes || '')
   };

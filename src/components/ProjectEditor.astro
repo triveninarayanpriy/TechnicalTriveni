@@ -29,17 +29,6 @@ if (!isNew) {
   if (isPaid && !hasBom) missingPublishChecks.push('BOM is empty for paid combo');
 }
 
-let showStalePriceWarning = false;
-if (p?.cost_checked) {
-  const checkDate = new Date(p.cost_checked);
-  if (!isNaN(checkDate.getTime())) {
-    const daysOld = (new Date().getTime() - checkDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysOld > 60) {
-      showStalePriceWarning = true;
-    }
-  }
-}
-
 const distinctModules = Array.from(new Set([
   'ESP32',
   'NodeMCU ESP8266',
@@ -1040,32 +1029,13 @@ const distinctModules = Array.from(new Set([
           </div>
         ) : (
           <div class="bom-container" style="margin-top: 1rem;">
-            <!-- Cost summary -->
-            <div class="grid-2" style="margin-bottom: 1rem;">
-              <div class="field">
-                <label class="label" for="est_cost">Approx build cost <span id="computed-cost" class="dim mono"></span></label>
-                <input class="input" id="est_cost" name="est_cost" form="main-project-form" placeholder="₹800" value={val(p?.est_cost)} />
-              </div>
-              <div class="field">
-                <label class="label" for="cost_checked">Cost checked on</label>
-                <input class="input" id="cost_checked" name="cost_checked" form="main-project-form" placeholder="Sep 2026" value={val(p?.cost_checked)} />
-              </div>
-            </div>
-
-            {showStalePriceWarning && (
-              <div class="stale-warning" style="background: var(--admin-warning-bg); color: var(--admin-warning-text); padding: 0.75rem 1rem; border: 1px solid #FFE6B3; border-radius: 0.75rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: max(12px, 0.8438rem);">
-                <Icon name="alert-triangle" size={16} />
-                <span><strong>Stale Price Warning:</strong> Cost checked date is older than 60 days. Please verify component pricing.</span>
-              </div>
-            )}
-
             <!-- BOM items list -->
             <div class="rows">
               {p.bom.map((b, i) => (
                 <details class="data-row-edit bom-row" style="background: var(--admin-bg); border: 1px solid var(--admin-line); border-radius: 0.75rem; margin-bottom: 0.5rem;">
                   <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
                     <div class="data-row__main" style="flex: 1; min-width: 0;">
-                      <strong style="font-size: max(12px, 0.875rem);">{b.name} <span class="dim mono">x{b.qty}</span>{b.unit_price_inr > 0 && <span class="dim mono"> • ₹{b.unit_price_inr}</span>}</strong>
+                      <strong style="font-size: max(12px, 0.875rem);">{b.name} <span class="dim mono">x{b.qty}</span></strong>
                       <span class="dim" style="font-size: max(12px, 0.7813rem); display: flex; align-items: center; gap: 0.4rem; margin-top: 0.2rem; flex-wrap: wrap;">
                         <span>{b.store || '—'}</span>
                         {b.link?.status === 'verified' && <span class="admin-chip admin-chip--live" style="font-size: max(10px, 0.65rem); padding: 0.1rem 0.4rem;">Verified</span>}
@@ -1101,10 +1071,9 @@ const distinctModules = Array.from(new Set([
                     <input type="hidden" name="csrf" value={csrf} />
                     <input type="hidden" name="id" value={b.id} />
                     <input type="hidden" name="project_id" value={p.id} />
-                    <div class="grid-3">
+                    <div class="grid-2">
                       <input class="input" name="name" value={b.name} placeholder="Component" required />
                       <input class="input" name="qty" value={b.qty} placeholder="Qty" />
-                      <input class="input" name="unit_price_inr" value={b.unit_price_inr || ''} type="number" min="0" placeholder="₹ price" />
                     </div>
                     <div class="grid-2" style="margin-top: 0.5rem;">
                       <input class="input" name="store" value={b.store || ''} placeholder="Store (Amazon, Robu…)" />
@@ -1123,10 +1092,8 @@ const distinctModules = Array.from(new Set([
               id: c.id,
               name: c.name,
               store: c.store || '',
-              price: c.unit_price_inr || 0,
               buy_url: c.buy_url || '',
               is_affiliate: c.is_affiliate || 0,
-              price_checked: c.price_checked || '',
             })))}></script>
 
             <!-- Add BOM Part Form -->
@@ -1171,10 +1138,9 @@ const distinctModules = Array.from(new Set([
               <form method="post" action="/api/admin/bom/add" id="bom-custom-add-form" hidden style="margin-top: 0.75rem; border-top: 1px dashed var(--admin-line); padding-top: 0.75rem;">
                 <input type="hidden" name="csrf" value={csrf} />
                 <input type="hidden" name="project_id" value={p.id} />
-                <div class="grid-3">
+                <div class="grid-2">
                   <input class="input" id="custom-name" name="name" placeholder="Component Name *" required />
                   <input class="input" id="custom-qty" name="qty" placeholder="Qty (e.g. 1)" value="1" />
-                  <input class="input" id="custom-price" name="unit_price_inr" type="number" min="0" placeholder="₹ Price" />
                 </div>
                 <div class="grid-2" style="margin-top: 0.5rem;">
                   <input class="input" id="custom-store" name="store" placeholder="Store (Amazon, Robu…)" />
@@ -1480,7 +1446,6 @@ const distinctModules = Array.from(new Set([
                     <th style="width: 3.4375rem; text-align: center;">Qty</th>
                     <th style="min-width: 12.5rem;">Affiliate / Buy URL</th>
                     <th style="min-width: 8.75rem;">Library match</th>
-                    <th style="width: 5.3125rem; text-align: right;">Price (₹)</th>
                     <th style="width: 2.375rem; text-align: center;"></th>
                   </tr>
                 </thead>
@@ -3918,7 +3883,6 @@ const distinctModules = Array.from(new Set([
         if (rowsContainer) {
           const name = String(data.name || fd.get('name') || '');
           const qty = String(data.qty || fd.get('qty') || '1');
-          const price = Number(data.unit_price_inr || fd.get('unit_price_inr') || 0);
           const store = String(data.store || fd.get('store') || '');
           const details = document.createElement('details');
           details.className = 'data-row-edit bom-row';
@@ -3927,7 +3891,7 @@ const distinctModules = Array.from(new Set([
           details.innerHTML = `
             <summary class="data-row" style="cursor: pointer; padding: 0.85rem 1rem; display: flex; align-items: center; border: none; background: transparent; list-style: none;">
               <div class="data-row__main" style="flex: 1; min-width: 0;">
-                <strong style="font-size: max(12px, 0.875rem);">${name} <span class="dim mono">x${qty}</span>${price > 0 ? ` • ₹${price}` : ''}</strong>
+                <strong style="font-size: max(12px, 0.875rem);">${name} <span class="dim mono">x${qty}</span></strong>
                 <span class="dim" style="font-size: max(12px, 0.7813rem); display: block; margin-top: 0.2rem;">${store || '—'}</span>
               </div>
               <div class="row-ctrl" style="display: flex; gap: 0.35rem; align-items: center;">
@@ -3958,10 +3922,9 @@ const distinctModules = Array.from(new Set([
               <input type="hidden" name="csrf" value="${fd.get('csrf')}" />
               <input type="hidden" name="id" value="${data.id}" />
               <input type="hidden" name="project_id" value="${fd.get('project_id')}" />
-              <div class="grid-3">
+              <div class="grid-2">
                 <input class="input" name="name" value="${name}" placeholder="Component" required />
                 <input class="input" name="qty" value="${qty}" placeholder="Qty" />
-                <input class="input" name="unit_price_inr" value="${price || ''}" type="number" min="0" placeholder="₹ price" />
               </div>
               <div class="grid-2" style="margin-top: 0.5rem;">
                 <input class="input" name="store" value="${store}" placeholder="Store (Amazon, Robu…)" />
@@ -5010,7 +4973,6 @@ const distinctModules = Array.from(new Set([
       if (bomTbodyEl) {
         bomTbodyEl.innerHTML = activeMatchedBom.map((m: any, idx: number) => {
           let matchHtml = '';
-          const price = m.matched_component?.unit_price_inr ?? m.bom_item?.approx_price_inr ?? 0;
           const buyUrl = m.bom_item?.buy_url || m.matched_component?.buy_url || m.prepared_component?.buy_url || '';
 
           if (m.status === 'matched') {
@@ -5019,7 +4981,7 @@ const distinctModules = Array.from(new Set([
             const candidates = m.candidates || [];
             matchHtml = `
               <select class="ai-rev-bom-select input--sm" data-bom-idx="${idx}" style="font-size: max(12px, 0.75rem); max-width: 10rem;">
-                ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)} (₹${c.component.unit_price_inr})</option>`).join('')}
+                ${candidates.map((c: any) => `<option value="${c.component.id}">${escapeHtml(c.component.name)}</option>`).join('')}
                 <option value="0">Standalone Custom</option>
               </select>
             `;
@@ -5039,12 +5001,6 @@ const distinctModules = Array.from(new Set([
                 <input type="url" class="input input--sm mono ai-bom-input-url" data-bom-idx="${idx}" value="${escapeHtml(buyUrl)}" placeholder="https://amzn.to/... or https://robu.in/..." style="width: 100%; min-width: 11.25rem; font-size: max(12px, 0.75rem);" />
               </td>
               <td>${matchHtml}</td>
-              <td class="ai-rev-bom-price">
-                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.25rem;">
-                  <span>₹</span>
-                  <input type="number" class="input input--sm ai-bom-input-price" data-bom-idx="${idx}" value="${price}" style="width: 4.0625rem; text-align: right;" />
-                </div>
-              </td>
               <td style="text-align: center;">
                 <button type="button" class="ai-bom-del-btn" data-bom-del-idx="${idx}" title="Delete component">
                   <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -5060,7 +5016,6 @@ const distinctModules = Array.from(new Set([
       if (bomMobListEl) {
         bomMobListEl.innerHTML = activeMatchedBom.map((m: any, idx: number) => {
           let matchHtml = '';
-          const price = m.matched_component?.unit_price_inr ?? m.bom_item?.approx_price_inr ?? 0;
           const buyUrl = m.bom_item?.buy_url || m.matched_component?.buy_url || m.prepared_component?.buy_url || '';
 
           if (m.status === 'matched') {
@@ -5085,15 +5040,9 @@ const distinctModules = Array.from(new Set([
                   <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </div>
-              <div style="display: grid; grid-template-columns: 5rem 1fr; gap: 0.5rem;">
-                <div>
-                  <label style="font-size: max(12px, 0.6875rem); color: #64748B;">Qty</label>
-                  <input type="text" class="input input--sm ai-bom-input-qty" data-bom-idx="${idx}" value="${escapeHtml(String(m.bom_item.qty || 1))}" style="width: 100%; text-align: center;" />
-                </div>
-                <div>
-                  <label style="font-size: max(12px, 0.6875rem); color: #64748B;">Price (₹)</label>
-                  <input type="number" class="input input--sm ai-bom-input-price" data-bom-idx="${idx}" value="${price}" style="width: 100%; text-align: right;" />
-                </div>
+              <div>
+                <label style="font-size: max(12px, 0.6875rem); color: #64748B;">Qty</label>
+                <input type="text" class="input input--sm ai-bom-input-qty" data-bom-idx="${idx}" value="${escapeHtml(String(m.bom_item.qty || 1))}" style="width: 5rem; text-align: center;" />
               </div>
               <div>
                 <label style="font-size: max(12px, 0.6875rem); color: #64748B;">Affiliate Link</label>
@@ -5129,7 +5078,6 @@ const distinctModules = Array.from(new Set([
         const nameEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-name[data-bom-idx="${idx}"]`);
         const qtyEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-qty[data-bom-idx="${idx}"]`);
         const urlEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-url[data-bom-idx="${idx}"]`);
-        const priceEl = document.querySelector<HTMLInputElement>(`.ai-bom-input-price[data-bom-idx="${idx}"]`);
 
         if (nameEl) {
           item.bom_item.name = nameEl.value.trim();
@@ -5141,14 +5089,9 @@ const distinctModules = Array.from(new Set([
           if (item.prepared_component) item.prepared_component.buy_url = urlEl.value.trim();
           if (item.matched_component) item.matched_component.buy_url = urlEl.value.trim();
         }
-        if (priceEl) {
-          const pVal = Number(priceEl.value || 0);
-          item.bom_item.approx_price_inr = pVal;
-          if (item.prepared_component) item.prepared_component.unit_price_inr = pVal;
-        }
       };
 
-      document.querySelectorAll<HTMLInputElement>('.ai-bom-input-name, .ai-bom-input-qty, .ai-bom-input-url, .ai-bom-input-price').forEach(inp => {
+      document.querySelectorAll<HTMLInputElement>('.ai-bom-input-name, .ai-bom-input-qty, .ai-bom-input-url').forEach(inp => {
         inp.oninput = () => {
           const idx = Number(inp.dataset.bomIdx);
           if (!isNaN(idx)) syncRow(idx);
@@ -5178,7 +5121,6 @@ const distinctModules = Array.from(new Set([
         name: '',
         qty: '1',
         role: '',
-        approx_price_inr: 0,
         buy_url: ''
       };
       activeMatchedBom.push({
@@ -5188,7 +5130,6 @@ const distinctModules = Array.from(new Set([
           name: '',
           store: 'Robu / Amazon',
           category: 'Electronics',
-          unit_price_inr: 0,
           buy_url: '',
           notes: ''
         },
@@ -5366,17 +5307,14 @@ const distinctModules = Array.from(new Set([
       const name = nameInput ? nameInput.value.trim() : (m.bom_item?.name || '');
       const qty = qtyInput ? qtyInput.value.trim() : (m.bom_item?.qty || '1');
       const buy_url = urlInput ? urlInput.value.trim() : (m.bom_item?.buy_url || m.matched_component?.buy_url || '');
-      const price = priceInput ? Number(priceInput.value || 0) : (m.bom_item?.approx_price_inr || 0);
 
       m.bom_item.name = name;
       m.bom_item.qty = qty;
       m.bom_item.buy_url = buy_url;
-      m.bom_item.approx_price_inr = price;
 
       if (m.prepared_component) {
         m.prepared_component.name = name;
         m.prepared_component.buy_url = buy_url;
-        m.prepared_component.unit_price_inr = price;
       }
     });
 
@@ -5384,7 +5322,6 @@ const distinctModules = Array.from(new Set([
       name: m.bom_item.name,
       qty: m.bom_item.qty || '1',
       role: m.bom_item.role || '',
-      approx_price_inr: m.bom_item.approx_price_inr || 0,
       buy_url: m.bom_item.buy_url || ''
     }));
 
@@ -5399,7 +5336,7 @@ const distinctModules = Array.from(new Set([
             name: m.bom_item.name,
             store: m.prepared_component?.store || 'Robu / Amazon',
             category: m.prepared_component?.category || 'Electronics',
-            unit_price_inr: m.bom_item.approx_price_inr || 0,
+            unit_price_inr: 0,
             buy_url: m.bom_item.buy_url || '',
             notes: m.prepared_component?.notes || ''
           });
@@ -5416,7 +5353,7 @@ const distinctModules = Array.from(new Set([
         bom_index: idx,
         component_id: compId,
         buy_url: m.bom_item.buy_url || '',
-        unit_price_inr: m.bom_item.approx_price_inr || 0
+        unit_price_inr: 0
       });
     });
 

@@ -147,10 +147,6 @@ const filteredComponents = components.filter(c => {
                     <span class="spec-label">Store:</span>
                     <span class="spec-val">{c.store || 'Amazon'}</span>
                   </div>
-                  <div class="spec-meta-row">
-                    <span class="spec-label">Est. Cost:</span>
-                    <span class="spec-val font-display">{c.unit_price_inr > 0 ? `₹${c.unit_price_inr}` : 'Not set'}</span>
-                  </div>
                   {c.notes && (
                     <div class="spec-meta-row">
                       <span class="spec-label">Notes:</span>

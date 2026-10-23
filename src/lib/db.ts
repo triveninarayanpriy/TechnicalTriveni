@@ -3,6 +3,7 @@
  * All SQL is parameterized (never string-interpolated) to prevent injection.
  */
 import { type AffiliateSettings, DEFAULT_AFFILIATE_SETTINGS } from './affiliate';
+import { slugify } from './format';
 
 /* --------------------------------------------------------------- types --- */
 export interface Project {
@@ -571,6 +572,30 @@ export async function listComponentsWithLinks(db: D1Database): Promise<(Componen
     ...c,
     link: linksMap.get(c.id) || null
   }));
+}
+
+export async function getComponentBySlug(
+  db: D1Database,
+  slug: string
+): Promise<(Component & { link?: ComponentLink | null; projects: Project[] }) | null> {
+  const components = await listComponentsWithLinks(db);
+  const found = components.find((c) => slugify(c.name) === slug);
+  if (!found) return null;
+
+  const projs = await db
+    .prepare(
+      `SELECT DISTINCT p.* FROM projects p
+       JOIN bom_items b ON b.project_id = p.id
+       WHERE (b.component_id = ? OR LOWER(b.name) = LOWER(?)) AND p.published = 1
+       ORDER BY p.sort ASC, p.id DESC`
+    )
+    .bind(found.id, found.name)
+    .all<Project>();
+
+  return {
+    ...found,
+    projects: projs.results ?? [],
+  };
 }
 
 export async function getComponentLink(db: D1Database, componentId: number): Promise<ComponentLink | null> {
@@ -1262,14 +1287,13 @@ export async function getDashboardStats(db: D1Database, days: number): Promise<D
   // Base order queries
   const oBase = `FROM orders WHERE is_test = 0 AND created_at >= ${since}`;
   
-  const [revRow, ordersRow, pendingRow, topRows, unreadMsgs, failedPayments, stalePrices, noCovers] = await Promise.all([
+  const [revRow, ordersRow, pendingRow, topRows, unreadMsgs, failedPayments, noCovers] = await Promise.all([
     db.prepare(`SELECT COALESCE(SUM(amount_inr),0) AS n ${oBase} AND status = 'paid'`).first<{ n: number }>(),
     db.prepare(`SELECT COUNT(*) AS n ${oBase} AND status = 'paid'`).first<{ n: number }>(),
     db.prepare(`SELECT COUNT(*) AS n ${oBase} AND status = 'created'`).first<{ n: number }>(),
     db.prepare(`SELECT project_title as title, COUNT(*) as sales, COALESCE(SUM(amount_inr),0) as revenue ${oBase} AND status = 'paid' GROUP BY project_title ORDER BY revenue DESC LIMIT 5`).all<{ title: string; sales: number; revenue: number }>(),
     db.prepare('SELECT id, name FROM contact_messages WHERE handled = 0 ORDER BY created_at DESC LIMIT 5').all<{ id: number; name: string }>(),
     db.prepare(`SELECT id, email ${oBase} AND status = 'failed' ORDER BY created_at DESC LIMIT 5`).all<{ id: string; email: string }>(),
-    db.prepare('SELECT id, title FROM projects WHERE cost_checked < ? OR cost_checked IS NULL LIMIT 5').bind(new Date(Date.now() - 60 * 86400 * 1000).toISOString().split('T')[0]).all<{ id: number; title: string }>(),
     db.prepare("SELECT p.id, p.title FROM projects p WHERE p.published = 0 AND NOT EXISTS (SELECT 1 FROM project_images i WHERE i.project_id = p.id AND i.kind = 'cover') LIMIT 5").all<{ id: number; title: string }>()
   ]);
 
@@ -1281,7 +1305,6 @@ export async function getDashboardStats(db: D1Database, days: number): Promise<D
   
   for (const m of unreadMsgs.results || []) attention.push({ type: 'Message', title: 'Unread from ' + m.name, id: m.id, link: `/admin/messages?id=${m.id}` });
   for (const o of failedPayments.results || []) attention.push({ type: 'Payment', title: 'Failed payment from ' + o.email, id: o.id, link: `/admin/orders?search=${o.id}` });
-  for (const p of stalePrices.results || []) attention.push({ type: 'Stale Price', title: p.title, id: p.id, link: `/admin/projects/${p.id}` });
   for (const p of noCovers.results || []) attention.push({ type: 'Draft', title: 'Missing cover: ' + p.title, id: p.id, link: `/admin/projects/${p.id}` });
 
   // System health dates from settings

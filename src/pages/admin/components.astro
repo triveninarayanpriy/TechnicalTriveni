@@ -39,14 +39,12 @@ const needsReviewCount = components.filter(c => !c.link || c.link.status === 'un
       <h3 class="comp-h3">Add a component</h3>
       <form method="post" action="/api/admin/component/add" class="comp-form">
         <input type="hidden" name="csrf" value={csrf} />
-        <div class="grid-3">
+        <div class="grid-2">
           <input class="input" name="name" placeholder="Name e.g. ESP32 DevKit V1 30-pin" required />
           <input class="input" name="store" placeholder="Store (Amazon, Robu…)" />
-          <input class="input" name="unit_price_inr" type="number" min="0" placeholder="₹ approx price" />
         </div>
-        <div class="grid-3">
+        <div class="grid-2">
           <input class="input mono" name="buy_url" placeholder="Buy URL or ASIN" />
-          <input class="input" name="price_checked" placeholder="Checked (Oct 2026)" />
           <input class="input" name="notes" placeholder="Notes (specs, chip, pins)" />
         </div>
         <div class="comp-form__foot">
@@ -93,7 +91,7 @@ const needsReviewCount = components.filter(c => !c.link || c.link.status === 'un
 
                 <div class="comp-item__right">
                   <span class="comp-item__meta dim mono">
-                    {c.unit_price_inr > 0 ? `₹${c.unit_price_inr}` : '—'}{c.store ? ` · ${c.store}` : ''}
+                    {c.store || 'Amazon'}
                   </span>
                   <button
                     type="button"
@@ -110,14 +108,12 @@ const needsReviewCount = components.filter(c => !c.link || c.link.status === 'un
               <form method="post" action="/api/admin/component/update" class="comp-form comp-edit">
                 <input type="hidden" name="csrf" value={csrf} />
                 <input type="hidden" name="id" value={c.id} />
-                <div class="grid-3">
+                <div class="grid-2">
                   <input class="input" name="name" value={c.name} required />
                   <input class="input" name="store" value={c.store} placeholder="Store" />
-                  <input class="input" name="unit_price_inr" type="number" min="0" value={c.unit_price_inr} />
                 </div>
-                <div class="grid-3">
+                <div class="grid-2">
                   <input class="input mono" name="buy_url" value={c.buy_url} placeholder="Buy URL" />
-                  <input class="input" name="price_checked" value={c.price_checked} placeholder="Checked" />
                   <input class="input" name="notes" value={c.notes} placeholder="Notes" />
                 </div>
 

@@ -1,0 +1,469 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import Icon from '../../components/Icon.astro';
+import { env } from 'cloudflare:workers';
+import { getComponentBySlug, getAffiliateSettings } from '../../lib/db';
+import { buildComponentAffiliateUrl, AFFILIATE_LINK_ATTRIBUTES } from '../../lib/affiliate';
+
+const { slug } = Astro.params;
+const component = await getComponentBySlug(env.DB, slug!);
+
+if (!component) {
+  return Astro.rewrite('/404');
+}
+
+const affiliateSettings = await getAffiliateSettings(env.DB);
+const aff = buildComponentAffiliateUrl(
+  { name: component.name, store: component.store, buy_url: component.buy_url },
+  component.link,
+  affiliateSettings
+);
+
+// Check if notes contains a direct datasheet URL
+let datasheetUrl = '';
+if (component.notes) {
+  const match = component.notes.match(/https?:\/\/[^\s]+/i);
+  if (match) datasheetUrl = match[0];
+}
+if (!datasheetUrl) {
+  datasheetUrl = `https://www.google.com/search?q=${encodeURIComponent(component.name + ' datasheet pinout')}`;
+}
+
+const isNonAmazonStore = component.store && !/amazon/i.test(component.store);
+const photoUrl = component.link?.image_url || '';
+---
+
+<Base
+  title={`${component.name} — Specs, Pinout & Buy Links | Technical Triveni`}
+  description={`Datasheet, pinout, specs, and verified buy links for ${component.name}. Used in Technical Triveni maker project packs.`}
+>
+  <div class="comp-page">
+    <div class="comp-w">
+      <!-- Breadcrumb -->
+      <nav class="comp-crumb">
+        <a href="/">Home</a>
+        <span class="comp-crumb-sep">/</span>
+        <a href="/projects">Projects</a>
+        <span class="comp-crumb-sep">/</span>
+        <span class="comp-crumb-current">{component.name}</span>
+      </nav>
+
+      <!-- Main Component Card -->
+      <section class="comp-hero-card">
+        <div class="comp-hero-grid">
+          <!-- Left: Image or Icon -->
+          <div class="comp-photo-wrap">
+            {photoUrl ? (
+              <img src={photoUrl} alt={component.name} class="comp-photo" loading="eager" />
+            ) : (
+              <div class="comp-photo-placeholder">
+                <Icon name="layers" size={56} />
+                <span class="comp-placeholder-tag">Component</span>
+              </div>
+            )}
+          </div>
+
+          <!-- Right: Details & Actions -->
+          <div class="comp-details">
+            <div class="comp-badge-row">
+              <span class="comp-tag">Hardware Component</span>
+              {component.link?.status === 'verified' && (
+                <span class="comp-tag comp-tag--verified">
+                  <Icon name="check-circle" size={13} /> Verified part
+                </span>
+              )}
+            </div>
+
+            <h1 class="comp-title">{component.name}</h1>
+
+            {component.notes && (
+              <p class="comp-notes">{component.notes}</p>
+            )}
+
+            <!-- Quick Specs / Key Info -->
+            <div class="comp-specs-box">
+              <div class="comp-spec-row">
+                <span class="comp-spec-label">Primary store</span>
+                <span class="comp-spec-val">Amazon India</span>
+              </div>
+              {isNonAmazonStore && (
+                <div class="comp-spec-row">
+                  <span class="comp-spec-label">Alternative store</span>
+                  <span class="comp-spec-val">
+                    {component.buy_url ? (
+                      <a href={component.buy_url} target="_blank" rel="noopener noreferrer" class="comp-link-alt">
+                        {component.store}
+                      </a>
+                    ) : (
+                      component.store
+                    )}
+                  </span>
+                </div>
+              )}
+              <div class="comp-spec-row">
+                <span class="comp-spec-label">Datasheet & pinout</span>
+                <span class="comp-spec-val">
+                  <a href={datasheetUrl} target="_blank" rel="noopener noreferrer" class="comp-link-doc">
+                    View technical pinout <Icon name="external-link" size={13} />
+                  </a>
+                </span>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="comp-actions">
+              <a
+                href={aff.url}
+                target={AFFILIATE_LINK_ATTRIBUTES.target}
+                rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
+                class="btn-buy-primary"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-cart"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
+                <span>{aff.isDirectProduct ? 'Buy on Amazon' : 'Search on Amazon'}</span>
+              </a>
+
+              <a
+                href={datasheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn-datasheet"
+              >
+                <Icon name="file" size={18} />
+                <span>Datasheet & Pinout</span>
+              </a>
+            </div>
+
+            <!-- Affiliate disclosure -->
+            <div class="comp-disclosure">
+              As an Amazon Associate I earn from qualifying purchases. Buy links are affiliate links.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Projects Using This Component -->
+      <section class="comp-projects-section">
+        <div class="comp-section-header">
+          <h2 class="comp-section-title">Projects using {component.name}</h2>
+          <span class="comp-section-sub">
+            {component.projects.length} project pack{component.projects.length === 1 ? '' : 's'} with verified wiring and schematics
+          </span>
+        </div>
+
+        {component.projects.length > 0 ? (
+          <div class="comp-projects-grid">
+            {component.projects.map((proj) => (
+              <ProjectCard project={proj} />
+            ))}
+          </div>
+        ) : (
+          <div class="comp-empty-projects">
+            <p>This component is verified for custom electronics builds. Check back soon for new project packs!</p>
+            <a href="/projects" class="btn-browse-projects">Browse all project packs</a>
+          </div>
+        )}
+      </section>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .comp-page {
+    background: #fff;
+    min-height: 80vh;
+    padding-bottom: 5rem;
+  }
+  .comp-w {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 1.5rem 1.5rem 3rem;
+  }
+
+  .comp-crumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #5A6270;
+    margin-bottom: 1.5rem;
+  }
+  .comp-crumb a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .comp-crumb a:hover {
+    color: #0F1115;
+  }
+  .comp-crumb-sep {
+    color: #CDD2D9;
+  }
+  .comp-crumb-current {
+    color: #0F1115;
+    font-weight: 600;
+  }
+
+  .comp-hero-card {
+    border: 1px solid #E4E7EB;
+    border-radius: 24px;
+    background: #fff;
+    padding: 2.25rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  }
+  .comp-hero-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  .comp-photo-wrap {
+    border: 1px solid #E4E7EB;
+    border-radius: 18px;
+    background: #FAFBFD;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 1.25rem;
+  }
+  .comp-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .comp-photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    color: #94A3B8;
+  }
+  .comp-placeholder-tag {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .comp-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .comp-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+  }
+  .comp-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.625rem;
+    border-radius: 99px;
+    background: #F0F2F5;
+    color: #3B4350;
+  }
+  .comp-tag--verified {
+    background: #E3F4EA;
+    color: #14663A;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .comp-title {
+    font-size: clamp(1.75rem, 3.5vw, 2.375rem);
+    font-weight: 700;
+    line-height: 1.15;
+    color: #0F1115;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  .comp-notes {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #5A6270;
+    margin: 0;
+  }
+
+  .comp-specs-box {
+    border-top: 1px solid #E4E7EB;
+    border-bottom: 1px solid #E4E7EB;
+    padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin: 0.5rem 0;
+  }
+  .comp-spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    gap: 1rem;
+  }
+  .comp-spec-label {
+    color: #5A6270;
+    font-weight: 500;
+  }
+  .comp-spec-val {
+    font-weight: 600;
+    color: #0F1115;
+    text-align: right;
+  }
+  .comp-link-alt, .comp-link-doc {
+    color: #D91F26;
+    text-decoration: underline;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .comp-link-alt:hover, .comp-link-doc:hover {
+    color: #B3151B;
+  }
+
+  .comp-actions {
+    display: flex;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+
+  .btn-buy-primary {
+    border: 0;
+    border-radius: 14px;
+    height: 48px;
+    padding: 0 24px;
+    font-weight: 700;
+    font-size: 15px;
+    background: #D91F26;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background 150ms ease;
+  }
+  .btn-buy-primary:hover {
+    background: #B3151B;
+  }
+  .icon-cart {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .btn-datasheet {
+    border: 1.5px solid #0F1115;
+    border-radius: 14px;
+    height: 48px;
+    padding: 0 20px;
+    font-weight: 700;
+    font-size: 15px;
+    background: #fff;
+    color: #0F1115;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .btn-datasheet:hover {
+    background: #F4F5F7;
+  }
+
+  .comp-disclosure {
+    font-size: 0.8125rem;
+    color: #5A6270;
+    line-height: 1.45;
+  }
+
+  .comp-projects-section {
+    margin-top: 3.5rem;
+  }
+  .comp-section-header {
+    margin-bottom: 1.5rem;
+  }
+  .comp-section-title {
+    font-size: 1.625rem;
+    font-weight: 700;
+    color: #0F1115;
+    margin: 0 0 0.35rem 0;
+    letter-spacing: -0.015em;
+  }
+  .comp-section-sub {
+    font-size: 0.875rem;
+    color: #5A6270;
+  }
+
+  .comp-projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .comp-empty-projects {
+    border: 1px dashed #CDD2D9;
+    border-radius: 18px;
+    padding: 2.5rem;
+    text-align: center;
+    color: #5A6270;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  .btn-browse-projects {
+    border: 0;
+    border-radius: 12px;
+    height: 44px;
+    padding: 0 20px;
+    font-weight: 600;
+    font-size: 14px;
+    background: #0F1115;
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 768px) {
+    .comp-w {
+      padding: 1rem;
+    }
+    .comp-hero-card {
+      padding: 1.25rem;
+      border-radius: 18px;
+    }
+    .comp-hero-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    .comp-photo-wrap {
+      max-width: 260px;
+      margin: 0 auto;
+    }
+    .comp-actions {
+      flex-direction: column;
+    }
+    .btn-buy-primary, .btn-datasheet {
+      width: 100%;
+    }
+    .comp-projects-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

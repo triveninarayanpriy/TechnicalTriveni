@@ -234,7 +234,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           }
 
           const buyUrl = item.buy_url?.trim() || (resObj && resObj.buy_url ? String(resObj.buy_url).trim() : '');
-          const price = item.approx_price_inr || (resObj && resObj.unit_price_inr ? Number(resObj.unit_price_inr) : 0);
+          const price = 0;
 
           // If compId is still 0 or component not linked, auto-resolve or create in components library so affiliate marketing is 100% saved!
           if (!compId && item.name) {
@@ -243,7 +243,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
                 name: item.name,
                 store: 'Robu / Amazon',
                 category: 'Electronics',
-                unit_price_inr: price,
+                unit_price_inr: 0,
                 buy_url: buyUrl,
                 notes: item.role || ''
               });
@@ -251,17 +251,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
             } catch (err) {}
           }
 
-          // Always ensure the components master library has the latest affiliate link and price
+          // Always ensure the components master library has the latest affiliate link
           if (compId > 0 && buyUrl) {
             try {
               await env.DB.prepare(`
                 UPDATE components
                 SET buy_url = ?,
                     is_affiliate = 1,
-                    unit_price_inr = CASE WHEN ? > 0 THEN ? ELSE unit_price_inr END,
                     updated_at = ?
                 WHERE id = ?
-              `).bind(buyUrl, price, price, now, compId).run();
+              `).bind(buyUrl, now, compId).run();
             } catch (err) {}
           }
 

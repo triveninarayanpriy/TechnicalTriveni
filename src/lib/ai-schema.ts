@@ -41,7 +41,7 @@ export interface AIDraftOutput {
     name: string;
     qty: number | string;
     role: string;
-    approx_price_inr: number;
+    approx_price_inr?: number;
     buy_url?: string;
   }>;
   needs_review: Array<{
@@ -227,17 +227,15 @@ export function validateOrRepairDraftOutput(raw: any): AIDraftOutput {
     }
   }
 
-  // 14. BOM [{name, qty, role, approx_price_inr, buy_url}]
-  const bom: Array<{ name: string; qty: number | string; role: string; approx_price_inr: number; buy_url?: string }> = [];
+  // 14. BOM [{name, qty, role, buy_url}]
+  const bom: Array<{ name: string; qty: number | string; role: string; buy_url?: string }> = [];
   if (Array.isArray(raw.bom)) {
     for (const b of raw.bom) {
       if (b && b.name) {
-        const p = Number(b.approx_price_inr || b.unit_price_inr || 0);
         bom.push({
           name: sanitizeText(b.name).trim(),
           qty: b.qty !== undefined && b.qty !== null ? String(b.qty).trim() : '1',
           role: sanitizeText(b.role || b.notes || '').trim(),
-          approx_price_inr: !isNaN(p) && p >= 0 ? Math.round(p) : 0,
           buy_url: b.buy_url ? sanitizeUrl(b.buy_url) : undefined
         });
       }

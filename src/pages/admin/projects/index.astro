@@ -34,22 +34,9 @@ const projectMeta = projects.map((p) => {
   const isPaid = p.combo_enabled === 1 && p.price_inr > 0;
   const sales = salesMap.get(p.id) || 0;
 
-  let isStalePrice = false;
-  if (p.cost_checked) {
-    const checkDate = new Date(p.cost_checked);
-    if (!isNaN(checkDate.getTime())) {
-      const daysOld = (Date.now() - checkDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysOld > 60) isStalePrice = true;
-    }
-  }
-
   let issueText = '';
-  if (!hasCover && isStalePrice) {
-    issueText = 'Missing cover, stale price';
-  } else if (!hasCover) {
+  if (!hasCover) {
     issueText = 'Missing cover';
-  } else if (isStalePrice) {
-    issueText = 'Stale price';
   }
 
   let priceDisplay = '-';
