@@ -275,9 +275,89 @@ const jsonLd = {
         </div>
       </div>
 
-      <!-- 4 Pack Cards Container (Desktop Grid / Mobile Horizontal Scroll-Snap Carousel) -->
+      <!-- Pack Cards Container (Desktop Grid: 4 items / Mobile Carousel: heroPack first + featured items) -->
       <div class="home-pack-cards-container" id="featured-pack-container">
-        {featuredList.map((p) => {
+        {heroPack && (
+          <article
+            class="home-card pack-card-item pack-card-item--mobile-only"
+            data-price-type={(heroPack.price_inr ?? 0) > 0 && heroPack.combo_enabled !== 0 ? 'paid' : 'free'}
+          >
+            <a href={`/projects/${heroPack.slug}`} class="pack-card-media-link">
+              <img
+                src={heroPack.cover_image || '/covers/arduino-drone.png'}
+                alt={heroPack.title}
+                class="pack-card-img"
+                loading="lazy"
+              />
+            </a>
+            <div class="pack-card-body">
+              <div class="pack-card-cat" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>{heroPack.category || 'Electronics'}</span>
+                <span class="home-tg home-tg--v" style="font-size: 10px; height: 18px; padding: 0 6px;">Featured</span>
+              </div>
+              <h3 class="pack-card-title">
+                <a href={`/projects/${heroPack.slug}`}>{heroPack.title}</a>
+              </h3>
+              <div class="pack-card-meta">
+                <span class="pack-card-meta-item">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="pack-meta-svg">
+                    <path d="M5 20v-5M12 20V10M19 20V4"></path>
+                  </svg>
+                  {heroPack.difficulty || 'Advanced'}
+                </span>
+                <span class="pack-card-meta-item">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="pack-meta-svg">
+                    <path d="M12 7v5l3 2M12 3a9 9 0 100 18 9 9 0 000-18z"></path>
+                  </svg>
+                  {heroPack.build_time || '5 hours'}
+                </span>
+              </div>
+              <div class="pack-card-chips">
+                {getProjectChips(heroPack).map((chip) => (
+                  <span class:list={['home-tg', chip.isVideo && 'home-tg--v']}>
+                    {chip.label === 'Code' && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                        <path d="M8 8l-4 4 4 4M16 8l4 4-4 4"></path>
+                      </svg>
+                    )}
+                    {chip.label === 'Schematic' && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                        <path d="M4 6h5v5H4zM15 13h5v5h-5zM9 8h4a2 2 0 012 2v3"></path>
+                      </svg>
+                    )}
+                    {chip.label === 'PDF' && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                        <path d="M7 3h7l5 5v13H7zM14 3v5h5"></path>
+                      </svg>
+                    )}
+                    {chip.label === 'Video' && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" class="tg-svg">
+                        <path d="M7 4l13 8-13 8z"></path>
+                      </svg>
+                    )}
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+              <div class="pack-card-footer">
+                <span class="pack-card-price">
+                  {(heroPack.price_inr ?? 0) > 0 && heroPack.combo_enabled !== 0 ? (
+                    `₹${heroPack.price_inr}`
+                  ) : (
+                    <span class="price-free">Free</span>
+                  )}
+                </span>
+                <a
+                  href={`/projects/${heroPack.slug}`}
+                  class:list={['home-btn', 'home-btn-sm', (heroPack.price_inr ?? 0) > 0 ? 'home-btn-red' : 'home-btn-outline']}
+                >
+                  {(heroPack.price_inr ?? 0) > 0 ? 'View pack' : 'Get free'}
+                </a>
+              </div>
+            </div>
+          </article>
+        )}
+        {featuredList.filter((p) => p.slug !== heroPack?.slug).map((p) => {
           const isPaid = (p.price_inr ?? 0) > 0 && p.combo_enabled !== 0;
           const priceType = isPaid ? 'paid' : 'free';
           const chips = getProjectChips(p);
@@ -583,10 +663,11 @@ const jsonLd = {
 
       packItems.forEach((card) => {
         const type = card.dataset.priceType;
-        if (target === 'all' || target === type) {
-          card.style.display = '';
+        const match = target === 'all' || target === type;
+        if (card.classList.contains('pack-card-item--mobile-only')) {
+          card.classList.toggle('is-tab-hidden', !match);
         } else {
-          card.style.display = 'none';
+          card.style.display = match ? '' : 'none';
         }
       });
     });
@@ -978,6 +1059,9 @@ const jsonLd = {
     transform: translateY(-2px);
     border-color: #CDD2D9;
   }
+  .pack-card-item--mobile-only {
+    display: none !important;
+  }
 
   /* =========================================================================
      3. FREE TO DOWNLOAD SECTION STYLING
@@ -1365,6 +1449,12 @@ const jsonLd = {
       flex: none;
       scroll-snap-align: start;
       border-radius: 14px;
+    }
+    .pack-card-item--mobile-only {
+      display: flex !important;
+    }
+    .pack-card-item--mobile-only.is-tab-hidden {
+      display: none !important;
     }
     .pack-card-body {
       padding: 10px 12px 12px;
