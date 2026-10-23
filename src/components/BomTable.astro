@@ -48,69 +48,112 @@ if (asinItems.length > 0) {
 
 <div class="bom-root" data-project-id={projectId}>
   <!-- ==============================================
-       DESKTOP PARTS LIST (Matching PartsD.dc.html)
+       DESKTOP PARTS LIST (Fits inside .p-col-main)
        ============================================== -->
   <div class="bom-desktop">
-    <div class="bom-grid">
-      <!-- Main Parts List Card -->
-      <div class="bom-cd">
-        <div class="bom-header-row">
-          <h2 class="bom-h2">Parts list</h2>
-          <div class="bom-header-right">
-            <span class="bom-m">{items.length} parts. Tick them off as you buy.</span>
-            <button type="button" class="btn-report-broken-bom" title="Report an incorrect or broken link">
-              Report broken link
-            </button>
+    <!-- Top action & advice cards (Side-by-side or stacked in .p-col-main) -->
+    <div class="bom-top-cards">
+      {amazonCartUrl && (
+        <div class="bom-cd bom-cart-box">
+          <div class="bom-cart-header">
+            <h3 class="bom-cart-h3">Buy everything at once</h3>
+            <p class="bom-m">Adds all {items.length} parts to your Amazon.in cart. Check items before you pay.</p>
           </div>
+          <a
+            href={amazonCartUrl}
+            target="_blank"
+            rel="sponsored nofollow noopener noreferrer"
+            class="bom-b bom-cart-btn"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
+            <span>Add all to Amazon cart</span>
+          </a>
         </div>
+      )}
 
-        <div class="bom-disclosure">
-          As an Amazon Associate I earn from qualifying purchases. Buy links are affiliate links.
+      <div class="bom-k bom-tips-box">
+        <h3 class="bom-k-h3">Before you buy</h3>
+        <div class="bom-k-row">
+          <span class="bom-k-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+          </span>
+          <span>Match the variant and connector in the note.</span>
         </div>
+        <div class="bom-k-row">
+          <span class="bom-k-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+          </span>
+          <span>Use the component page for the pinout and datasheet.</span>
+        </div>
+        <div class="bom-k-row">
+          <span class="bom-k-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+          </span>
+          <span>Prices change daily, so check the final total on Amazon.</span>
+        </div>
+      </div>
+    </div>
 
-        <div class="bom-rows">
-          {items.map((b) => {
-            const aff = getLinkInfo(b);
-            const slug = slugify(b.name);
-            const hasCompPage = b.component_id > 0 || validSlugSet.has(slug);
-            const isNonAmazonStore = b.store && !/amazon/i.test(b.store);
-            const altStoreUrl = b.affiliate_url && !/amazon/i.test(b.affiliate_url) ? b.affiliate_url : '';
+    <!-- Main Parts List Card (100% width of .p-col-main) -->
+    <div class="bom-cd bom-table-card">
+      <div class="bom-header-row">
+        <h2 class="bom-h2">Parts list</h2>
+        <div class="bom-header-right">
+          <span class="bom-m">{items.length} parts. Tick them off as you buy.</span>
+          <button type="button" class="btn-report-broken-bom" title="Report an incorrect or broken link">
+            Report broken link
+          </button>
+        </div>
+      </div>
 
-            return (
-              <div class="bom-row" data-bom-id={b.id}>
-                <label class="bom-check-target" aria-label={`Got ${b.name}`}>
-                  <input
-                    type="checkbox"
-                    class="bom-check"
-                    data-item-id={b.id}
-                    aria-label={`Got ${b.name}`}
-                  />
-                </label>
+      <div class="bom-disclosure">
+        As an Amazon Associate I earn from qualifying purchases. Buy links are affiliate links.
+      </div>
 
-                <div class="bom-info">
-                  <div class="bom-item-name">{b.name}</div>
-                  {b.notes && <div class="bom-m">{b.notes}</div>}
-                  {isNonAmazonStore && (
-                    <div class="bom-alt-store">
-                      Also at{' '}
-                      {altStoreUrl ? (
-                        <a href={altStoreUrl} target="_blank" rel="noopener noreferrer" class="bom-alt-link">
-                          {b.store}
-                        </a>
-                      ) : (
-                        <span>{b.store}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+      <div class="bom-rows">
+        {items.map((b) => {
+          const aff = getLinkInfo(b);
+          const slug = slugify(b.name);
+          const hasCompPage = b.component_id > 0 || validSlugSet.has(slug);
+          const isNonAmazonStore = b.store && !/amazon/i.test(b.store);
+          const altStoreUrl = b.affiliate_url && !/amazon/i.test(b.affiliate_url) ? b.affiliate_url : '';
 
-                <span class="bom-st">Qty {b.qty}</span>
+          return (
+            <div class="bom-row" data-bom-id={b.id}>
+              <label class="bom-check-target" aria-label={`Got ${b.name}`}>
+                <input
+                  type="checkbox"
+                  class="bom-check"
+                  data-item-id={b.id}
+                  aria-label={`Got ${b.name}`}
+                />
+              </label>
 
+              <div class="bom-info">
+                <div class="bom-item-name">{b.name}</div>
+                {b.notes && <div class="bom-m bom-item-notes">{b.notes}</div>}
+                {isNonAmazonStore && (
+                  <div class="bom-alt-store">
+                    Also at{' '}
+                    {altStoreUrl ? (
+                      <a href={altStoreUrl} target="_blank" rel="noopener noreferrer" class="bom-alt-link">
+                        {b.store}
+                      </a>
+                    ) : (
+                      <span>{b.store}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <span class="bom-st">Qty {b.qty}</span>
+
+              <div class="bom-actions-cell">
                 <a
                   href={aff.url}
                   target={AFFILIATE_LINK_ATTRIBUTES.target}
                   rel={aff.isAffiliate ? AFFILIATE_LINK_ATTRIBUTES.rel : "noopener noreferrer"}
-                  class="bom-b"
+                  class="bom-b bom-b-buy"
                   data-affiliate-click={aff.isAffiliate ? '1' : undefined}
                   data-asin={b.link?.asin || undefined}
                   data-comp-id={b.component_id || undefined}
@@ -127,51 +170,10 @@ if (asinItems.length > 0) {
                   </a>
                 )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
-
-      <!-- Desktop Sidebar -->
-      <aside class="bom-aside">
-        {amazonCartUrl && (
-          <div class="bom-cd bom-cart-box">
-            <h3 class="bom-cart-h3">Buy everything at once</h3>
-            <p class="bom-m">Adds all {items.length} parts to your Amazon.in cart. Check the items before you pay.</p>
-            <a
-              href={amazonCartUrl}
-              target="_blank"
-              rel="sponsored nofollow noopener noreferrer"
-              class="bom-b bom-b-full"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
-              <span>Add all to Amazon cart</span>
-            </a>
-          </div>
-        )}
-
-        <div class="bom-k">
-          <h3 class="bom-k-h3">Before you buy</h3>
-          <div class="bom-k-row">
-            <span class="bom-k-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
-            </span>
-            <span>Match the variant and connector in the note.</span>
-          </div>
-          <div class="bom-k-row">
-            <span class="bom-k-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
-            </span>
-            <span>Use the component page for the pinout and datasheet.</span>
-          </div>
-          <div class="bom-k-row">
-            <span class="bom-k-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
-            </span>
-            <span>Prices change daily, so check the final total on Amazon.</span>
-          </div>
-        </div>
-      </aside>
     </div>
   </div>
 
@@ -248,19 +250,44 @@ if (asinItems.length > 0) {
       })}
     </div>
 
+    <!-- Mobile Action & Advice Cards -->
     {amazonCartUrl && (
-      <div class="m-bom-ab">
+      <div class="bom-cd m-cart-box">
+        <h3 class="bom-cart-h3">Buy everything at once</h3>
+        <p class="bom-m">Adds all {items.length} parts to your Amazon.in cart. Check items before you pay.</p>
         <a
           href={amazonCartUrl}
           target="_blank"
           rel="sponsored nofollow noopener noreferrer"
-          class="bom-b m-bom-ab-btn"
+          class="bom-b m-bom-cart-btn"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon"><path d="M3 4h2l2 11h11l2-8H6"></path></svg>
           <span>Add all to Amazon cart</span>
         </a>
       </div>
     )}
+
+    <div class="bom-k m-tips-box">
+      <h3 class="bom-k-h3">Before you buy</h3>
+      <div class="bom-k-row">
+        <span class="bom-k-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+        </span>
+        <span>Match the variant and connector in the note.</span>
+      </div>
+      <div class="bom-k-row">
+        <span class="bom-k-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+        </span>
+        <span>Use the component page for the pinout and datasheet.</span>
+      </div>
+      <div class="bom-k-row">
+        <span class="bom-k-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="bom-icon-sm"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path></svg>
+        </span>
+        <span>Prices change daily, so check the final total on Amazon.</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -360,12 +387,12 @@ if (asinItems.length > 0) {
     color: #D91F26;
     font-weight: 600;
     text-decoration: none;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: 13px;
     flex: none;
-    width: 150px;
+    white-space: nowrap;
     transition: color 150ms ease;
   }
   .bom-a:hover {
@@ -375,10 +402,10 @@ if (asinItems.length > 0) {
   .bom-b {
     border: 0;
     border-radius: 14px;
-    height: 48px;
-    padding: 0 24px;
+    height: 42px;
+    padding: 0 18px;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 14px;
     background: #D91F26;
     color: #fff;
     display: inline-flex;
@@ -426,21 +453,21 @@ if (asinItems.length > 0) {
   .bom-k {
     background: #F4F5F7;
     border-radius: 20px;
-    padding: 24px;
+    padding: 20px 22px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
   .bom-k-h3 {
-    margin: 0;
-    font-size: 17px;
+    margin: 0 0 4px;
+    font-size: 16px;
     font-weight: 700;
     color: #0F1115;
   }
   .bom-k-row {
     display: flex;
     gap: 10px;
-    font-size: 14px;
+    font-size: 13.5px;
     line-height: 1.45;
     color: #0F1115;
   }
@@ -475,7 +502,7 @@ if (asinItems.length > 0) {
   .bom-alt-store {
     font-size: 13px;
     color: #5A6270;
-    margin-top: 2px;
+    margin-top: 3px;
   }
   .bom-alt-link {
     color: #D91F26;
@@ -485,45 +512,71 @@ if (asinItems.length > 0) {
     color: #B3151B;
   }
 
-  /* Desktop specific */
+  /* ==============================================
+     DESKTOP LAYOUT (Full width inside .p-col-main)
+     ============================================== */
   .bom-desktop {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
     width: 100%;
+    padding-top: 8px;
+    padding-bottom: 32px;
   }
   .bom-mobile {
     display: none;
   }
 
-  .bom-grid {
+  .bom-top-cards {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
-    gap: 40px;
-    align-items: start;
-    padding-top: 16px;
-    padding-bottom: 48px;
-  }
-  @media (max-width: 1200px) {
-    .bom-grid {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    width: 100%;
   }
 
-  .bom-cd {
-    padding: 8px 24px;
-    border-radius: 24px;
+  .bom-cart-box {
+    padding: 20px 22px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+    background: #fff;
   }
+  .bom-cart-h3 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0F1115;
+  }
+  .bom-cart-btn {
+    height: 44px;
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .bom-tips-box {
+    border-radius: 18px;
+  }
+
+  .bom-table-card {
+    width: 100%;
+    padding: 12px 24px 20px;
+    border-radius: 20px;
+    background: #fff;
+  }
+
   .bom-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0 8px;
+    padding: 12px 0 10px;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
   }
   .bom-h2 {
     margin: 0;
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
     color: #0F1115;
     letter-spacing: -0.015em;
@@ -532,6 +585,7 @@ if (asinItems.length > 0) {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-wrap: wrap;
   }
   .btn-report-broken-bom {
     background: none;
@@ -549,7 +603,7 @@ if (asinItems.length > 0) {
   .bom-disclosure {
     font-size: 13px;
     color: #5A6270;
-    padding-bottom: 10px;
+    padding-bottom: 12px;
     border-bottom: 1px solid #E4E7EB;
   }
 
@@ -561,8 +615,8 @@ if (asinItems.length > 0) {
   .bom-row {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 0;
+    gap: 14px;
+    padding: 14px 0;
     border-top: 1px solid #E6E9EE;
     transition: opacity 150ms ease;
   }
@@ -574,16 +628,16 @@ if (asinItems.length > 0) {
   }
 
   .bom-check-target {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     display: grid;
     place-items: center;
     flex: none;
     cursor: pointer;
   }
   .bom-check {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     margin: 0;
     accent-color: #D91F26;
     cursor: pointer;
@@ -591,53 +645,68 @@ if (asinItems.length > 0) {
 
   .bom-info {
     flex: 1;
-    min-width: 0;
+    min-width: 180px;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
   .bom-item-name {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 15px;
     color: #0F1115;
     line-height: 1.35;
   }
+  .bom-item-notes {
+    font-size: 13px;
+    color: #5A6270;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
 
-  .bom-aside {
+  .bom-actions-cell {
     display: flex;
-    flex-direction: column;
-    gap: 20px;
-    position: sticky;
-    top: 24px;
-  }
-  .bom-cart-box {
-    padding: 24px;
-    gap: 12px;
-  }
-  .bom-cart-h3 {
-    margin: 0;
-    font-size: 19px;
-    font-weight: 700;
-  }
-  .bom-b-full {
-    height: 50px;
-    width: 100%;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
   }
 
-  /* Mobile Layout */
-  @media (max-width: 860px) {
+  .bom-b-buy {
+    height: 42px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 750;
+  }
+
+  @media (max-width: 900px) {
+    .bom-row {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .bom-actions-cell {
+      width: 100%;
+      justify-content: flex-end;
+      padding-left: 50px;
+    }
+  }
+
+  /* ==============================================
+     MOBILE LAYOUT (<= 768px matching PartsM.dc.html)
+     ============================================== */
+  @media (max-width: 768px) {
     .bom-desktop {
       display: none !important;
     }
     .bom-mobile {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      padding: 8px 0;
+      gap: 14px;
+      padding: 8px 0 6rem;
     }
 
     .m-bom-lead {
       font-size: 13px;
       line-height: 1.45;
       color: #5A6270;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
     }
 
     .m-bom-list {
@@ -661,22 +730,22 @@ if (asinItems.length > 0) {
 
     .m-bom-card-top {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       align-items: flex-start;
     }
 
     .m-bom-check-wrap {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       display: grid;
       place-items: center;
       flex: none;
-      margin: -6px 0 0 -8px;
+      margin: -4px 0 0 -6px;
       cursor: pointer;
     }
     .m-bom-check {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       margin: 0;
       accent-color: #D91F26;
       cursor: pointer;
@@ -713,19 +782,20 @@ if (asinItems.length > 0) {
       padding: 0 14px;
     }
 
-    .m-bom-ab {
-      display: flex;
+    .m-cart-box {
+      padding: 16px;
+      border-radius: 16px;
       gap: 10px;
-      padding: 12px 0 16px;
-      border-top: 1px solid #E4E7EB;
-      background: #fff;
-      position: sticky;
-      bottom: 0;
-      z-index: 10;
     }
-    .m-bom-ab-btn {
-      flex: 1;
-      min-height: 48px;
+    .m-bom-cart-btn {
+      min-height: 44px;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    .m-tips-box {
+      border-radius: 16px;
+      padding: 16px;
     }
   }
 </style>

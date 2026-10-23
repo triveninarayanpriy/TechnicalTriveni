@@ -974,12 +974,6 @@ const lastUpdated = formatDate(project.updated_at);
   const mobilePanels = document.querySelectorAll<HTMLElement>('[data-m-panel]');
 
   function activateTab(tabKey: string) {
-    // Desktop grid layout adjustment: Parts view uses full width with its own sidebar (PartsD design)
-    const desktopGrid = document.querySelector('.p-desktop-grid');
-    if (desktopGrid) {
-      desktopGrid.classList.toggle('is-parts-view', tabKey === 'parts');
-    }
-
     // Desktop tabs & panels
     desktopTabBtns.forEach((btn) => {
       const active = btn.dataset.tabTarget === tabKey;
@@ -1432,13 +1426,6 @@ const lastUpdated = formatDate(project.updated_at);
     gap: 3rem;
     align-items: start;
     padding-bottom: 4rem;
-  }
-
-  .p-desktop-grid.is-parts-view {
-    grid-template-columns: 1fr !important;
-  }
-  .p-desktop-grid.is-parts-view .p-col-sidebar {
-    display: none !important;
   }
 
   @container (max-width: 64rem) {
