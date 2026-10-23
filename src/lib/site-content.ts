@@ -75,7 +75,7 @@ export const DEFAULT_ABOUT_DATA: AboutPageData = {
   hero: {
     eyebrow: 'About Technical Triveni',
     headline: "Hi, I'm Triveni. I build, break, fix and document electronics projects.",
-    intro: "I'm a B.Tech ECE (VLSI) student at NIT Patna. Every pack on this site is built and tested on my workbench before you ever see it.",
+    intro: "I'm a BTech ECE (VLSI) student at NIT Patna. Every pack on this site is built and tested on my workbench before you ever see it.",
     credentials: ['NIT Patna, ECE (VLSI)', 'Manager, Innovation Hub', 'Hindi and English videos'],
     btn1_text: 'Browse projects',
     btn1_url: '/projects',
@@ -104,52 +104,52 @@ Technical Triveni is built on a single promise: **complete transparency and phys
     {
       icon: 'cube',
       title: 'Build it',
-      text: 'On a real breadboard or PCB, programmed and assembled live.',
+      text: 'On a real breadboard or PCB, programmed and powered up.',
     },
     {
       icon: 'tool',
       title: 'Test and fix',
-      text: 'Stress-testing in daily runs, finding edge cases.',
+      text: 'Bench-test it, hit the errors, fix them, repeat.',
     },
     {
       icon: 'video',
       title: 'Film it',
-      text: 'The full build walkthrough on YouTube, step by step.',
+      text: 'The full build, no secrets, on YouTube, step-by-step.',
     },
     {
       icon: 'book',
       title: 'Document it',
-      text: 'Code, wiring tables and parts list, ready for release.',
+      text: 'Code, wiring tables and parts links, ready to follow.',
     },
   ],
   workbench: {
     project_slugs: [
       'arduino-drone',
+      'esp32-blynk-iot-smart-relay-switch',
       'line-following-robot-arduino-obstacle-gate',
       '100-electronics-components',
-      'esp32-blynk-iot-smart-relay-switch',
     ],
   },
   expect_cards: [
     {
       icon: 'shield',
       title: 'Nothing untested',
-      text: 'Every pack was built and tested on my workbench before any file is uploaded.',
+      text: 'Every pack was built and bench-tested before any file is released.',
     },
     {
       icon: 'book',
       title: 'Everything documented',
-      text: 'Clear schematics, wiring pinouts and parts lists with matching pin labels.',
+      text: 'You get every wiring diagram, pinout and parts links in the project.',
     },
     {
       icon: 'mail',
       title: 'A real person replies',
-      text: 'Questions are answered by me. Include your Order ID and I will help.',
+      text: "Questions go straight to me. Include your order ID and I'll help.",
     },
   ],
   work_with_me: {
     heading: 'Work with me',
-    text: "Sponsorships, part reviews and collaboration inquiries. Mention 'Sponsorship' in the subject line, I usually reply within 24 to 48 business hours.",
+    text: 'Sponsorships, part reviews and affiliate partnerships. Mention "Sponsorship" in the subject line. I usually reply within 24 to 48 business hours.',
     btn_text: 'Get in touch',
     btn_url: '/contact',
   },

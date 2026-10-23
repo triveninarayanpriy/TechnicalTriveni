@@ -36,6 +36,14 @@ while (workbenchItems.length < 4 && fallbackProjects.length > 0) {
   workbenchItems.push(fallbackProjects.shift());
 }
 
+function getShortTitle(title: string, slug: string): string {
+  if (slug.includes('drone')) return 'Drone';
+  if (slug.includes('relay') || slug.includes('switch') || slug.includes('blynk')) return 'ESP32 living switch';
+  if (slug.includes('line') || slug.includes('obstacle')) return 'Line-following robot';
+  if (slug.includes('100') || slug.includes('component')) return '100+ Electronics components';
+  return title.split(':')[0].split('(')[0].trim();
+}
+
 // Fallback images matching mockup if no projects uploaded
 const defaultMosaic = [
   { title: 'DIY Arduino Drone', cover: '/covers/esp32-weather.png', slug: 'arduino-drone' },
@@ -49,11 +57,16 @@ const resolvedWorkbench = [0, 1, 2, 3].map((i) => {
   if (p) {
     return {
       title: p.title,
+      shortTitle: getShortTitle(p.title, p.slug),
       cover: p.cover_image || defaultMosaic[i]?.cover || '/covers/esp32-weather.png',
       slug: p.slug,
     };
   }
-  return defaultMosaic[i];
+  const d = defaultMosaic[i];
+  return {
+    ...d,
+    shortTitle: getShortTitle(d.title, d.slug),
+  };
 });
 
 // Social links - shown ONCE on the page
@@ -64,9 +77,9 @@ const liLink = siteAssets.social_links?.linkedin !== undefined ? siteAssets.soci
 
 const socials = [
   { platform: 'YouTube', handle: 'Build videos and walkthroughs', url: ytLink, icon: 'youtube' },
-  { platform: 'Instagram', handle: 'Reels and workbench stories', url: igLink, icon: 'instagram' },
-  { platform: 'GitHub', handle: 'Source repos', url: ghLink, icon: 'github' },
-  { platform: 'LinkedIn', handle: 'Updates and projects', url: liLink, icon: 'linkedin' },
+  { platform: 'Instagram', handle: 'Reels and behind the scenes', url: igLink, icon: 'instagram' },
+  { platform: 'GitHub', handle: 'Open source code', url: ghLink, icon: 'github' },
+  { platform: 'LinkedIn', handle: 'Updates and network', url: liLink, icon: 'linkedin' },
 ].filter((s) => s.url && s.url.trim());
 
 const profilePhoto = pageData.image_url || siteAssets.maker_photo?.url || PROFILE.photo || '/brand/profile.jpg';
@@ -143,7 +156,6 @@ const jsonLd = {
               />
               {aboutData.hero.badge_text && (
                 <div class="about-photo-badge">
-                  <span class="badge-dot"></span>
                   <span>{aboutData.hero.badge_text}</span>
                 </div>
               )}
@@ -204,12 +216,17 @@ const jsonLd = {
         <div class="how-steps-grid">
           {aboutData.steps.map((st, i) => (
             <div class="step-card">
+              <!-- Desktop icon box -->
               <div class="step-icon-box">
                 <Icon name={st.icon || 'cube'} size={20} />
               </div>
-              <span class="step-index-label">Step {i + 1}</span>
-              <h3 class="step-title">{st.title}</h3>
-              <p class="step-desc">{st.text}</p>
+              <!-- Mobile numbered circle badge -->
+              <div class="step-num-badge">{i + 1}</div>
+              <div class="step-text-wrap">
+                <span class="step-index-label">STEP {i + 1}</span>
+                <h3 class="step-title">{st.title}</h3>
+                <p class="step-desc">{st.text}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -232,64 +249,76 @@ const jsonLd = {
         <div class="workbench-mosaic-layout">
           <!-- Large Feature Box (Left) -->
           <a href={`/projects/${resolvedWorkbench[0].slug}`} class="mosaic-item mosaic-item--large">
-            <img
-              src={resolvedWorkbench[0].cover}
-              alt={resolvedWorkbench[0].title}
-              width="640"
-              height="480"
-              class="mosaic-img"
-              loading="lazy"
-            />
-            <div class="mosaic-overlay">
-              <span class="mosaic-title">{resolvedWorkbench[0].title}</span>
+            <div class="mosaic-img-wrap">
+              <img
+                src={resolvedWorkbench[0].cover}
+                alt={resolvedWorkbench[0].title}
+                width="640"
+                height="480"
+                class="mosaic-img"
+                loading="lazy"
+              />
+              <div class="mosaic-overlay">
+                <span class="mosaic-title">{resolvedWorkbench[0].title}</span>
+              </div>
             </div>
+            <span class="mosaic-mobile-title">{resolvedWorkbench[0].shortTitle}</span>
           </a>
 
           <!-- Right Cluster (3 items) -->
           <div class="mosaic-cluster-right">
             <div class="mosaic-top-row">
               <a href={`/projects/${resolvedWorkbench[1].slug}`} class="mosaic-item mosaic-item--med">
-                <img
-                  src={resolvedWorkbench[1].cover}
-                  alt={resolvedWorkbench[1].title}
-                  width="360"
-                  height="220"
-                  class="mosaic-img"
-                  loading="lazy"
-                />
-                <div class="mosaic-overlay">
-                  <span class="mosaic-title">{resolvedWorkbench[1].title}</span>
+                <div class="mosaic-img-wrap">
+                  <img
+                    src={resolvedWorkbench[1].cover}
+                    alt={resolvedWorkbench[1].title}
+                    width="360"
+                    height="220"
+                    class="mosaic-img"
+                    loading="lazy"
+                  />
+                  <div class="mosaic-overlay">
+                    <span class="mosaic-title">{resolvedWorkbench[1].title}</span>
+                  </div>
                 </div>
+                <span class="mosaic-mobile-title">{resolvedWorkbench[1].shortTitle}</span>
               </a>
 
               <a href={`/projects/${resolvedWorkbench[2].slug}`} class="mosaic-item mosaic-item--med">
-                <img
-                  src={resolvedWorkbench[2].cover}
-                  alt={resolvedWorkbench[2].title}
-                  width="360"
-                  height="220"
-                  class="mosaic-img"
-                  loading="lazy"
-                />
-                <div class="mosaic-overlay">
-                  <span class="mosaic-title">{resolvedWorkbench[2].title}</span>
+                <div class="mosaic-img-wrap">
+                  <img
+                    src={resolvedWorkbench[2].cover}
+                    alt={resolvedWorkbench[2].title}
+                    width="360"
+                    height="220"
+                    class="mosaic-img"
+                    loading="lazy"
+                  />
+                  <div class="mosaic-overlay">
+                    <span class="mosaic-title">{resolvedWorkbench[2].title}</span>
+                  </div>
                 </div>
+                <span class="mosaic-mobile-title">{resolvedWorkbench[2].shortTitle}</span>
               </a>
             </div>
 
             <!-- Bottom Wide Banner -->
             <a href={`/projects/${resolvedWorkbench[3].slug}`} class="mosaic-item mosaic-item--banner">
-              <img
-                src={resolvedWorkbench[3].cover}
-                alt={resolvedWorkbench[3].title}
-                width="720"
-                height="220"
-                class="mosaic-img"
-                loading="lazy"
-              />
-              <div class="mosaic-overlay">
-                <span class="mosaic-title">{resolvedWorkbench[3].title}</span>
+              <div class="mosaic-img-wrap">
+                <img
+                  src={resolvedWorkbench[3].cover}
+                  alt={resolvedWorkbench[3].title}
+                  width="720"
+                  height="220"
+                  class="mosaic-img"
+                  loading="lazy"
+                />
+                <div class="mosaic-overlay">
+                  <span class="mosaic-title">{resolvedWorkbench[3].title}</span>
+                </div>
               </div>
+              <span class="mosaic-mobile-title">{resolvedWorkbench[3].shortTitle}</span>
             </a>
           </div>
         </div>
@@ -321,7 +350,8 @@ const jsonLd = {
           </div>
           <div class="work-action">
             <a href={aboutData.work_with_me.btn_url || '/contact'} class="btn btn-primary btn-work">
-              {aboutData.work_with_me.btn_text || 'Get in touch'}
+              <Icon name="mail" size={16} />
+              <span>{aboutData.work_with_me.btn_text || 'Get in touch'}</span>
             </a>
           </div>
         </div>
@@ -338,7 +368,7 @@ const jsonLd = {
                 <div class="social-card-icon">
                   <Icon name={s.icon} size={20} />
                 </div>
-                <div>
+                <div class="social-card-meta">
                   <h3 class="social-card-platform">{s.platform}</h3>
                   <span class="social-card-handle">{s.handle}</span>
                 </div>
@@ -375,6 +405,7 @@ const jsonLd = {
   .about-page-shell {
     padding-bottom: 5rem;
     overflow-x: clip;
+    background: #ffffff;
   }
   .about-container {
     max-width: 1200px;
@@ -397,8 +428,7 @@ const jsonLd = {
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--brand-red, #D32F2F);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     margin-bottom: 0.75rem;
   }
   .about-hero-headline {
@@ -425,9 +455,9 @@ const jsonLd = {
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--text, #111827);
-    background: #f1f5f9;
-    border: 1px solid var(--border, #E5E7EB);
-    padding: 0.35rem 0.75rem;
+    background: #f8fafc;
+    border: 1px solid var(--border, #E2E8F0);
+    padding: 0.35rem 0.85rem;
     border-radius: 999px;
   }
   .about-hero-buttons {
@@ -437,7 +467,7 @@ const jsonLd = {
     align-items: center;
   }
   .btn-about-hero {
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1.6rem;
     font-size: 0.9375rem;
     font-weight: 600;
     border-radius: 999px;
@@ -445,12 +475,16 @@ const jsonLd = {
     align-items: center;
     gap: 0.5rem;
     text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-about-hero:hover {
+    transform: translateY(-1px);
   }
 
   /* Maker Photo Card */
   .about-photo-card {
     position: relative;
-    border-radius: 1.75rem;
+    border-radius: 2rem;
     overflow: hidden;
     box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
     aspect-ratio: 1.05 / 1;
@@ -467,30 +501,20 @@ const jsonLd = {
     position: absolute;
     bottom: 1.25rem;
     left: 1.25rem;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #ffffff;
+    background: #ffffff;
+    color: #111827;
     font-size: 0.8125rem;
     font-weight: 600;
-    padding: 0.4rem 0.85rem;
+    padding: 0.45rem 1.15rem;
     border-radius: 999px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-  .badge-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #22c55e;
-    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
   }
 
   /* 2. NUMBERS STRIP */
   .about-numbers-section {
-    padding: 2rem 0;
+    padding: 2.25rem 0;
     border-top: 1px solid var(--border, #E5E7EB);
     border-bottom: 1px solid var(--border, #E5E7EB);
     margin: 2rem 0 3.5rem 0;
@@ -520,8 +544,8 @@ const jsonLd = {
 
   /* 3. MY STORY */
   .about-story-section {
-    padding: 2.5rem 0;
-    margin-bottom: 3.5rem;
+    padding: 1.5rem 0;
+    margin-bottom: 4rem;
   }
   .about-story-grid {
     display: grid;
@@ -534,8 +558,7 @@ const jsonLd = {
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--brand-red, #D32F2F);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     margin-bottom: 0.75rem;
   }
   .story-heading {
@@ -606,42 +629,55 @@ const jsonLd = {
     border: 1px solid var(--border, #E5E7EB);
     border-radius: 1rem;
     padding: 1.5rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .step-card:hover {
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
   }
   .step-icon-box {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 0.75rem;
-    background: rgba(233, 36, 36, 0.08);
+    background: #FEF2F2;
     color: var(--brand-red, #D32F2F);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.25rem;
+    flex-shrink: 0;
+  }
+  .step-num-badge {
+    display: none;
+  }
+  .step-text-wrap {
+    display: flex;
+    flex-direction: column;
   }
   .step-index-label {
-    display: block;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 700;
-    color: var(--text-muted, #4B5563);
+    color: #94A3B8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.25rem;
   }
   .step-title {
-    font-size: 1.125rem;
+    font-size: 1.0625rem;
     font-weight: 700;
     color: var(--text, #111827);
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.4rem 0;
   }
   .step-desc {
     font-size: 0.875rem;
-    line-height: 1.55;
     color: var(--text-muted, #4B5563);
+    line-height: 1.5;
     margin: 0;
   }
 
-  /* 5. ON THE WORKBENCH (MOSAIC) */
+  /* 5. ON THE WORKBENCH */
   .about-workbench-section {
     margin-bottom: 4rem;
   }
@@ -654,47 +690,36 @@ const jsonLd = {
   .see-all-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    color: var(--brand-red, #D32F2F);
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--brand-red, #D32F2F);
     text-decoration: none;
   }
   .see-all-link:hover {
     text-decoration: underline;
   }
+
+  /* Desktop Mosaic */
   .workbench-mosaic-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.25fr);
     gap: 1.25rem;
-  }
-  .mosaic-cluster-right {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-  .mosaic-top-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
+    align-items: stretch;
   }
   .mosaic-item {
     position: relative;
-    border-radius: 1rem;
-    overflow: hidden;
-    background: #0f172a;
-    display: block;
+    display: flex;
+    flex-direction: column;
     text-decoration: none;
   }
-  .mosaic-item--large {
+  .mosaic-img-wrap {
+    position: relative;
+    width: 100%;
     height: 100%;
-    min-height: 380px;
-  }
-  .mosaic-item--med {
-    height: 180px;
-  }
-  .mosaic-item--banner {
-    height: 188px;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #f1f5f9;
   }
   .mosaic-img {
     width: 100%;
@@ -704,22 +729,45 @@ const jsonLd = {
     transition: transform 0.3s ease;
   }
   .mosaic-item:hover .mosaic-img {
-    transform: scale(1.03);
+    transform: scale(1.02);
   }
   .mosaic-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.1) 60%, transparent 100%);
+    background: linear-gradient(180deg, transparent 40%, rgba(15, 23, 42, 0.8) 100%);
     display: flex;
     align-items: flex-end;
     padding: 1.25rem;
   }
   .mosaic-title {
     color: #ffffff;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    line-height: 1.35;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+  .mosaic-mobile-title {
+    display: none;
+  }
+
+  .mosaic-item--large {
+    min-height: 460px;
+  }
+  .mosaic-cluster-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .mosaic-top-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+  .mosaic-item--med {
+    height: 215px;
+  }
+  .mosaic-item--banner {
+    height: 225px;
   }
 
   /* 6. WHAT YOU CAN EXPECT */
@@ -733,33 +781,35 @@ const jsonLd = {
     margin-top: 1.75rem;
   }
   .expect-card {
-    background: #ffffff;
-    border: 1px solid var(--border, #E5E7EB);
+    background: #F8FAFC;
+    border: 1px solid var(--border, #E2E8F0);
     border-radius: 1rem;
     padding: 1.75rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
   }
   .expect-icon-box {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.75rem;
-    background: rgba(233, 36, 36, 0.08);
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.625rem;
+    background: #FEF2F2;
     color: var(--brand-red, #D32F2F);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.25rem;
+    flex-shrink: 0;
   }
   .expect-title {
     font-size: 1.125rem;
     font-weight: 700;
     color: var(--text, #111827);
-    margin: 0 0 0.5rem 0;
+    margin: 0;
   }
   .expect-desc {
-    font-size: 0.875rem;
-    line-height: 1.6;
+    font-size: 0.9375rem;
     color: var(--text-muted, #4B5563);
+    line-height: 1.55;
     margin: 0;
   }
 
@@ -773,31 +823,36 @@ const jsonLd = {
     border-radius: 1.25rem;
     padding: 2.5rem;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     gap: 2rem;
   }
+  .work-copy {
+    max-width: 680px;
+  }
   .work-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: var(--text, #111827);
     margin: 0 0 0.5rem 0;
+    letter-spacing: -0.01em;
   }
   .work-desc {
     font-size: 0.9375rem;
-    line-height: 1.6;
     color: var(--text-muted, #4B5563);
+    line-height: 1.5;
     margin: 0;
-    max-width: 44rem;
   }
   .btn-work {
-    padding: 0.75rem 1.75rem;
+    padding: 0.8rem 1.85rem;
     font-size: 0.9375rem;
     font-weight: 600;
     border-radius: 999px;
     white-space: nowrap;
-    text-decoration: none;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   /* 8. FOLLOW THE BUILDS */
@@ -811,8 +866,8 @@ const jsonLd = {
     margin-top: 1.75rem;
   }
   .social-nav-card {
-    background: #ffffff;
-    border: 1px solid var(--border, #E5E7EB);
+    background: #F8FAFC;
+    border: 1px solid var(--border, #E2E8F0);
     border-radius: 1rem;
     padding: 1.25rem;
     display: flex;
@@ -830,30 +885,39 @@ const jsonLd = {
     display: flex;
     align-items: center;
     gap: 0.875rem;
+    min-width: 0;
   }
   .social-card-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.625rem;
-    background: #f8fafc;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
     color: var(--text, #111827);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
+  .social-card-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
   .social-card-platform {
     font-size: 0.9375rem;
     font-weight: 700;
     color: var(--text, #111827);
-    margin: 0 0 0.15rem 0;
+    margin: 0;
   }
   .social-card-handle {
     font-size: 0.75rem;
     color: var(--text-muted, #4B5563);
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .social-card-arrow {
-    color: var(--text-muted, #4B5563);
+    color: var(--text-muted, #94A3B8);
     flex-shrink: 0;
   }
 
@@ -914,23 +978,8 @@ const jsonLd = {
 
   /* =========================================================================
      RESPONSIVE / MOBILE STYLES (<= 960px and <= 768px)
-     Follows prompt mobile rules:
-     - Photo first (4:5 or 1.05:1), then text
-     - Numbers strip 2x2
-     - Workbench horizontal scroll carousel (never wraps into 2 rows!)
-     - Social cards 2x2 or 1 col
      ========================================================================= */
   @media (max-width: 960px) {
-    .numbers-strip-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2rem 1.5rem;
-    }
-    .how-steps-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .socials-cards-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
     .about-story-grid {
       grid-template-columns: 1fr;
       gap: 2rem;
@@ -976,20 +1025,89 @@ const jsonLd = {
       aspect-ratio: 1.05 / 1;
       max-width: 420px;
       margin: 0 auto;
+      border-radius: 1.5rem;
+    }
+    .about-photo-badge {
+      bottom: 1rem;
+      left: 1rem;
+      font-size: 0.75rem;
+      padding: 0.4rem 0.95rem;
     }
     .about-hero-buttons {
       width: 100%;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 0.75rem;
     }
     .btn-about-hero {
       width: 100%;
       justify-content: center;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
     }
+
+    /* Numbers Strip: 2x2 grid of cards on mobile */
+    .about-numbers-section {
+      border: none;
+      padding: 0.5rem 0 2.5rem 0;
+      margin: 1rem 0 2.5rem 0;
+    }
+    .numbers-strip-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+    .number-stat-item {
+      background: #F8FAFC;
+      border: 1px solid var(--border, #E2E8F0);
+      border-radius: 1rem;
+      padding: 1.15rem 1rem;
+    }
+    .stat-big-val {
+      font-size: 1.875rem;
+    }
+    .stat-small-label {
+      font-size: 0.8125rem;
+      margin-top: 0.25rem;
+    }
+
+    /* How Made on Mobile: vertical numbered step rows */
     .how-steps-grid {
       grid-template-columns: 1fr;
+      gap: 1.5rem;
     }
-    .socials-cards-grid {
-      grid-template-columns: 1fr;
+    .step-card {
+      background: none;
+      border: none;
+      padding: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .step-icon-box, .step-index-label {
+      display: none;
+    }
+    .step-num-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.875rem;
+      height: 1.875rem;
+      border-radius: 50%;
+      background: var(--brand-red, #D32F2F);
+      color: #ffffff;
+      font-size: 0.875rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .step-title {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    .step-desc {
+      font-size: 0.875rem;
+      line-height: 1.45;
     }
 
     /* Workbench horizontal scroll-snap on mobile */
@@ -997,33 +1115,81 @@ const jsonLd = {
       display: flex;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
-      padding-bottom: 1rem;
+      padding-bottom: 0.75rem;
       gap: 1rem;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--brand-red, #D32F2F) #E2E8F0;
     }
     .workbench-mosaic-layout::-webkit-scrollbar {
       height: 4px;
     }
-    .workbench-mosaic-layout::-webkit-scrollbar-thumb {
-      background: var(--border, #E5E7EB);
+    .workbench-mosaic-layout::-webkit-scrollbar-track {
+      background: #E2E8F0;
       border-radius: 4px;
     }
-    .mosaic-item--large {
-      flex: 0 0 270px;
-      height: 200px;
-      min-height: 200px;
+    .workbench-mosaic-layout::-webkit-scrollbar-thumb {
+      background: #94A3B8;
+      border-radius: 4px;
+    }
+    .mosaic-item--large,
+    .mosaic-item--med,
+    .mosaic-item--banner {
+      flex: 0 0 250px;
+      height: auto;
+      min-height: auto;
       scroll-snap-align: start;
     }
-    .mosaic-cluster-right {
-      display: contents;
+    .mosaic-img-wrap {
+      height: 160px;
+      border-radius: 1rem;
     }
+    .mosaic-cluster-right,
     .mosaic-top-row {
       display: contents;
     }
-    .mosaic-item--med, .mosaic-item--banner {
-      flex: 0 0 270px;
-      height: 200px;
-      scroll-snap-align: start;
+    .mosaic-overlay {
+      display: none;
+    }
+    .mosaic-mobile-title {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #111827;
+      margin-top: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Social Cards 2x2 on Mobile */
+    .socials-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+    .social-nav-card {
+      padding: 0.85rem 1rem;
+      border-radius: 0.875rem;
+    }
+    .social-card-handle {
+      display: none;
+    }
+    .social-card-platform {
+      font-size: 0.875rem;
+    }
+    .social-card-icon {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+
+    /* Work with me mobile */
+    .work-card {
+      padding: 1.5rem;
+      border-radius: 1rem;
+    }
+    .btn-work {
+      width: 100%;
+      justify-content: center;
     }
   }
 </style>
