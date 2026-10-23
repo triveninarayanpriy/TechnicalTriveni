@@ -6,7 +6,7 @@ import { SITE, PROFILE } from '../lib/site';
 import { listProjects } from '../lib/db';
 import { renderMarkdown } from '../lib/format';
 import { getEffectiveContent } from '../lib/pages';
-import { getSiteAssets, buildSrcSet } from '../lib/site-assets';
+import { getSiteAssets } from '../lib/site-assets';
 import { getAboutPageData } from '../lib/site-content';
 
 const pageData = await getEffectiveContent(env.DB, 'about');
@@ -24,49 +24,56 @@ try {
 const totalProjectsCount = publishedProjects.length || 5;
 const freeDownloadsCount = publishedProjects.filter((p) => (p.price_inr ?? 0) <= 0 || p.combo_enabled === 0).length || 3;
 
-// Resolve 4 workbench pack covers
-const workbenchSlugs = aboutData.workbench.project_slugs;
-const workbenchItems = workbenchSlugs
-  .map((s) => publishedProjects.find((p) => p.slug === s || String(p.id) === s))
-  .filter(Boolean);
+// Default workbench items from the design files
+const defaultMosaic = [
+  {
+    title: 'DIY Arduino Drone',
+    shortTitle: 'Drone',
+    cover: '/brand/about-v2/abb4db3ba33b53acb13ec170bd64ff5d.jpg',
+    slug: 'arduino-drone',
+  },
+  {
+    title: 'ESP32 Blynk Smart Relay',
+    shortTitle: 'ESP32 relay switch',
+    cover: '/brand/about-v2/f391bdb09af830810fae62a31b3665c9.jpg',
+    slug: 'esp32-blynk-iot-smart-relay-switch',
+  },
+  {
+    title: 'Line-Following Robot',
+    shortTitle: 'Line follower',
+    cover: '/brand/about-v2/49ce8935ab9c488f44385d3de41d4c70.jpg',
+    slug: 'line-following-robot-arduino-obstacle-gate',
+  },
+  {
+    title: '100+ Electronics Components',
+    shortTitle: 'Components',
+    cover: '/brand/about-v2/545c85731cd6c2d8dbaa1ebfa768a7da.jpg',
+    slug: '100-electronics-components',
+  },
+];
 
-// Fallbacks if not enough slugs matched
-const fallbackProjects = publishedProjects.filter((p) => !workbenchItems.some((w) => w?.id === p.id));
-while (workbenchItems.length < 4 && fallbackProjects.length > 0) {
-  workbenchItems.push(fallbackProjects.shift());
-}
-
-function getShortTitle(title: string, slug: string): string {
+function resolveShortTitle(title: string, slug: string): string {
   if (slug.includes('drone')) return 'Drone';
-  if (slug.includes('relay') || slug.includes('switch') || slug.includes('blynk')) return 'ESP32 living switch';
-  if (slug.includes('line') || slug.includes('obstacle')) return 'Line-following robot';
-  if (slug.includes('100') || slug.includes('component')) return '100+ Electronics components';
+  if (slug.includes('relay') || slug.includes('switch') || slug.includes('blynk')) return 'ESP32 relay switch';
+  if (slug.includes('line') || slug.includes('obstacle')) return 'Line follower';
+  if (slug.includes('100') || slug.includes('component')) return 'Components';
   return title.split(':')[0].split('(')[0].trim();
 }
 
-// Fallback images matching mockup if no projects uploaded
-const defaultMosaic = [
-  { title: 'DIY Arduino Drone', cover: '/covers/esp32-weather.png', slug: 'arduino-drone' },
-  { title: 'ESP32 Blynk Smart Relay', cover: '/covers/rfid-lock.png', slug: 'esp32-blynk-iot-smart-relay-switch' },
-  { title: 'Line-Following Robot', cover: '/covers/line-robot.png', slug: 'line-following-robot-arduino-obstacle-gate' },
-  { title: '100+ Electronics Components', cover: '/covers/digital-clock.png', slug: '100-electronics-components' },
-];
-
 const resolvedWorkbench = [0, 1, 2, 3].map((i) => {
-  const p = workbenchItems[i];
-  if (p) {
-    return {
-      title: p.title,
-      shortTitle: getShortTitle(p.title, p.slug),
-      cover: p.cover_image || defaultMosaic[i]?.cover || '/covers/esp32-weather.png',
-      slug: p.slug,
-    };
+  const customSlug = aboutData.workbench?.project_slugs?.[i];
+  if (customSlug) {
+    const found = publishedProjects.find((p) => p.slug === customSlug || String(p.id) === customSlug);
+    if (found) {
+      return {
+        title: found.title,
+        shortTitle: resolveShortTitle(found.title, found.slug),
+        cover: found.cover_image || defaultMosaic[i].cover,
+        slug: found.slug,
+      };
+    }
   }
-  const d = defaultMosaic[i];
-  return {
-    ...d,
-    shortTitle: getShortTitle(d.title, d.slug),
-  };
+  return defaultMosaic[i];
 });
 
 // Social links - shown ONCE on the page
@@ -76,15 +83,15 @@ const ghLink = siteAssets.social_links?.github !== undefined ? siteAssets.social
 const liLink = siteAssets.social_links?.linkedin !== undefined ? siteAssets.social_links.linkedin : SITE.socials.linkedin;
 
 const socials = [
-  { platform: 'YouTube', handle: 'Build videos and walkthroughs', url: ytLink, icon: 'youtube' },
+  { platform: 'YouTube', handle: 'New builds and walkthroughs', url: ytLink, icon: 'youtube' },
   { platform: 'Instagram', handle: 'Reels and behind the scenes', url: igLink, icon: 'instagram' },
-  { platform: 'GitHub', handle: 'Open source code', url: ghLink, icon: 'github' },
-  { platform: 'LinkedIn', handle: 'Updates and network', url: liLink, icon: 'linkedin' },
+  { platform: 'GitHub', handle: 'Source code', url: ghLink, icon: 'github' },
+  { platform: 'LinkedIn', handle: 'Updates and projects', url: liLink, icon: 'linkedin' },
 ].filter((s) => s.url && s.url.trim());
 
-const profilePhoto = pageData.image_url || siteAssets.maker_photo?.url || PROFILE.photo || '/brand/profile.jpg';
+// Maker photo: prioritize the designer photo, or custom upload from admin
+const profilePhoto = siteAssets.maker_photo?.url || '/brand/about-v2/1e2ad315960dc87dac027605d2efdff3.jpg';
 const profileAlt = siteAssets.maker_photo?.alt || aboutData.hero.name || PROFILE.name;
-const profileSrcSet = buildSrcSet(siteAssets.maker_photo || { url: '' });
 
 // Render Story Markdown ONLY (hero headline and intro are kept out of this)
 const storyHtml = renderMarkdown(aboutData.story.body_md);
@@ -105,1091 +112,1277 @@ const jsonLd = {
   description={`About ${aboutData.hero.name || PROFILE.name} — the maker behind Technical Triveni. Real builds tested on the workbench.`}
   jsonLd={jsonLd}
 >
-  <div class="about-page-shell">
-    <div class="container about-container">
-      <!-- 1. HERO SECTION (Photo first on mobile, text left / photo right on desktop) -->
-      <section class="about-hero-section">
-        <div class="about-hero-grid">
-          <!-- Text Column -->
-          <div class="about-hero-text">
-            <span class="about-eyebrow">{aboutData.hero.eyebrow}</span>
-            <h1 class="about-hero-headline">{aboutData.hero.headline}</h1>
-            <p class="about-hero-intro">{aboutData.hero.intro}</p>
+  <div class="about-page">
+    <!-- 1. HERO SECTION -->
+    <section class="about-w about-hero-wrap">
+      <div class="about-hero-text">
+        <div class="about-eyebrow">{aboutData.hero.eyebrow}</div>
+        <h1 class="about-hero-headline">{aboutData.hero.headline}</h1>
+        <p class="about-hero-intro">{aboutData.hero.intro}</p>
 
-            {aboutData.hero.credentials?.length > 0 && (
-              <div class="about-creds-row">
-                {aboutData.hero.credentials.map((cred) => (
-                  <span class="about-cred-chip">{cred}</span>
-                ))}
-              </div>
-            )}
-
-            <div class="about-hero-buttons">
-              <a href={aboutData.hero.btn1_url || '/projects'} class="btn btn-primary btn-about-hero">
-                {aboutData.hero.btn1_text || 'Browse projects'}
-              </a>
-              <a
-                href={aboutData.hero.btn2_url || ytLink || 'https://youtube.com/@TechnicalTriveni'}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn btn-secondary btn-about-hero"
-              >
-                <Icon name="play" size={15} />
-                <span>{aboutData.hero.btn2_text || 'Watch on YouTube'}</span>
-              </a>
-            </div>
+        {aboutData.hero.credentials?.length > 0 && (
+          <div class="about-chips-row">
+            {aboutData.hero.credentials.map((cred) => (
+              <span class="about-pill">{cred}</span>
+            ))}
           </div>
+        )}
 
-          <!-- Photo Column -->
-          <div class="about-hero-photo-wrap">
-            <div class="about-photo-card">
-              <img
-                src={profilePhoto}
-                srcset={profileSrcSet || undefined}
-                alt={profileAlt}
-                width="540"
-                height="560"
-                class="about-photo-img"
-                loading="eager"
-                fetchpriority="high"
-                decoding="async"
-              />
-              {aboutData.hero.badge_text && (
-                <div class="about-photo-badge">
-                  <span>{aboutData.hero.badge_text}</span>
-                </div>
+        <div class="about-hero-btns">
+          <a href={aboutData.hero.btn1_url || '/projects'} class="about-btn about-btn-red">
+            {aboutData.hero.btn1_text || 'Browse projects'}
+          </a>
+          <a
+            href={aboutData.hero.btn2_url || ytLink || 'https://youtube.com/@TechnicalTriveni'}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="about-btn about-btn-outline"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="btn-play-icon">
+              <path d="M7 4l13 8-13 8z"></path>
+            </svg>
+            <span class="btn-yt-text-desktop">{aboutData.hero.btn2_text || 'Watch on YouTube'}</span>
+            <span class="btn-yt-text-mobile">YouTube</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="about-hero-photo-col">
+        <div class="about-photo-wrap">
+          <img
+            src={profilePhoto}
+            alt={profileAlt}
+            width="540"
+            height="600"
+            class="about-photo-img"
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+          />
+          {aboutData.hero.badge_text && (
+            <span class="about-photo-badge">{aboutData.hero.badge_text}</span>
+          )}
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. NUMBERS STRIP -->
+    <section class="about-w about-numbers-wrap">
+      <div class="about-numbers-grid">
+        <div class="about-stat-item">
+          <div class="about-stat-val">{totalProjectsCount}</div>
+          <div class="about-stat-label about-stat-label-desktop">Projects built and documented</div>
+          <div class="about-stat-label about-stat-label-mobile">Projects documented</div>
+        </div>
+        <div class="about-stat-item">
+          <div class="about-stat-val">{freeDownloadsCount}</div>
+          <div class="about-stat-label about-stat-label-desktop">Free downloads, no signup</div>
+          <div class="about-stat-label about-stat-label-mobile">Free downloads</div>
+        </div>
+        <div class="about-stat-item">
+          <div class="about-stat-val">{aboutData.numbers.stat3_val}</div>
+          <div class="about-stat-label about-stat-label-desktop">{aboutData.numbers.stat3_label}</div>
+          <div class="about-stat-label about-stat-label-mobile">Tested on hardware</div>
+        </div>
+        <div class="about-stat-item">
+          <div class="about-stat-val">{aboutData.numbers.stat4_val}</div>
+          <div class="about-stat-label about-stat-label-desktop">{aboutData.numbers.stat4_label}</div>
+          <div class="about-stat-label about-stat-label-mobile">Maker answering emails</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. MY STORY -->
+    <section class="about-w about-story-wrap">
+      <div class="about-story-left">
+        <div class="about-eyebrow">{aboutData.story.eyebrow || 'My story'}</div>
+        <h2 class="about-story-title">{aboutData.story.heading}</h2>
+        {aboutData.story.pull_quote && (
+          <div class="about-pull-quote">{aboutData.story.pull_quote}</div>
+        )}
+      </div>
+
+      <div class="about-story-right">
+        <div class="about-story-prose" set:html={storyHtml}></div>
+      </div>
+    </section>
+
+    <!-- 4. HOW EVERY PACK IS MADE -->
+    <section class="about-w about-steps-wrap">
+      <div class="about-section-header">
+        <h2 class="about-section-h2">How every pack is made</h2>
+        <p class="about-section-sub">Nothing is published until it has survived the workbench.</p>
+      </div>
+
+      <!-- Desktop 4-card grid -->
+      <div class="about-steps-grid-desktop">
+        {aboutData.steps.map((st, i) => (
+          <div class="about-step-card">
+            <div class="about-step-icon-box">
+              {i === 0 && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
+                  <path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path>
+                </svg>
+              )}
+              {i === 1 && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
+                  <path d="M14 6a4 4 0 004 4l-8 8a2 2 0 01-3-3l8-8a4 4 0 00-1-1z"></path>
+                </svg>
+              )}
+              {i === 2 && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
+                  <path d="M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"></path>
+                </svg>
+              )}
+              {i === 3 && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
+                  <path d="M4 4h6a3 3 0 013 3v13a2 2 0 00-2-2H4zM20 4h-6a3 3 0 00-3 3v13a2 2 0 012-2h7z"></path>
+                </svg>
               )}
             </div>
+            <div class="about-step-sublabel">Step {i + 1}</div>
+            <h3 class="about-step-title">{st.title}</h3>
+            <p class="about-step-text">{st.text}</p>
           </div>
-        </div>
-      </section>
+        ))}
+      </div>
 
-      <!-- 2. NUMBERS STRIP -->
-      <section class="about-numbers-section">
-        <div class="numbers-strip-grid">
-          <div class="number-stat-item">
-            <span class="stat-big-val">{totalProjectsCount}</span>
-            <span class="stat-small-label">Projects built and documented</span>
-          </div>
-          <div class="number-stat-item">
-            <span class="stat-big-val">{freeDownloadsCount}</span>
-            <span class="stat-small-label">Free downloads, no signup</span>
-          </div>
-          <div class="number-stat-item">
-            <span class="stat-big-val">{aboutData.numbers.stat3_val}</span>
-            <span class="stat-small-label">{aboutData.numbers.stat3_label}</span>
-          </div>
-          <div class="number-stat-item">
-            <span class="stat-big-val">{aboutData.numbers.stat4_val}</span>
-            <span class="stat-small-label">{aboutData.numbers.stat4_label}</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- 3. MY STORY -->
-      <section class="about-story-section">
-        <div class="about-story-grid">
-          <div class="story-left-col">
-            <span class="story-eyebrow">{aboutData.story.eyebrow || 'My story'}</span>
-            <h2 class="story-heading">{aboutData.story.heading}</h2>
-            {aboutData.story.pull_quote && (
-              <div class="story-pull-quote-wrap">
-                <span class="quote-bar"></span>
-                <p class="story-pull-quote">{aboutData.story.pull_quote}</p>
-              </div>
-            )}
-          </div>
-
-          <div class="story-right-col">
-            <div class="story-prose" set:html={storyHtml}></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 4. HOW EVERY PACK IS MADE -->
-      <section class="about-steps-section">
-        <div class="section-heading-wrap">
-          <h2 class="section-block-title">How every pack is made</h2>
-          <p class="section-block-sub">Nothing is published until it has survived the workbench.</p>
-        </div>
-
-        <div class="how-steps-grid">
-          {aboutData.steps.map((st, i) => (
-            <div class="step-card">
-              <!-- Desktop icon box -->
-              <div class="step-icon-box">
-                <Icon name={st.icon || 'cube'} size={20} />
-              </div>
-              <!-- Mobile numbered circle badge -->
-              <div class="step-num-badge">{i + 1}</div>
-              <div class="step-text-wrap">
-                <span class="step-index-label">STEP {i + 1}</span>
-                <h3 class="step-title">{st.title}</h3>
-                <p class="step-desc">{st.text}</p>
-              </div>
+      <!-- Mobile vertical timeline with connecting lines -->
+      <div class="about-steps-timeline-mobile">
+        {aboutData.steps.map((st, i) => (
+          <div class="about-timeline-row">
+            <div class="about-timeline-left">
+              <span class="about-timeline-dot">{i + 1}</span>
+              {i < aboutData.steps.length - 1 && <span class="about-timeline-line"></span>}
             </div>
-          ))}
-        </div>
-      </section>
-
-      <!-- 5. ON THE WORKBENCH (Mosaic on desktop, horizontal scroll on mobile) -->
-      <section class="about-workbench-section">
-        <div class="workbench-header-row">
-          <div>
-            <h2 class="section-block-title">On the workbench</h2>
-            <p class="section-block-sub">A peek at the builds behind the packs.</p>
+            <div class="about-timeline-content">
+              <h3 class="about-timeline-title">{st.title}</h3>
+              <div class="about-timeline-desc">{st.text}</div>
+            </div>
           </div>
-          <a href="/projects" class="see-all-link">
-            <span>See all projects</span>
-            <Icon name="arrow-right" size={14} />
+        ))}
+      </div>
+    </section>
+
+    <!-- 5. ON THE WORKBENCH -->
+    <section class="about-w about-workbench-wrap">
+      <div class="about-workbench-header">
+        <div>
+          <h2 class="about-section-h2">On the workbench</h2>
+          <p class="about-section-sub">A few of the builds behind the packs.</p>
+        </div>
+        <a href="/projects" class="about-link-red">See all projects</a>
+      </div>
+
+      <!-- Desktop 4-tile Asymmetric Mosaic -->
+      <div class="about-workbench-mosaic-desktop">
+        <a href={`/projects/${resolvedWorkbench[0].slug}`} class="mosaic-tile-hero">
+          <img src={resolvedWorkbench[0].cover} alt={resolvedWorkbench[0].title} class="mosaic-img" />
+        </a>
+        <a href={`/projects/${resolvedWorkbench[1].slug}`} class="mosaic-tile-top-left">
+          <img src={resolvedWorkbench[1].cover} alt={resolvedWorkbench[1].title} class="mosaic-img" />
+        </a>
+        <a href={`/projects/${resolvedWorkbench[2].slug}`} class="mosaic-tile-top-right">
+          <img src={resolvedWorkbench[2].cover} alt={resolvedWorkbench[2].title} class="mosaic-img" />
+        </a>
+        <a href={`/projects/${resolvedWorkbench[3].slug}`} class="mosaic-tile-bottom-wide">
+          <img src={resolvedWorkbench[3].cover} alt={resolvedWorkbench[3].title} class="mosaic-img" />
+        </a>
+      </div>
+
+      <!-- Mobile Horizontal Carousel -->
+      <div class="about-workbench-carousel-mobile">
+        {resolvedWorkbench.map((item) => (
+          <a href={`/projects/${item.slug}`} class="carousel-card-mobile">
+            <img src={item.cover} alt={item.title} class="carousel-img-mobile" />
+            <div class="carousel-label-mobile">{item.shortTitle}</div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- 6. WHAT YOU CAN EXPECT -->
+    <section class="about-w about-expect-wrap">
+      <div class="about-section-header">
+        <h2 class="about-section-h2 about-expect-h2-desktop">What you can expect from me</h2>
+        <h2 class="about-section-h2 about-expect-h2-mobile">What you can expect</h2>
+      </div>
+
+      <div class="about-expect-grid">
+        <div class="about-expect-card">
+          <div class="about-expect-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="expect-svg">
+              <path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path>
+            </svg>
+          </div>
+          <div class="about-expect-text">
+            <h3 class="about-expect-title">{aboutData.expect_cards[0]?.title || 'Nothing untested'}</h3>
+            <p class="about-expect-desc">{aboutData.expect_cards[0]?.text || 'Every pack was built and bench-tested before any file is released.'}</p>
+          </div>
+        </div>
+
+        <div class="about-expect-card">
+          <div class="about-expect-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="expect-svg">
+              <path d="M4 4h6a3 3 0 013 3v13a2 2 0 00-2-2H4zM20 4h-6a3 3 0 00-3 3v13a2 2 0 012-2h7z"></path>
+            </svg>
+          </div>
+          <div class="about-expect-text">
+            <h3 class="about-expect-title">{aboutData.expect_cards[1]?.title || 'Everything documented'}</h3>
+            <p class="about-expect-desc">{aboutData.expect_cards[1]?.text || 'Source code, wiring pinouts and parts links with every project.'}</p>
+          </div>
+        </div>
+
+        <div class="about-expect-card">
+          <div class="about-expect-icon-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="expect-svg">
+              <path d="M4 6h16v12H4zM4 7l8 6 8-6"></path>
+            </svg>
+          </div>
+          <div class="about-expect-text">
+            <h3 class="about-expect-title">{aboutData.expect_cards[2]?.title || 'A real person replies'}</h3>
+            <p class="about-expect-desc">{aboutData.expect_cards[2]?.text || 'Questions go straight to me. Include your Order ID and I will help.'}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. WORK WITH ME -->
+    <section class="about-w about-work-wrap">
+      <div class="about-work-card">
+        <div class="about-work-left">
+          <h2 class="about-work-title">{aboutData.work_with_me.heading}</h2>
+          <p class="about-work-desc">{aboutData.work_with_me.text}</p>
+        </div>
+        <div class="about-work-right">
+          <a href={aboutData.work_with_me.btn_url || '/contact'} class="about-btn about-btn-red about-work-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="work-mail-svg">
+              <path d="M4 6h16v12H4zM4 7l8 6 8-6"></path>
+            </svg>
+            <span>{aboutData.work_with_me.btn_text || 'Get in touch'}</span>
           </a>
         </div>
+      </div>
+    </section>
 
-        <!-- Desktop Mosaic / Mobile Horizontal Carousel -->
-        <div class="workbench-mosaic-layout">
-          <!-- Large Feature Box (Left) -->
-          <a href={`/projects/${resolvedWorkbench[0].slug}`} class="mosaic-item mosaic-item--large">
-            <div class="mosaic-img-wrap">
-              <img
-                src={resolvedWorkbench[0].cover}
-                alt={resolvedWorkbench[0].title}
-                width="640"
-                height="480"
-                class="mosaic-img"
-                loading="lazy"
-              />
-              <div class="mosaic-overlay">
-                <span class="mosaic-title">{resolvedWorkbench[0].title}</span>
-              </div>
-            </div>
-            <span class="mosaic-mobile-title">{resolvedWorkbench[0].shortTitle}</span>
+    <!-- 8. FOLLOW THE BUILDS -->
+    <section class="about-w about-socials-wrap">
+      <div class="about-section-header">
+        <h2 class="about-section-h2">Follow the builds</h2>
+      </div>
+
+      <div class="about-socials-grid">
+        {socials.map((s) => (
+          <a href={s.url} target="_blank" rel="noopener noreferrer" class="about-social-card">
+            <span class="about-social-icon-box">
+              {s.icon === 'youtube' && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
+                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+                  <path d="M9.75 15.02 15.5 11.75 9.75 8.48z"></path>
+                </svg>
+              )}
+              {s.icon === 'instagram' && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
+                  <rect x="2" y="2" width="20" height="20" rx="5"></rect>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                  <path d="M17.5 6.5h.01"></path>
+                </svg>
+              )}
+              {s.icon === 'github' && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                </svg>
+              )}
+              {s.icon === 'linkedin' && (
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
+                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                  <rect x="2" y="9" width="4" height="12"></rect>
+                  <circle cx="4" cy="4" r="2"></circle>
+                </svg>
+              )}
+            </span>
+            <span class="about-social-meta">
+              <b class="about-social-platform">{s.platform}</b>
+              <span class="about-social-handle">{s.handle}</span>
+            </span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="about-social-chevron">
+              <path d="M9 5l7 7-7 7"></path>
+            </svg>
           </a>
+        ))}
+      </div>
+    </section>
 
-          <!-- Right Cluster (3 items) -->
-          <div class="mosaic-cluster-right">
-            <div class="mosaic-top-row">
-              <a href={`/projects/${resolvedWorkbench[1].slug}`} class="mosaic-item mosaic-item--med">
-                <div class="mosaic-img-wrap">
-                  <img
-                    src={resolvedWorkbench[1].cover}
-                    alt={resolvedWorkbench[1].title}
-                    width="360"
-                    height="220"
-                    class="mosaic-img"
-                    loading="lazy"
-                  />
-                  <div class="mosaic-overlay">
-                    <span class="mosaic-title">{resolvedWorkbench[1].title}</span>
-                  </div>
-                </div>
-                <span class="mosaic-mobile-title">{resolvedWorkbench[1].shortTitle}</span>
-              </a>
-
-              <a href={`/projects/${resolvedWorkbench[2].slug}`} class="mosaic-item mosaic-item--med">
-                <div class="mosaic-img-wrap">
-                  <img
-                    src={resolvedWorkbench[2].cover}
-                    alt={resolvedWorkbench[2].title}
-                    width="360"
-                    height="220"
-                    class="mosaic-img"
-                    loading="lazy"
-                  />
-                  <div class="mosaic-overlay">
-                    <span class="mosaic-title">{resolvedWorkbench[2].title}</span>
-                  </div>
-                </div>
-                <span class="mosaic-mobile-title">{resolvedWorkbench[2].shortTitle}</span>
-              </a>
-            </div>
-
-            <!-- Bottom Wide Banner -->
-            <a href={`/projects/${resolvedWorkbench[3].slug}`} class="mosaic-item mosaic-item--banner">
-              <div class="mosaic-img-wrap">
-                <img
-                  src={resolvedWorkbench[3].cover}
-                  alt={resolvedWorkbench[3].title}
-                  width="720"
-                  height="220"
-                  class="mosaic-img"
-                  loading="lazy"
-                />
-                <div class="mosaic-overlay">
-                  <span class="mosaic-title">{resolvedWorkbench[3].title}</span>
-                </div>
-              </div>
-              <span class="mosaic-mobile-title">{resolvedWorkbench[3].shortTitle}</span>
-            </a>
-          </div>
+    <!-- 9. CLOSING CALL TO ACTION -->
+    <section class="about-w about-cta-wrap">
+      <div class="about-cta-card">
+        <div class="about-cta-left">
+          <h2 class="about-cta-title">{aboutData.cta.heading}</h2>
+          <p class="about-cta-sub">{aboutData.cta.subline}</p>
         </div>
-      </section>
-
-      <!-- 6. WHAT YOU CAN EXPECT -->
-      <section class="about-expect-section">
-        <h2 class="section-block-title">What you can expect from me</h2>
-
-        <div class="expect-cards-grid">
-          {aboutData.expect_cards.map((ec) => (
-            <div class="expect-card">
-              <div class="expect-icon-box">
-                <Icon name={ec.icon || 'shield'} size={20} />
-              </div>
-              <h3 class="expect-title">{ec.title}</h3>
-              <p class="expect-desc">{ec.text}</p>
-            </div>
-          ))}
+        <div class="about-cta-right">
+          <a href={aboutData.cta.btn1_url || '/projects?price=free'} class="about-btn about-btn-red about-cta-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="cta-download-svg">
+              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
+            </svg>
+            <span>{aboutData.cta.btn1_text || 'Free downloads'}</span>
+          </a>
+          <a href={aboutData.cta.btn2_url || '/projects'} class="about-btn about-btn-white-outline about-cta-btn-secondary">
+            <span>{aboutData.cta.btn2_text || 'Browse all projects'}</span>
+          </a>
         </div>
-      </section>
-
-      <!-- 7. WORK WITH ME -->
-      <section class="about-work-section">
-        <div class="work-card">
-          <div class="work-copy">
-            <h2 class="work-title">{aboutData.work_with_me.heading}</h2>
-            <p class="work-desc">{aboutData.work_with_me.text}</p>
-          </div>
-          <div class="work-action">
-            <a href={aboutData.work_with_me.btn_url || '/contact'} class="btn btn-primary btn-work">
-              <Icon name="mail" size={16} />
-              <span>{aboutData.work_with_me.btn_text || 'Get in touch'}</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <!-- 8. FOLLOW THE BUILDS (Social links shown ONCE on the page) -->
-      <section class="about-socials-section">
-        <h2 class="section-block-title">Follow the builds</h2>
-
-        <div class="socials-cards-grid">
-          {socials.map((s) => (
-            <a href={s.url} target="_blank" rel="noopener noreferrer" class="social-nav-card">
-              <div class="social-card-left">
-                <div class="social-card-icon">
-                  <Icon name={s.icon} size={20} />
-                </div>
-                <div class="social-card-meta">
-                  <h3 class="social-card-platform">{s.platform}</h3>
-                  <span class="social-card-handle">{s.handle}</span>
-                </div>
-              </div>
-              <Icon name="chevron-right" size={16} class="social-card-arrow" />
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <!-- 9. CLOSING CALL TO ACTION -->
-      <section class="about-closing-section">
-        <div class="about-cta-banner">
-          <div class="cta-banner-text">
-            <h2 class="cta-banner-heading">{aboutData.cta.heading}</h2>
-            <p class="cta-banner-subline">{aboutData.cta.subline}</p>
-          </div>
-          <div class="cta-banner-buttons">
-            <a href={aboutData.cta.btn1_url || '/projects?price=free'} class="btn btn-primary btn-cta-primary">
-              <Icon name="download" size={16} />
-              <span>{aboutData.cta.btn1_text || 'Free downloads'}</span>
-            </a>
-            <a href={aboutData.cta.btn2_url || '/projects'} class="btn btn-cta-white">
-              <span>{aboutData.cta.btn2_text || 'Browse all projects'}</span>
-            </a>
-          </div>
-        </div>
-      </section>
-    </div>
+      </div>
+    </section>
   </div>
 </Base>
 
 <style>
-  .about-page-shell {
-    padding-bottom: 5rem;
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+
+  .about-page {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    color: #0F1115;
+    background: #ffffff;
     overflow-x: clip;
-    background: #ffffff;
-  }
-  .about-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-  }
-
-  /* 1. HERO SECTION */
-  .about-hero-section {
-    padding: 3.5rem 0 3rem 0;
-  }
-  .about-hero-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-    gap: 3.5rem;
-    align-items: center;
-  }
-  .about-eyebrow {
-    display: block;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--brand-red, #D32F2F);
-    letter-spacing: 0.02em;
-    margin-bottom: 0.75rem;
-  }
-  .about-hero-headline {
-    font-size: clamp(2rem, 3.8vw, 3.25rem);
-    font-weight: 800;
-    line-height: 1.15;
-    color: var(--text, #111827);
-    margin: 0 0 1.25rem 0;
-    letter-spacing: -0.02em;
-  }
-  .about-hero-intro {
-    font-size: clamp(1rem, 1.25vw, 1.125rem);
-    line-height: 1.6;
-    color: var(--text-muted, #4B5563);
-    margin: 0 0 1.75rem 0;
-  }
-  .about-creds-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-  }
-  .about-cred-chip {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text, #111827);
-    background: #f8fafc;
-    border: 1px solid var(--border, #E2E8F0);
-    padding: 0.35rem 0.85rem;
-    border-radius: 999px;
-  }
-  .about-hero-buttons {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .btn-about-hero {
-    padding: 0.75rem 1.6rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .btn-about-hero:hover {
-    transform: translateY(-1px);
-  }
-
-  /* Maker Photo Card */
-  .about-photo-card {
-    position: relative;
-    border-radius: 2rem;
-    overflow: hidden;
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
-    aspect-ratio: 1.05 / 1;
-    background: #f1f5f9;
-  }
-  .about-photo-img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center top;
-    display: block;
-  }
-  .about-photo-badge {
-    position: absolute;
-    bottom: 1.25rem;
-    left: 1.25rem;
-    background: #ffffff;
-    color: #111827;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    padding: 0.45rem 1.15rem;
-    border-radius: 999px;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
   }
 
-  /* 2. NUMBERS STRIP */
-  .about-numbers-section {
-    padding: 2.25rem 0;
-    border-top: 1px solid var(--border, #E5E7EB);
-    border-bottom: 1px solid var(--border, #E5E7EB);
-    margin: 2rem 0 3.5rem 0;
-  }
-  .numbers-strip-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-  }
-  .number-stat-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .stat-big-val {
-    font-size: clamp(2.25rem, 4vw, 3.25rem);
-    font-weight: 800;
-    line-height: 1;
-    color: var(--text, #111827);
-    letter-spacing: -0.03em;
-  }
-  .stat-small-label {
-    font-size: 0.875rem;
-    color: var(--text-muted, #4B5563);
-    line-height: 1.4;
+  /* Global Container from Design: padding 0 120px on desktop */
+  .about-w {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding-left: clamp(20px, 8vw, 120px);
+    padding-right: clamp(20px, 8vw, 120px);
   }
 
-  /* 3. MY STORY */
-  .about-story-section {
-    padding: 1.5rem 0;
-    margin-bottom: 4rem;
-  }
-  .about-story-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-    gap: 4rem;
-    align-items: flex-start;
-  }
-  .story-eyebrow {
-    display: block;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--brand-red, #D32F2F);
-    letter-spacing: 0.02em;
-    margin-bottom: 0.75rem;
-  }
-  .story-heading {
-    font-size: clamp(1.75rem, 2.8vw, 2.5rem);
-    font-weight: 800;
-    line-height: 1.2;
-    color: var(--text, #111827);
-    margin: 0 0 1.5rem 0;
-    letter-spacing: -0.02em;
-  }
-  .story-pull-quote-wrap {
-    display: flex;
-    gap: 1rem;
-    align-items: stretch;
-  }
-  .quote-bar {
-    width: 4px;
-    background: var(--brand-red, #D32F2F);
-    border-radius: 4px;
-    flex-shrink: 0;
-  }
-  .story-pull-quote {
-    font-size: 1.125rem;
-    font-weight: 700;
-    line-height: 1.5;
-    color: var(--text, #111827);
-    margin: 0;
-  }
-  .story-prose {
-    font-size: 1.0625rem;
-    line-height: 1.7;
-    color: var(--text-muted, #4B5563);
-  }
-  .story-prose :global(p) {
-    margin: 0 0 1.25rem 0;
-  }
-  .story-prose :global(strong) {
-    color: var(--text, #111827);
+  .about-eyebrow {
+    color: #D91F26;
+    font-size: 14px;
     font-weight: 600;
   }
-
-  /* 4. HOW EVERY PACK IS MADE */
-  .about-steps-section {
-    margin-bottom: 4rem;
-  }
-  .section-heading-wrap {
-    margin-bottom: 2rem;
-  }
-  .section-block-title {
-    font-size: clamp(1.625rem, 2.5vw, 2.25rem);
-    font-weight: 800;
-    color: var(--text, #111827);
-    margin: 0 0 0.5rem 0;
-    letter-spacing: -0.02em;
-  }
-  .section-block-sub {
-    font-size: 0.9375rem;
-    color: var(--text-muted, #4B5563);
-    margin: 0;
-  }
-  .how-steps-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
-  }
-  .step-card {
-    background: #ffffff;
-    border: 1px solid var(--border, #E5E7EB);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    transition: transform 0.15s ease, border-color 0.15s ease;
-  }
-  .step-card:hover {
-    transform: translateY(-2px);
-    border-color: #cbd5e1;
-  }
-  .step-icon-box {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.75rem;
-    background: #FEF2F2;
-    color: var(--brand-red, #D32F2F);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .step-num-badge {
-    display: none;
-  }
-  .step-text-wrap {
-    display: flex;
-    flex-direction: column;
-  }
-  .step-index-label {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    color: #94A3B8;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.25rem;
-  }
-  .step-title {
-    font-size: 1.0625rem;
-    font-weight: 700;
-    color: var(--text, #111827);
-    margin: 0 0 0.4rem 0;
-  }
-  .step-desc {
-    font-size: 0.875rem;
-    color: var(--text-muted, #4B5563);
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  /* 5. ON THE WORKBENCH */
-  .about-workbench-section {
-    margin-bottom: 4rem;
-  }
-  .workbench-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 1.75rem;
-  }
-  .see-all-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    color: var(--brand-red, #D32F2F);
-    font-size: 0.875rem;
+  .about-link-red {
+    color: #D91F26;
     font-weight: 600;
+    font-size: 15px;
     text-decoration: none;
   }
-  .see-all-link:hover {
+  .about-link-red:hover {
     text-decoration: underline;
   }
 
-  /* Desktop Mosaic */
-  .workbench-mosaic-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.25fr);
-    gap: 1.25rem;
-    align-items: stretch;
-  }
-  .mosaic-item {
-    position: relative;
-    display: flex;
-    flex-direction: column;
+  /* Base buttons from design */
+  .about-btn {
+    border: 0;
+    border-radius: 14px;
+    height: 54px;
+    padding: 0 28px;
+    font-weight: 700;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
     text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
   }
-  .mosaic-img-wrap {
+  .about-btn:hover {
+    opacity: 0.94;
+    transform: translateY(-1px);
+  }
+  .about-btn-red {
+    background: #D91F26;
+    color: #ffffff;
+  }
+  .about-btn-outline {
+    background: #ffffff;
+    color: #0F1115;
+    border: 1.5px solid #0F1115;
+  }
+  .about-btn-white-outline {
+    background: transparent;
+    color: #ffffff;
+    border: 1.5px solid #3B4350;
+  }
+  .about-btn-white-outline:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .btn-play-icon {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .btn-yt-text-mobile {
+    display: none;
+  }
+
+  /* 1. HERO SECTION */
+  .about-hero-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+    gap: 72px;
+    align-items: center;
+    padding-top: 64px;
+    padding-bottom: 72px;
+  }
+  .about-hero-headline {
+    margin: 14px 0 20px;
+    font-size: clamp(34px, 3.8vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    color: #0F1115;
+  }
+  .about-hero-intro {
+    font-size: clamp(16px, 1.25vw, 18px);
+    line-height: 1.55;
+    color: #5A6270;
+    margin: 0;
+    max-width: 560px;
+  }
+  .about-chips-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 22px 0 30px;
+  }
+  .about-pill {
+    display: inline-block;
+    background: #F4F5F7;
+    border-radius: 99px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0F1115;
+  }
+  .about-hero-btns {
+    display: flex;
+    gap: 12px;
+  }
+
+  .about-hero-photo-col {
+    position: relative;
+  }
+  .about-photo-wrap {
     position: relative;
     width: 100%;
-    height: 100%;
-    border-radius: 1rem;
+  }
+  .about-photo-img {
+    width: 100%;
+    aspect-ratio: 0.9;
+    object-fit: cover;
+    object-position: 50% 25%;
+    border-radius: 28px;
+    display: block;
+    background: #F4F5F7;
+  }
+  .about-photo-badge {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    background: #ffffff;
+    color: #0F1115;
+    border-radius: 99px;
+    padding: 9px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 8px 24px rgba(15, 17, 21, 0.18);
+    white-space: nowrap;
+  }
+
+  /* 2. NUMBERS STRIP */
+  .about-numbers-wrap {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .about-numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+    border-top: 1px solid #E4E7EB;
+    border-bottom: 1px solid #E4E7EB;
+    padding: 20px 0;
+  }
+  .about-stat-item {
+    padding: 8px 0;
+  }
+  .about-stat-val {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #0F1115;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .about-stat-label {
+    font-size: 15px;
+    color: #5A6270;
+    line-height: 1.5;
+  }
+  .about-stat-label-mobile {
+    display: none;
+  }
+
+  /* 3. MY STORY */
+  .about-story-wrap {
+    padding-top: 88px;
+    display: grid;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    gap: 80px;
+    align-items: flex-start;
+  }
+  .about-story-title {
+    font-size: clamp(28px, 2.8vw, 40px);
+    margin: 8px 0 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: #0F1115;
+  }
+  .about-pull-quote {
+    border-left: 4px solid #D91F26;
+    padding-left: 20px;
+    font-size: clamp(19px, 1.5vw, 22px);
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #0F1115;
+  }
+  .about-story-prose {
+    font-size: 18px;
+    line-height: 1.65;
+    color: #3B4350;
+  }
+  .about-story-prose :global(p) {
+    margin: 0 0 18px;
+  }
+  .about-story-prose :global(strong),
+  .about-story-prose :global(b) {
+    color: #0F1115;
+  }
+
+  /* 4. HOW EVERY PACK IS MADE */
+  .about-steps-wrap {
+    padding-top: 88px;
+  }
+  .about-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .about-section-h2 {
+    margin: 0;
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    color: #0F1115;
+  }
+  .about-section-sub {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.55;
+    color: #5A6270;
+  }
+
+  .about-steps-grid-desktop {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .about-step-card {
+    border: 1px solid #E4E7EB;
+    border-radius: 20px;
+    background: #ffffff;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .about-step-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #FDE9EA;
+    color: #D91F26;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .step-svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .about-step-sublabel {
+    font-size: 14px;
+    font-weight: 600;
+    color: #5A6270;
+  }
+  .about-step-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #0F1115;
+  }
+  .about-step-text {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #5A6270;
+  }
+  .about-steps-timeline-mobile {
+    display: none;
+  }
+
+  /* 5. ON THE WORKBENCH */
+  .about-workbench-wrap {
+    padding-top: 88px;
+  }
+  .about-workbench-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+  .about-workbench-mosaic-desktop {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: 200px 200px;
+    gap: 16px;
+  }
+  .mosaic-tile-hero {
+    grid-column: span 2;
+    grid-row: span 2;
+    border-radius: 18px;
     overflow: hidden;
-    background: #f1f5f9;
+    display: block;
+  }
+  .mosaic-tile-top-left,
+  .mosaic-tile-top-right {
+    grid-column: span 1;
+    grid-row: span 1;
+    border-radius: 18px;
+    overflow: hidden;
+    display: block;
+  }
+  .mosaic-tile-bottom-wide {
+    grid-column: span 2;
+    grid-row: span 1;
+    border-radius: 18px;
+    overflow: hidden;
+    display: block;
   }
   .mosaic-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.3s ease;
+    transition: transform 0.25s ease;
   }
-  .mosaic-item:hover .mosaic-img {
+  .mosaic-tile-hero:hover .mosaic-img,
+  .mosaic-tile-top-left:hover .mosaic-img,
+  .mosaic-tile-top-right:hover .mosaic-img,
+  .mosaic-tile-bottom-wide:hover .mosaic-img {
     transform: scale(1.02);
   }
-  .mosaic-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, transparent 40%, rgba(15, 23, 42, 0.8) 100%);
-    display: flex;
-    align-items: flex-end;
-    padding: 1.25rem;
-  }
-  .mosaic-title {
-    color: #ffffff;
-    font-size: 1rem;
-    font-weight: 700;
-    line-height: 1.3;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  }
-  .mosaic-mobile-title {
+  .about-workbench-carousel-mobile {
     display: none;
   }
 
-  .mosaic-item--large {
-    min-height: 460px;
-  }
-  .mosaic-cluster-right {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-  .mosaic-top-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-  }
-  .mosaic-item--med {
-    height: 215px;
-  }
-  .mosaic-item--banner {
-    height: 225px;
-  }
-
   /* 6. WHAT YOU CAN EXPECT */
-  .about-expect-section {
-    margin-bottom: 4rem;
+  .about-expect-wrap {
+    padding-top: 88px;
   }
-  .expect-cards-grid {
+  .about-expect-h2-mobile {
+    display: none;
+  }
+  .about-expect-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
-    margin-top: 1.75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
   }
-  .expect-card {
-    background: #F8FAFC;
-    border: 1px solid var(--border, #E2E8F0);
-    border-radius: 1rem;
-    padding: 1.75rem;
+  .about-expect-card {
+    background: #F4F5F7;
+    border-radius: 20px;
+    padding: 28px;
     display: flex;
     flex-direction: column;
-    gap: 0.875rem;
   }
-  .expect-icon-box {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.625rem;
-    background: #FEF2F2;
-    color: var(--brand-red, #D32F2F);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+  .about-expect-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #FDE9EA;
+    color: #D91F26;
+    display: grid;
+    place-items: center;
+    flex: none;
   }
-  .expect-title {
-    font-size: 1.125rem;
+  .expect-svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .about-expect-title {
+    font-size: 20px;
     font-weight: 700;
-    color: var(--text, #111827);
-    margin: 0;
+    margin: 16px 0 8px;
+    color: #0F1115;
   }
-  .expect-desc {
-    font-size: 0.9375rem;
-    color: var(--text-muted, #4B5563);
-    line-height: 1.55;
+  .about-expect-desc {
     margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #5A6270;
   }
 
   /* 7. WORK WITH ME */
-  .about-work-section {
-    margin-bottom: 4rem;
+  .about-work-wrap {
+    padding-top: 88px;
   }
-  .work-card {
+  .about-work-card {
+    border: 1px solid #E4E7EB;
+    border-radius: 28px;
+    padding: 40px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 40px;
+    align-items: center;
     background: #ffffff;
-    border: 1px solid var(--border, #E5E7EB);
-    border-radius: 1.25rem;
-    padding: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2rem;
   }
-  .work-copy {
-    max-width: 680px;
-  }
-  .work-title {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--text, #111827);
-    margin: 0 0 0.5rem 0;
-    letter-spacing: -0.01em;
-  }
-  .work-desc {
-    font-size: 0.9375rem;
-    color: var(--text-muted, #4B5563);
-    line-height: 1.5;
+  .about-work-title {
     margin: 0;
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    color: #0F1115;
   }
-  .btn-work {
-    padding: 0.8rem 1.85rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border-radius: 999px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
+  .about-work-desc {
+    font-size: 16px;
+    line-height: 1.55;
+    color: #5A6270;
+    margin: 10px 0 0;
+    max-width: 560px;
+  }
+  .work-mail-svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   /* 8. FOLLOW THE BUILDS */
-  .about-socials-section {
-    margin-bottom: 4.5rem;
+  .about-socials-wrap {
+    padding-top: 88px;
   }
-  .socials-cards-grid {
+  .about-socials-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
-    margin-top: 1.75rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
   }
-  .social-nav-card {
-    background: #F8FAFC;
-    border: 1px solid var(--border, #E2E8F0);
-    border-radius: 1rem;
-    padding: 1.25rem;
+  .about-social-card {
+    background: #F4F5F7;
+    border-radius: 20px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 14px;
+    padding: 20px 22px;
     text-decoration: none;
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    color: #0F1115;
+    transition: transform 0.15s ease, background 0.15s ease;
   }
-  .social-nav-card:hover {
+  .about-social-card:hover {
     transform: translateY(-2px);
-    border-color: var(--brand-red, #D32F2F);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+    background: #edf0f5;
   }
-  .social-card-left {
-    display: flex;
-    align-items: center;
-    gap: 0.875rem;
+  .about-social-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #ffffff;
+    display: grid;
+    place-items: center;
+    flex: none;
+    color: #0F1115;
+  }
+  .social-svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .about-social-meta {
+    flex: 1;
     min-width: 0;
   }
-  .social-card-icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.5rem;
-    color: var(--text, #111827);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .social-card-meta {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .social-card-platform {
-    font-size: 0.9375rem;
+  .about-social-platform {
+    font-size: 17px;
     font-weight: 700;
-    color: var(--text, #111827);
-    margin: 0;
+    color: #0F1115;
+    display: block;
   }
-  .social-card-handle {
-    font-size: 0.75rem;
-    color: var(--text-muted, #4B5563);
-    margin-top: 0.15rem;
+  .about-social-handle {
+    display: block;
+    font-size: 13px;
+    color: #5A6270;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .social-card-arrow {
-    color: var(--text-muted, #94A3B8);
-    flex-shrink: 0;
+  .about-social-chevron {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: #0F1115;
+    flex: none;
   }
 
   /* 9. CLOSING CALL TO ACTION */
-  .about-cta-banner {
-    background: #0f172a;
-    border-radius: 1.5rem;
-    padding: 3rem;
+  .about-cta-wrap {
+    padding-top: 88px;
+    padding-bottom: 96px;
+  }
+  .about-cta-card {
+    background: #111418;
     color: #ffffff;
+    border-radius: 28px;
+    padding: 48px;
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
+    gap: 40px;
   }
-  .cta-banner-heading {
-    font-size: clamp(1.75rem, 2.8vw, 2.5rem);
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0 0 0.5rem 0;
-    letter-spacing: -0.02em;
-  }
-  .cta-banner-subline {
-    font-size: 1rem;
-    color: #94a3b8;
+  .about-cta-title {
     margin: 0;
-  }
-  .cta-banner-buttons {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .btn-cta-primary {
-    background: var(--brand-red, #D32F2F);
     color: #ffffff;
-    padding: 0.85rem 1.75rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    border: none;
+    font-size: 36px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
-  .btn-cta-white {
-    background: #ffffff;
-    color: #0f172a;
-    padding: 0.85rem 1.75rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    text-decoration: none;
-    border: none;
+  .about-cta-sub {
+    color: #C7CCD4;
+    font-size: 17px;
+    margin: 10px 0 0;
+    line-height: 1.5;
+  }
+  .about-cta-right {
+    display: flex;
+    gap: 12px;
+    flex: none;
+  }
+  .cta-download-svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   /* =========================================================================
-     RESPONSIVE / MOBILE STYLES (<= 960px and <= 768px)
+     MOBILE DESIGN IMPLEMENTATION (< 768px)
+     Matches AboutV2M.dc.html pixel-for-pixel
      ========================================================================= */
-  @media (max-width: 960px) {
-    .about-story-grid {
-      grid-template-columns: 1fr;
-      gap: 2rem;
-    }
-    .expect-cards-grid {
-      grid-template-columns: 1fr;
-    }
-    .work-card {
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 2rem;
-    }
-    .about-cta-banner {
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 2.25rem 1.75rem;
-    }
-    .cta-banner-buttons {
-      width: 100%;
-      flex-direction: column;
-    }
-    .btn-cta-primary, .btn-cta-white {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-
   @media (max-width: 768px) {
-    .about-hero-section {
-      padding: 1.5rem 0 2.5rem 0;
+    .about-w {
+      padding-left: 16px;
+      padding-right: 16px;
     }
-    .about-hero-grid {
+
+    /* 1. Mobile Hero: Photo first, then text, two equal buttons */
+    .about-hero-wrap {
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 0;
+      padding-top: 16px;
+      padding-bottom: 0;
     }
-    /* Photo first on mobile */
-    .about-hero-photo-wrap {
+    .about-hero-photo-col {
       order: -1;
       width: 100%;
     }
-    .about-photo-card {
-      aspect-ratio: 1.05 / 1;
-      max-width: 420px;
-      margin: 0 auto;
-      border-radius: 1.5rem;
+    .about-photo-img {
+      aspect-ratio: 1.05;
+      border-radius: 22px;
     }
     .about-photo-badge {
-      bottom: 1rem;
-      left: 1rem;
-      font-size: 0.75rem;
-      padding: 0.4rem 0.95rem;
+      left: 12px;
+      bottom: 12px;
+      padding: 7px 13px;
+      font-size: 13px;
+      box-shadow: 0 6px 18px rgba(15, 17, 21, 0.18);
     }
-    .about-hero-buttons {
+    .about-hero-text {
+      margin-top: 20px;
       width: 100%;
+    }
+    .about-hero-headline {
+      font-size: 29px;
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+      margin: 8px 0 12px;
+    }
+    .about-hero-intro {
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .about-chips-row {
+      gap: 6px;
+      margin: 14px 0 18px;
+    }
+    .about-pill {
+      font-size: 13px;
+    }
+    .about-hero-btns {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .about-btn {
+      flex: 1;
+      min-height: 48px;
+      height: 48px;
+      padding: 0 16px;
+      font-size: 15px;
+    }
+    .btn-play-icon {
+      width: 18px;
+      height: 18px;
+    }
+    .btn-yt-text-desktop {
+      display: none;
+    }
+    .btn-yt-text-mobile {
+      display: inline;
+    }
+
+    /* 2. Mobile Numbers: 2x2 grid of .k cards */
+    .about-numbers-wrap {
+      padding-top: 8px;
+      padding-bottom: 0;
+    }
+    .about-numbers-grid {
       display: grid;
-      grid-template-columns: 1.25fr 1fr;
-      gap: 0.75rem;
-    }
-    .btn-about-hero {
-      width: 100%;
-      justify-content: center;
-      padding: 0.75rem 1rem;
-      font-size: 0.875rem;
-    }
-
-    /* Numbers Strip: 2x2 grid of cards on mobile */
-    .about-numbers-section {
-      border: none;
-      padding: 0.5rem 0 2.5rem 0;
-      margin: 1rem 0 2.5rem 0;
-    }
-    .numbers-strip-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.75rem;
-    }
-    .number-stat-item {
-      background: #F8FAFC;
-      border: 1px solid var(--border, #E2E8F0);
-      border-radius: 1rem;
-      padding: 1.15rem 1rem;
-    }
-    .stat-big-val {
-      font-size: 1.875rem;
-    }
-    .stat-small-label {
-      font-size: 0.8125rem;
-      margin-top: 0.25rem;
-    }
-
-    /* How Made on Mobile: vertical numbered step rows */
-    .how-steps-grid {
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
-    }
-    .step-card {
-      background: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
       border: none;
       padding: 0;
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 1rem;
     }
-    .step-icon-box, .step-index-label {
+    .about-stat-item {
+      background: #F4F5F7;
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .about-stat-val {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .about-stat-label-desktop {
       display: none;
     }
-    .step-num-badge {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.875rem;
-      height: 1.875rem;
-      border-radius: 50%;
-      background: var(--brand-red, #D32F2F);
-      color: #ffffff;
-      font-size: 0.875rem;
-      font-weight: 700;
-      flex-shrink: 0;
-      margin-top: 0.1rem;
-    }
-    .step-title {
-      font-size: 1rem;
-      margin-bottom: 0.25rem;
-    }
-    .step-desc {
-      font-size: 0.875rem;
-      line-height: 1.45;
+    .about-stat-label-mobile {
+      display: block;
+      font-size: 13px;
+      color: #5A6270;
     }
 
-    /* Workbench horizontal scroll-snap on mobile */
-    .workbench-mosaic-layout {
+    /* 3. Mobile Story */
+    .about-story-wrap {
+      padding-top: 28px;
       display: flex;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      padding-bottom: 0.75rem;
-      gap: 1rem;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: var(--brand-red, #D32F2F) #E2E8F0;
+      flex-direction: column;
+      gap: 0;
     }
-    .workbench-mosaic-layout::-webkit-scrollbar {
-      height: 4px;
+    .about-story-title {
+      font-size: 26px;
+      margin: 6px 0 14px;
     }
-    .workbench-mosaic-layout::-webkit-scrollbar-track {
-      background: #E2E8F0;
-      border-radius: 4px;
+    .about-pull-quote {
+      padding-left: 14px;
+      font-size: 19px;
+      line-height: 1.3;
+      margin-bottom: 16px;
     }
-    .workbench-mosaic-layout::-webkit-scrollbar-thumb {
-      background: #94A3B8;
-      border-radius: 4px;
+    .about-story-prose {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #5A6270;
     }
-    .mosaic-item--large,
-    .mosaic-item--med,
-    .mosaic-item--banner {
-      flex: 0 0 250px;
-      height: auto;
-      min-height: auto;
-      scroll-snap-align: start;
+    .about-story-prose :global(p) {
+      margin: 0 0 12px;
     }
-    .mosaic-img-wrap {
-      height: 160px;
-      border-radius: 1rem;
+
+    /* 4. Mobile Steps: Timeline with connected line */
+    .about-steps-wrap {
+      padding-top: 28px;
     }
-    .mosaic-cluster-right,
-    .mosaic-top-row {
-      display: contents;
+    .about-section-h2 {
+      font-size: 24px;
+      margin-bottom: 0;
     }
-    .mosaic-overlay {
+    .about-section-sub {
       display: none;
     }
-    .mosaic-mobile-title {
+    .about-section-header {
+      margin-bottom: 14px;
+    }
+    .about-steps-grid-desktop {
+      display: none;
+    }
+    .about-steps-timeline-mobile {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .about-timeline-row {
+      display: flex;
+      gap: 14px;
+    }
+    .about-timeline-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .about-timeline-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #D91F26;
+      color: #ffffff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      flex: none;
+      font-size: 15px;
+    }
+    .about-timeline-line {
+      flex: 1;
+      width: 2px;
+      background: #E4E7EB;
+      margin: 4px 0;
+      min-height: 24px;
+    }
+    .about-timeline-content {
+      padding-bottom: 18px;
+    }
+    .about-timeline-row:last-child .about-timeline-content {
+      padding-bottom: 0;
+    }
+    .about-timeline-title {
+      font-size: 17px;
+      margin: 4px 0;
+      font-weight: 700;
+      color: #0F1115;
+    }
+    .about-timeline-desc {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #5A6270;
+    }
+
+    /* 5. Mobile Workbench: Horizontal Carousel */
+    .about-workbench-wrap {
+      padding-top: 28px;
+    }
+    .about-workbench-header {
+      margin-bottom: 14px;
+    }
+    .about-workbench-header .about-link-red {
+      display: none;
+    }
+    .about-workbench-mosaic-desktop {
+      display: none;
+    }
+    .about-workbench-carousel-mobile {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      margin: 0 -16px;
+      padding: 2px 16px 8px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .about-workbench-carousel-mobile::-webkit-scrollbar {
+      display: none;
+    }
+    .carousel-card-mobile {
+      width: 220px;
+      flex: none;
+      scroll-snap-align: start;
+      text-decoration: none;
+    }
+    .carousel-img-mobile {
+      width: 100%;
+      aspect-ratio: 1.4;
+      object-fit: cover;
+      border-radius: 16px;
       display: block;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: #111827;
-      margin-top: 0.5rem;
+    }
+    .carousel-label-mobile {
+      font-size: 13px;
+      color: #5A6270;
+      margin-top: 6px;
+      font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    /* Social Cards 2x2 on Mobile */
-    .socials-cards-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.75rem;
+    /* 6. Mobile Expect: stacked .k cards */
+    .about-expect-wrap {
+      padding-top: 28px;
     }
-    .social-nav-card {
-      padding: 0.85rem 1rem;
-      border-radius: 0.875rem;
-    }
-    .social-card-handle {
+    .about-expect-h2-desktop {
       display: none;
     }
-    .social-card-platform {
-      font-size: 0.875rem;
+    .about-expect-h2-mobile {
+      display: block;
     }
-    .social-card-icon {
-      width: 1.5rem;
-      height: 1.5rem;
+    .about-expect-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .about-expect-card {
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: row;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .about-expect-icon-box {
+      width: 44px;
+      height: 44px;
+    }
+    .about-expect-title {
+      font-size: 15px;
+      margin: 0;
+    }
+    .about-expect-desc {
+      font-size: 14px;
+      margin-top: 4px;
     }
 
-    /* Work with me mobile */
-    .work-card {
-      padding: 1.5rem;
-      border-radius: 1rem;
+    /* 7. Mobile Work with me */
+    .about-work-wrap {
+      padding-top: 20px;
     }
-    .btn-work {
+    .about-work-card {
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .about-work-title {
+      font-size: 22px;
+    }
+    .about-work-desc {
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 8px 0 14px;
+    }
+    .about-work-right {
       width: 100%;
-      justify-content: center;
+    }
+    .about-work-btn {
+      width: 100%;
+    }
+
+    /* 8. Mobile Follow the builds: 2x2 grid */
+    .about-socials-wrap {
+      padding-top: 28px;
+    }
+    .about-socials-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .about-social-card {
+      border-radius: 16px;
+      padding: 14px;
+      gap: 10px;
+    }
+    .about-social-icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+    }
+    .social-svg {
+      width: 20px;
+      height: 20px;
+    }
+    .about-social-platform {
+      font-size: 15px;
+    }
+    .about-social-handle {
+      display: none;
+    }
+    .about-social-chevron {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* 9. Mobile Closing CTA */
+    .about-cta-wrap {
+      padding-top: 28px;
+      padding-bottom: 32px;
+    }
+    .about-cta-card {
+      border-radius: 20px;
+      padding: 22px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+    }
+    .about-cta-title {
+      font-size: 24px;
+      line-height: 1.15;
+    }
+    .about-cta-sub {
+      font-size: 14px;
+      margin: 8px 0 16px;
+    }
+    .about-cta-right {
+      width: 100%;
+    }
+    .about-cta-btn {
+      width: 100%;
+    }
+    .about-cta-btn-secondary {
+      display: none;
     }
   }
 </style>
