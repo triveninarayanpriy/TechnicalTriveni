@@ -10,35 +10,41 @@ const cat = (url.searchParams.get('cat') || 'All').trim();
 const rawPrice = (url.searchParams.get('price') || url.searchParams.get('priceMode') || 'all').trim().toLowerCase();
 const priceMode = rawPrice === 'free' ? 'free' : rawPrice === 'paid' ? 'paid' : 'all';
 
-let projects: Project[] = [];
 let categories: string[] = [];
-let allProjectsForCounts: Project[] = [];
-let total = 0;
+let allFilteredProjects: Project[] = [];
 
 try {
-  const opts = { publishedOnly: true, category: cat, search: q || undefined, priceMode };
-  [total, categories, allProjectsForCounts] = await Promise.all([
-    countProjects(env.DB, opts),
+  const [dbCats, dbProjects] = await Promise.all([
     distinctCategories(env.DB),
-    listProjects(env.DB, { publishedOnly: true, search: q || undefined, priceMode, limit: 100 }),
+    listProjects(env.DB, {
+      publishedOnly: true,
+      search: q || undefined,
+      priceMode,
+      limit: 100,
+      orderBy: 'newest',
+    }),
   ]);
-
-  projects = await listProjects(env.DB, {
-    ...opts,
-    orderBy: 'newest',
-    limit: PAGE_SIZE,
-  });
+  categories = dbCats;
+  allFilteredProjects = dbProjects;
 } catch {
   // DB fallback
 }
 
-// Compute Category Counts based on active search & price mode
-const catCounts: Record<string, number> = { All: allProjectsForCounts.length };
-allProjectsForCounts.forEach((p) => {
+// Compute Category Counts based on active search & price filter
+const catCounts: Record<string, number> = { All: allFilteredProjects.length };
+categories.forEach((c) => {
+  catCounts[c] = 0;
+});
+allFilteredProjects.forEach((p) => {
   if (p.category) {
     catCounts[p.category] = (catCounts[p.category] || 0) + 1;
   }
 });
+
+// Filter by selected category (if not 'All')
+const displayProjects = cat === 'All'
+  ? allFilteredProjects
+  : allFilteredProjects.filter((p) => (p.category || '') === cat);
 
 // Helper for Include Chips on cards
 function getProjectChips(p: Project) {
@@ -65,17 +71,6 @@ function getProjectChips(p: Project) {
     chips.push({ label: 'Code' });
   }
   return chips.slice(0, 3);
-}
-
-// Group projects by category
-const displayGroups: { category: string; count: number; items: Project[] }[] = [];
-const targetCategories = cat === 'All' ? categories : [cat];
-
-for (const c of targetCategories) {
-  const items = projects.filter((p) => (p.category || '') === c);
-  if (items.length > 0) {
-    displayGroups.push({ category: c, count: items.length, items });
-  }
 }
 
 // Filter URL builder
@@ -108,7 +103,7 @@ const filterUrl = (overrides: Record<string, string | null>) => {
         </p>
       </header>
 
-      <!-- 2. Controls & Filters -->
+      <!-- 2. Controls & Top Categorisation (Only Above) -->
       <div class="projects-controls">
         <div class="projects-search-price-row">
           <form method="get" action="/projects" class="projects-search-form" role="search">
@@ -135,7 +130,7 @@ const filterUrl = (overrides: Record<string, string | null>) => {
           </div>
         </div>
 
-        <!-- Category Pills Row -->
+        <!-- Category Pills (Top Categorisation) -->
         <div class="projects-cats-row" role="group" aria-label="Category">
           <a href={filterUrl({ cat: 'All' })} class:list={['cat-chip', cat === 'All' && 'on']}>
             All <em>{catCounts['All'] || 0}</em>
@@ -147,65 +142,63 @@ const filterUrl = (overrides: Record<string, string | null>) => {
           ))}
         </div>
 
-        <p class="projects-count-line">{projects.length} {projects.length === 1 ? 'project' : 'projects'}</p>
+        <p class="projects-count-line">{displayProjects.length} {displayProjects.length === 1 ? 'project' : 'projects'}</p>
       </div>
 
-      <!-- 3. Grouped Category Sections -->
-      {displayGroups.length > 0 ? (
-        displayGroups.map((group, groupIdx) => (
-          <section class:list={['projects-category-section', groupIdx === displayGroups.length - 1 && 'is-last']}>
-            <h2 class="category-heading">
-              {group.category} <span>{group.count}</span>
-            </h2>
-            <div class="projects-cards-grid">
-              {group.items.map((p) => {
-                const isPaid = (p.price_inr ?? 0) > 0 && p.combo_enabled !== 0;
-                const chips = getProjectChips(p);
+      <!-- 3. Unified Project Cards Grid (No Category Sub-Headings) -->
+      {displayProjects.length > 0 ? (
+        <div class="projects-cards-grid">
+          {displayProjects.map((p) => {
+            const isPaid = (p.price_inr ?? 0) > 0 && p.combo_enabled !== 0;
+            const chips = getProjectChips(p);
 
-                return (
-                  <a href={`/projects/${p.slug}`} class="project-card">
-                    <div class="card-top">
-                      <div class="card-thumb">
-                        {p.cover_image ? (
-                          <img
-                            src={p.cover_image}
-                            alt={p.title}
-                            class="card-img"
-                            loading="lazy"
-                            width="128"
-                            height="80"
-                          />
-                        ) : (
-                          <span class="card-thumb-placeholder">Image</span>
-                        )}
-                      </div>
-                      <div class="card-info">
-                        <p class="card-meta">
-                          {p.difficulty || 'Beginner'} · {p.build_time || '2 hours'}
-                        </p>
-                        <h3 class="card-title">{p.title}</h3>
-                      </div>
+            return (
+              <a href={`/projects/${p.slug}`} class="project-card">
+                <div class="card-thumb">
+                  {p.cover_image ? (
+                    <img
+                      src={p.cover_image}
+                      alt={p.title}
+                      class="card-img"
+                      loading="lazy"
+                      width="640"
+                      height="360"
+                    />
+                  ) : (
+                    <span class="card-thumb-placeholder">Image</span>
+                  )}
+                </div>
+
+                <div class="card-body">
+                  <div class="card-meta-row">
+                    <span class="card-cat">{p.category || 'Electronics'}</span>
+                    <span class="card-meta">
+                      {p.difficulty || 'Beginner'} · {p.build_time || '2 hours'}
+                    </span>
+                  </div>
+
+                  <h3 class="card-title">{p.title}</h3>
+
+                  <div class="card-bottom">
+                    <div class="card-chips">
+                      {chips.map((chip) => (
+                        <span class:list={['chip-badge', chip.isVideo && 'is-video']}>
+                          {chip.label}
+                        </span>
+                      ))}
                     </div>
-
-                    <div class="card-bottom">
-                      <div class="card-chips">
-                        {chips.map((chip) => (
-                          <span class:list={['chip-badge', chip.isVideo && 'is-video']}>
-                            {chip.label}
-                          </span>
-                        ))}
-                      </div>
+                    <div class="card-foot-right">
                       <span class:list={['card-price', !isPaid && 'is-free']}>
                         {isPaid ? `₹${Number(p.price_inr).toFixed(2)}` : 'Free'}
                       </span>
                       <span class="card-btn">View pack</span>
                     </div>
-                  </a>
-                );
-              })}
-            </div>
-          </section>
-        ))
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
       ) : (
         <div class="projects-empty-state">
           <p>No matching projects found.</p>
@@ -236,6 +229,7 @@ const filterUrl = (overrides: Record<string, string | null>) => {
     background: #ffffff;
     line-height: 1.5;
     width: 100%;
+    padding-bottom: 56px;
   }
 
   /* Page Container: max width 1120px; side padding 16px below 900px, 32px from 900px */
@@ -444,216 +438,294 @@ const filterUrl = (overrides: Record<string, string | null>) => {
     }
   }
 
-  /* 3. Category Group Section */
-  .projects-category-section {
-    padding-top: 20px;
-    padding-bottom: 4px;
-  }
-  .projects-category-section.is-last {
-    padding-bottom: 48px;
-  }
-  .category-heading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 8px 0;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--tt-muted);
-  }
-  .category-heading span {
-    padding: 0 8px;
-    border-radius: 999px;
-    background: var(--tt-soft-2);
-    font-size: 11px;
-    letter-spacing: 0;
-  }
-
-  @media (min-width: 900px) {
-    .category-heading {
-      font-size: 14px;
-      margin-bottom: 0;
+  /* ==========================================================================
+     3. Project Cards Grid
+     Desktop (>= 900px): Larger cards with 16:9 thumbnail on top (as per previous)
+     Mobile (< 900px): Compact row card
+     ========================================================================== */
+  @media (max-width: 899px) {
+    .projects-cards-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 16px;
     }
-    .category-heading span {
+    .project-card {
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      border: 1px solid var(--tt-line);
+      border-radius: 14px;
+      background: #ffffff;
+      text-decoration: none;
+      color: inherit;
+    }
+    .card-thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      background: var(--tt-soft);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .card-thumb-placeholder {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      color: var(--tt-muted);
       font-size: 12px;
     }
+    .card-body {
+      display: flex;
+      flex-direction: column;
+    }
+    .card-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .card-cat {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--tt-muted);
+      text-transform: capitalize;
+    }
+    .card-meta {
+      font-size: 12px;
+      color: var(--tt-muted);
+      white-space: nowrap;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--tt-ink);
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .card-chips {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .chip-badge {
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--tt-soft-2);
+      color: #3A3E48;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .chip-badge.is-video {
+      background: #FCE8EA;
+      color: #B3101F;
+    }
+    .card-foot-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .card-price {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--tt-ink);
+      white-space: nowrap;
+    }
+    .card-price.is-free {
+      color: var(--tt-free);
+    }
+    .card-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: var(--tt-red);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
   }
 
-  /* Cards Grid */
-  .projects-cards-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
   @media (min-width: 900px) {
     .projects-cards-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 20px;
-      margin-top: 12px;
+      margin-top: 24px;
     }
-  }
-
-  /* Project Card */
-  .project-card {
-    display: block;
-    padding: 12px;
-    border: 1px solid var(--tt-line);
-    border-radius: 14px;
-    background: #ffffff;
-    text-decoration: none;
-    color: inherit;
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-  .project-card:hover {
-    border-color: var(--tt-line-2);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  }
-
-  .card-top {
-    display: flex;
-    gap: 12px;
-  }
-  .card-thumb {
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: 112px;
-    height: 70px;
-    border-radius: 10px;
-    background: var(--tt-soft);
-    color: var(--tt-muted);
-    font-size: 11px;
-    overflow: hidden;
-  }
-  .card-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .card-thumb-placeholder {
-    color: var(--tt-muted);
-    font-size: 12px;
-  }
-  .card-info {
-    flex: 1;
-    min-width: 0;
-  }
-  .card-meta {
-    margin: 0 0 2px 0;
-    font-size: 12px;
-    color: var(--tt-muted);
-    line-height: 1.35;
-  }
-  .card-title {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 15px;
-    line-height: 1.3;
-    font-weight: 600;
-    color: var(--tt-ink);
-    margin: 0;
-  }
-
-  .card-bottom {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .card-chips {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .chip-badge {
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--tt-soft-2);
-    color: #3A3E48;
-    font-size: 11px;
-    font-weight: 600;
-  }
-  .chip-badge.is-video {
-    background: #FCE8EA;
-    color: #B3101F;
-  }
-  .card-price {
-    margin-left: auto;
-    padding-right: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--tt-ink);
-    white-space: nowrap;
-  }
-  .card-price.is-free {
-    color: var(--tt-free);
-  }
-  .card-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 32px;
-    padding: 0 14px;
-    border-radius: 999px;
-    background: var(--tt-red);
-    color: #ffffff;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  @media (min-width: 900px) {
     .project-card {
+      display: flex;
+      flex-direction: column;
       padding: 16px;
+      border: 1px solid var(--tt-line);
+      border-radius: 14px;
+      background: #ffffff;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      height: 100%;
     }
-    .card-top {
-      gap: 16px;
+    .project-card:hover {
+      border-color: var(--tt-line-2);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
     }
     .card-thumb {
-      width: 128px;
-      height: 80px;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--tt-soft);
+      flex-shrink: 0;
+      margin-bottom: 12px;
     }
-    .card-meta {
-      margin-bottom: 4px;
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.25s ease;
+    }
+    .project-card:hover .card-img {
+      transform: scale(1.02);
+    }
+    .card-thumb-placeholder {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      color: var(--tt-muted);
       font-size: 13px;
     }
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .card-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .card-cat {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--tt-muted);
+      text-transform: capitalize;
+    }
+    .card-meta {
+      font-size: 13px;
+      color: var(--tt-muted);
+      white-space: nowrap;
+    }
     .card-title {
-      -webkit-line-clamp: 2;
       font-size: 17px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--tt-ink);
+      margin: 0 0 12px 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .card-bottom {
-      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid #F4F5F7;
+    }
+    .card-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .chip-badge {
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--tt-soft-2);
+      color: #3A3E48;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .chip-badge.is-video {
+      background: #FCE8EA;
+      color: #B3101F;
+    }
+    .card-foot-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
     }
     .card-price {
-      padding-right: 6px;
       font-size: 16px;
+      font-weight: 700;
+      color: var(--tt-ink);
+      white-space: nowrap;
+    }
+    .card-price.is-free {
+      color: var(--tt-free);
     }
     .card-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 36px;
       padding: 0 16px;
+      border-radius: 999px;
+      background: var(--tt-red);
+      color: #ffffff;
       font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background-color 0.15s ease;
+    }
+    .card-btn:hover {
+      background: #b51022;
     }
   }
 
   /* Empty State */
   .projects-empty-state {
-    padding: 48px 0;
+    padding: 64px 0;
     text-align: center;
     color: var(--tt-muted);
   }
   .empty-clear-btn {
     display: inline-block;
-    margin-top: 12px;
-    padding: 8px 18px;
+    margin-top: 14px;
+    padding: 10px 20px;
     border-radius: 999px;
     background: var(--tt-ink);
     color: #ffffff;
