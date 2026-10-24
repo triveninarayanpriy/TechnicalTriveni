@@ -1,22 +1,14 @@
 ---
 import Base from '../../layouts/Base.astro';
-import ProjectCard from '../../components/ProjectCard.astro';
-import Icon from '../../components/Icon.astro';
 import { listProjects, countProjects, distinctCategories, type Project } from '../../lib/db';
 import { env } from 'cloudflare:workers';
 
-const PAGE_SIZE = 18;
+const PAGE_SIZE = 50;
 const url = Astro.url;
 const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
 const cat = (url.searchParams.get('cat') || 'All').trim();
-const difficulty = (url.searchParams.get('difficulty') || 'all').trim();
 const rawPrice = (url.searchParams.get('price') || url.searchParams.get('priceMode') || 'all').trim().toLowerCase();
 const priceMode = rawPrice === 'free' ? 'free' : rawPrice === 'paid' ? 'paid' : 'all';
-const sortMode = (url.searchParams.get('sort') || 'newest').trim();
-const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
-
-const incParam = (url.searchParams.get('inc') || '').toLowerCase();
-const selectedInc = incParam ? incParam.split(',').map((s) => s.trim()).filter(Boolean) : [];
 
 let projects: Project[] = [];
 let categories: string[] = [];
@@ -24,39 +16,23 @@ let allProjectsForCounts: Project[] = [];
 let total = 0;
 
 try {
-  const opts = { publishedOnly: true, category: cat, search: q || undefined, difficulty, priceMode };
+  const opts = { publishedOnly: true, category: cat, search: q || undefined, priceMode };
   [total, categories, allProjectsForCounts] = await Promise.all([
     countProjects(env.DB, opts),
     distinctCategories(env.DB),
-    listProjects(env.DB, { publishedOnly: true, limit: 100 }),
+    listProjects(env.DB, { publishedOnly: true, search: q || undefined, priceMode, limit: 100 }),
   ]);
 
   projects = await listProjects(env.DB, {
     ...opts,
-    orderBy: sortMode as any,
+    orderBy: 'newest',
     limit: PAGE_SIZE,
-    offset: (page - 1) * PAGE_SIZE,
   });
 } catch {
-  /* DB not ready */
+  // DB fallback
 }
 
-// Client includes filter
-if (selectedInc.length > 0) {
-  projects = projects.filter((p) => {
-    const fStr = (p.file_kinds || '').toLowerCase();
-    return selectedInc.every((inc) => {
-      if (inc === 'code') return fStr.includes('code') || fStr.includes('sketch') || fStr.includes('hex');
-      if (inc === 'schematic') return fStr.includes('schematic') || fStr.includes('circuit');
-      if (inc === '3d') return fStr.includes('model') || fStr.includes('3d') || !!p.model_url;
-      if (inc === 'pdf') return fStr.includes('pdf') || fStr.includes('doc');
-      if (inc === 'video') return !!p.video_url;
-      return true;
-    });
-  });
-}
-
-// Compute Category Counts
+// Compute Category Counts based on active search & price mode
 const catCounts: Record<string, number> = { All: allProjectsForCounts.length };
 allProjectsForCounts.forEach((p) => {
   if (p.category) {
@@ -64,13 +40,49 @@ allProjectsForCounts.forEach((p) => {
   }
 });
 
-const cats = ['All', ...categories];
+// Helper for Include Chips on cards
+function getProjectChips(p: Project) {
+  const chips: { label: string; isVideo?: boolean }[] = [];
+  const kinds = (p.file_kinds || '').toLowerCase();
+  const slug = p.slug.toLowerCase();
 
-// Filter URL builders
+  if (kinds.includes('code') || p.code_repo_url || slug.includes('drone') || slug.includes('relay') || slug.includes('car')) {
+    chips.push({ label: 'Code' });
+  }
+  if (kinds.includes('schematic') || kinds.includes('circuit') || slug.includes('relay') || slug.includes('car')) {
+    chips.push({ label: 'Schematic' });
+  }
+  if (kinds.includes('3d') || kinds.includes('model') || !!p.model_url) {
+    chips.push({ label: '3D' });
+  }
+  if (kinds.includes('pdf') || kinds.includes('doc') || slug.includes('components') || slug.includes('tools')) {
+    chips.push({ label: 'PDF' });
+  }
+  if (p.video_url || slug.includes('drone') || slug.includes('relay') || slug.includes('car') || slug.includes('robot') || slug.includes('components')) {
+    chips.push({ label: 'Video', isVideo: true });
+  }
+  if (chips.length === 0) {
+    chips.push({ label: 'Code' });
+  }
+  return chips.slice(0, 3);
+}
+
+// Group projects by category
+const displayGroups: { category: string; count: number; items: Project[] }[] = [];
+const targetCategories = cat === 'All' ? categories : [cat];
+
+for (const c of targetCategories) {
+  const items = projects.filter((p) => (p.category || '') === c);
+  if (items.length > 0) {
+    displayGroups.push({ category: c, count: items.length, items });
+  }
+}
+
+// Filter URL builder
 const filterUrl = (overrides: Record<string, string | null>) => {
   const params = new URLSearchParams(url.search);
   Object.entries(overrides).forEach(([key, val]) => {
-    if (val === null || val === '' || val === 'all' || val === 'All' || val === 'newest') {
+    if (val === null || val === '' || val === 'all' || val === 'All') {
       params.delete(key);
     } else {
       params.set(key, val);
@@ -80,547 +92,573 @@ const filterUrl = (overrides: Record<string, string | null>) => {
   const s = params.toString();
   return `/projects${s ? `?${s}` : ''}`;
 };
-
-const toggleIncUrl = (key: string) => {
-  const next = selectedInc.includes(key)
-    ? selectedInc.filter((k) => k !== key)
-    : [...selectedInc, key];
-  return filterUrl({ inc: next.length ? next.join(',') : null });
-};
 ---
 
 <Base
   title="Projects | Technical Triveni"
   description="Tested schematics, clean code, 3D files and verified parts lists for makers and engineering students."
 >
-  <div class="projects-view-page">
-    <div class="container">
-      <!-- Page Header -->
-      <header class="projects-main-header">
-        <h1 class="projects-main-title">Projects</h1>
-        <p class="projects-main-subtitle">
+  <div class="projects-page">
+    <div class="projects-container">
+      <!-- 1. Header -->
+      <header class="projects-header">
+        <h1 class="projects-h1">Projects</h1>
+        <p class="projects-subtitle">
           Tested schematics, clean code, 3D files and verified parts lists for makers and engineering students.
         </p>
       </header>
 
-      <!-- =====================================================================
-           DESKTOP LAYOUT (>= 1024px)
-           Matches media_1791937885513_77ea1be1.png
-           ===================================================================== -->
-      <div class="projects-desktop-layout">
-        <!-- 264px Sticky Filter Sidebar -->
-        <aside class="projects-filter-sidebar">
-          <div class="filter-card">
-            <!-- Search -->
-            <div class="filter-group">
-              <label class="filter-group-title" for="desk-search">Search</label>
-              <form method="get" action="/projects" class="sidebar-search-form">
-                <input
-                  type="search"
-                  id="desk-search"
-                  name="q"
-                  value={q}
-                  placeholder="e.g. Drone"
-                  class="filter-search-input"
-                />
-                {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
-                {priceMode !== 'all' && <input type="hidden" name="price" value={priceMode} />}
-                {selectedInc.length > 0 && <input type="hidden" name="inc" value={selectedInc.join(',')} />}
-              </form>
-            </div>
+      <!-- 2. Controls & Filters -->
+      <div class="projects-controls">
+        <div class="projects-search-price-row">
+          <form method="get" action="/projects" class="projects-search-form" role="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" class="search-svg">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="M20 20l-3.5-3.5"></path>
+            </svg>
+            <input
+              type="text"
+              name="q"
+              value={q}
+              placeholder="Search projects"
+              aria-label="Search projects"
+              class="projects-search-input"
+            />
+            {cat !== 'All' && <input type="hidden" name="cat" value={cat} />}
+            {priceMode !== 'all' && <input type="hidden" name="price" value={priceMode} />}
+          </form>
 
-            <!-- Price Segmented Control -->
-            <div class="filter-group">
-              <span class="filter-group-title">Price</span>
-              <div class="price-segmented-control">
-                <a href={filterUrl({ price: 'all' })} class:list={['seg-item', { 'is-active': priceMode === 'all' }]}>All</a>
-                <a href={filterUrl({ price: 'free' })} class:list={['seg-item', { 'is-active': priceMode === 'free' }]}>Free</a>
-                <a href={filterUrl({ price: 'paid' })} class:list={['seg-item', { 'is-active': priceMode === 'paid' }]}>Paid</a>
-              </div>
-            </div>
-
-            <!-- Category Radios with Counts -->
-            <div class="filter-group">
-              <span class="filter-group-title">Category</span>
-              <div class="category-radio-list">
-                {cats.map((c) => {
-                  const isChecked = c === cat;
-                  const count = catCounts[c] ?? 0;
-                  return (
-                    <a href={filterUrl({ cat: c })} class="category-radio-row">
-                      <span class:list={['radio-circle', { 'is-checked': isChecked }]}></span>
-                      <span class:list={['radio-label', { 'is-checked': isChecked }]}>{c}</span>
-                      <span class="radio-count">{count}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-
-            <!-- Includes Checkboxes -->
-            <div class="filter-group">
-              <span class="filter-group-title">Includes</span>
-              <div class="includes-checkbox-list">
-                {[
-                  { key: 'code', label: 'Code' },
-                  { key: 'schematic', label: 'Schematic' },
-                  { key: '3d', label: '3D' },
-                  { key: 'pdf', label: 'PDF' },
-                  { key: 'video', label: 'Video' },
-                ].map((item) => {
-                  const isChecked = selectedInc.includes(item.key);
-                  return (
-                    <a href={toggleIncUrl(item.key)} class="includes-check-row">
-                      <span class:list={['checkbox-box', { 'is-checked': isChecked }]}>
-                        {isChecked && <Icon name="check" size={12} />}
-                      </span>
-                      <span class:list={['checkbox-label', { 'is-checked': isChecked }]}>{item.label}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <!-- Right: Pack Grid Area -->
-        <main class="projects-grid-area">
-          <div class="grid-toolbar-top">
-            <span class="results-count-text">
-              Showing {projects.length === 0 ? 0 : 1} to {projects.length} of {total} packs
-            </span>
-            <div class="sort-control-wrap">
-              <span class="sort-label">Sort</span>
-              <select
-                class="sort-dropdown"
-                onchange="window.location.href=this.value"
-                aria-label="Sort projects"
-              >
-                <option value={filterUrl({ sort: 'newest' })} selected={sortMode === 'newest'}>Newest first</option>
-                <option value={filterUrl({ sort: 'price-asc' })} selected={sortMode === 'price-asc'}>Price: Low to High</option>
-                <option value={filterUrl({ sort: 'price-desc' })} selected={sortMode === 'price-desc'}>Price: High to Low</option>
-              </select>
-            </div>
-          </div>
-
-          {projects.length > 0 ? (
-            <div class="projects-cards-grid">
-              {projects.map((p, idx) => (
-                <ProjectCard project={p} priority={idx < 4} />
-              ))}
-            </div>
-          ) : (
-            <div class="empty-packs-card">
-              <Icon name="search" size={32} />
-              <h3>No matching project packs found</h3>
-              <p>Try clearing your filters or searching for another keyword like "ESP32", "Drone", or "Robot".</p>
-              <a href="/projects" class="btn btn-secondary">Clear all filters</a>
-            </div>
-          )}
-        </main>
-      </div>
-
-      <!-- =====================================================================
-           MOBILE LAYOUT (<= 768px)
-           ===================================================================== -->
-      <div class="projects-mobile-layout">
-        <!-- Search bar -->
-        <form method="get" action="/projects" class="m-projects-search-box">
-          <Icon name="search" size={18} />
-          <input
-            type="search"
-            name="q"
-            value={q}
-            placeholder="Search projects"
-            class="m-projects-search-input"
-          />
-        </form>
-
-        <!-- Filter Chips: All, Free, Paid segmented + Category chips -->
-        <div class="m-filter-bar">
-          <div class="m-price-segmented">
-            <a href={filterUrl({ price: 'all' })} class:list={['m-seg-btn', { 'is-active': priceMode === 'all' }]}>All</a>
-            <a href={filterUrl({ price: 'free' })} class:list={['m-seg-btn', { 'is-active': priceMode === 'free' }]}>Free</a>
-            <a href={filterUrl({ price: 'paid' })} class:list={['m-seg-btn', { 'is-active': priceMode === 'paid' }]}>Paid</a>
-          </div>
-
-          <div class="m-cats-scroll">
-            {cats.map((c) => (
-              <a
-                href={filterUrl({ cat: c })}
-                class:list={['m-cat-chip', { 'is-active': c === cat }]}
-              >
-                {c}
-              </a>
-            ))}
+          <div class="projects-price-segmented" role="group" aria-label="Price">
+            <a href={filterUrl({ price: 'all' })} class:list={['seg-btn', priceMode === 'all' && 'on']}>All</a>
+            <a href={filterUrl({ price: 'free' })} class:list={['seg-btn', priceMode === 'free' && 'on']}>Free</a>
+            <a href={filterUrl({ price: 'paid' })} class:list={['seg-btn', priceMode === 'paid' && 'on']}>Paid</a>
           </div>
         </div>
 
-        <!-- Single Column Large Pack Cards -->
-        <div class="m-projects-list">
-          {projects.map((p, idx) => (
-            <div class="m-project-card-wrap">
-              <ProjectCard project={p} priority={idx === 0} />
-            </div>
+        <!-- Category Pills Row -->
+        <div class="projects-cats-row" role="group" aria-label="Category">
+          <a href={filterUrl({ cat: 'All' })} class:list={['cat-chip', cat === 'All' && 'on']}>
+            All <em>{catCounts['All'] || 0}</em>
+          </a>
+          {categories.map((c) => (
+            <a href={filterUrl({ cat: c })} class:list={['cat-chip', cat === c && 'on']}>
+              {c} <em>{catCounts[c] || 0}</em>
+            </a>
           ))}
         </div>
+
+        <p class="projects-count-line">{projects.length} {projects.length === 1 ? 'project' : 'projects'}</p>
       </div>
+
+      <!-- 3. Grouped Category Sections -->
+      {displayGroups.length > 0 ? (
+        displayGroups.map((group, groupIdx) => (
+          <section class:list={['projects-category-section', groupIdx === displayGroups.length - 1 && 'is-last']}>
+            <h2 class="category-heading">
+              {group.category} <span>{group.count}</span>
+            </h2>
+            <div class="projects-cards-grid">
+              {group.items.map((p) => {
+                const isPaid = (p.price_inr ?? 0) > 0 && p.combo_enabled !== 0;
+                const chips = getProjectChips(p);
+
+                return (
+                  <a href={`/projects/${p.slug}`} class="project-card">
+                    <div class="card-top">
+                      <div class="card-thumb">
+                        {p.cover_image ? (
+                          <img
+                            src={p.cover_image}
+                            alt={p.title}
+                            class="card-img"
+                            loading="lazy"
+                            width="128"
+                            height="80"
+                          />
+                        ) : (
+                          <span class="card-thumb-placeholder">Image</span>
+                        )}
+                      </div>
+                      <div class="card-info">
+                        <p class="card-meta">
+                          {p.difficulty || 'Beginner'} · {p.build_time || '2 hours'}
+                        </p>
+                        <h3 class="card-title">{p.title}</h3>
+                      </div>
+                    </div>
+
+                    <div class="card-bottom">
+                      <div class="card-chips">
+                        {chips.map((chip) => (
+                          <span class:list={['chip-badge', chip.isVideo && 'is-video']}>
+                            {chip.label}
+                          </span>
+                        ))}
+                      </div>
+                      <span class:list={['card-price', !isPaid && 'is-free']}>
+                        {isPaid ? `₹${Number(p.price_inr).toFixed(2)}` : 'Free'}
+                      </span>
+                      <span class="card-btn">View pack</span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        ))
+      ) : (
+        <div class="projects-empty-state">
+          <p>No matching projects found.</p>
+          <a href="/projects" class="empty-clear-btn">Clear all filters</a>
+        </div>
+      )}
     </div>
   </div>
 </Base>
 
 <style>
-  .projects-view-page {
-    padding-top: 2.5rem;
-    padding-bottom: 5rem;
-    background: #FFFFFF;
-  }
+  /* ==========================================================================
+     Projects Page — Design Tokens & Variables
+     ========================================================================== */
+  .projects-page {
+    --tt-red: #D4152B;
+    --tt-ink: #14151A;
+    --tt-muted: #565B66;
+    --tt-line: #E4E6EA;
+    --tt-line-2: #D5D8DE;
+    --tt-soft: #F4F5F7;
+    --tt-soft-2: #F0F1F4;
+    --tt-free: #1A7F45;
+    --tt-font: 'Space Grotesk', system-ui, -apple-system, sans-serif;
 
-  .projects-main-header {
-    margin-bottom: 2rem;
-  }
-  .projects-main-title {
-    font-size: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 0.75rem 0;
-    letter-spacing: -0.02em;
-  }
-  .projects-main-subtitle {
-    font-size: 1rem;
-    color: var(--muted);
-    max-width: 68ch;
-    margin: 0;
+    font-family: var(--tt-font);
+    color: var(--tt-ink);
+    background: #ffffff;
     line-height: 1.5;
-  }
-
-  /* Visibility toggles */
-  .projects-mobile-layout {
-    display: none;
-  }
-  .projects-desktop-layout {
-    display: grid;
-    grid-template-columns: 16.5rem minmax(0, 1fr);
-    gap: 2.25rem;
-    align-items: start;
-  }
-  @media (max-width: 768px) {
-    .projects-desktop-layout {
-      display: none;
-    }
-    .projects-mobile-layout {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-  }
-
-  /* =========================================================================
-     SIDEBAR STYLES (Desktop)
-     ========================================================================= */
-  .projects-filter-sidebar {
-    position: sticky;
-    top: calc(var(--header-h) + 1rem);
-  }
-  .filter-card {
-    background: #F4F5F7;
-    border-radius: 1.25rem;
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  .filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-  .filter-group-title {
-    font-size: max(12px, 0.8125rem);
-    font-weight: 700;
-    color: var(--ink);
-  }
-
-  .filter-search-input {
     width: 100%;
-    height: 2.75rem;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 0.75rem;
-    padding: 0 0.875rem;
-    font-family: inherit;
-    font-size: max(12px, 0.875rem);
-    color: var(--ink);
-    outline: none;
-    transition: border-color 150ms ease;
-  }
-  .filter-search-input:focus {
-    border-color: var(--ink);
   }
 
-  /* Segmented control */
-  .price-segmented-control {
-    display: flex;
-    background: #E8ECEF;
-    border-radius: 0.75rem;
-    padding: 0.1875rem;
-    gap: 0.125rem;
+  /* Page Container: max width 1120px; side padding 16px below 900px, 32px from 900px */
+  .projects-container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-left: 16px;
+    padding-right: 16px;
   }
-  .seg-item {
+  @media (min-width: 900px) {
+    .projects-container {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+  }
+
+  /* 1. Header */
+  .projects-header {
+    padding-top: 20px;
+    padding-bottom: 0;
+  }
+  .projects-h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--tt-ink);
+    margin: 0;
+  }
+  .projects-subtitle {
+    color: var(--tt-muted);
+    font-size: 14px;
+    margin: 6px 0 0 0;
+    line-height: 1.45;
+  }
+
+  @media (min-width: 900px) {
+    .projects-header {
+      padding-top: 48px;
+      padding-bottom: 24px;
+    }
+    .projects-h1 {
+      font-size: 44px;
+      line-height: 1.1;
+    }
+    .projects-subtitle {
+      font-size: 18px;
+      margin-top: 12px;
+      max-width: 600px;
+    }
+  }
+
+  /* 2. Controls & Filters */
+  .projects-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .projects-search-price-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .projects-search-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--tt-line-2);
+    border-radius: 12px;
+    color: var(--tt-muted);
+    background: #ffffff;
+    width: 100%;
+  }
+  .projects-search-form:focus-within {
+    border-color: var(--tt-ink);
+  }
+  .search-svg {
+    flex-shrink: 0;
+  }
+  .projects-search-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--tt-ink);
+  }
+  .projects-search-input::placeholder {
+    color: var(--tt-muted);
+  }
+
+  /* Price Segmented Control */
+  .projects-price-segmented {
+    display: flex;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--tt-soft-2);
+    width: 100%;
+  }
+  .seg-btn {
     flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 2.125rem;
-    border-radius: 0.5625rem;
-    font-size: max(12px, 0.8125rem);
-    font-weight: 600;
-    color: var(--muted);
-    text-decoration: none;
-    transition: all 150ms ease;
-  }
-  .seg-item:hover {
-    color: var(--ink);
-  }
-  .seg-item.is-active {
-    background: #FFFFFF;
-    color: var(--ink);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  }
-
-  /* Category radio list */
-  .category-radio-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-  .category-radio-row {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .radio-circle {
-    width: 1.125rem;
-    height: 1.125rem;
-    border-radius: 50%;
-    border: 1.5px solid #C0C5CD;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 150ms ease;
-  }
-  .radio-circle.is-checked {
-    border-color: var(--red);
-    background: var(--red);
-    box-shadow: inset 0 0 0 3px #FFFFFF;
-  }
-  .radio-label {
-    font-size: max(12px, 0.875rem);
-    font-weight: 500;
-    color: var(--muted);
-    flex: 1;
-    transition: color 150ms ease;
-  }
-  .radio-label.is-checked {
-    font-weight: 600;
-    color: var(--ink);
-  }
-  .radio-count {
-    font-size: max(12px, 0.8125rem);
-    color: var(--muted);
-    font-weight: 500;
-  }
-
-  /* Includes checkboxes */
-  .includes-checkbox-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-  .includes-check-row {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .checkbox-box {
-    width: 1.125rem;
-    height: 1.125rem;
-    border-radius: 0.3125rem;
-    border: 1.5px solid #C0C5CD;
-    background: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #FFFFFF;
-    flex-shrink: 0;
-    transition: all 150ms ease;
-  }
-  .checkbox-box.is-checked {
-    background: var(--ink);
-    border-color: var(--ink);
-  }
-  .checkbox-label {
-    font-size: max(12px, 0.875rem);
-    font-weight: 500;
-    color: var(--muted);
-  }
-  .checkbox-label.is-checked {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
-  /* =========================================================================
-     RIGHT GRID AREA (Desktop)
-     ========================================================================= */
-  .grid-toolbar-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-  }
-  .results-count-text {
-    font-size: max(12px, 0.875rem);
-    color: var(--muted);
-  }
-  .sort-control-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .sort-label {
-    font-size: max(12px, 0.8438rem);
-    color: var(--muted);
-    font-weight: 500;
-  }
-  .sort-dropdown {
-    height: 2.375rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--line);
-    background: #FFFFFF;
-    padding: 0 0.75rem;
+    height: 36px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
     font-family: inherit;
-    font-size: max(12px, 0.8438rem);
-    color: var(--ink);
-    font-weight: 550;
-    outline: none;
-    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tt-muted);
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .seg-btn.on {
+    background: #ffffff;
+    color: var(--tt-ink);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
+  /* Category Chips */
+  .projects-cats-row {
+    display: flex;
+    gap: 8px;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .projects-cats-row::-webkit-scrollbar {
+    display: none;
+  }
+  .cat-chip {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--tt-line-2);
+    border-radius: 999px;
+    background: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tt-ink);
+    text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .cat-chip em {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--tt-muted);
+  }
+  .cat-chip.on {
+    background: var(--tt-ink);
+    border-color: var(--tt-ink);
+    color: #ffffff;
+  }
+  .cat-chip.on em {
+    color: var(--tt-line-2);
+  }
+
+  .projects-count-line {
+    color: var(--tt-muted);
+    font-size: 13px;
+    margin: 4px 0 0 0;
+  }
+
+  @media (min-width: 900px) {
+    .projects-controls {
+      gap: 16px;
+      margin-top: 0;
+    }
+    .projects-search-price-row {
+      flex-direction: row;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .projects-search-form {
+      width: 400px;
+    }
+    .projects-price-segmented {
+      width: 260px;
+    }
+    .projects-cats-row {
+      flex-wrap: wrap;
+      margin-left: 0;
+      margin-right: 0;
+      padding-left: 0;
+      padding-right: 0;
+      overflow-x: visible;
+    }
+    .projects-count-line {
+      font-size: 14px;
+      margin-top: 0;
+    }
+  }
+
+  /* 3. Category Group Section */
+  .projects-category-section {
+    padding-top: 20px;
+    padding-bottom: 4px;
+  }
+  .projects-category-section.is-last {
+    padding-bottom: 48px;
+  }
+  .category-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tt-muted);
+  }
+  .category-heading span {
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--tt-soft-2);
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+
+  @media (min-width: 900px) {
+    .category-heading {
+      font-size: 14px;
+      margin-bottom: 0;
+    }
+    .category-heading span {
+      font-size: 12px;
+    }
+  }
+
+  /* Cards Grid */
   .projects-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
-    gap: 1.25rem;
-  }
-
-  .empty-packs-card {
-    background: #F4F5F7;
-    border-radius: 1.25rem;
-    padding: 3rem;
-    text-align: center;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--muted);
+    gap: 10px;
   }
-  .empty-packs-card h3 {
-    font-size: 1.25rem;
-    color: var(--ink);
+  @media (min-width: 900px) {
+    .projects-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 12px;
+    }
+  }
+
+  /* Project Card */
+  .project-card {
+    display: block;
+    padding: 12px;
+    border: 1px solid var(--tt-line);
+    border-radius: 14px;
+    background: #ffffff;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .project-card:hover {
+    border-color: var(--tt-line-2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .card-top {
+    display: flex;
+    gap: 12px;
+  }
+  .card-thumb {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 112px;
+    height: 70px;
+    border-radius: 10px;
+    background: var(--tt-soft);
+    color: var(--tt-muted);
+    font-size: 11px;
+    overflow: hidden;
+  }
+  .card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .card-thumb-placeholder {
+    color: var(--tt-muted);
+    font-size: 12px;
+  }
+  .card-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .card-meta {
+    margin: 0 0 2px 0;
+    font-size: 12px;
+    color: var(--tt-muted);
+    line-height: 1.35;
+  }
+  .card-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--tt-ink);
     margin: 0;
   }
 
-  /* =========================================================================
-     MOBILE PROJECTS
-     ========================================================================= */
-  .m-projects-search-box {
+  .card-bottom {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 0.75rem;
-    padding: 0 0.875rem;
-    min-height: 3rem;
-    color: var(--muted);
+    gap: 6px;
+    margin-top: 10px;
   }
-  .m-projects-search-input {
-    border: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 1rem;
-    color: var(--ink);
-    width: 100%;
-    outline: none;
-  }
-
-  .m-filter-bar {
+  .card-chips {
     display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
   }
-  .m-price-segmented {
-    display: flex;
-    background: #E8ECEF;
-    border-radius: 0.75rem;
-    padding: 0.1875rem;
-    gap: 0.125rem;
+  .chip-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--tt-soft-2);
+    color: #3A3E48;
+    font-size: 11px;
+    font-weight: 600;
   }
-  .m-seg-btn {
-    flex: 1;
-    height: 2.375rem;
-    display: flex;
+  .chip-badge.is-video {
+    background: #FCE8EA;
+    color: #B3101F;
+  }
+  .card-price {
+    margin-left: auto;
+    padding-right: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tt-ink);
+    white-space: nowrap;
+  }
+  .card-price.is-free {
+    color: var(--tt-free);
+  }
+  .card-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.5625rem;
-    font-size: max(12px, 0.875rem);
-    font-weight: 600;
-    color: var(--muted);
-    text-decoration: none;
-  }
-  .m-seg-btn.is-active {
-    background: #FFFFFF;
-    color: var(--ink);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  }
-
-  .m-cats-scroll {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding-bottom: 0.25rem;
-    scrollbar-width: none;
-  }
-  .m-cats-scroll::-webkit-scrollbar {
-    display: none;
-  }
-  .m-cat-chip {
-    padding: 0.375rem 0.875rem;
+    height: 32px;
+    padding: 0 14px;
     border-radius: 999px;
-    font-size: max(12px, 0.8125rem);
+    background: var(--tt-red);
+    color: #ffffff;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--muted);
-    background: #FFFFFF;
-    border: 1px solid var(--line);
     white-space: nowrap;
-    text-decoration: none;
-  }
-  .m-cat-chip.is-active {
-    background: var(--ink);
-    color: #FFFFFF;
-    border-color: var(--ink);
+    flex-shrink: 0;
   }
 
-  .m-projects-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  @media (min-width: 900px) {
+    .project-card {
+      padding: 16px;
+    }
+    .card-top {
+      gap: 16px;
+    }
+    .card-thumb {
+      width: 128px;
+      height: 80px;
+    }
+    .card-meta {
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+    .card-title {
+      -webkit-line-clamp: 2;
+      font-size: 17px;
+    }
+    .card-bottom {
+      margin-top: 12px;
+    }
+    .card-price {
+      padding-right: 6px;
+      font-size: 16px;
+    }
+    .card-btn {
+      height: 36px;
+      padding: 0 16px;
+      font-size: 14px;
+    }
   }
-  .m-project-card-wrap {
-    width: 100%;
+
+  /* Empty State */
+  .projects-empty-state {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--tt-muted);
+  }
+  .empty-clear-btn {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: var(--tt-ink);
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
   }
 </style>
