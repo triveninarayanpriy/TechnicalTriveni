@@ -1,10 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
-import Icon from '../components/Icon.astro';
 import { env } from 'cloudflare:workers';
 import { SITE, PROFILE } from '../lib/site';
 import { listProjects } from '../lib/db';
-import { renderMarkdown } from '../lib/format';
 import { getEffectiveContent } from '../lib/pages';
 import { getSiteAssets } from '../lib/site-assets';
 import { getAboutPageData } from '../lib/site-content';
@@ -15,91 +13,54 @@ if (pageData.published === 0) return Astro.redirect('/404');
 const aboutData = await getAboutPageData(env.DB);
 const siteAssets = await getSiteAssets(env.DB);
 
-// Fetch projects for live stats and workbench mosaic
+// Live project counts for stats
 let publishedProjects = [];
 try {
-  publishedProjects = await listProjects(env.DB, { publishedOnly: true, limit: 50 });
-} catch {}
-
-const totalProjectsCount = publishedProjects.length || 5;
-const freeDownloadsCount = publishedProjects.filter((p) => (p.price_inr ?? 0) <= 0 || p.combo_enabled === 0).length || 3;
-
-// Default workbench items from the design files
-const defaultMosaic = [
-  {
-    title: 'DIY Arduino Drone',
-    shortTitle: 'Drone',
-    cover: '/brand/about-v2/abb4db3ba33b53acb13ec170bd64ff5d.jpg',
-    slug: 'arduino-drone',
-  },
-  {
-    title: 'ESP32 Blynk Smart Relay',
-    shortTitle: 'ESP32 relay switch',
-    cover: '/brand/about-v2/f391bdb09af830810fae62a31b3665c9.jpg',
-    slug: 'esp32-blynk-iot-smart-relay-switch',
-  },
-  {
-    title: 'Line-Following Robot',
-    shortTitle: 'Line follower',
-    cover: '/brand/about-v2/49ce8935ab9c488f44385d3de41d4c70.jpg',
-    slug: 'line-following-robot-arduino-obstacle-gate',
-  },
-  {
-    title: '100+ Electronics Components',
-    shortTitle: 'Components',
-    cover: '/brand/about-v2/545c85731cd6c2d8dbaa1ebfa768a7da.jpg',
-    slug: '100-electronics-components',
-  },
-];
-
-function resolveShortTitle(title: string, slug: string): string {
-  if (slug.includes('drone')) return 'Drone';
-  if (slug.includes('relay') || slug.includes('switch') || slug.includes('blynk')) return 'ESP32 relay switch';
-  if (slug.includes('line') || slug.includes('obstacle')) return 'Line follower';
-  if (slug.includes('100') || slug.includes('component')) return 'Components';
-  return title.split(':')[0].split('(')[0].trim();
+  publishedProjects = await listProjects(env.DB, { publishedOnly: true, limit: 100 });
+} catch {
+  // Fallback if DB query fails
 }
 
-const resolvedWorkbench = [0, 1, 2, 3].map((i) => {
-  const customSlug = aboutData.workbench?.project_slugs?.[i];
-  if (customSlug) {
-    const found = publishedProjects.find((p) => p.slug === customSlug || String(p.id) === customSlug);
-    if (found) {
-      return {
-        title: found.title,
-        shortTitle: resolveShortTitle(found.title, found.slug),
-        cover: found.cover_image || defaultMosaic[i].cover,
-        slug: found.slug,
-      };
-    }
-  }
-  return defaultMosaic[i];
-});
+const totalProjectsCount = publishedProjects.length || 6;
+const freeDownloadsCount = publishedProjects.filter((p) => (p.price_inr ?? 0) <= 0 || p.combo_enabled === 0).length || 3;
 
-// Social links - shown ONCE on the page
+// Social links in strict order: YouTube, Instagram, GitHub, LinkedIn
 const ytLink = siteAssets.social_links?.youtube !== undefined ? siteAssets.social_links.youtube : SITE.socials.youtube;
 const igLink = siteAssets.social_links?.instagram !== undefined ? siteAssets.social_links.instagram : SITE.socials.instagram;
 const ghLink = siteAssets.social_links?.github !== undefined ? siteAssets.social_links.github : SITE.socials.github;
 const liLink = siteAssets.social_links?.linkedin !== undefined ? siteAssets.social_links.linkedin : SITE.socials.linkedin;
 
 const socials = [
-  { platform: 'YouTube', handle: 'New builds and walkthroughs', url: ytLink, icon: 'youtube' },
-  { platform: 'Instagram', handle: 'Reels and behind the scenes', url: igLink, icon: 'instagram' },
-  { platform: 'GitHub', handle: 'Source code', url: ghLink, icon: 'github' },
-  { platform: 'LinkedIn', handle: 'Updates and projects', url: liLink, icon: 'linkedin' },
-].filter((s) => s.url && s.url.trim());
+  { name: 'YouTube', url: ytLink || 'https://youtube.com/@TechnicalTriveni' },
+  { name: 'Instagram', url: igLink || 'https://instagram.com/technicaltriveni' },
+  { name: 'GitHub', url: ghLink || 'https://github.com/triveninarayanpriy' },
+  { name: 'LinkedIn', url: liLink || 'https://linkedin.com/in/triveninarayanpriy' },
+];
 
-// Maker photo: prioritize the designer photo, or custom upload from admin
+// Profile photo & exact name string
 const profilePhoto = siteAssets.maker_photo?.url || '/brand/about-v2/1e2ad315960dc87dac027605d2efdff3.jpg';
-const profileAlt = siteAssets.maker_photo?.alt || aboutData.hero.name || PROFILE.name;
+const profileName = aboutData.hero.name || 'Triveni Narayan Priy';
 
-// Render Story Markdown ONLY (hero headline and intro are kept out of this)
-const storyHtml = renderMarkdown(aboutData.story.body_md);
+// Expect cards items
+const expectItems = [
+  {
+    title: aboutData.expect_cards?.[0]?.title || 'Nothing untested',
+    text: aboutData.expect_cards?.[0]?.text || 'Every pack was built and bench-tested before any file is released.',
+  },
+  {
+    title: aboutData.expect_cards?.[1]?.title || 'Everything documented',
+    text: aboutData.expect_cards?.[1]?.text || 'Source code, wiring pinouts and parts links with every project.',
+  },
+  {
+    title: aboutData.expect_cards?.[2]?.title || 'A real person replies',
+    text: aboutData.expect_cards?.[2]?.text || 'Questions go straight to me. Include your Order ID and I will help.',
+  },
+];
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Person',
-  name: aboutData.hero.name || PROFILE.name,
+  name: profileName,
   jobTitle: PROFILE.title,
   worksFor: { '@type': 'Organization', name: SITE.name },
   url: Astro.site?.toString() || 'https://www.technicaltriveni.me',
@@ -109,327 +70,146 @@ const jsonLd = {
 
 <Base
   title={pageData?.title || 'About | Technical Triveni'}
-  description={`About ${aboutData.hero.name || PROFILE.name} — the maker behind Technical Triveni. Real builds tested on the workbench.`}
+  description={`About ${profileName} — the maker behind Technical Triveni. Tested electronics builds, schematics and code.`}
   jsonLd={jsonLd}
 >
   <div class="about-page">
-    <!-- 1. HERO SECTION -->
-    <section class="about-w about-hero-wrap">
-      <div class="about-hero-text">
-        <div class="about-eyebrow">{aboutData.hero.eyebrow}</div>
-        <h1 class="about-hero-headline">{aboutData.hero.headline}</h1>
-        <p class="about-hero-intro">{aboutData.hero.intro}</p>
-
-        {aboutData.hero.credentials?.length > 0 && (
-          <div class="about-chips-row">
-            {aboutData.hero.credentials.map((cred) => (
-              <span class="about-pill">{cred}</span>
-            ))}
-          </div>
-        )}
-
-        <div class="about-hero-btns">
-          <a href={aboutData.hero.btn1_url || '/projects'} class="about-btn about-btn-red">
-            {aboutData.hero.btn1_text || 'Browse projects'}
-          </a>
-          <a
-            href={aboutData.hero.btn2_url || ytLink || 'https://youtube.com/@TechnicalTriveni'}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="about-btn about-btn-outline"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="btn-play-icon">
-              <path d="M7 4l13 8-13 8z"></path>
-            </svg>
-            <span class="btn-yt-text-desktop">{aboutData.hero.btn2_text || 'Watch on YouTube'}</span>
-            <span class="btn-yt-text-mobile">YouTube</span>
-          </a>
-        </div>
-      </div>
-
-      <div class="about-hero-photo-col">
-        <div class="about-photo-wrap">
+    <!-- 1. INTRO SECTION -->
+    <section class="about-container about-intro-section">
+      <div class="about-intro-grid">
+        <div class="about-photo-col">
           <img
             src={profilePhoto}
-            alt={profileAlt}
-            width="540"
-            height="600"
-            class="about-photo-img"
+            alt={profileName}
+            width="200"
+            height="200"
+            class="about-photo"
             loading="eager"
             fetchpriority="high"
             decoding="async"
+            data-testid="about-photo"
           />
-          {aboutData.hero.badge_text && (
-            <span class="about-photo-badge">{aboutData.hero.badge_text}</span>
-          )}
+        </div>
+        <div class="about-intro-text">
+          <p class="about-eyebrow">About me</p>
+          <h1 class="about-h1">{profileName}</h1>
+          <p class="about-tagline">Electronics, Software, AI</p>
+          <p class="about-intro-para">
+            Every project shown here is built and tested by me. New video every week, with three Shorts.
+          </p>
+          <ul class="about-intro-list">
+            <li>Hardware projects: Arduino, ESP32, IoT, home automation, robotics</li>
+            <li>Software projects: Python, C, Flutter applications, AI-assisted development</li>
+            <li>AI tools and agents that are genuinely useful for students and engineers</li>
+            <li>Engineering guidance: VLSI, projects, placements, and student life at an NIT</li>
+          </ul>
+          <p class="about-inquiries">
+            Business inquiries: <a href="mailto:technicaltriveniyt@gmail.com" class="about-inquiries-link">technicaltriveniyt@gmail.com</a>
+          </p>
+          <div class="about-intro-btns">
+            <a href="/projects" class="about-btn about-btn-solid">Browse projects</a>
+            <a
+              href={ytLink || 'https://youtube.com/@TechnicalTriveni'}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="about-btn about-btn-outline"
+            >
+              Watch on YouTube
+            </a>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 2. NUMBERS STRIP -->
-    <section class="about-w about-numbers-wrap">
-      <div class="about-numbers-grid">
+    <!-- 2. STATS ROW -->
+    <section class="about-container">
+      <div class="about-stats-row">
         <div class="about-stat-item">
-          <div class="about-stat-val">{totalProjectsCount}</div>
-          <div class="about-stat-label about-stat-label-desktop">Projects built and documented</div>
-          <div class="about-stat-label about-stat-label-mobile">Projects documented</div>
+          <b class="about-stat-number">{totalProjectsCount}</b>
+          <span class="about-stat-label">Projects built and documented</span>
         </div>
         <div class="about-stat-item">
-          <div class="about-stat-val">{freeDownloadsCount}</div>
-          <div class="about-stat-label about-stat-label-desktop">Free downloads, no signup</div>
-          <div class="about-stat-label about-stat-label-mobile">Free downloads</div>
+          <b class="about-stat-number">{freeDownloadsCount}</b>
+          <span class="about-stat-label">Free downloads, no signup</span>
         </div>
         <div class="about-stat-item">
-          <div class="about-stat-val">{aboutData.numbers.stat3_val}</div>
-          <div class="about-stat-label about-stat-label-desktop">{aboutData.numbers.stat3_label}</div>
-          <div class="about-stat-label about-stat-label-mobile">Tested on hardware</div>
+          <b class="about-stat-number">100%</b>
+          <span class="about-stat-label">Tested on real hardware</span>
         </div>
         <div class="about-stat-item">
-          <div class="about-stat-val">{aboutData.numbers.stat4_val}</div>
-          <div class="about-stat-label about-stat-label-desktop">{aboutData.numbers.stat4_label}</div>
-          <div class="about-stat-label about-stat-label-mobile">Maker answering emails</div>
+          <b class="about-stat-number">1</b>
+          <span class="about-stat-label">Maker answering your emails</span>
         </div>
       </div>
     </section>
 
     <!-- 3. MY STORY -->
-    <section class="about-w about-story-wrap">
-      <div class="about-story-left">
-        <div class="about-eyebrow">{aboutData.story.eyebrow || 'My story'}</div>
-        <h2 class="about-story-title">{aboutData.story.heading}</h2>
-        {aboutData.story.pull_quote && (
-          <div class="about-pull-quote">{aboutData.story.pull_quote}</div>
-        )}
-      </div>
-
-      <div class="about-story-right">
-        <div class="about-story-prose" set:html={storyHtml}></div>
+    <section class="about-container about-story-section">
+      <div class="about-story-grid">
+        <div class="about-story-left">
+          <p class="about-eyebrow">My story</p>
+          <h2 class="about-story-h2">Why I started Technical Triveni</h2>
+          <p class="about-story-quote">
+            I was tired of electronics tutorials that don’t actually work.
+          </p>
+        </div>
+        <div class="about-story-right">
+          <p>
+            Most guides online leave out critical pinouts, skip power decoupling, or share untested code that throws errors the moment you clone it.
+          </p>
+          <p>
+            So I started building the projects myself, on a real breadboard or PCB, and fixing every problem until the build actually worked. Then I filmed it and wrote it all down: the code, the wiring, the parts.
+          </p>
+          <p>
+            Technical Triveni is built on a single promise: <strong>complete transparency and physical proof.</strong>
+          </p>
+        </div>
       </div>
     </section>
 
-    <!-- 4. HOW EVERY PACK IS MADE -->
-    <section class="about-w about-steps-wrap">
-      <div class="about-section-header">
-        <h2 class="about-section-h2">How every pack is made</h2>
-        <p class="about-section-sub">Nothing is published until it has survived the workbench.</p>
-      </div>
-
-      <!-- Desktop 4-card grid -->
-      <div class="about-steps-grid-desktop">
-        {aboutData.steps.map((st, i) => (
-          <div class="about-step-card">
-            <div class="about-step-icon-box">
-              {i === 0 && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
-                  <path d="M7 7h10v10H7zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path>
-                </svg>
-              )}
-              {i === 1 && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
-                  <path d="M14 6a4 4 0 004 4l-8 8a2 2 0 01-3-3l8-8a4 4 0 00-1-1z"></path>
-                </svg>
-              )}
-              {i === 2 && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
-                  <path d="M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4"></path>
-                </svg>
-              )}
-              {i === 3 && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="step-svg">
-                  <path d="M4 4h6a3 3 0 013 3v13a2 2 0 00-2-2H4zM20 4h-6a3 3 0 00-3 3v13a2 2 0 012-2h7z"></path>
-                </svg>
-              )}
-            </div>
-            <div class="about-step-sublabel">Step {i + 1}</div>
-            <h3 class="about-step-title">{st.title}</h3>
-            <p class="about-step-text">{st.text}</p>
-          </div>
-        ))}
-      </div>
-
-      <!-- Mobile vertical timeline with connecting lines -->
-      <div class="about-steps-timeline-mobile">
-        {aboutData.steps.map((st, i) => (
-          <div class="about-timeline-row">
-            <div class="about-timeline-left">
-              <span class="about-timeline-dot">{i + 1}</span>
-              {i < aboutData.steps.length - 1 && <span class="about-timeline-line"></span>}
-            </div>
-            <div class="about-timeline-content">
-              <h3 class="about-timeline-title">{st.title}</h3>
-              <div class="about-timeline-desc">{st.text}</div>
-            </div>
+    <!-- 4. WHAT YOU CAN EXPECT FROM ME -->
+    <section class="about-container about-expect-section">
+      <h2 class="about-section-h2">What you can expect from me</h2>
+      <div class="about-expect-list">
+        {expectItems.map((item) => (
+          <div class="about-expect-item">
+            <h3 class="about-expect-title">{item.title}</h3>
+            <p class="about-expect-desc">{item.text}</p>
           </div>
         ))}
       </div>
     </section>
 
-    <!-- 5. ON THE WORKBENCH -->
-    <section class="about-w about-workbench-wrap">
-      <div class="about-workbench-header">
-        <div>
-          <h2 class="about-section-h2">On the workbench</h2>
-          <p class="about-section-sub">A few of the builds behind the packs.</p>
-        </div>
-        <a href="/projects" class="about-link-red">See all projects</a>
-      </div>
-
-      <!-- Desktop 4-tile Asymmetric Mosaic -->
-      <div class="about-workbench-mosaic-desktop">
-        <a href={`/projects/${resolvedWorkbench[0].slug}`} class="mosaic-tile-hero">
-          <img src={resolvedWorkbench[0].cover} alt={resolvedWorkbench[0].title} class="mosaic-img" />
-        </a>
-        <a href={`/projects/${resolvedWorkbench[1].slug}`} class="mosaic-tile-top-left">
-          <img src={resolvedWorkbench[1].cover} alt={resolvedWorkbench[1].title} class="mosaic-img" />
-        </a>
-        <a href={`/projects/${resolvedWorkbench[2].slug}`} class="mosaic-tile-top-right">
-          <img src={resolvedWorkbench[2].cover} alt={resolvedWorkbench[2].title} class="mosaic-img" />
-        </a>
-        <a href={`/projects/${resolvedWorkbench[3].slug}`} class="mosaic-tile-bottom-wide">
-          <img src={resolvedWorkbench[3].cover} alt={resolvedWorkbench[3].title} class="mosaic-img" />
-        </a>
-      </div>
-
-      <!-- Mobile Horizontal Carousel -->
-      <div class="about-workbench-carousel-mobile">
-        {resolvedWorkbench.map((item) => (
-          <a href={`/projects/${item.slug}`} class="carousel-card-mobile">
-            <img src={item.cover} alt={item.title} class="carousel-img-mobile" />
-            <div class="carousel-label-mobile">{item.shortTitle}</div>
-          </a>
-        ))}
-      </div>
-    </section>
-
-    <!-- 6. WHAT YOU CAN EXPECT -->
-    <section class="about-w about-expect-wrap">
-      <div class="about-section-header">
-        <h2 class="about-section-h2 about-expect-h2-desktop">What you can expect from me</h2>
-        <h2 class="about-section-h2 about-expect-h2-mobile">What you can expect</h2>
-      </div>
-
-      <div class="about-expect-grid">
-        <div class="about-expect-card">
-          <div class="about-expect-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="expect-svg">
-              <path d="M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6"></path>
-            </svg>
-          </div>
-          <div class="about-expect-text">
-            <h3 class="about-expect-title">{aboutData.expect_cards[0]?.title || 'Nothing untested'}</h3>
-            <p class="about-expect-desc">{aboutData.expect_cards[0]?.text || 'Every pack was built and bench-tested before any file is released.'}</p>
-          </div>
-        </div>
-
-        <div class="about-expect-card">
-          <div class="about-expect-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="expect-svg">
-              <path d="M4 4h6a3 3 0 013 3v13a2 2 0 00-2-2H4zM20 4h-6a3 3 0 00-3 3v13a2 2 0 012-2h7z"></path>
-            </svg>
-          </div>
-          <div class="about-expect-text">
-            <h3 class="about-expect-title">{aboutData.expect_cards[1]?.title || 'Everything documented'}</h3>
-            <p class="about-expect-desc">{aboutData.expect_cards[1]?.text || 'Source code, wiring pinouts and parts links with every project.'}</p>
-          </div>
-        </div>
-
-        <div class="about-expect-card">
-          <div class="about-expect-icon-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="expect-svg">
-              <path d="M4 6h16v12H4zM4 7l8 6 8-6"></path>
-            </svg>
-          </div>
-          <div class="about-expect-text">
-            <h3 class="about-expect-title">{aboutData.expect_cards[2]?.title || 'A real person replies'}</h3>
-            <p class="about-expect-desc">{aboutData.expect_cards[2]?.text || 'Questions go straight to me. Include your Order ID and I will help.'}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 7. WORK WITH ME -->
-    <section class="about-w about-work-wrap">
-      <div class="about-work-card">
-        <div class="about-work-left">
-          <h2 class="about-work-title">{aboutData.work_with_me.heading}</h2>
-          <p class="about-work-desc">{aboutData.work_with_me.text}</p>
-        </div>
-        <div class="about-work-right">
-          <a href={aboutData.work_with_me.btn_url || '/contact'} class="about-btn about-btn-red about-work-btn">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="work-mail-svg">
-              <path d="M4 6h16v12H4zM4 7l8 6 8-6"></path>
-            </svg>
-            <span>{aboutData.work_with_me.btn_text || 'Get in touch'}</span>
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- 8. FOLLOW THE BUILDS -->
-    <section class="about-w about-socials-wrap">
-      <div class="about-section-header">
-        <h2 class="about-section-h2">Follow the builds</h2>
-      </div>
-
-      <div class="about-socials-grid">
+    <!-- 5. FOLLOW THE BUILDS -->
+    <section class="about-container about-follow-section">
+      <h2 class="about-section-h2">Follow the builds</h2>
+      <div class="about-follow-grid">
         {socials.map((s) => (
-          <a href={s.url} target="_blank" rel="noopener noreferrer" class="about-social-card">
-            <span class="about-social-icon-box">
-              {s.icon === 'youtube' && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
-                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-                  <path d="M9.75 15.02 15.5 11.75 9.75 8.48z"></path>
-                </svg>
-              )}
-              {s.icon === 'instagram' && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
-                  <rect x="2" y="2" width="20" height="20" rx="5"></rect>
-                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                  <path d="M17.5 6.5h.01"></path>
-                </svg>
-              )}
-              {s.icon === 'github' && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
-                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                </svg>
-              )}
-              {s.icon === 'linkedin' && (
-                <svg viewBox="0 0 24 24" aria-hidden="true" class="social-svg">
-                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-                  <rect x="2" y="9" width="4" height="12"></rect>
-                  <circle cx="4" cy="4" r="2"></circle>
-                </svg>
-              )}
-            </span>
-            <span class="about-social-meta">
-              <b class="about-social-platform">{s.platform}</b>
-              <span class="about-social-handle">{s.handle}</span>
-            </span>
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="about-social-chevron">
-              <path d="M9 5l7 7-7 7"></path>
-            </svg>
+          <a
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="about-follow-card"
+          >
+            <span class="about-follow-name">{s.name}</span>
+            <span class="about-follow-chevron" aria-hidden="true"></span>
           </a>
         ))}
       </div>
     </section>
 
-    <!-- 9. CLOSING CALL TO ACTION -->
-    <section class="about-w about-cta-wrap">
-      <div class="about-cta-card">
-        <div class="about-cta-left">
-          <h2 class="about-cta-title">{aboutData.cta.heading}</h2>
-          <p class="about-cta-sub">{aboutData.cta.subline}</p>
+    <!-- 6. FREE PACK BAND -->
+    <section class="about-container about-cta-section">
+      <div class="about-cta-band">
+        <div class="about-cta-text">
+          <h2 class="about-cta-h2">Start with a free pack</h2>
+          <p class="about-cta-sub">
+            No signup, no email. Download the code and guide, then build.
+          </p>
         </div>
-        <div class="about-cta-right">
-          <a href={aboutData.cta.btn1_url || '/projects?price=free'} class="about-btn about-btn-red about-cta-btn">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="cta-download-svg">
-              <path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path>
-            </svg>
-            <span>{aboutData.cta.btn1_text || 'Free downloads'}</span>
-          </a>
-          <a href={aboutData.cta.btn2_url || '/projects'} class="about-btn about-btn-white-outline about-cta-btn-secondary">
-            <span>{aboutData.cta.btn2_text || 'Browse all projects'}</span>
-          </a>
+        <div class="about-cta-btns">
+          <a href="/projects?price=free" class="about-btn about-btn-solid">Free downloads</a>
+          <a href="/projects" class="about-btn about-btn-white-outline">Browse all projects</a>
         </div>
       </div>
     </section>
@@ -437,952 +217,522 @@ const jsonLd = {
 </Base>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
-
+  /* ==========================================================================
+     About Page — Design Tokens & Variables
+     ========================================================================== */
   .about-page {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
-    color: #0F1115;
+    --tt-red: #D4152B;
+    --tt-ink: #14151A;
+    --tt-muted: #565B66;
+    --tt-line: #E4E6EA;
+    --tt-line-2: #D5D8DE;
+    --tt-soft: #F4F5F7;
+    --tt-dark: #111318;
+    --tt-font: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+
+    font-family: var(--tt-font);
+    color: var(--tt-ink);
     background: #ffffff;
-    overflow-x: clip;
+    line-height: 1.5;
     width: 100%;
   }
 
-  /* Global Container from Design: padding 0 120px on desktop */
-  .about-w {
-    max-width: 1440px;
+  /* Page Container: max width 1120px; side padding 16px below 900px, 32px from 900px */
+  .about-container {
+    max-width: 1120px;
     margin: 0 auto;
-    padding-left: clamp(20px, 8vw, 120px);
-    padding-right: clamp(20px, 8vw, 120px);
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  @media (min-width: 900px) {
+    .about-container {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
   }
 
+  /* Typography primitives */
   .about-eyebrow {
-    color: #D91F26;
-    font-size: 14px;
+    color: var(--tt-red);
     font-weight: 600;
+    font-size: 13px;
+    margin: 0 0 6px 0;
   }
-  .about-link-red {
-    color: #D91F26;
-    font-weight: 600;
-    font-size: 15px;
-    text-decoration: none;
-  }
-  .about-link-red:hover {
-    text-decoration: underline;
+  @media (min-width: 900px) {
+    .about-eyebrow {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
   }
 
-  /* Base buttons from design */
-  .about-btn {
-    border: 0;
-    border-radius: 14px;
-    height: 54px;
-    padding: 0 28px;
+  .about-section-h2 {
+    font-size: 20px;
     font-weight: 700;
-    font-size: 16px;
+    line-height: 1.25;
+    color: var(--tt-ink);
+    margin: 0;
+  }
+  @media (min-width: 900px) {
+    .about-section-h2 {
+      font-size: 26px;
+      line-height: 1.2;
+    }
+  }
+
+  /* Shared Button Styles (height 48px, radius 999px) */
+  .about-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    white-space: nowrap;
+    height: 48px;
+    padding: 0 20px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
     text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     cursor: pointer;
-    transition: opacity 0.15s, transform 0.15s;
   }
-  .about-btn:hover {
-    opacity: 0.94;
-    transform: translateY(-1px);
+  @media (min-width: 900px) {
+    .about-btn {
+      padding: 0 24px;
+      font-size: 16px;
+    }
   }
-  .about-btn-red {
-    background: #D91F26;
+
+  .about-btn-solid {
+    background: var(--tt-red);
     color: #ffffff;
+    border: 2px solid var(--tt-red);
   }
+  .about-btn-solid:hover {
+    background: #b51022;
+    border-color: #b51022;
+  }
+
   .about-btn-outline {
     background: #ffffff;
-    color: #0F1115;
-    border: 1.5px solid #0F1115;
+    color: var(--tt-ink);
+    border: 2px solid var(--tt-ink);
   }
+  .about-btn-outline:hover {
+    background: #f4f5f7;
+  }
+
   .about-btn-white-outline {
     background: transparent;
     color: #ffffff;
-    border: 1.5px solid #3B4350;
+    border: 2px solid #ffffff;
   }
   .about-btn-white-outline:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
   }
 
-  .btn-play-icon {
-    width: 20px;
-    height: 20px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  /* ==========================================================================
+     1. INTRO SECTION
+     ========================================================================== */
+  .about-intro-section {
+    padding-top: 24px;
+    padding-bottom: 24px;
   }
-  .btn-yt-text-mobile {
-    display: none;
-  }
-
-  /* 1. HERO SECTION */
-  .about-hero-wrap {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
-    gap: 72px;
-    align-items: center;
-    padding-top: 64px;
-    padding-bottom: 72px;
-  }
-  .about-hero-headline {
-    margin: 14px 0 20px;
-    font-size: clamp(34px, 3.8vw, 52px);
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    font-weight: 700;
-    color: #0F1115;
-  }
-  .about-hero-intro {
-    font-size: clamp(16px, 1.25vw, 18px);
-    line-height: 1.55;
-    color: #5A6270;
-    margin: 0;
-    max-width: 560px;
-  }
-  .about-chips-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin: 22px 0 30px;
-  }
-  .about-pill {
-    display: inline-block;
-    background: #F4F5F7;
-    border-radius: 99px;
-    padding: 6px 14px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #0F1115;
-  }
-  .about-hero-btns {
-    display: flex;
-    gap: 12px;
-  }
-
-  .about-hero-photo-col {
-    position: relative;
-  }
-  .about-photo-wrap {
-    position: relative;
-    width: 100%;
-  }
-  .about-photo-img {
-    width: 100%;
-    aspect-ratio: 0.9;
-    object-fit: cover;
-    object-position: 50% 25%;
-    border-radius: 28px;
-    display: block;
-    background: #F4F5F7;
-  }
-  .about-photo-badge {
-    position: absolute;
-    left: 18px;
-    bottom: 18px;
-    background: #ffffff;
-    color: #0F1115;
-    border-radius: 99px;
-    padding: 9px 16px;
-    font-weight: 600;
-    font-size: 14px;
-    box-shadow: 0 8px 24px rgba(15, 17, 21, 0.18);
-    white-space: nowrap;
-  }
-
-  /* 2. NUMBERS STRIP */
-  .about-numbers-wrap {
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-  .about-numbers-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 24px;
-    border-top: 1px solid #E4E7EB;
-    border-bottom: 1px solid #E4E7EB;
-    padding: 20px 0;
-  }
-  .about-stat-item {
-    padding: 8px 0;
-  }
-  .about-stat-val {
-    font-size: 40px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #0F1115;
-    line-height: 1;
-    margin-bottom: 6px;
-  }
-  .about-stat-label {
-    font-size: 15px;
-    color: #5A6270;
-    line-height: 1.5;
-  }
-  .about-stat-label-mobile {
-    display: none;
-  }
-
-  /* 3. MY STORY */
-  .about-story-wrap {
-    padding-top: 88px;
-    display: grid;
-    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
-    gap: 80px;
-    align-items: flex-start;
-  }
-  .about-story-title {
-    font-size: clamp(28px, 2.8vw, 40px);
-    margin: 8px 0 20px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-    color: #0F1115;
-  }
-  .about-pull-quote {
-    border-left: 4px solid #D91F26;
-    padding-left: 20px;
-    font-size: clamp(19px, 1.5vw, 22px);
-    line-height: 1.3;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: #0F1115;
-  }
-  .about-story-prose {
-    font-size: 18px;
-    line-height: 1.65;
-    color: #3B4350;
-  }
-  .about-story-prose :global(p) {
-    margin: 0 0 18px;
-  }
-  .about-story-prose :global(strong),
-  .about-story-prose :global(b) {
-    color: #0F1115;
-  }
-
-  /* 4. HOW EVERY PACK IS MADE */
-  .about-steps-wrap {
-    padding-top: 88px;
-  }
-  .about-section-header {
+  .about-intro-grid {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 28px;
-  }
-  .about-section-h2 {
-    margin: 0;
-    font-size: 32px;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    font-weight: 700;
-    color: #0F1115;
-  }
-  .about-section-sub {
-    margin: 0;
-    font-size: 16px;
-    line-height: 1.55;
-    color: #5A6270;
-  }
-
-  .about-steps-grid-desktop {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
   }
-  .about-step-card {
-    border: 1px solid #E4E7EB;
-    border-radius: 20px;
+  .about-photo-col {
+    display: flex;
+  }
+  .about-photo {
+    width: 96px;
+    height: 96px;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: 50% 20%;
+    border: 1px solid var(--tt-line);
+    flex: none;
+  }
+  .about-h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--tt-ink);
+    margin: 0;
+  }
+  .about-tagline {
+    color: var(--tt-muted);
+    font-size: 15px;
+    margin: 6px 0 0 0;
+  }
+  .about-intro-para {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--tt-ink);
+    margin: 16px 0 0 0;
+  }
+  .about-intro-list {
+    margin: 12px 0 0 0;
+    padding-left: 20px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--tt-ink);
+  }
+  .about-intro-list li {
+    margin-bottom: 4px;
+  }
+  .about-inquiries {
+    color: var(--tt-muted);
+    font-size: 14px;
+    margin: 12px 0 0 0;
+  }
+  .about-inquiries-link {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .about-intro-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .about-intro-btns .about-btn {
+    flex: 1 1 150px;
+  }
+
+  @media (min-width: 900px) {
+    .about-intro-section {
+      padding-top: 64px;
+      padding-bottom: 56px;
+    }
+    .about-intro-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 56px;
+      align-items: center;
+    }
+    .about-photo {
+      width: 200px;
+      height: 200px;
+    }
+    .about-h1 {
+      font-size: 44px;
+      line-height: 1.1;
+    }
+    .about-tagline {
+      font-size: 17px;
+      margin-top: 8px;
+    }
+    .about-intro-para {
+      font-size: 18px;
+      margin-top: 20px;
+      max-width: 640px;
+    }
+    .about-intro-list {
+      margin-top: 16px;
+      font-size: 17px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    .about-inquiries {
+      font-size: 15px;
+      margin-top: 16px;
+    }
+    .about-intro-btns {
+      flex-wrap: nowrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .about-intro-btns .about-btn {
+      flex: 0 0 auto;
+    }
+  }
+
+  /* ==========================================================================
+     2. STATS ROW
+     ========================================================================== */
+  .about-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 16px;
+    padding: 24px 0;
+    border-top: 1px solid var(--tt-line);
+    border-bottom: 1px solid var(--tt-line);
+  }
+  .about-stat-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .about-stat-number {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--tt-ink);
+  }
+  .about-stat-label {
+    color: var(--tt-muted);
+    font-size: 13px;
+    line-height: 1.35;
+    margin-top: 4px;
+  }
+
+  @media (min-width: 900px) {
+    .about-stats-row {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      padding: 32px 0;
+    }
+    .about-stat-number {
+      font-size: 34px;
+    }
+    .about-stat-label {
+      font-size: 16px;
+      margin-top: 6px;
+    }
+  }
+
+  /* ==========================================================================
+     3. MY STORY
+     ========================================================================== */
+  .about-story-section {
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+  .about-story-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .about-story-h2 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--tt-ink);
+    margin: 0;
+  }
+  .about-story-quote {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--tt-ink);
+    margin: 12px 0 0 0;
+  }
+  .about-story-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--tt-ink);
+  }
+  .about-story-right p {
+    margin: 0;
+  }
+  .about-story-right strong {
+    font-weight: 700;
+  }
+
+  @media (min-width: 900px) {
+    .about-story-section {
+      padding-top: 56px;
+      padding-bottom: 56px;
+    }
+    .about-story-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 64px;
+      align-items: start;
+    }
+    .about-story-h2 {
+      font-size: 30px;
+      line-height: 1.2;
+    }
+    .about-story-quote {
+      font-size: 18px;
+      margin-top: 16px;
+    }
+    .about-story-right {
+      gap: 18px;
+      font-size: 18px;
+    }
+  }
+
+  /* ==========================================================================
+     4. WHAT YOU CAN EXPECT FROM ME
+     ========================================================================== */
+  .about-expect-section {
+    padding-top: 0;
+    padding-bottom: 32px;
+  }
+  .about-expect-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .about-expect-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .about-expect-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--tt-ink);
+    margin: 0 0 4px 0;
+  }
+  .about-expect-desc {
+    color: var(--tt-muted);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  @media (min-width: 900px) {
+    .about-expect-section {
+      padding-bottom: 56px;
+    }
+    .about-expect-list {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 18px;
+    }
+    .about-expect-title {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+    .about-expect-desc {
+      font-size: 15px;
+    }
+  }
+
+  /* ==========================================================================
+     5. FOLLOW THE BUILDS
+     ========================================================================== */
+  .about-follow-section {
+    padding-top: 0;
+    padding-bottom: 32px;
+  }
+  .about-follow-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .about-follow-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid var(--tt-line-2);
+    border-radius: 12px;
+    color: var(--tt-ink);
+    font-weight: 600;
+    font-size: 15px;
+    text-decoration: none;
     background: #ffffff;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .about-follow-card:hover {
+    border-color: var(--tt-ink);
+  }
+  .about-follow-chevron {
+    width: 7px;
+    height: 7px;
+    border: solid var(--tt-muted);
+    border-width: 2px 2px 0 0;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 900px) {
+    .about-follow-section {
+      padding-bottom: 56px;
+    }
+    .about-follow-grid {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .about-follow-card {
+      height: 56px;
+      padding: 0 20px;
+      border-radius: 14px;
+      font-size: 16px;
+    }
+    .about-follow-chevron {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  /* ==========================================================================
+     6. FREE PACK BAND
+     ========================================================================== */
+  .about-cta-section {
+    padding-top: 0;
+    padding-bottom: 32px;
+  }
+  .about-cta-band {
+    background: var(--tt-dark);
+    color: #ffffff;
+    border-radius: 20px;
     padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-  }
-  .about-step-icon-box {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    background: #FDE9EA;
-    color: #D91F26;
-    display: grid;
-    place-items: center;
-    flex: none;
-  }
-  .step-svg {
-    width: 24px;
-    height: 24px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .about-step-sublabel {
-    font-size: 14px;
-    font-weight: 600;
-    color: #5A6270;
-  }
-  .about-step-title {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    color: #0F1115;
-  }
-  .about-step-text {
-    margin: 0;
-    font-size: 15px;
-    line-height: 1.5;
-    color: #5A6270;
-  }
-  .about-steps-timeline-mobile {
-    display: none;
-  }
-
-  /* 5. ON THE WORKBENCH */
-  .about-workbench-wrap {
-    padding-top: 88px;
-  }
-  .about-workbench-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 24px;
-    margin-bottom: 28px;
-  }
-  .about-workbench-mosaic-desktop {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: 200px 200px;
-    gap: 16px;
-  }
-  .mosaic-tile-hero {
-    grid-column: span 2;
-    grid-row: span 2;
-    border-radius: 18px;
-    overflow: hidden;
-    display: block;
-  }
-  .mosaic-tile-top-left,
-  .mosaic-tile-top-right {
-    grid-column: span 1;
-    grid-row: span 1;
-    border-radius: 18px;
-    overflow: hidden;
-    display: block;
-  }
-  .mosaic-tile-bottom-wide {
-    grid-column: span 2;
-    grid-row: span 1;
-    border-radius: 18px;
-    overflow: hidden;
-    display: block;
-  }
-  .mosaic-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.25s ease;
-  }
-  .mosaic-tile-hero:hover .mosaic-img,
-  .mosaic-tile-top-left:hover .mosaic-img,
-  .mosaic-tile-top-right:hover .mosaic-img,
-  .mosaic-tile-bottom-wide:hover .mosaic-img {
-    transform: scale(1.02);
-  }
-  .about-workbench-carousel-mobile {
-    display: none;
-  }
-
-  /* 6. WHAT YOU CAN EXPECT */
-  .about-expect-wrap {
-    padding-top: 88px;
-  }
-  .about-expect-h2-mobile {
-    display: none;
-  }
-  .about-expect-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
   }
-  .about-expect-card {
-    background: #F4F5F7;
-    border-radius: 20px;
-    padding: 28px;
-    display: flex;
-    flex-direction: column;
-  }
-  .about-expect-icon-box {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    background: #FDE9EA;
-    color: #D91F26;
-    display: grid;
-    place-items: center;
-    flex: none;
-  }
-  .expect-svg {
-    width: 24px;
-    height: 24px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .about-expect-title {
-    font-size: 20px;
+  .about-cta-h2 {
+    font-size: 22px;
     font-weight: 700;
-    margin: 16px 0 8px;
-    color: #0F1115;
-  }
-  .about-expect-desc {
-    margin: 0;
-    font-size: 15px;
-    line-height: 1.5;
-    color: #5A6270;
-  }
-
-  /* 7. WORK WITH ME */
-  .about-work-wrap {
-    padding-top: 88px;
-  }
-  .about-work-card {
-    border: 1px solid #E4E7EB;
-    border-radius: 28px;
-    padding: 40px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 40px;
-    align-items: center;
-    background: #ffffff;
-  }
-  .about-work-title {
-    margin: 0;
-    font-size: 32px;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    font-weight: 700;
-    color: #0F1115;
-  }
-  .about-work-desc {
-    font-size: 16px;
-    line-height: 1.55;
-    color: #5A6270;
-    margin: 10px 0 0;
-    max-width: 560px;
-  }
-  .work-mail-svg {
-    width: 20px;
-    height: 20px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  /* 8. FOLLOW THE BUILDS */
-  .about-socials-wrap {
-    padding-top: 88px;
-  }
-  .about-socials-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-  }
-  .about-social-card {
-    background: #F4F5F7;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 20px 22px;
-    text-decoration: none;
-    color: #0F1115;
-    transition: transform 0.15s ease, background 0.15s ease;
-  }
-  .about-social-card:hover {
-    transform: translateY(-2px);
-    background: #edf0f5;
-  }
-  .about-social-icon-box {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: #ffffff;
-    display: grid;
-    place-items: center;
-    flex: none;
-    color: #0F1115;
-  }
-  .social-svg {
-    width: 22px;
-    height: 22px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .about-social-meta {
-    flex: 1;
-    min-width: 0;
-  }
-  .about-social-platform {
-    font-size: 17px;
-    font-weight: 700;
-    color: #0F1115;
-    display: block;
-  }
-  .about-social-handle {
-    display: block;
-    font-size: 13px;
-    color: #5A6270;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .about-social-chevron {
-    width: 20px;
-    height: 20px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    color: #0F1115;
-    flex: none;
-  }
-
-  /* 9. CLOSING CALL TO ACTION */
-  .about-cta-wrap {
-    padding-top: 88px;
-    padding-bottom: 96px;
-  }
-  .about-cta-card {
-    background: #111418;
+    line-height: 1.2;
     color: #ffffff;
-    border-radius: 28px;
-    padding: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 40px;
-  }
-  .about-cta-title {
     margin: 0;
-    color: #ffffff;
-    font-size: 36px;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    font-weight: 700;
   }
   .about-cta-sub {
-    color: #C7CCD4;
-    font-size: 17px;
-    margin: 10px 0 0;
+    margin: 8px 0 0 0;
+    color: #C9CCD3;
+    font-size: 15px;
     line-height: 1.5;
   }
-  .about-cta-right {
-    display: flex;
-    gap: 12px;
-    flex: none;
+  .about-cta-btns {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
-  .cta-download-svg {
-    width: 20px;
-    height: 20px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  .about-cta-btns .about-btn {
+    width: 100%;
   }
 
-  /* =========================================================================
-     MOBILE DESIGN IMPLEMENTATION (< 768px)
-     Matches AboutV2M.dc.html pixel-for-pixel
-     ========================================================================= */
-  @media (max-width: 768px) {
-    .about-w {
-      padding-left: 16px;
-      padding-right: 16px;
+  @media (min-width: 900px) {
+    .about-cta-section {
+      padding-bottom: 56px;
     }
-
-    /* 1. Mobile Hero: Photo first, then text, two equal buttons */
-    .about-hero-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      padding-top: 16px;
-      padding-bottom: 0;
-    }
-    .about-hero-photo-col {
-      order: -1;
-      width: 100%;
-    }
-    .about-photo-img {
-      aspect-ratio: 1.05;
-      border-radius: 22px;
-    }
-    .about-photo-badge {
-      left: 12px;
-      bottom: 12px;
-      padding: 7px 13px;
-      font-size: 13px;
-      box-shadow: 0 6px 18px rgba(15, 17, 21, 0.18);
-    }
-    .about-hero-text {
-      margin-top: 20px;
-      width: 100%;
-    }
-    .about-hero-headline {
-      font-size: 29px;
-      line-height: 1.1;
-      letter-spacing: -0.025em;
-      margin: 8px 0 12px;
-    }
-    .about-hero-intro {
-      font-size: 16px;
-      line-height: 1.5;
-    }
-    .about-chips-row {
-      gap: 6px;
-      margin: 14px 0 18px;
-    }
-    .about-pill {
-      font-size: 13px;
-    }
-    .about-hero-btns {
-      display: flex;
-      gap: 10px;
-      width: 100%;
-    }
-    .about-btn {
-      flex: 1;
-      min-height: 48px;
-      height: 48px;
-      padding: 0 16px;
-      font-size: 15px;
-    }
-    .btn-play-icon {
-      width: 18px;
-      height: 18px;
-    }
-    .btn-yt-text-desktop {
-      display: none;
-    }
-    .btn-yt-text-mobile {
-      display: inline;
-    }
-
-    /* 2. Mobile Numbers: 2x2 grid of .k cards */
-    .about-numbers-wrap {
-      padding-top: 8px;
-      padding-bottom: 0;
-    }
-    .about-numbers-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      border: none;
-      padding: 0;
-    }
-    .about-stat-item {
-      background: #F4F5F7;
-      border-radius: 16px;
-      padding: 14px;
-    }
-    .about-stat-val {
-      font-size: 26px;
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-    .about-stat-label-desktop {
-      display: none;
-    }
-    .about-stat-label-mobile {
-      display: block;
-      font-size: 13px;
-      color: #5A6270;
-    }
-
-    /* 3. Mobile Story */
-    .about-story-wrap {
-      padding-top: 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    .about-story-title {
-      font-size: 26px;
-      margin: 6px 0 14px;
-    }
-    .about-pull-quote {
-      padding-left: 14px;
-      font-size: 19px;
-      line-height: 1.3;
-      margin-bottom: 16px;
-    }
-    .about-story-prose {
-      font-size: 15px;
-      line-height: 1.5;
-      color: #5A6270;
-    }
-    .about-story-prose :global(p) {
-      margin: 0 0 12px;
-    }
-
-    /* 4. Mobile Steps: Timeline with connected line */
-    .about-steps-wrap {
-      padding-top: 28px;
-    }
-    .about-section-h2 {
-      font-size: 24px;
-      margin-bottom: 0;
-    }
-    .about-section-sub {
-      display: none;
-    }
-    .about-section-header {
-      margin-bottom: 14px;
-    }
-    .about-steps-grid-desktop {
-      display: none;
-    }
-    .about-steps-timeline-mobile {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    .about-timeline-row {
-      display: flex;
-      gap: 14px;
-    }
-    .about-timeline-left {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .about-timeline-dot {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: #D91F26;
-      color: #ffffff;
-      display: grid;
-      place-items: center;
-      font-weight: 700;
-      flex: none;
-      font-size: 15px;
-    }
-    .about-timeline-line {
-      flex: 1;
-      width: 2px;
-      background: #E4E7EB;
-      margin: 4px 0;
-      min-height: 24px;
-    }
-    .about-timeline-content {
-      padding-bottom: 18px;
-    }
-    .about-timeline-row:last-child .about-timeline-content {
-      padding-bottom: 0;
-    }
-    .about-timeline-title {
-      font-size: 17px;
-      margin: 4px 0;
-      font-weight: 700;
-      color: #0F1115;
-    }
-    .about-timeline-desc {
-      font-size: 14px;
-      line-height: 1.5;
-      color: #5A6270;
-    }
-
-    /* 5. Mobile Workbench: Horizontal Carousel */
-    .about-workbench-wrap {
-      padding-top: 28px;
-    }
-    .about-workbench-header {
-      margin-bottom: 14px;
-    }
-    .about-workbench-header .about-link-red {
-      display: none;
-    }
-    .about-workbench-mosaic-desktop {
-      display: none;
-    }
-    .about-workbench-carousel-mobile {
-      display: flex;
-      gap: 12px;
-      overflow-x: auto;
-      margin: 0 -16px;
-      padding: 2px 16px 8px;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .about-workbench-carousel-mobile::-webkit-scrollbar {
-      display: none;
-    }
-    .carousel-card-mobile {
-      width: 220px;
-      flex: none;
-      scroll-snap-align: start;
-      text-decoration: none;
-    }
-    .carousel-img-mobile {
-      width: 100%;
-      aspect-ratio: 1.4;
-      object-fit: cover;
-      border-radius: 16px;
-      display: block;
-    }
-    .carousel-label-mobile {
-      font-size: 13px;
-      color: #5A6270;
-      margin-top: 6px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* 6. Mobile Expect: stacked .k cards */
-    .about-expect-wrap {
-      padding-top: 28px;
-    }
-    .about-expect-h2-desktop {
-      display: none;
-    }
-    .about-expect-h2-mobile {
-      display: block;
-    }
-    .about-expect-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .about-expect-card {
-      border-radius: 16px;
-      padding: 16px;
-      display: flex;
+    .about-cta-band {
+      border-radius: 24px;
+      padding: 48px;
       flex-direction: row;
-      gap: 14px;
-      align-items: flex-start;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
     }
-    .about-expect-icon-box {
-      width: 44px;
-      height: 44px;
-    }
-    .about-expect-title {
-      font-size: 15px;
-      margin: 0;
-    }
-    .about-expect-desc {
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    /* 7. Mobile Work with me */
-    .about-work-wrap {
-      padding-top: 20px;
-    }
-    .about-work-card {
-      border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    .about-work-title {
-      font-size: 22px;
-    }
-    .about-work-desc {
-      font-size: 14px;
-      line-height: 1.5;
-      margin: 8px 0 14px;
-    }
-    .about-work-right {
-      width: 100%;
-    }
-    .about-work-btn {
-      width: 100%;
-    }
-
-    /* 8. Mobile Follow the builds: 2x2 grid */
-    .about-socials-wrap {
-      padding-top: 28px;
-    }
-    .about-socials-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .about-social-card {
-      border-radius: 16px;
-      padding: 14px;
-      gap: 10px;
-    }
-    .about-social-icon-box {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-    }
-    .social-svg {
-      width: 20px;
-      height: 20px;
-    }
-    .about-social-platform {
-      font-size: 15px;
-    }
-    .about-social-handle {
-      display: none;
-    }
-    .about-social-chevron {
-      width: 16px;
-      height: 16px;
-    }
-
-    /* 9. Mobile Closing CTA */
-    .about-cta-wrap {
-      padding-top: 28px;
-      padding-bottom: 32px;
-    }
-    .about-cta-card {
-      border-radius: 20px;
-      padding: 22px;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0;
-    }
-    .about-cta-title {
-      font-size: 24px;
-      line-height: 1.15;
+    .about-cta-h2 {
+      font-size: 30px;
     }
     .about-cta-sub {
-      font-size: 14px;
-      margin: 8px 0 16px;
+      font-size: 17px;
+      max-width: 440px;
     }
-    .about-cta-right {
-      width: 100%;
+    .about-cta-btns {
+      display: flex;
+      flex-direction: row;
+      gap: 12px;
     }
-    .about-cta-btn {
-      width: 100%;
-    }
-    .about-cta-btn-secondary {
-      display: none;
+    .about-cta-btns .about-btn {
+      width: auto;
     }
   }
 </style>
